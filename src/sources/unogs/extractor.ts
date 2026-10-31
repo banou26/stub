@@ -24,41 +24,62 @@ let _tokenExpiry: number = 0
 let _tokenPromise: Promise<string> | undefined
 
 /**
- * Whose failure a rejected unOGS call is evidence of, which decides whether it may stop EVERY title.
+ * How long one unOGS call may stay out before it counts as unOGS not answering.
  *
- * - `upstream`: the token call failed, or the request never arrived. That is about unOGS itself and
- *   says nothing about the id, so it is the only thing that arms the module-global cooldown.
- * - `title`: unOGS answered and the answer is about this one id (a non-success status, a body this
- *   source cannot read). unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
- *   season-suffixed ids this app mints itself (measured 2026-09-12), so one such id arming a global
- *   gate would send every Netflix row to the truncated fallback for a minute for no reason at all.
+ * A healthy one took at most 2.63 s (2026-10-31, 102 calls direct and through the relay: token 1.37 s,
+ * detail 2.63 s, search 2.40 s, episodes 1.51 s, artwork 0.75 s). A down one stayed out about 35 s and
+ * came back 502, four times over through the backoff, so the whole ask went past its 30 s limit
+ * (`ASK_BOUND_MS`) before Netflix was reached. Cutting off a slow answer costs little: the same seasons
+ * come from Netflix.
+ *
+ * Exported for tests/unit/sources/unogs/unogs-down.test.ts; nothing else imports it.
  */
-type UnogsFailureScope = 'upstream' | 'title'
+export const UNOGS_WAIT_MS = 10_000
 
-/** A failed unOGS call, carrying whose failure it is. Thrown by `api` and read by `unogsSeasons`. */
-class UnogsCallError extends Error {
-  scope: UnogsFailureScope
-  constructor(message: string, scope: UnogsFailureScope) {
-    super(message)
-    this.name = 'UnogsCallError'
-    this.scope = scope
-  }
+/**
+ * How long unOGS is left alone after IT failed, as opposed to after one title's ask failed.
+ *
+ * A page opening several Netflix rows asks this source many times within a second or two, and without a
+ * memory every one of those waits out `UNOGS_WAIT_MS` on an upstream that is already unwell. One minute
+ * is short enough that a blip costs one skipped attempt and long enough to collapse a burst.
+ *
+ * Exported for the same test.
+ */
+export const UNOGS_COOLDOWN_MS = 60_000
+let _unogsDownUntil = 0
+
+/**
+ * Arms the cooldown, which stops EVERY title, so only evidence about unOGS itself may reach here: the
+ * token call failed, or a request never arrived. A non-success status or a body this source cannot read
+ * is about one id. unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
+ * season-suffixed ids this app mints itself (measured 2026-09-12), so one such id arming a global gate
+ * would send every Netflix row to the truncated fallback for a minute for no reason at all.
+ */
+const upstreamFailure = (error: unknown): never => {
+  _unogsDownUntil = Date.now() + UNOGS_COOLDOWN_MS
+  throw error
 }
 
-// An error nobody classified is NOT read as an outage: the cooldown stops every title, so arming it
-// takes positive evidence about the upstream rather than the absence of evidence about the title.
-const failureScope = (error: unknown): UnogsFailureScope =>
-  error instanceof UnogsCallError ? error.scope : 'title'
-
-const upstreamFailure = (error: unknown): never => {
-  throw error instanceof UnogsCallError ? error : new UnogsCallError(String(error), 'upstream')
+/**
+ * One request to unOGS, given up on at `UNOGS_WAIT_MS`. The signal is what ends the backoff's retries;
+ * the race is what ends the wait, since the relay's fetch may stay out past an abort.
+ */
+const unogsFetch = (url: string, init: RequestInit, ctx: ExtractorServerContext): Promise<Response> => {
+  const wait = new AbortController()
+  const timer = setTimeout(() => wait.abort(), UNOGS_WAIT_MS)
+  return Promise.race([
+    ctx.fetch(url, { ...init, signal: wait.signal }),
+    new Promise<never>((_, reject) => {
+      wait.signal.addEventListener('abort', () => reject(new Error(`uNoGS did not answer ${url} in ${UNOGS_WAIT_MS} ms`)), { once: true })
+    }),
+  ]).finally(() => clearTimeout(timer))
 }
 
 const getToken = async (ctx: ExtractorServerContext): Promise<string> => {
   if (_token && Date.now() < _tokenExpiry) return _token
   if (_tokenPromise) return _tokenPromise
   _tokenPromise = (async () => {
-    const res = await ctx.fetch('https://unogs.com/api/user', {
+    const res = await unogsFetch('https://unogs.com/api/user', {
       headers: {
         accept: 'application/json',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -68,8 +89,8 @@ const getToken = async (ctx: ExtractorServerContext): Promise<string> => {
       method: 'POST',
       mode: 'cors',
       credentials: 'include'
-    }).then(r => r.json())
-    if (!res.token?.access_token) throw new UnogsCallError(`uNoGS token fetch failed: ${JSON.stringify(res)}`, 'upstream')
+    }, ctx).then(r => r.json())
+    if (!res.token?.access_token) throw new Error(`uNoGS token fetch failed: ${JSON.stringify(res)}`)
     _tokenExpiry = Date.now() + 12 * 60 * 60 * 1000
     return (_token = res.token.access_token)
   })().finally(() => { _tokenPromise = undefined })
@@ -122,9 +143,11 @@ const dedupe = <T>(key: string, call: () => Promise<T>): Promise<T> => {
  * 404 for an unknown title from "no such title" (an empty detail array, which `getMedia` already reads
  * as undefined) into a rejected resolver.
  */
-const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } = {}): Promise<T> =>
-  dedupe(url, () => getToken(ctx).catch(upstreamFailure).then(token =>
-    ctx.fetch(url, {
+const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } = {}): Promise<T> => {
+  // refused ahead of `upstreamFailure`, or asking during the cooldown would keep extending it
+  if (Date.now() < _unogsDownUntil) return Promise.reject(new Error(`uNoGS is being left alone, ${url} was not asked`))
+  return dedupe(url, () => getToken(ctx).catch(upstreamFailure).then(token =>
+    unogsFetch(url, {
       headers: {
         accept: 'application/json',
         authorization: `Bearer ${token}`,
@@ -133,16 +156,17 @@ const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } 
       },
       mode: 'cors',
       credentials: 'include'
-    }).catch(upstreamFailure).then(r => {
+    }, ctx).catch(upstreamFailure).then(r => {
       // a stubbed Response may omit `ok`, and an absent field is not a claim that the call failed
       if (requireOk && r.ok === false) {
         // a revoked token is answered 500, and the 12 h cache would otherwise keep serving it
         forgetToken()
-        throw new UnogsCallError(`uNoGS answered ${r.status} for ${url}`, 'title')
+        throw new Error(`uNoGS answered ${r.status} for ${url}`)
       }
       return r.json() as T
     })
   ))
+}
 
 interface UnogsTitle {
   netflixid: number
@@ -264,8 +288,8 @@ const UNOGS = 'https://unogs.com/api'
 const fetchDetail = (id: string, ctx: ExtractorServerContext) =>
   api<UnogsTitle[]>(`${UNOGS}/title/detail?netflixid=${id}`, ctx)
 
-const fetchBgImages = (id: string, ctx: ExtractorServerContext) =>
-  api<UnogsBgImages>(`${UNOGS}/title/bgimages?netflixid=${id}`, ctx)
+const fetchBgImages = (id: string, ctx: ExtractorServerContext): Promise<UnogsBgImages | undefined> =>
+  api<UnogsBgImages>(`${UNOGS}/title/bgimages?netflixid=${id}`, ctx).catch(() => undefined)
 
 /**
  * unOGS' episodes payload as this source reads it, or undefined when the body is not that payload.
@@ -390,27 +414,12 @@ const netflixSeasons = (title: NetflixTitle): SeasonListing => {
 }
 
 /**
- * How long unOGS is left alone after IT failed, as opposed to after one title's ask failed.
- *
- * A page opening several Netflix rows asks this source many times within a second or two. Without a
- * memory, every one of those pays a failing episodes call before reaching the fallback, which is the
- * worst possible behaviour toward an upstream that is already unwell. (The token is cached for 12 h
- * and the detail and artwork calls are not gated by this, so what the window saves is the episodes
- * call alone.) One minute is short enough that a blip costs one skipped attempt and long enough to
- * collapse a burst.
- *
- * IT IS MODULE GLOBAL, so only a failure that is evidence about unOGS may arm it: see
- * `UnogsFailureScope`, and finding 3 of the review that split them apart.
- */
-const UNOGS_COOLDOWN_MS = 60_000
-let _unogsDownUntil = 0
-
-/**
  * Forget the token, the in-flight calls and the unOGS cooldown. Exported for tests, which need a
  * clean module between cases; nothing in the app calls it.
  */
 export const resetUnogsCaches = () => {
   forgetToken()
+  _tokenPromise = undefined
   _unogsDownUntil = 0
   _inflight.clear()
 }
@@ -426,9 +435,9 @@ export const resetUnogsCaches = () => {
  * claim about the title, and treating it as an outage would put every film and every unlisted title
  * into the cooldown and send the whole source to the fallback.
  *
- * WHAT COUNTS AS "unOGS IS DOWN" is a SHORTER list, and that is the whole point of the split: only a
- * failure scoped `upstream` arms the cooldown every other title then pays. A 200 carrying `{}` for one
- * id is the upstream working and this app asking a question it cannot parse, which is exactly what a
+ * WHAT COUNTS AS "unOGS IS DOWN" is a SHORTER list, and that is the whole point of the split: only
+ * `upstreamFailure` arms the cooldown every other title then pays. A 200 carrying `{}` for one id is the
+ * upstream working and this app asking a question it cannot parse, which is exactly what a
  * season-suffixed id does.
  */
 const unogsSeasons = async (id: string, ctx: ExtractorServerContext): Promise<NetflixSeason[] | undefined> => {
@@ -438,25 +447,57 @@ const unogsSeasons = async (id: string, ctx: ExtractorServerContext): Promise<Ne
     if (!seasons) console.error(`uNoGS episodes for ${id} came back in a shape this source cannot read`)
     return seasons
   } catch (error) {
-    if (failureScope(error) === 'upstream') _unogsDownUntil = Date.now() + UNOGS_COOLDOWN_MS
     console.error(`uNoGS episodes for ${id} failed`, error)
     return undefined
   }
 }
 
-/** Netflix's own endpoint, asked only when unOGS could not answer. A failure here is loud and empty. */
-const netflixFallbackSeasons = (id: string, ctx: ExtractorServerContext): Promise<SeasonListing | undefined> =>
+/** Netflix's own endpoint, asked only when unOGS could not answer. A failure here is loud. */
+const netflixLanding = (id: string, ctx: ExtractorServerContext) =>
   dedupe(`netflix:${id}`, async () => {
     const result = await fetchNetflixTitle(id, ctx)
-    if (!result.ok) {
-      // A stale persisted query is logged rather than thrown: it is a real, actionable failure, and it
-      // is also the one thing that would otherwise take this source down entirely on the path where
-      // unOGS answered an empty list quite legitimately.
-      console.error(`Netflix fallback for ${id} failed (${result.failure}): ${result.message}`)
-      return undefined
-    }
-    return result.title && netflixSeasons(result.title)
+    // A stale persisted query is logged rather than thrown: it is a real, actionable failure, and it
+    // is also the one thing that would otherwise take this source down entirely on the path where
+    // unOGS answered an empty list quite legitimately.
+    if (!result.ok) console.error(`Netflix fallback for ${id} failed (${result.failure}): ${result.message}`)
+    return result
   })
+
+const netflixFallbackSeasons = async (id: string, ctx: ExtractorServerContext): Promise<SeasonListing | undefined> => {
+  const result = await netflixLanding(id, ctx)
+  return result.ok && result.title ? netflixSeasons(result.title) : undefined
+}
+
+/**
+ * The title as unOGS describes it, or as Netflix's landing query does when unOGS cannot answer.
+ *
+ * `year` stays empty because Netflix's `latestYear` is the NEWEST year (2026 for a show that began in
+ * 2021), and the title's year is offered to the first season as a veto (`netflixCandidates`).
+ *
+ * THROWS when neither answers. A refusal is final for its evidence where a failure is asked again, so
+ * reading an outage as "no such title" would cost a show its Netflix row for the session.
+ */
+const fetchTitle = async (id: string, ctx: ExtractorServerContext): Promise<UnogsTitle | undefined> => {
+  try {
+    return (await fetchDetail(id, ctx))[0]
+  } catch (error) {
+    console.error(`uNoGS detail for ${id} failed`, error)
+    const result = await netflixLanding(id, ctx)
+    if (!result.ok) throw error
+    return result.title && {
+      netflixid: result.title.videoId,
+      title: result.title.title,
+      synopsis: result.title.synopsis ?? '',
+      vtype: result.title.vtype,
+      img: '',
+      lgimg: '',
+      nfdate: '',
+      year: null,
+      imdbid: null,
+      imdbrating: null
+    }
+  }
+}
 
 /**
  * WHICH SEASONS a Netflix title has, from unOGS when it can answer and from Netflix's landing query
@@ -579,14 +620,32 @@ const withNetflixEpisodes = async (
 }
 
 /**
+ * The listing with every season the landing query cut at ten read whole, one request each.
+ *
+ * Only the fallback's listing holds any. A cut season offers the picker no count and no titles, so
+ * without this the picker refuses, and a refusal is final for its evidence: an outage would cost every
+ * show with a season of ten or more its Netflix row for the session (All of Us Are Dead, 12, measured
+ * 2026-10-31).
+ */
+const wholeSeasons = async (listing: SeasonListing, ctx: ExtractorServerContext): Promise<SeasonListing> => {
+  let whole = listing
+  for (const { season, truncated } of listing.seasons) {
+    if (truncated) whole = await withNetflixEpisodes(whole, season, ctx)
+  }
+  return whole
+}
+
+/**
  * Every season of a Netflix title, with the named season's episodes from Netflix's own endpoint.
  *
  * `seasonNumber` is the season being PUBLISHED, not a filter: the whole listing comes back either way,
  * because the season picker reads every season. Passing nothing asks for the index alone, which is one
- * request; passing a season adds one more.
+ * request while unOGS answers; passing a season adds one more.
  */
-const fetchEpisodes = async (id: string, ctx: ExtractorServerContext, seasonNumber?: number): Promise<SeasonListing> =>
-  withNetflixEpisodes(await fetchSeasonIndex(id, ctx), seasonNumber, ctx)
+const fetchEpisodes = async (id: string, ctx: ExtractorServerContext, seasonNumber?: number): Promise<SeasonListing> => {
+  const index = await fetchSeasonIndex(id, ctx)
+  return seasonNumber == null ? wholeSeasons(index, ctx) : withNetflixEpisodes(index, seasonNumber, ctx)
+}
 
 const searchApi = (query: string, ctx: ExtractorServerContext) =>
   api<{ results: UnogsSearchResult[] }>(
@@ -724,8 +783,7 @@ export const getMedia = async (
   seasonNumber?: number,
   requireSeason = false
 ): Promise<GQLMedia | undefined> => {
-  const [detailRes, bgImagesRes] = await Promise.all([fetchDetail(id, ctx), fetchBgImages(id, ctx)])
-  const title = detailRes[0]
+  const [title, bgImagesRes] = await Promise.all([fetchTitle(id, ctx), fetchBgImages(id, ctx)])
   if (!title) return undefined
   if (requireSeason && seasonNumber == null && title.vtype === 'series') return undefined
   const listing = title.vtype === 'series' ? await fetchEpisodes(id, ctx, seasonNumber) : undefined
@@ -883,7 +941,7 @@ const matchNetflixSeason = async (
  */
 const similarSeason = async (input: SimilarMediaInput, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
   if (!input?.showId) return undefined
-  const detail = (await fetchDetail(input.showId, ctx))?.[0]
+  const detail = await fetchTitle(input.showId, ctx)
   if (detail?.vtype !== 'series') return undefined
   const listing = await fetchEpisodes(input.showId, ctx)
   if (!listing.seasons.length) return undefined
@@ -912,7 +970,7 @@ const similarSeason = async (input: SimilarMediaInput, ctx: ExtractorServerConte
  */
 const containingSeason = async (input: SimilarMediaInput, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
   if (!input?.showId) return undefined
-  const detail = (await fetchDetail(input.showId, ctx))?.[0]
+  const detail = await fetchTitle(input.showId, ctx)
   if (detail?.vtype !== 'series') return undefined
   const listing = await fetchEpisodes(input.showId, ctx)
   if (!listing.seasons.length) return undefined
@@ -944,7 +1002,7 @@ export const linkNetflix = async (
   vtype?: string,
   year?: number | string | null
 ): Promise<GQLMedia | undefined> => {
-  const detail = vtype === undefined ? (await fetchDetail(nfId, ctx))[0] : undefined
+  const detail = vtype === undefined ? await fetchTitle(nfId, ctx) : undefined
   const kind = vtype ?? detail?.vtype
   if (kind !== 'series') return getMedia(nfId, ctx, undefined, true)
   const match = await matchNetflixSeason(nfId, aggregatedUri, ctx, year ?? detail?.year)

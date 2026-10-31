@@ -109,6 +109,8 @@ export type NetflixSeasonListing = {
 /** One Netflix title: the show, its seasons, and how complete that listing is. */
 export type NetflixTitle = {
   videoId: number
+  /** `movie` for a film and `series` for anything else, the words unOGS' `vtype` uses for the same fact. */
+  vtype: 'series' | 'movie'
   title: string
   synopsis?: string
   /** Netflix's `latestYear` for the whole TITLE, which is not any one season's year. */
@@ -443,6 +445,7 @@ export const fetchNetflixTitle = async (videoId: string | number, ctx: Extractor
     ok: true,
     title: {
       videoId: videoIdOut,
+      vtype: video.__typename === 'Movie' ? 'movie' : 'series',
       title: asString(video.title) ?? '',
       synopsis: asString(video.shortSynopsis),
       year: asNumber(video.latestYear),
