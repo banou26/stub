@@ -90,6 +90,17 @@ test('the document that plays is not the one the worker connected to, so it take
   expect(told).toEqual(['configure', 'play'])
 })
 
+test('a release the viewer left while the document took its values is not played', async () => {
+  const takes: (() => void)[] = []
+  const { played, source } = playing()
+  fkn.source = { ...source, configure: () => new Promise<void>(resolve => { takes.push(resolve) }) }
+  const { next } = await shown(1)
+  await next(2)
+  for (const take of takes) take()
+  await settle()
+  expect(played).toEqual(['nyaa:2'])
+})
+
 test('one document of the package plays each release of its source in turn, and goes with the player', async () => {
   const { played } = playing()
   const { next } = await shown(1)

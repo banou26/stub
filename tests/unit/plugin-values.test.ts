@@ -71,6 +71,15 @@ test('a source is handed the values saved for it when it connects, and only thos
   await disablePlugin(SOURCE)
 })
 
+test('what is kept but cannot be read counts as no values, and the source still connects and leaves', async () => {
+  connecting()
+  stored.set(PLUGIN_VALUES_KEY, '{not json')
+  await installPlugin(SOURCE)
+  await vi.waitFor(() => expect(handed(SOURCE)).toEqual([{}]))
+  await disablePlugin(SOURCE)
+  expect(stored.has(PLUGIN_VALUES_KEY)).toBe(false)
+})
+
 test('the page learns what a source asks for once it connected', async () => {
   connecting()
   worker.registerRemoteSource.mockResolvedValueOnce({ ok: { sources: [], rejected: [], settings: FIELDS } })

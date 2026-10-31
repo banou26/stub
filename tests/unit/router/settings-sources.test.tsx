@@ -381,6 +381,13 @@ describe('a source that lists settings', () => {
     expect([...row(ASKING.uri).querySelectorAll('label')].map(label => label.textContent)).toEqual(['Server address'])
   })
 
+  test('what is kept but cannot be read shows an empty form, and the row stays', () => {
+    stored.set(PLUGIN_VALUES_KEY, '{not json')
+    const { row } = render([ASKING])
+    expect(field(row(ASKING.uri), 'Server address').value).toBe('')
+    expect(row(ASKING.uri).querySelector('.pill')!.textContent).toBe('Connected')
+  })
+
   test('a secret is a password input, and what was saved for it is never on the page as text', () => {
     keep({ address: 'https://server.spec.test', apiKey: SECRET })
     const { host, row } = render([ASKING])
