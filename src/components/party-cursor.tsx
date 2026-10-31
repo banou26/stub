@@ -44,8 +44,10 @@ const style = css`
   }
 `
 
-// from the line's start rather than the left edge, so a pointer lands on the same thing on a page mirrored right to left
-const alongTheLine = (x: number) => document.documentElement.dir === 'rtl' ? 1 - x : x
+// from the line's start rather than the left edge, so a pointer lands on the same thing on a page mirrored right to left.
+// What stays left to right, a player above all, is not mirrored, so a pointer over it keeps its place
+const alongTheLine = (x: number, y: number) =>
+  document.documentElement.dir === 'rtl' && document.elementFromPoint(x * window.innerWidth, y * window.innerHeight)?.matches(':dir(rtl)') ? 1 - x : x
 
 const PartyCursor = () => {
   const intl = useIntl()
@@ -69,10 +71,8 @@ const PartyCursor = () => {
       party.send({ t: 'cursor', x: latest.x, y: latest.y })
     }
     const onMove = (event: PointerEvent) => {
-      latest = {
-        x: alongTheLine(Math.min(1, Math.max(0, event.clientX / window.innerWidth))),
-        y: Math.min(1, Math.max(0, event.clientY / window.innerHeight)),
-      }
+      const y = Math.min(1, Math.max(0, event.clientY / window.innerHeight))
+      latest = { x: alongTheLine(Math.min(1, Math.max(0, event.clientX / window.innerWidth)), y), y }
       if (pending) return
       pending = setTimeout(flush, Math.max(0, 1000 / CURSOR_HZ - (Date.now() - last)))
     }
@@ -113,7 +113,7 @@ const PartyCursor = () => {
   return (
     <div
       css={style}
-      style={{ '--x': `${alongTheLine(ghost.x) * 100}vw`, '--y': `${ghost.y * 100}vh` } as Record<string, string>}
+      style={{ '--x': `${alongTheLine(ghost.x, ghost.y) * 100}vw`, '--y': `${ghost.y * 100}vh` } as Record<string, string>}
       aria-hidden="true"
     >
       <svg width="18" height="22" viewBox="0 0 18 22" fill="none">

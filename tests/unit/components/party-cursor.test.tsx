@@ -10,7 +10,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { createPartyStore } from '../../../src/party/store'
-import { encodePartyMessage } from '../../../src/party/protocol'
+import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
@@ -56,12 +56,81 @@ test('on a right to left page the host\'s pointer counts from the line\'s start,
   says(1, { t: 'state', path: PAGE, y: 0 })
   says(2, { t: 'cursor', x: 0.25, y: 0.5 })
   expect(place()).toBe('25vw')
+  Object.assign(document, { elementFromPoint: () => null })
+  under('rtl')
+  try {
+    await rightToLeft(() => {
+      says(3, { t: 'cursor', x: 0.25, y: 0.5 })
+      expect(place()).toBe('75vw')
+    })
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+const rightToLeft = async (read: () => Promise<void> | void) => {
   document.documentElement.dir = 'rtl'
   try {
-    says(3, { t: 'cursor', x: 0.25, y: 0.5 })
-    expect(place()).toBe('75vw')
+    await read()
   } finally {
     document.documentElement.removeAttribute('dir')
+  }
+}
+
+// what sits under the pointer, which the fake document has no layout to answer
+const under = (dir: 'ltr' | 'rtl') => vi.spyOn(document as Document & { elementFromPoint: Document['elementFromPoint'] }, 'elementFromPoint')
+  .mockReturnValue({ matches: (selector: string) => selector === `:dir(${dir})` } as unknown as Element)
+
+test('a right to left host sends its pointer from the line\'s start, but over what stays left to right as it is', async () => {
+  const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'ann'] })
+  current.store = createPartyStore(api(fake.room), memoryStorage())
+  await current.store.join(INVITE)
+  const location = memoryLocation({ path: PAGE })
+  hosts.push(mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>)))
+  Object.assign(document, { elementFromPoint: () => null })
+  const point = async () => {
+    fake.sent.length = 0
+    window.dispatchEvent(Object.assign(new Event('pointermove'), { clientX: 250, clientY: 500 }))
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const message = decodePartyMessage(fake.sent.at(-1)!)
+    return message?.t === 'cursor' ? message.x : undefined
+  }
+  vi.stubGlobal('innerWidth', 1000)
+  vi.stubGlobal('innerHeight', 1000)
+  try {
+    expect(await point(), 'the control: left to right it goes as it is').toBe(0.25)
+    await rightToLeft(async () => {
+      under('rtl')
+      expect(await point()).toBe(0.75)
+      under('ltr')
+      expect(await point()).toBe(0.25)
+    })
+  } finally {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  }
+})
+
+test('a right to left follower sees a pointer over a player where the host has it, the player being left to right for both', async () => {
+  const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+  current.store = createPartyStore(api(fake.room), memoryStorage())
+  await current.store.join(INVITE)
+  const location = memoryLocation({ path: PAGE })
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>))
+  hosts.push(host)
+  Object.assign(document, { elementFromPoint: () => null })
+  const says = (seq: number, message: PartyMessage) => act(() => {
+    fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: seq, text: encodePartyMessage(message) }, replayed: false })
+  })
+  says(1, { t: 'state', path: PAGE, y: 0 })
+  try {
+    await rightToLeft(() => {
+      under('ltr')
+      says(2, { t: 'cursor', x: 0.25, y: 0.5 })
+      expect(host.querySelector('.tag')!.parentElement!.style.getPropertyValue('--x')).toBe('25vw')
+    })
+  } finally {
+    vi.restoreAllMocks()
   }
 })
 
