@@ -556,6 +556,33 @@ While its answer for the episode is out, for `ACCOUNT_WAIT_MS` at most, the sour
 Play opens nothing ranked below it, and it is not free, whatever it said for the episode before. The
 page does not wait: the source list's links come from the player lookup, which the ask never holds.
 
+## What a plugin asks the viewer for
+
+Two optional fields on the connection, beside `origin` on a single source or beside `sources` on a family,
+so one form serves the whole package. Both are additive to `stub-source@1`: a plugin without them connects
+as before and shows no form (`src/plugin-api.ts`).
+
+```ts
+settings?: { key: string, label: string, kind: 'text' | 'url' | 'secret', required?: boolean }[]
+configure?: (values: Record<string, string>) => Promise<void>
+```
+
+- **`settings`** lists the fields. Once the package connected, its row in Settings, under Sources, shows a
+  small form for them. `label` is shown as written, so it is the plugin's own words in its own language. A
+  `url` field holds an address, and a `secret` is a password input. A malformed or repeated field is dropped
+  on its own.
+- **`configure`** is handed the values by `key`, with a field left empty not there. It is called on every
+  connection, before the package's sources join any fan-out, so a search never reaches a plugin still waiting
+  for its address, and at once when the viewer saves. The player's own document (`packages.mount`) takes them
+  too, before each `play`. The first call may hold nothing.
+- **A required field left empty** shows in one line on the row. It blocks nothing: the package stays connected
+  and is asked as usual, so it answers what it can without the value.
+- **A rejection or a late answer changes nothing.** Stub waits `CONFIGURE_WAIT_MS = 3_000` at most and then
+  goes on, and drops what the plugin rejected with unread, since it could quote a value.
+
+The values stay in this browser, per site, under `'stub-plugin-values'`, and go when the source does. They are
+not encrypted and never reach the FKN account's list, and stub never logs them.
+
 ## What is not reduced
 
 Worth stating plainly, because the list of restrictions above can read as a sandbox and it is not one.
