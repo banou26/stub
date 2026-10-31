@@ -25,6 +25,7 @@ export type StoredItem = {
 
 const LOCAL = 'This browser, in its storage for stub at this address'
 const SESSION = 'This tab, in its storage for stub'
+const ACCOUNT_COPY = "The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out, or, on a stub site closed at that moment, the next time it opens"
 
 export const STORED: readonly StoredItem[] = [
   {
@@ -32,7 +33,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Added sources',
     what: "The source packages you added from npm, installed for stub through FKN. Signed in to FKN, the list is your account's, so every stub site you sign in on gets it. Sources added while signed out join the list of the next FKN account signed in on this browser.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: "Until you remove them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    lasts: `Until you remove them. ${ACCOUNT_COPY}`,
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
   },
   {
@@ -40,7 +41,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Source settings',
     what: "What you enter in Settings for a source you added, such as a server address or an access key, as you typed it. stub hands it to that source each time the source connects and when you save it, and to no other source. Signed in to FKN, it is your account's, so every stub site and device you sign in on gets it. What you entered while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
     where: `${LOCAL}, not encrypted, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: "Until you change it or remove the source, on any site or device. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    lasts: `Until you change it or remove the source, on any site or device. ${ACCOUNT_COPY}`,
     keys: { store: 'local', names: [PLUGIN_VALUES_KEY, ACCOUNT_VALUES_KEY] },
   },
   {
@@ -48,7 +49,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Settings',
     what: "Your choices in Settings and around stub: sources turned off, hidden icons, the country and the language you picked, autoplay, the search layout, the trackers you chose not to save to and whether you expanded them, the play order, the merge order, and the audio and subtitle languages you last picked in a player. Signed in to FKN, they are your account's, so every stub site and device you sign in on gets them. What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: "Until you change them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    lasts: `Until you change them. ${ACCOUNT_COPY}`,
     keys: { store: 'local', names: [...SETTINGS_KEYS, ACCOUNT_SETTINGS_KEY] },
   },
   {
@@ -133,7 +134,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Where you stopped',
     what: "The point you stopped at in each episode you have not finished, with the source it played on, its length and when you stopped, for your 200 most recent, and the source and time of the 200 you finished last. Signed in to FKN, they are your account's, so every stub site and device you sign in on resumes there. Those kept while signed out join the next FKN account signed in on this browser.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: "Until 200 newer ones replace them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
+    lasts: `Until 200 newer ones replace them. ${ACCOUNT_COPY}`,
     keys: { store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] },
   },
   {

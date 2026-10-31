@@ -579,8 +579,10 @@ configure?: (values: Record<string, string>) => Promise<void>
   on its own, and so is one keyed like a member of every object, such as `constructor`.
 - **`configure`** is handed the values by `key`, with a field left empty not there. It is called on every
   connection, before the package's sources join any fan-out, so a search never reaches a plugin still waiting
-  for its address, and at once when the viewer saves. The player's own document (`packages.mount`) takes them
-  too, before each `play`. The first call may hold nothing.
+  for its address, and at once when the viewer saves. It is also called between connections, with no viewer
+  action here, when the values change: at the next check after another site or device saved, at a sign in,
+  and at a sign out or account switch, which can empty them. The player's own document (`packages.mount`) takes
+  them too, before each `play`. Any call may hold nothing, the first one included.
 - **A required field left empty** shows in one line on the row. It blocks nothing: the package stays connected
   and is asked as usual, so it answers what it can without the value.
 - **A rejection or a late answer changes nothing.** Stub waits `CONFIGURE_WAIT_MS = 3_000` at most and then
@@ -596,14 +598,18 @@ are stub's, not FKN's: `sources/v1/values.json`, sealed in the browser like the 
   strings, so it would drop them. It never opens the other file.
 - **Values entered signed out join at sign in,** where the account has no value of its own, and leave the device,
   as an addition does.
-- **The later save of a field wins,** and a save only marks the fields it changed, so two sites saving different
-  fields keep both. No lock spans two sites, so a save stays in the page until a read shows the file holding it,
-  and a write that went over it is repaired by the next check.
+- **The later save of a field wins,** and a save only carries the fields the viewer changed from what the form
+  showed, so two sites saving different fields keep both, and a form behind this browser's copy puts nothing back.
+- **No lock spans two sites,** so a save, and a value that joined at sign in, stays in the page until a read shows
+  the file holding it, and a write that went over it is repaired by the next check.
 - **The file holds only the sources on the list just read,** so a removal anywhere removes their values everywhere,
-  a removal by an older client included.
-- **At sign out** the account's copy leaves this browser with the list, and the account keeps the file.
-
-A connected source takes values another site saved at the next check, through `configure`.
+  a removal by an older client included. A removal made here also waits as a save clearing every field this
+  browser knows, so a source added back before that read starts with nothing.
+- **At sign out or an account switch** the account's copy leaves this browser and the account keeps the file. A
+  site closed at that moment keeps its copy until it next opens, so the first step there removes it.
+- **With no key on this device,** Save raises FKN's card, since it is a click, and the save reaches the account once
+  the key does. Refused, the save waits in the page, and a reload then loses it, as it does a settings edit: the
+  file's value comes back when the key does.
 
 ## What is not reduced
 

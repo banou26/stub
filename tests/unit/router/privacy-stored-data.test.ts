@@ -120,7 +120,7 @@ describe('what stub keeps per viewer', () => {
     expect(kept.what).toContain('What you entered while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
     expect(kept.lasts).toContain('Until you change it or remove the source, on any site or device')
     expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
-    expect(kept.lasts).toContain("this browser's copy of it when you sign out")
+    expect(kept.lasts).toContain("this browser's copy of it when you sign out, or, on a stub site closed at that moment, the next time it opens")
   })
 
   test('says the settings are kept on the FKN account, encrypted in this browser, until changed or the account is deleted', () => {

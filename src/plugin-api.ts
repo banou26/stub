@@ -144,9 +144,11 @@ export type PluginSettings = {
   /** The fields Settings shows on the package's row. A malformed or repeated one is dropped on its own. */
   settings?: PluginSettingField[]
   /**
-   * Take the viewer's values: on every connection, before the package's sources are asked anything, and at once when
-   * the viewer saves. The first call may hold no values at all, and a required field left empty stays out of them, so
-   * a package answers what it can without it. Stub waits 3 s at most, and a rejection changes nothing.
+   * Take the viewer's values: on every connection, before the package's sources are asked anything, at once when the
+   * viewer saves, and whenever they change with no connection and no viewer action here: another site or device saved,
+   * a sign in brought the account's, or a sign out or account switch took them away. Any call may hold no values at
+   * all, the first one included, and a required field left empty stays out of them, so a package answers what it can
+   * without it. Stub waits 3 s at most, and a rejection changes nothing.
    */
   configure?: (values: PluginValues) => Promise<void>
 }
