@@ -429,16 +429,37 @@ const resolveCluster = async (uri: string, member?: string): Promise<ResolvedClu
 const isFollowed = (resolved: ResolvedCluster): resolved is ResolvedCluster & { preferredRun: string } =>
   resolved.scope === 'CONTAINER' && Boolean(resolved.preferredRun)
 
+const kept = (view: AggregatedMedia | undefined): view is AggregatedMedia =>
+  view !== undefined && siteAllows((view.categories ?? []) as string[])
+
+/** The earliest run of a show the site keeps, in `preferredRunOf`'s order: by earliest start day, then by key. */
+const earliestKeptRun = async (show: string): Promise<AggregatedMedia | undefined> => {
+  const { query } = await graphReady()
+  const runs = await query(
+    `MATCH (p:MediaProfile)-[:PROFILE_OF]->(:Media)-[:MEMBER_OF]->(run:Cluster {scope: 'RUN'})
+       -[:ATTACHED_TO]->(:Cluster {id: $show})
+     RETURN run.id AS id, run.key AS key, min(p.startDay) AS day
+     ORDER BY day, key`,
+    { show }
+  )
+  for (const { id } of runs) {
+    const view = await viewOfCluster(String(id))
+    if (kept(view)) return view
+  }
+  return undefined
+}
+
 /**
  * The view of a resolved cluster: a show's run when it has one, else the cluster's own.
  *
- * A run the site does not keep (a film a source files under a show, on the series site) leaves the show's own view:
- * `siteMedia` answers nothing for that run, so following it would leave the page and the sources waiting on it with no
- * answer at all.
+ * A run the site does not keep (a film a source files under a show, on the series site) gives way to the next one it
+ * does, then to the show's own view: `siteMedia` answers nothing for that run, so following it would leave the page and
+ * the sources waiting on it with no answer at all.
  */
 const viewOfResolved = async (resolved: ResolvedCluster): Promise<AggregatedMedia | undefined> => {
-  const run = isFollowed(resolved) ? await viewOfCluster(resolved.preferredRun) : undefined
-  return run && siteAllows((run.categories ?? []) as string[]) ? run : viewOfCluster(resolved.id)
+  if (!isFollowed(resolved)) return viewOfCluster(resolved.id)
+  const run = await viewOfCluster(resolved.preferredRun)
+  return kept(run) ? run : await earliestKeptRun(resolved.id) ?? viewOfCluster(resolved.id)
 }
 
 /**

@@ -9,12 +9,12 @@ import { resolvers as tvmaze } from '../../../../src/sources/tvmaze/extractor'
 import { enableGraph } from '../../../../src/worker/graph'
 import { closeGraph } from '../../../../src/worker/graph/engine'
 import { ingestAnswers } from '../../../../src/worker/graph/ingest'
-import { resolveMedia } from '../../../../src/worker/graph/read'
+import { episodesOf, resolveMedia } from '../../../../src/worker/graph/read'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import TVMAZE_SHOW from '../../../fixtures/tvmaze/black-mirror-show.json'
 import SEARCH from './plugins/__fixtures__/black-mirror-search.json'
-import { answer, media, partOf, rowsOf, title } from './plugins/fixtures'
+import { answer, episode, media, partOf, rowsOf, sameAs, title } from './plugins/fixtures'
 
 const ADDRESS = 'ag:(imdb:tt2085059,omdb:tt2085059,simkl:4921,tmdb:42009,tvdb:253463,tvmaze:305,watchmode:0314872)'
 const FILM = 'watchmode:02659721'
@@ -101,4 +101,46 @@ test('a site that does not keep the run a show follows to draws the show', async
   expect(await opened('stub')).toEqual(['MOVIE'])
   expect(await opened('movie')).toEqual(['MOVIE'])
   expect(await opened('series')).toEqual(['SERIES'])
+})
+
+test('a site that does not keep a show\'s earliest run opens the earliest run it does keep', async () => {
+  const season = (uri: string, ordinal: number, startDate?: string) => media(uri, {
+    scope: 'RUN', categories: ['SERIES'], titles: [title('en', `Other Show Season ${ordinal}`)], startDate,
+    handles: [partOf(media('tmdb:2101'))],
+    episodes: [1, 2].map(number => episode(`${uri}e${number}`, uri, { episodeNumber: number, titles: [title('en', `Part ${number}`)] })),
+  })
+  await pass([
+    media('tmdb:2101', { scope: 'CONTAINER', categories: ['SERIES'], titles: [title('en', 'Other Show')], startDate: '2010-03-15' }),
+    media('jw:2102', { type: 'MOVIE', categories: ['MOVIE'], titles: [title('en', 'Its Pilot Film')], startDate: '2009-06-15', handles: [partOf(media('tmdb:2101'))] }),
+    // a lower key than the first season's, so the day decides: an undated run comes last, and then the later season
+    season('jw:2100', 3),
+    season('jw:2103', 2, '2012-03-15'),
+    season('tvmaze:2104', 1, '2010-03-15'),
+    // a run's day is its earliest member's
+    media('tmdb:2105', { categories: ['SERIES'], titles: [title('en', 'Other Show Season 1')], startDate: '2013-03-15', handles: [sameAs(media('tvmaze:2104'))] }),
+    // a show under this show, however early, is not a run to open
+    media('imdb:tt2106', { categories: ['SERIES'], titles: [title('en', 'A Show Before It')], startDate: '2008-03-15', handles: [partOf(media('tmdb:2101'))] }),
+  ])
+  const opened = async (site: Parameters<typeof setSite>[0]) => {
+    setSite(site)
+    const view = await resolveMedia('tmdb:2101')
+    return { uri: view?.uri, episodes: (await episodesOf(String(view?._id))).length }
+  }
+  expect(await opened('series')).toEqual({ uri: 'ag:(tmdb:2105,tvmaze:2104)', episodes: 2 })
+  expect(await opened('movie')).toEqual({ uri: 'ag:(jw:2102)', episodes: 0 })
+})
+
+test('runs of one day open by key, as `preferredRunOf` orders them', async () => {
+  const season = (uri: string, ordinal: number) => media(uri, {
+    scope: 'RUN', categories: ['SERIES'], titles: [title('en', `Tied Show Season ${ordinal}`)], startDate: '2015-03-15',
+    handles: [partOf(media('tmdb:5001'))],
+  })
+  await pass([
+    media('tmdb:5001', { scope: 'CONTAINER', categories: ['SERIES'], titles: [title('en', 'Tied Show')], startDate: '2015-03-15' }),
+    media('jw:5002', { type: 'MOVIE', categories: ['MOVIE'], titles: [title('en', 'Its Tied Film')], startDate: '2014-03-15', handles: [partOf(media('tmdb:5001'))] }),
+    season('tvmaze:5004', 2),
+    season('tmdb:5003', 1),
+  ])
+  setSite('series')
+  expect((await resolveMedia('tmdb:5001'))?.uri).toBe('ag:(tmdb:5003)')
 })

@@ -1926,7 +1926,8 @@ the visible rest of the address opens instead. Ranking by the most of the addres
 refused: it sends a visible card that kept its id to the larger fragment, another title.
 The caller follows `preferredRun` when the resolved cluster is a container (`findMediaForPage` then
 `preferAttachedRun`, `db.ts:349-364`: "a show page follows to its attached run, earliest first"), unless
-the site does not keep that run (`siteAllows`), and then the show's own view is what it draws. Both
+the site does not keep that run (`siteAllows`): it then follows to the earliest run the site does keep,
+and with none to the show's own view. Both
 paths fall through the same way: a resolve by `_id`, or through `published`, that lands on a cluster
 not holding the member the route names (`/media/:uri/:mediaUri`) falls through to resolving that member
 uri by statement 1, so a client holding an old `_id` or an old address never silently opens a cluster
