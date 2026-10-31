@@ -69,6 +69,56 @@ describe('plurals in each language\'s own forms', () => {
   })
 })
 
+describe('a right to left language', () => {
+  const SIGNED_IN = message('Signed in to {name}.')
+
+  test('a value is isolated from the sentence around it, so a Latin name keeps the full stop outside', async () => {
+    const he = await start('he', { [SIGNED_IN.id]: 'מחובר אל {name}.' })
+    expect(he.formatMessage(SIGNED_IN, { name: 'AniList' })).toBe('מחובר אל \u2068AniList\u2069.')
+  })
+
+  test('also inside a branch and a tag, while the plural and the select still choose on the raw value', async () => {
+    const ONE = message('{count, plural, one {{count} new} other {{count} new}}')
+    const WHO = message('{who, select, self {you paused} other {{member} paused}}')
+    const LINKED = message('Found by <link>{site}</link>')
+    const ar = await start('ar', {
+      [ONE.id]: '{count, plural, zero {none} one {{count} one} two {two} few {few} many {many} other {other}}',
+      [WHO.id]: '{who, select, self {أنت} other {{member} متوقف}}',
+      [LINKED.id]: 'عثر عليها <link>{site}</link>',
+    })
+    expect(ar.formatMessage(ONE, { count: 1 })).toBe('\u20681\u2069 one')
+    expect(ar.formatMessage(WHO, { who: 'self', member: 'x' })).toBe('أنت')
+    expect(ar.formatMessage(WHO, { who: 'other', member: 'Alex' })).toBe('\u2068Alex\u2069 متوقف')
+    const linked = ar.formatMessage(LINKED, { site: 'trace.moe', link: (text: string[]) => `[${text.join('')}]` })
+    expect([linked].flat().join('')).toBe('عثر عليها [\u2068trace.moe\u2069]')
+  })
+
+  test('a left to right language stays as written', async () => {
+    const fr = await start('fr', { [SIGNED_IN.id]: 'Connecté à {name}.' })
+    expect(fr.formatMessage(SIGNED_IN, { name: 'AniList' })).toBe('Connecté à AniList.')
+  })
+
+  test('a message that does not parse falls to its English, as in any language', async () => {
+    const onError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const ar = await start('ar', { [SIGNED_IN.id]: '{name' })
+    expect(ar.formatMessage(SIGNED_IN, { name: 'AniList' })).toBe('Signed in to AniList.')
+    onError.mockRestore()
+  })
+
+  const EPISODE_COUNT = message('{count, plural, one {{count} episode} other {{count} episodes}}')
+  const SOURCE_COUNT = message('{count, plural, one {{count} source} other {{count} sources}}')
+  const bare = (text: string) => text.replace(/[\u2068\u2069]/g, '')
+
+  test('the catalogue writes Arabic\'s six forms and Hebrew\'s three', async () => {
+    const ar = await startLanguage({ language: 'ar', languages: ['ar-MA'] })
+    expect([0, 1, 2, 3, 11, 100].map(count => bare(ar.formatMessage(EPISODE_COUNT, { count }))))
+      .toEqual(['0 حلقة', 'حلقة واحدة', 'حلقتان', '3 حلقات', '11 حلقة', '100 حلقة'])
+    expect([1, 2, 5, 11].map(count => bare(ar.formatMessage(SOURCE_COUNT, { count })))).toEqual(['مصدر واحد', 'مصدران', '5 مصادر', '11 مصدرًا'])
+    const he = await startLanguage({ language: 'he', languages: ['he-IL'] })
+    expect([1, 2, 3, 20].map(count => bare(he.formatMessage(EPISODE_COUNT, { count })))).toEqual(['פרק אחד', 'שני פרקים', '3 פרקים', '20 פרקים'])
+  })
+})
+
 describe('elements', () => {
   const hosts: HTMLElement[] = []
   afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
