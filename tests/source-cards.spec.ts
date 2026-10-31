@@ -111,6 +111,18 @@ test.describe('on a phone', () => {
   })
 })
 
+test('a mark no font mirrors turns with the line, right to left only', async ({ page }) => {
+  const scales = async () => {
+    await page.goto(`${ORIGIN}/?marks`)
+    await expect(page.locator('.chevron.closed')).toBeVisible()
+    await expect(page.locator('.ext')).toBeVisible()
+    return Promise.all(['.chevron.closed', '.ext'].map(mark => page.locator(mark).evaluate(element => getComputedStyle(element).scale)))
+  }
+  expect(await scales(), 'the control: left to right, as drawn').toEqual(['none', 'none'])
+  await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, 'ar'])
+  expect(await scales()).toEqual(['-1 1', '-1 1'])
+})
+
 // HOR-1026 (stub in the viewer's language): the card's label, its languages' names and how many more, in the language
 // shown; FormatJS's pseudo-language is English to Intl, so its names stay English
 test.describe('in German, Japanese and the pseudo-language', () => {

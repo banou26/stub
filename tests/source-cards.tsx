@@ -18,5 +18,9 @@ const crunchyroll = {
   audioLanguages: ['ja-JP', 'en-US', 'fr-FR', 'de-DE', 'es-419'],
   subtitleLanguages: ['en-US'],
 }
+// `?marks`: a source to open elsewhere, and one with its releases folded, for the marks they draw
+const nyaa = { id: 'ny', name: 'Nyaa', href: '/watch/m/e/ny:1', external: false, active: false, releases: [{ uri: 'ny:1', label: 'One', external: false, active: false }, { uri: 'ny:2', label: 'Two', external: false, active: false }] }
+const prime = { id: 'pv', name: 'Prime Video', href: 'https://www.primevideo.com/', external: true, active: false }
+const sources = new URLSearchParams(location.search).has('marks') ? [nyaa, prime] : [crunchyroll]
 // in the language setting's language, which tests/source-cards.spec.ts's build offers
-void startLanguage().then(intl => render(<RawIntlProvider value={intl}><Router hook={hook}><SourceSelector sources={[crunchyroll]}/></Router></RawIntlProvider>, document.getElementById('sources')!))
+void startLanguage().then(intl => render(<RawIntlProvider value={intl}><Router hook={hook}><SourceSelector sources={sources}/></Router></RawIntlProvider>, document.getElementById('sources')!))

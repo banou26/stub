@@ -470,9 +470,14 @@ test('the header keeps its floors in every language, in a wider font, from 1024 
         const pen = document.createElement('canvas').getContext('2d')!
         pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
         const search = input.getBoundingClientRect()
+        const [start, actions] = [box('header .start'), box('header .actions')]
         return {
           links: document.querySelector('header nav.sites a')!.getBoundingClientRect().width > 0,
-          start: box('header .start').right, left: search.left, right: search.right, width: search.width, actions: box('header .actions').left,
+          width: search.width,
+          // along the row as it reads: the wordmark first, the search, then the buttons
+          overlaps: style.direction === 'rtl'
+            ? start.left < search.right || search.left < actions.right
+            : start.right > search.left || search.right > actions.left,
           spare: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - pen.measureText(input.placeholder).width,
           scroll: document.documentElement.scrollWidth,
         }
@@ -481,7 +486,7 @@ test('the header keeps its floors in every language, in a wider font, from 1024 
       if (row.links !== width >= 1200) problems.push(`${where}: the site links ${row.links ? 'show' : 'are hidden'}`)
       if (row.width < 300) problems.push(`${where}: the search is ${Math.round(row.width)} px`)
       if (row.spare < -0.5) problems.push(`${where}: the placeholder runs ${Math.round(-row.spare)} px past its box`)
-      if (row.start > row.left || row.right > row.actions) problems.push(`${where}: the search overlaps its neighbours`)
+      if (row.overlaps) problems.push(`${where}: the search overlaps its neighbours`)
       if (row.scroll > width) problems.push(`${where}: the page scrolls sideways`)
     }
   }

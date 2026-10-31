@@ -183,6 +183,21 @@ test("with room below, the row's score menu opens under the star", async ({ page
   expect(menu.y).toBeGreaterThanOrEqual(star.y + star.height)
 })
 
+test('right to left, the score menu\'s arrows step along the row as it reads', async ({ page }) => {
+  await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, 'ar'])
+  await page.setViewportSize({ width: 1400, height: 760 })
+  await open(page)
+  await page.locator('.row > .edit .star').click()
+  const options = page.locator('.row > .edit .menu button')
+  await options.first().focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(options.nth(1), 'left is onward, the row running that way').toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect(options.first()).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(options.nth(1), 'down does not change').toBeFocused()
+})
+
 test("Crunchyroll's chip is a check, its card offers the episodes, 5 stars with no No score and Plan to watch alone, and the row's + reaches it", async ({ page }) => {
   await page.goto(`${ORIGIN}/?top=100&cr`)
   const chip = page.locator('[data-chip="cr"]')
