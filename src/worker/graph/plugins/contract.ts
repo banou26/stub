@@ -21,7 +21,7 @@ export type SourceEdgeTable = 'CLAIMS' | 'HAS_EPISODE' | 'EPISODE_CLAIMS' | 'REL
 /** The tables of 2.2, every row of which carries `by` and is retractable by that stamp. */
 export type PluginNodeTable = 'MediaProfile' | 'EpisodeProfile' | 'TitleKey' | 'Cluster' | 'Alias' | 'Slot'
 export type PluginEdgeTable =
-  | 'LINK' | 'EPISODE_LINK' | 'PROFILE_OF' | 'HAS_KEY' | 'MEMBER_OF' | 'ATTACHED_TO' | 'SLOT_OF' | 'FILLS'
+  | 'LINK' | 'EPISODE_LINK' | 'PROFILE_OF' | 'EPISODE_PROFILE_OF' | 'HAS_KEY' | 'MEMBER_OF' | 'ATTACHED_TO' | 'SLOT_OF' | 'FILLS'
 
 /** The closed set of 3.1. A plugin may propose no other relation. */
 export type LinkKind = 'SAME_AS' | 'PART_OF' | 'INCLUDES'

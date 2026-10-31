@@ -127,7 +127,7 @@ const clusterOfSlot = (id: string): string => {
  *
  * Every change is mapped to a cluster by its key alone where the key names one, and through ONE
  * query per remaining class where it does not. `MediaProfile`, `EpisodeProfile`, `TitleKey`,
- * `PROFILE_OF` and `HAS_KEY` map to nothing on purpose: 6.6 fires this event when a cluster's
+ * `PROFILE_OF`, `EPISODE_PROFILE_OF` and `HAS_KEY` map to nothing on purpose: 6.6 fires this event when a cluster's
  * membership, slots, attachments, run length, anomalies or JSON moved, and a profile is none of
  * those. A pass that moved only profiles therefore names no cluster and emits nothing.
  */

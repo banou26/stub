@@ -562,7 +562,7 @@ const readEpisodeSpans = async (ctx: PluginContext): Promise<Map<string, { first
   // its episodes' days and nothing else
   const rows = await ctx.query<Record<string, unknown>>(
     `MATCH (m:Media)-[h:HAS_EPISODE]->(e:Episode)
-     MATCH (p:EpisodeProfile)-[:PROFILE_OF]->(e)
+     MATCH (p:EpisodeProfile)-[:EPISODE_PROFILE_OF]->(e)
      WHERE h.claimer = m.origin AND p.day IS NOT NULL
      RETURN m.uri AS uri, p.day AS day ORDER BY uri`
   )

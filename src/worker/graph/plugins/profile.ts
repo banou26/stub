@@ -653,13 +653,13 @@ const episodeProfileRow = (row: EpisodeRow, ctx: PluginContext): PluginRow => {
  * `plugin:profile`, P0 of 5.4.
  *
  * Consumes `Media`, `Episode`, `Answer`, `ABOUT`, `CLAIMS` and `HAS_EPISODE`; produces
- * `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `TitleKey` and `HAS_KEY`; `after: []`, so it is
+ * `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `EPISODE_PROFILE_OF`, `TitleKey` and `HAS_KEY`; `after: []`, so it is
  * first in every pass and every other plugin reads its output rather than `raw`.
  */
 export const profilePlugin: Plugin = {
   id: 'plugin:profile',
   consumes: { nodes: ['Media', 'Episode', 'Answer'], edges: ['ABOUT', 'CLAIMS', 'HAS_EPISODE'] },
-  produces: { nodes: ['MediaProfile', 'EpisodeProfile', 'TitleKey'], edges: ['PROFILE_OF', 'HAS_KEY'] },
+  produces: { nodes: ['MediaProfile', 'EpisodeProfile', 'TitleKey'], edges: ['PROFILE_OF', 'EPISODE_PROFILE_OF', 'HAS_KEY'] },
   after: [],
   version: PROFILE_VERSION,
   run: async (ctx: PluginContext): Promise<PluginOutput> => {
@@ -708,13 +708,8 @@ export const profilePlugin: Plugin = {
         { table: 'TitleKey', rows: [...keyNodes.values()] },
       ],
       edges: [
-        {
-          table: 'PROFILE_OF',
-          rows: [
-            ...profiles.map(profile => ({ from: profile.uri as string, to: profile.uri as string })),
-            ...episodeProfiles.map(profile => ({ from: profile.uri as string, to: profile.uri as string })),
-          ],
-        },
+        { table: 'PROFILE_OF', rows: profiles.map(profile => ({ from: profile.uri as string, to: profile.uri as string })) },
+        { table: 'EPISODE_PROFILE_OF', rows: episodeProfiles.map(profile => ({ from: profile.uri as string, to: profile.uri as string })) },
         { table: 'HAS_KEY', rows: hasKey },
       ],
       links: [],

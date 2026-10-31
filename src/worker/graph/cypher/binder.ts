@@ -23,7 +23,7 @@ import { CypherError, notSupported } from './ast'
  *
  * WHAT IT DELIBERATELY ALLOWS: an undeclared pair on a READ. `MATCH (a:Media)-[:PROFILE_OF]->(b:Media)`
  * where the table declares no such pair answers no rows rather than throwing, which is what the
- * reference does and what `plugins/writer.ts` relies on when it offers every row to both pairs.
+ * reference does.
  */
 export const bind = (store: Store, query: Query, cypher: string): void => {
   const scope = new Set<string>()

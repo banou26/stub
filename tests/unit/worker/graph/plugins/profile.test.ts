@@ -388,14 +388,13 @@ test('an episode synopsis is stored as its content words, sorted, and a short on
   expect(JSON.parse((await episodeProfileOf('cr:GX1-GS1-1'))!.synopsisKeys as string)).toEqual([])
 })
 
-// (k) THE EDGE TO THE ROW IT DESCRIBES, both ways round, since `PROFILE_OF` declares two FROM/TO
-// pairs and a row of the wrong one silently writes nothing.
-// Mutation: write the `PROFILE_OF` rows for only the first declared pair and every EpisodeProfile
-// loses its edge while the count of profiles stays right.
+// (k) THE EDGE TO THE ROW IT DESCRIBES, both ways round.
+// Mutation: drop the `EPISODE_PROFILE_OF` rows and every EpisodeProfile loses its edge while the count of
+// profiles stays right.
 test('every profile is joined to the row it describes', async () => {
   expect(await rowsOf('MATCH (p:MediaProfile {uri: $uri})-[e:PROFILE_OF]->(m:Media {uri: $uri}) RETURN e.by AS by', { uri: 'mal:1' }))
     .toEqual([{ by: 'plugin:profile' }])
-  expect(await rowsOf('MATCH (p:EpisodeProfile {uri: $uri})-[e:PROFILE_OF]->(m:Episode {uri: $uri}) RETURN e.by AS by', { uri: 'cr:GX1-GS1-1' }))
+  expect(await rowsOf('MATCH (p:EpisodeProfile {uri: $uri})-[e:EPISODE_PROFILE_OF]->(m:Episode {uri: $uri}) RETURN e.by AS by', { uri: 'cr:GX1-GS1-1' }))
     .toEqual([{ by: 'plugin:profile' }])
 
   const [counts] = await rowsOf(`MATCH (m:Media) RETURN count(m) AS media`)

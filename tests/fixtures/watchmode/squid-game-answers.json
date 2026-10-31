@@ -1,0 +1,847 @@
+[
+ {
+  "uri": "watchmode:03164600",
+  "origin": "watchmode",
+  "id": "03164600",
+  "url": "https://www.watchmode.com/title/03164600",
+  "scope": "CONTAINER",
+  "handles": [
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "nf:81262760",
+     "origin": "nf",
+     "id": "81262760",
+     "url": "https://www.netflix.com/title/81262760",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "nf:81262746",
+     "origin": "nf",
+     "id": "81262746",
+     "url": "https://www.netflix.com/title/81262746",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "nf:81040344",
+     "origin": "nf",
+     "id": "81040344",
+     "url": "https://www.netflix.com/title/81040344",
+     "scope": "CONTAINER"
+    }
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [],
+  "score": 0.25,
+  "episodes": []
+ },
+ {
+  "uri": "tvmaze:43687-s1",
+  "origin": "tvmaze",
+  "id": "43687-s1",
+  "url": "https://www.tvmaze.com/shows/43687/squid-game",
+  "scope": "RUN",
+  "handles": [
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "imdb:tt10919420",
+     "origin": "imdb",
+     "id": "tt10919420",
+     "url": "https://www.imdb.com/title/tt10919420",
+     "scope": "CONTAINER"
+    }
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Squid Game",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2021-09-17",
+  "episodeCount": 9,
+  "episodes": [
+   {
+    "uri": "tvmaze:2145979",
+    "origin": "tvmaze",
+    "id": "2145979",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 1,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Red Light, Green Light",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146006",
+    "origin": "tvmaze",
+    "id": "2146006",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 2,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Hell",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146007",
+    "origin": "tvmaze",
+    "id": "2146007",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "The Man with the Umbrella",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146008",
+    "origin": "tvmaze",
+    "id": "2146008",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 4,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Stick to the Team",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146009",
+    "origin": "tvmaze",
+    "id": "2146009",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 5,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "A Fair World",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146010",
+    "origin": "tvmaze",
+    "id": "2146010",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 6,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Gganbu",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146011",
+    "origin": "tvmaze",
+    "id": "2146011",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 7,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "VIPS",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2146012",
+    "origin": "tvmaze",
+    "id": "2146012",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 8,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Front Man",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tvmaze:2172214",
+    "origin": "tvmaze",
+    "id": "2172214",
+    "mediaUri": "tvmaze:43687-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 9,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "One Lucky Day",
+      "score": 0.3
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "uri": "jw:220305-227597",
+  "origin": "jw",
+  "id": "220305-227597",
+  "url": "https://www.justwatch.com/us/tv-show/squid-game",
+  "scope": "RUN",
+  "handles": [
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "nf:81040344",
+     "origin": "nf",
+     "id": "81040344",
+     "url": "https://www.netflix.com/title/81040344",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "jw:220305",
+     "origin": "jw",
+     "id": "220305",
+     "url": "https://www.justwatch.com/us/tv-show/squid-game",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "imdb:tt10919420",
+     "origin": "imdb",
+     "id": "tt10919420",
+     "url": "https://www.imdb.com/title/tt10919420",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "PART_OF",
+    "node": {
+     "uri": "tmdb:93405",
+     "origin": "tmdb",
+     "id": "93405",
+     "url": "https://www.themoviedb.org/tv/93405",
+     "scope": "CONTAINER"
+    }
+   },
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "imdb:tt10919420",
+     "origin": "imdb",
+     "id": "tt10919420",
+     "scope": "RUN"
+    }
+   },
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "nf:81040344",
+     "origin": "nf",
+     "id": "81040344",
+     "scope": "RUN"
+    }
+   },
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "omdb:tt10919420",
+     "origin": "omdb",
+     "id": "tt10919420",
+     "scope": "RUN"
+    }
+   },
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "simkl:1360242",
+     "origin": "simkl",
+     "id": "1360242",
+     "scope": "RUN"
+    }
+   },
+   {
+    "relation": "SAME_AS",
+    "node": {
+     "uri": "tvdb:383275",
+     "origin": "tvdb",
+     "id": "383275",
+     "scope": "RUN"
+    }
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Squid Game",
+    "score": 0.2
+   }
+  ],
+  "score": 0.2,
+  "startDate": "2021-09-17",
+  "episodeCount": 9,
+  "episodes": [
+   {
+    "uri": "jw:4191570",
+    "origin": "jw",
+    "id": "4191570",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 1,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Red Light, Green Light",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938796",
+    "origin": "jw",
+    "id": "5938796",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 2,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Hell",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938794",
+    "origin": "jw",
+    "id": "5938794",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "The Man with the Umbrella",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938795",
+    "origin": "jw",
+    "id": "5938795",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 4,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Stick to the Team",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938800",
+    "origin": "jw",
+    "id": "5938800",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 5,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "A Fair World",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938799",
+    "origin": "jw",
+    "id": "5938799",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 6,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Gganbu",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938798",
+    "origin": "jw",
+    "id": "5938798",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 7,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "VIPS",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:5938797",
+    "origin": "jw",
+    "id": "5938797",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 8,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Front Man",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "jw:6029262",
+    "origin": "jw",
+    "id": "6029262",
+    "mediaUri": "jw:220305-227597",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 9,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "One Lucky Day",
+      "score": 0.2
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "uri": "tmdb:93405-s1",
+  "origin": "tmdb",
+  "id": "93405-s1",
+  "url": "https://www.themoviedb.org/tv/93405",
+  "scope": "RUN",
+  "handles": [],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Squid Game",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2021-09-17",
+  "episodeCount": 9,
+  "episodes": [
+   {
+    "uri": "tmdb:93405-s1e1",
+    "origin": "tmdb",
+    "id": "93405-s1e1",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 1,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Red Light, Green Light",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e2",
+    "origin": "tmdb",
+    "id": "93405-s1e2",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 2,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Hell",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e3",
+    "origin": "tmdb",
+    "id": "93405-s1e3",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "The Man with the Umbrella",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e4",
+    "origin": "tmdb",
+    "id": "93405-s1e4",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 4,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Stick to the Team",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e5",
+    "origin": "tmdb",
+    "id": "93405-s1e5",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 5,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "A Fair World",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e6",
+    "origin": "tmdb",
+    "id": "93405-s1e6",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 6,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Gganbu",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e7",
+    "origin": "tmdb",
+    "id": "93405-s1e7",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 7,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "VIPS",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e8",
+    "origin": "tmdb",
+    "id": "93405-s1e8",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 8,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "Front Man",
+      "score": 0.3
+     }
+    ]
+   },
+   {
+    "uri": "tmdb:93405-s1e9",
+    "origin": "tmdb",
+    "id": "93405-s1e9",
+    "mediaUri": "tmdb:93405-s1",
+    "score": 0.3,
+    "seasonNumber": 1,
+    "episodeNumber": 9,
+    "releaseDate": "2021-09-17",
+    "titles": [
+     {
+      "language": "en",
+      "title": "One Lucky Day",
+      "score": 0.3
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "uri": "nf:81040344-1",
+  "origin": "nf",
+  "id": "81040344-1",
+  "url": "https://www.netflix.com/title/81040344",
+  "scope": "RUN",
+  "handles": [],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Squid Game",
+    "score": 0.2
+   }
+  ],
+  "score": 0.2,
+  "episodeCount": 9,
+  "episodes": [
+   {
+    "uri": "nf:81262746",
+    "origin": "nf",
+    "id": "81262746",
+    "url": "https://www.netflix.com/watch/81262746",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 1,
+    "titles": [
+     {
+      "language": "en",
+      "title": "Red Light, Green Light",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262748",
+    "origin": "nf",
+    "id": "81262748",
+    "url": "https://www.netflix.com/watch/81262748",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 2,
+    "titles": [
+     {
+      "language": "en",
+      "title": "Hell",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262750",
+    "origin": "nf",
+    "id": "81262750",
+    "url": "https://www.netflix.com/watch/81262750",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "titles": [
+     {
+      "language": "en",
+      "title": "The Man with the Umbrella",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262752",
+    "origin": "nf",
+    "id": "81262752",
+    "url": "https://www.netflix.com/watch/81262752",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 4,
+    "titles": [
+     {
+      "language": "en",
+      "title": "Stick to the Team",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262754",
+    "origin": "nf",
+    "id": "81262754",
+    "url": "https://www.netflix.com/watch/81262754",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 5,
+    "titles": [
+     {
+      "language": "en",
+      "title": "A Fair World",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262755",
+    "origin": "nf",
+    "id": "81262755",
+    "url": "https://www.netflix.com/watch/81262755",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 6,
+    "titles": [
+     {
+      "language": "en",
+      "title": "Gganbu",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262757",
+    "origin": "nf",
+    "id": "81262757",
+    "url": "https://www.netflix.com/watch/81262757",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 7,
+    "titles": [
+     {
+      "language": "en",
+      "title": "VIPS",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81262760",
+    "origin": "nf",
+    "id": "81262760",
+    "url": "https://www.netflix.com/watch/81262760",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 8,
+    "titles": [
+     {
+      "language": "en",
+      "title": "Front Man",
+      "score": 0.2
+     }
+    ]
+   },
+   {
+    "uri": "nf:81436729",
+    "origin": "nf",
+    "id": "81436729",
+    "url": "https://www.netflix.com/watch/81436729",
+    "mediaUri": "nf:81040344-1",
+    "score": 0.2,
+    "seasonNumber": 1,
+    "episodeNumber": 9,
+    "titles": [
+     {
+      "language": "en",
+      "title": "One Lucky Day",
+      "score": 0.2
+     }
+    ]
+   }
+  ]
+ }
+]

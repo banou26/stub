@@ -1760,7 +1760,7 @@ const MEMBER_SCAN =
 
 /** `ours`: the run's own episodes, hung by their own origin. The reference set is chosen in JS. */
 const OURS_SCAN =
-  `MATCH (c:Cluster)<-[:MEMBER_OF]-(o:Media)-[oh:HAS_EPISODE]->(oe:Episode)<-[:PROFILE_OF]-(poe:EpisodeProfile)
+  `MATCH (c:Cluster)<-[:MEMBER_OF]-(o:Media)-[oh:HAS_EPISODE]->(oe:Episode)<-[:EPISODE_PROFILE_OF]-(poe:EpisodeProfile)
    WHERE c.scope = 'RUN' AND oh.claimer = o.origin AND oe.origin = o.origin
    RETURN c.id AS runCluster, o.uri AS memberUri, oe.uri AS uri, oe.origin AS origin,
      oe.episodeNumber AS number, poe.day AS day, poe.titleKeys AS keys,
@@ -1787,7 +1787,7 @@ const SEASON_SCAN =
    WHERE c.scope = 'RUN' AND l.kind = 'PART_OF' AND l.status = 'active' AND s.uri <> r.uri
      AND (l.reason IN ['count-mismatch', 'no-length', 'span', 'containing', 'contested', 'cross-scope']
        OR (l.reason = 'asserted' AND ps.folding))
-   MATCH (s)-[h:HAS_EPISODE]->(se:Episode)<-[:PROFILE_OF]-(pse:EpisodeProfile)
+   MATCH (s)-[h:HAS_EPISODE]->(se:Episode)<-[:EPISODE_PROFILE_OF]-(pse:EpisodeProfile)
    WHERE h.claimer = s.origin
    RETURN c.id AS runCluster, r.uri AS memberUri, s.uri AS seasonUri, l.key AS via,
      coalesce(ps.countDistinct, ps.countStated) AS theirCount, ps.retranslates AS retranslates,
@@ -1802,7 +1802,7 @@ const SEASON_SCAN =
  * the graph and in no other collection, and they are evidence here and a slot nowhere.
  */
 const LEND_SCAN =
-  `MATCH (c:Cluster)<-[:MEMBER_OF]-(m:Media)-[h:HAS_EPISODE]->(e:Episode)<-[:PROFILE_OF]-(pe:EpisodeProfile)
+  `MATCH (c:Cluster)<-[:MEMBER_OF]-(m:Media)-[h:HAS_EPISODE]->(e:Episode)<-[:EPISODE_PROFILE_OF]-(pe:EpisodeProfile)
    WHERE c.scope = 'RUN' AND h.claimer <> m.origin
    RETURN c.id AS runCluster, m.uri AS memberUri, h.claimer AS claimer, e.uri AS uri, e.origin AS origin,
      e.episodeNumber AS number, pe.day AS day, pe.titleKeys AS keys,

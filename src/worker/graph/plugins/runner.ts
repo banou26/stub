@@ -340,7 +340,7 @@ type Subjects = { media: Set<string>, episodes: Set<string>, claims: Set<string>
  * What moved, PER TABLE, which is the form a plugin's `consumes` can be matched against.
  *
  * A table present with no subjects still counts as a delta for its consumers: `TitleKey`, `Alias` and
- * `PROFILE_OF` name no uri or cluster their key can be read back as, and a consumer of one has to
+ * a profile's edge name no uri or cluster their key can be read back as, and a consumer of one has to
  * hear that it moved even when the pass cannot say which subject moved with it.
  */
 type TableDelta = Map<string, Subjects>
@@ -431,8 +431,7 @@ const changeDelta = (changes: WriterChange[]): TableDelta => {
         name(delta, table, 'links', change.key)
         break
       // `TitleKey` is one node per key across the whole store, `Alias` is placed by a column its key
-      // does not carry, and a `PROFILE_OF` uri is a Media or an Episode with nothing to say which:
-      // the table moved, and no subject can be read off the key
+      // does not carry, and nothing reads a subject off a profile's edge: the table moved
       default: name(delta, table, 'none'); break
     }
   }

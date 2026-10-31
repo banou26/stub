@@ -218,7 +218,7 @@ const readEpisodes = async (ctx: PluginContext): Promise<EpisodeRow[]> => {
   const rows = await ctx.query<Record<string, unknown>>(
     `MATCH (m:Media)-[h:HAS_EPISODE]->(e:Episode)
      WHERE h.claimer = m.origin
-     MATCH (p:EpisodeProfile)-[:PROFILE_OF]->(e)
+     MATCH (p:EpisodeProfile)-[:EPISODE_PROFILE_OF]->(e)
      RETURN m.uri AS mediaUri, e.uri AS uri, e.origin AS origin, e.id AS id,
        e.episodeNumber AS episodeNumber, e.seasonNumber AS seasonNumber, e.raw AS raw,
        e.fieldSeq AS fieldSeq, p.numberSpace AS numberSpace, h.key AS hasEpisodeKey
@@ -261,7 +261,7 @@ const readAlignedRows = async (ctx: PluginContext): Promise<AlignedRow[]> => {
     `MATCH (a:Episode)-[l:EPISODE_LINK]->(b:Episode)
      WHERE l.status = 'active' AND l.by = $by
      MATCH (m:Media)-[h:HAS_EPISODE]->(a)
-     MATCH (p:EpisodeProfile)-[:PROFILE_OF]->(a)
+     MATCH (p:EpisodeProfile)-[:EPISODE_PROFILE_OF]->(a)
      RETURN m.uri AS mediaUri, a.uri AS uri, a.origin AS origin, a.id AS id,
        a.episodeNumber AS episodeNumber, a.seasonNumber AS seasonNumber, a.raw AS raw,
        a.fieldSeq AS fieldSeq, p.numberSpace AS numberSpace, h.key AS hasEpisodeKey,

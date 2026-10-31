@@ -309,7 +309,8 @@ CREATE REL TABLE EPISODE_LINK(FROM Episode TO Episode,
   fromNumber INT64, toNumber INT64,   // the two rows' own numbers, so a renumbering is readable off the edge
   supports STRING[])             // the HAS_EPISODE keys, or the EPISODE_CLAIMS key, it was derived from
 
-CREATE REL TABLE PROFILE_OF(FROM MediaProfile TO Media, FROM EpisodeProfile TO Episode, by STRING)
+CREATE REL TABLE PROFILE_OF(FROM MediaProfile TO Media, by STRING)
+CREATE REL TABLE EPISODE_PROFILE_OF(FROM EpisodeProfile TO Episode, by STRING)
 CREATE REL TABLE HAS_KEY(FROM Media TO TitleKey, key STRING, by STRING, version INT64, score DOUBLE, language STRING, class STRING)
 CREATE REL TABLE MEMBER_OF(FROM Media TO Cluster, by STRING, version INT64, via STRING)
 CREATE REL TABLE ATTACHED_TO(FROM Cluster TO Cluster, by STRING, version INT64, via STRING, supports STRING[])
@@ -336,7 +337,7 @@ trace descends by key: an edge without one could be neither named nor retracted 
 | --- | --- | --- |
 | `Origin`, `Media`, `Episode`, `Answer`, `CLAIMS`, `HAS_EPISODE`, `EPISODE_CLAIMS`, `RELATED`, `ABOUT` | the ingest, one serial queue (section 4) | `Answer.seq` / `answerSeq` names the exact resolver return; `claimer` names the origin; `seq` advances only in the ingest |
 | `Ask` | the similar consumer, through the ingest's write handle (7.3) | `runUri`, `origin`, `questionHash`, `outcome` |
-| `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `TitleKey`, `HAS_KEY` | `plugin:profile` | `by`, `version` |
+| `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `EPISODE_PROFILE_OF`, `TitleKey`, `HAS_KEY` | `plugin:profile` | `by`, `version` |
 | `LINK` (`SAME_AS`, `PART_OF`) | `plugin:direct` and `plugin:title` through the writer's guards; `plugin:containment` (`PART_OF` reason `span`, `show-show`) | `by`, `reason`, `evidence`, `gates`, `supports`, `status` |
 | `LINK` (`INCLUDES`), `EPISODE_LINK` | `plugin:range` | same |
 | `Cluster`, `Alias`, `MEMBER_OF`, `Slot`, `SLOT_OF`, `FILLS` | `plugin:aggregate` | same |
@@ -824,7 +825,7 @@ export type SourceNodeTable = 'Media' | 'Episode' | 'Origin' | 'Answer' | 'Ask'
 export type SourceEdgeTable = 'CLAIMS' | 'HAS_EPISODE' | 'EPISODE_CLAIMS' | 'RELATED' | 'ABOUT'
 export type PluginNodeTable = 'MediaProfile' | 'EpisodeProfile' | 'TitleKey' | 'Cluster' | 'Alias' | 'Slot'
 export type PluginEdgeTable =
-  | 'LINK' | 'EPISODE_LINK' | 'PROFILE_OF' | 'HAS_KEY' | 'MEMBER_OF' | 'ATTACHED_TO' | 'SLOT_OF' | 'FILLS'
+  | 'LINK' | 'EPISODE_LINK' | 'PROFILE_OF' | 'EPISODE_PROFILE_OF' | 'HAS_KEY' | 'MEMBER_OF' | 'ATTACHED_TO' | 'SLOT_OF' | 'FILLS'
 export type LinkKind = 'SAME_AS' | 'PART_OF' | 'INCLUDES'
 
 export type Plugin = {
@@ -1138,7 +1139,7 @@ Order in a pass: `profile`, `direct`, `aggregate`, `containment`, `title`, `rang
 #### P0 `plugin:profile`, derivations
 
 - **Consumes** `Media`, `Episode`, `Answer`, `ABOUT`, `CLAIMS`, `HAS_EPISODE`. **Produces**
-  `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `TitleKey`, `HAS_KEY`. `after: []`. Runs per changed
+  `MediaProfile`, `EpisodeProfile`, `PROFILE_OF`, `EPISODE_PROFILE_OF`, `TitleKey`, `HAS_KEY`. `after: []`. Runs per changed
   uri, scope `{uris}`.
 - **Evidence.** The row's own `raw`, its `Answer` log through `ABOUT`, the claims stamped on it, and
   the declared evidence fields when a source ships them.
@@ -1267,7 +1268,7 @@ MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(r:Media)<-[:PROFILE_OF]
 WHERE pr.startDay IS NOT NULL AND c.runLength IS NOT NULL
 MATCH (r)-[l:LINK {kind: 'PART_OF', status: 'active'}]->(s:Media)<-[:PROFILE_OF]-(ps:MediaProfile {folding: true})
 WHERE coalesce(ps.countDistinct, ps.countStated) > c.runLength
-MATCH (s)-[h:HAS_EPISODE]->(:Episode)<-[:PROFILE_OF]-(pe:EpisodeProfile)
+MATCH (s)-[h:HAS_EPISODE]->(:Episode)<-[:EPISODE_PROFILE_OF]-(pe:EpisodeProfile)
 WHERE h.claimer = s.origin AND pe.day IS NOT NULL
 WITH c, r, s, pr, min(pe.day) AS firstDay, max(pe.day) AS lastDay
 WHERE firstDay <= pr.startDay AND pr.startDay <= lastDay
@@ -1428,7 +1429,7 @@ ORDER BY year
 ```cypher
 // ours: the run's own episodes, hung by their own origin. The reference set (rule 1) is chosen in JS
 UNWIND $clusters AS cid
-MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(o:Media)-[oh:HAS_EPISODE]->(oe:Episode)<-[:PROFILE_OF]-(poe:EpisodeProfile)
+MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(o:Media)-[oh:HAS_EPISODE]->(oe:Episode)<-[:EPISODE_PROFILE_OF]-(poe:EpisodeProfile)
 WHERE oh.claimer = o.origin AND oe.origin = o.origin
 RETURN c.id AS runCluster, c.runLength AS runLength, c.runLengthWitnesses AS witnesses, c.runLengthFrom AS runLengthFrom,
        collect({uri: oe.uri, origin: o.origin, number: oe.episodeNumber, day: poe.day, keys: poe.titleKeys, generic: poe.generic, space: poe.numberSpace, hung: oh.key}) AS ours
@@ -1438,7 +1439,7 @@ RETURN c.id AS runCluster, c.runLength AS runLength, c.runLengthWitnesses AS wit
 UNWIND $clusters AS cid
 MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(r:Media)-[l:LINK {kind: 'PART_OF', status: 'active'}]->(s:Media)<-[:PROFILE_OF]-(ps:MediaProfile)
 WHERE l.reason IN ['count-mismatch', 'no-length', 'span', 'containing', 'contested', 'cross-scope']
-MATCH (s)-[h:HAS_EPISODE]->(se:Episode)<-[:PROFILE_OF]-(pse:EpisodeProfile)
+MATCH (s)-[h:HAS_EPISODE]->(se:Episode)<-[:EPISODE_PROFILE_OF]-(pse:EpisodeProfile)
 WHERE h.claimer = s.origin
 RETURN c.id AS runCluster, s.uri AS seasonUri, l.key AS via, coalesce(ps.countDistinct, ps.countStated) AS theirCount, ps.retranslates AS retranslates,
        collect({uri: se.uri, number: se.episodeNumber, day: pse.day, keys: pse.titleKeys, generic: pse.generic, space: pse.numberSpace, hung: h.key}) AS theirs
@@ -1446,7 +1447,7 @@ RETURN c.id AS runCluster, s.uri AS seasonUri, l.key AS via, coalesce(ps.countDi
 // class 2, the transitional lend: episodes a FOREIGN claimer hung on a member (cr: rows on an anilist: uri, 4.4),
 // grouped by claimer, with no season uri and no count. The rows are in the graph and in no other collection
 UNWIND $clusters AS cid
-MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(m:Media)-[h:HAS_EPISODE]->(e:Episode)<-[:PROFILE_OF]-(pe:EpisodeProfile)
+MATCH (c:Cluster {id: cid, scope: 'RUN'})<-[:MEMBER_OF]-(m:Media)-[h:HAS_EPISODE]->(e:Episode)<-[:EPISODE_PROFILE_OF]-(pe:EpisodeProfile)
 WHERE h.claimer <> m.origin
 RETURN c.id AS runCluster, h.claimer AS claimer,
        collect({uri: e.uri, number: e.episodeNumber, day: pe.day, keys: pe.titleKeys, generic: pe.generic, space: pe.numberSpace, hung: h.key}) AS theirs
