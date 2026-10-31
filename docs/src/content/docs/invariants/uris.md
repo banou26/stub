@@ -33,6 +33,8 @@ Group one is the handle list, group two the optional episode tail. `(.*)` is gre
 
 The route table builds paths by interpolation, with no encoding anywhere: `` `/media/${uri}` `` at `src/router/path.ts:18`, and `/watch/:mediaUri/:episodeUri/:sourceUri?` at `path.ts:49`. So a character that means something to the grammar, or to the router, cannot appear in an id.
 
+The episode part of a watch address names stub's own sources only: `watchEpisodeUri` (`src/utils/uri.ts`), which `Route.WATCH` runs every address through, leaves out the rows of added sources, since an indexer's releases are rows of the episode and the source segment already names the one playing. An episode only added sources know keeps one id. A link that names every row still opens, because any one id in common finds the episode, and a link whose ids have all left the list finds it by the release it plays.
+
 `src/utils/uri.ts:82`
 
 > a ',' splits the handle list inside `ag:(...)` and a '/' splits ONE segment of a route path ('/watch/:mediaUri/:episodeUri'), so either one silently turns a working uri into one no route matches

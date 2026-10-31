@@ -193,6 +193,11 @@ describe('useAutoPick', () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/cr:GX1', { replace: true })
   })
 
+  test('a pick on a link that names every release writes the short address', () => {
+    const { navigate } = page({ ...at, episodeUri: 'ag:(anilist:1-1,nyaa:1,nyaa:2)', best: { uri: 'nyaa:2', now: true } })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:2', { replace: true })
+  })
+
   test('a pick that is not now never opens on a timer, and opens as soon as it is', () => {
     vi.useFakeTimers()
     const { navigate, update } = page({ ...at, best: { uri: 'cr:GX1', now: false } })

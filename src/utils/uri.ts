@@ -1,3 +1,4 @@
+import { builtInSources } from '../sources/built-in'
 import { groupBy } from './group-by'
 
 export type Uri = `${string}:${string}`
@@ -256,6 +257,25 @@ export const originsOfUri = (uri: string): string[] => {
   }
   if (isUri(uri)) return [fromUri(uri).origin]
   return []
+}
+
+const BUILT_IN_ORIGINS = new Set(builtInSources.map(source => source.origin))
+
+/**
+ * An episode's uri as a watch address names it: without the rows of added sources, which say where to watch and not
+ * which episode this is. An indexer files each release as a row of the episode (28 on Frieren's second season's third
+ * episode, 2026-10-31), and those rows reach only a viewer who added it, where stub's own sources answer every viewer.
+ * Origin is the only test that holds: a plugin marks no release, a release's url can be a web page, and an origin
+ * repeating in an episode is not one listing releases, as JustWatch files a service's row beside the service's own.
+ *
+ * An episode none of stub's sources knows keeps its first id, so the address still names something. Anything else comes
+ * back as it came, byte for byte. Any one id in common finds the episode (`matchAggregatedUris`), so an address that
+ * names every row opens as it always did, and comes out short when it is next written.
+ */
+export const watchEpisodeUri = (uri: string): string => {
+  const handles = isAggregatedUri(uri) ? fromAggregatedUri(uri)?.handleUris ?? [] : []
+  const own = handles.filter(handle => BUILT_IN_ORIGINS.has(fromUri(handle).origin))
+  return own.length === handles.length ? uri : `ag:(${joinUris(own.length ? own : handles.slice(0, 1))})`
 }
 
 export const mergeAggregatedUris = (uris: AggregatedUri[]) =>

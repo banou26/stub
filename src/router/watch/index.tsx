@@ -511,8 +511,10 @@ const Watch = () => {
             asAggregatedUri(params.episodeUri) as AggregatedUri
           )
           : false
-      ),
-    [media?.episodes, params.episodeUri]
+      )
+      // an address names few of an episode's rows, and those can leave its list while the release it plays is still on it
+      ?? media?.episodes?.find(ep => playableHandlesOf(ep.handles).some(handle => handle.uri === params.sourceUri)),
+    [media?.episodes, params.episodeUri, params.sourceUri]
   )
 
   const selectedSourceUri = params.sourceUri

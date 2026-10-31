@@ -1,3 +1,4 @@
+import { watchEpisodeUri } from '../utils/uri'
 
 export enum Route {
   HOME = 'HOME',
@@ -23,7 +24,7 @@ const ROUTES = {
   [Route.MEDIA_EPISODE]: ({ uri, mediaUri }: { uri: string, mediaUri: string }) => `/media/${uri}/${mediaUri}`,
   [Route.TITLE]: ({ uri }: { uri: string }) => `/title/${uri}`,
   // The filters ride in the QUERY STRING, so the href is built by `searchPath` in ./search/params.ts,
-  // which knows the param names. This module stays dependency-free because the WORKER imports it
+  // which knows the param names. This module stays light because the WORKER imports it
   // (store/aggregate.ts builds a media's canonical url with it), so it cannot reach the generated
   // enums that validate those params.
   [Route.SEARCH]: () => '/search',
@@ -34,7 +35,7 @@ const ROUTES = {
   [Route.LIST]: () => '/list',
   [Route.CONTINUE]: () => '/continue',
   [Route.WATCH]: ({ mediaUri, episodeUri, sourceUri }: { mediaUri: string, episodeUri: string, sourceUri?: string }) =>
-    `/watch/${mediaUri}/${episodeUri}${sourceUri ? `/${sourceUri}`: ''}`,
+    `/watch/${mediaUri}/${watchEpisodeUri(episodeUri)}${sourceUri ? `/${sourceUri}`: ''}`,
   // the invite rides in the FRAGMENT (see party/invite.ts), so the path itself names nothing
   [Route.PARTY]: () => '/party',
   // the traced uri rides in the QUERY STRING, so the href is built by `debugTracePath` in

@@ -14,8 +14,10 @@ import { memoryLocation } from 'wouter/memory-location'
 import { share } from '../../components/share'
 
 const navigate = vi.fn()
+// the episode, and what an address names of it, which leaves the added source's release out
 const allUri = 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a)'
-let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+const addressUri = 'ag:(anilist:1-1,cr:GX1,nf:81)'
+let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = { mediaUri: 'ag:(anilist:1)', episodeUri: addressUri }
 // the address's query string, without its `?`
 let search = ''
 const handle = (uri: string, origin: string, url: string) => ({ relation: 'SAME_AS', node: { uri, origin, url } })
@@ -24,7 +26,7 @@ const allHandles = [
   handle('nf:81', 'nf', 'https://www.netflix.com/watch/81'),
   handle('nyaa:a', 'nyaa', 'magnet:?xt=urn:btih:a'),
 ]
-const episode = { uri: params.episodeUri, handles: allHandles }
+const episode = { uri: allUri, handles: allHandles }
 const single = { uri: params.mediaUri, handles: [], episodes: [episode], settled: true }
 let media: object = single
 // the other runs the page may ask for, by the uri it asks with, and every uri it asked for besides its own
@@ -326,7 +328,7 @@ afterEach(() => {
   statuses = { ...SIGNED_IN }
   learned = {}
   before.clear()
-  params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+  params = { mediaUri: 'ag:(anilist:1)', episodeUri: addressUri }
   search = ''
   Object.assign(episode, { uri: allUri, handles: allHandles })
   media = single
@@ -997,7 +999,7 @@ test('Share, beside the episode\'s title, copies a short link to this episode on
   await settle()
   const { link, opens } = await share(host.querySelector('.episode-info > button.share'), 'https://anime.fkn.app/watch/ag:(anilist:1)/x/y?plugins=https:stub.plugins.banou.dev&t=12')
   expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
-  expect(opens).toBe(`https://anime.fkn.app/watch/ag:(anilist:1)/${allUri}/nyaa:a?plugins=https:stub.plugins.banou.dev`)
+  expect(opens).toBe(`https://anime.fkn.app/watch/ag:(anilist:1)/${addressUri}/nyaa:a?plugins=https:stub.plugins.banou.dev`)
 })
 
 test('an episode not out yet is not linked as the next one', async () => {
@@ -1253,6 +1255,72 @@ test('the row playing links the release playing, not the site\'s first', async (
   ])
 })
 
+describe('an address names an episode with few of its rows', () => {
+  const twoReleases = () => {
+    series()
+    ;(media as { episodes: ReturnType<typeof row>[] }).episodes.forEach((each, at) => { each.uri = `ag:(anilist:1-${at + 1},nyaa:e${at},nyaa:f${at})` })
+    ;(media as { episodes: ReturnType<typeof row>[] }).episodes[1]!.handles.push(release('e1'), release('f1'))
+    params = { ...params, sourceUri: 'nyaa:f1' }
+  }
+  const open = async (episodeUri: string) => {
+    vi.useFakeTimers()
+    origins = ['cr', 'nyaa']
+    params = { ...params, episodeUri }
+    const host = page()
+    hosts.push(host)
+    await settle()
+    return host
+  }
+  const opened = (host: HTMLElement) => [host.querySelector('.episode-title')?.textContent, host.querySelector('.plugin-player')?.getAttribute('data-url')]
+  const SECOND = ['E2 - Title 2', 'magnet:?xt=urn:btih:f1']
+
+  test('a link with every id, as already shared, opens its episode and release, and Share hands out the short one', async () => {
+    twoReleases()
+    const host = await open('ag:(anilist:1-2,nyaa:e1,nyaa:f1)')
+    expect(opened(host)).toEqual(SECOND)
+    const { opens } = await share(host.querySelector('.episode-info > button.share'), 'https://anime.fkn.app/watch/x/y/z')
+    expect(opens).toBe(`https://anime.fkn.app/watch/${params.mediaUri}/ag:(anilist:1-2)/nyaa:f1`)
+  })
+
+  test('the short one finds an episode holding more ids, on a reload or a Back alike', async () => {
+    twoReleases()
+    expect(opened(await open('ag:(anilist:1-2)'))).toEqual(SECOND)
+  })
+
+  test('one naming none of the rows listed now finds the episode of the release it plays', async () => {
+    twoReleases()
+    expect(opened(await open('ag:(nyaa:gone)'))).toEqual(SECOND)
+  })
+
+  test('the ids it names go before the release it plays, which another episode\'s address may name', async () => {
+    twoReleases()
+    const host = await open('ag:(anilist:1-3)')
+    expect(host.querySelector('.episode-title')?.textContent).toBe('E3 - Title 3')
+  })
+
+  test('the releases listed keep the episode part, and the one picked plays', async () => {
+    twoReleases()
+    const host = await open('ag:(anilist:1-2,nyaa:e1,nyaa:f1)')
+    const group = host.querySelector<HTMLElement>('button.source[title="3 releases on nyaa"]')!
+    expect(group.getAttribute('aria-expanded'), 'open on the release playing').toBe('true')
+    const links = [...host.querySelectorAll('a.release')].map(link => link.getAttribute('href'))
+    expect(links).toEqual(['a', 'e1', 'f1'].map(id => watchPath(2, `nyaa:${id}`)))
+    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:e1' }
+    unmount(hosts.pop()!)
+    hosts.push(page())
+    await settle()
+    expect(hosts.at(-1)!.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:e1')
+  })
+
+  test('where the viewer stopped is kept by release, so the short address resumes a point saved on the long one', async () => {
+    twoReleases()
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nyaa:f1', 600, 1000]]))
+    await open('ag:(anilist:1-2)')
+    await report({ paused: false, time: 2 })
+    expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
+  })
+})
+
 // Chromium 1228, 2026-10-15: a frame that loads another address in place adds a step to the tab's
 // history, so after Next one Back moved only the player back, and the page still named the next episode
 // A source package keeps its frame for its next releases instead, putting each in a frame of its own: WebKit lets its
@@ -1331,7 +1399,7 @@ test('a scrub to the end while paused, once the episode played, counts down too'
 test('a source joining the next episode during the countdown keeps it, and it opens the new address', async () => {
   const { rerender } = await atTheEnd()
   await report(played, ended)
-  const grown = 'ag:(anilist:1-3,nyaa:b)'
+  const grown = 'ag:(anilist:1-3,nf:83)'
   Object.assign((media as { episodes: object[] }).episodes[2]!, { uri: grown })
   rerender()
   await wait(UP_NEXT_MS)
@@ -2346,7 +2414,7 @@ test('a party guest\'s torrent episode counts once as the page follows the host\
     bridge.greets = true
     party = { status: 'active', role: 'guest' } as typeof party
     tracking = stubOnly
-    params = { mediaUri: 'ag:(anilist:1)', episodeUri: allUri }
+    params = { mediaUri: 'ag:(anilist:1)', episodeUri: addressUri }
     const { rerender } = await atTheEnd({}, 'nyaa:a')
     await report({ paused: false, time: at })
     params = { ...params, mediaUri: SERIES }
@@ -2368,7 +2436,7 @@ test('a party guest\'s torrent episode counts once as the page follows the host 
     bridge.greets = true
     party = { status: 'active', role: 'guest' } as typeof party
     tracking = stubOnly
-    params = { mediaUri: 'ag:(tvdb:1)', episodeUri: allUri }
+    params = { mediaUri: 'ag:(tvdb:1)', episodeUri: addressUri }
     const { rerender } = await atTheEnd({}, 'nyaa:a')
     media = { ...media, uri: SEASON }
     rerender()
@@ -2885,7 +2953,7 @@ test('the episode title holds its place until the episode is known, and reads it
   expect(title().textContent, 'a source is still out').toBe('')
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }; render(tree(), host) })
-  expect(title().textContent).toBe(allUri)
+  expect(title().textContent).toBe(addressUri)
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
   expect(title().textContent).toMatch(/^E3 - Plan$/)
@@ -3695,7 +3763,7 @@ test('the account is asked again on every episode', async () => {
   expect(lookups.asked).toEqual(['paid'])
   await rerender()
   expect(lookups.asked, 'the same episode').toEqual(['paid'])
-  params = { ...params, episodeUri: 'ag:(anilist:1-2,paid:b,nyaa:b)' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)' }
   Object.assign(episode, { uri: params.episodeUri })
   await rerender()
   expect(lookups.asked, 'the next episode').toEqual(['paid', 'paid'])
@@ -3720,7 +3788,7 @@ test('an added source whose account never answers lists its release at once and 
 // the route keeps one Watch across episodes (src/router/index.tsx), so the last episode's answer is still on hand
 const nextEpisode = () => {
   navigate.mockClear()
-  params = { ...params, episodeUri: 'ag:(anilist:1-2,paid:b,nyaa:b)' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)' }
   Object.assign(episode, { uri: params.episodeUri })
 }
 
@@ -3748,7 +3816,7 @@ test('no answer on the next episode is not signed in, though the source said so 
     paidFirst('account', async () => 'signed-in')
     statuses = {}
     stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'nyaa', 'amazon', 'nf']))
-    params = { ...params, episodeUri: allUri }
+    params = { ...params, episodeUri: addressUri }
     Object.assign(episode, { uri: allUri, handles: [allHandles[0], paidRelease, allHandles[2]] })
     const { rerender } = await answered()
     expect(navigate, `${why}: the last episode`).toHaveBeenCalledExactlyOnceWith(toWatch('paid:a'), { replace: true })

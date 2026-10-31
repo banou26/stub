@@ -34,7 +34,7 @@ test('an origin with several releases links to its first release', () => {
     return null
   }
   hosts.push(mount(<Probe/>))
-  expect(sources.map(({ id, href }) => ({ id, href }))).toEqual([{ id: 'nyaa', href: '/watch/ag:(anilist:1)/ag:(anilist:1-1,nyaa:b,nyaa:a)/nyaa:b' }])
+  expect(sources.map(({ id, href }) => ({ id, href }))).toEqual([{ id: 'nyaa', href: '/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:b' }])
 })
 
 test('a Prime Video episode outside Japan links to the watch page with the extension, and out to Prime Video on the cloud', async () => {
