@@ -43,7 +43,7 @@ const render = () => {
   return { host, select, pick, options, saved, reload }
 }
 
-test('Automatic names the browser\'s language, then English and wave 1, each in its own name and lang', () => {
+test('Automatic names the browser\'s language, then every language offered, each in its own name and lang', () => {
   const { host, select, options } = render()
   expect(document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent).toBe('Language')
   expect(options()).toEqual([
@@ -57,6 +57,8 @@ test('Automatic names the browser\'s language, then English and wave 1, each in 
     { value: 'pt-BR', text: 'Português (Brasil)', lang: 'pt-BR' },
     { value: 'tr', text: 'Türkçe', lang: 'tr' },
     { value: 'ru', text: 'Русский', lang: 'ru' },
+    { value: 'he', text: 'עברית', lang: 'he' },
+    { value: 'ar', text: 'العربية', lang: 'ar' },
     { value: 'ko', text: '한국어', lang: 'ko' },
     { value: 'ja', text: '日本語', lang: 'ja' },
     { value: 'zh-Hans', text: '简体中文', lang: 'zh-Hans' },

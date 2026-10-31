@@ -66,8 +66,8 @@ describe('the header search field', () => {
    */
   test('the field carries the inset, so the whole pill is the click target', () => {
     const own = block.slice(0, block.indexOf('&:focus-within'))
-    expect(own, 'padding on the form is dead space').not.toMatch(/^\s*padding:/m)
-    expect(rulesOf('input')).toMatch(/padding:\s*[^;]+;/)
+    expect(own, 'padding on the form is dead space').not.toMatch(/^\s*padding[\w-]*:/m)
+    expect(rulesOf('input')).toMatch(/padding-inline:\s*[^;]+;/)
   })
 
   // the glyph is drawn over the field rather than beside it, so its share of the pill stays a target

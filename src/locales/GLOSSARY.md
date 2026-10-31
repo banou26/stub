@@ -18,7 +18,9 @@ same change, using the terms below, and runs `npm run i18n:check`.
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
   everything under it. The button is a noun phrase in most languages for that reason.
 - **Plurals** carry every form the language needs (the check names a missing one): Russian and Polish
-  `one, few, many, other`; Japanese, Korean and Chinese `other` alone. A count is written as the English writes it:
+  `one, few, many, other`; Japanese, Korean and Chinese `other` alone; Arabic `zero, one, two, few, many, other`;
+  Hebrew `one, two, other`. Arabic and Hebrew write one and two in words (`حلقة واحدة`, `حلقتان`, `פרק אחד`,
+  `שני פרקים`), so their `one` and `two` branches hold no `{count}`. A count is written as the English writes it:
   `{count}` as given, never `#` or `{count, number}`, which group it (`1.100 Folgen`); the check names either form
   where the English lacks it.
 - **A date range** joins a year or a month alone as often as a day (`1998`, `avr. 1998`, `3 avr. 1998`), so its words
@@ -28,6 +30,13 @@ same change, using the terms below, and runs `npm run i18n:check`.
   `in` would want `Tagen`, Polish `jeszcze {countdown}` where `za` would want `godzinę`, and a colon before `{day}`.
   So does a label another message gives, such as a chip's `{filter}` (`Зима`, `Komedia`): Russian `Убрать фильтр
   «{filter}»` and Polish `Usuń filtr „{filter}”`, where the verb alone would want `Зиму` and `Komedię`.
+
+- **Arabic and Hebrew** read right to left, and `src/i18n` isolates each plain value at load, so a catalogue holds no
+  direction mark. Brand names stay in Latin script, and a prefix joins one the way the language writes it: Arabic
+  `لـ {name}` and `بـ {name}`, Hebrew `ב-{name}` and `מ-{name}`. Arabic writes its own comma and question mark (`،`, `؟`)
+  and guillemets (`«{term}»`), Hebrew gershayim (`״{term}״`) and geresh in loanwords (`צ׳אט`, `ז׳אנרים`). A value beside
+  an adjective or a past verb would ask it to agree with a number or a person nobody knows, so the line is a label and a
+  colon: `جاهز: {count}`, `מוכנים: {count}`, `{member}: إيقاف مؤقت`, `{member}: השהיה`.
 
 ## Register and terms
 
@@ -45,6 +54,8 @@ same change, using the terms below, and runs `npm run i18n:check`.
 | `zh-Hant` | 你 | 集 | 季 | 季度 | 系列 | 原作 |
 | `tr` | siz | bölüm | sezon | Sezon | Seri | Kaynak eser |
 | `pl` | ty, or impersonal | odcinek | sezon | Sezon | Seria | Pierwowzór |
+| `ar` | imperative in the masculine singular in a sentence, the verbal noun on buttons | حلقة | موسم | الموسم | السلسلة | العمل الأصلي |
+| `he` | imperative in the plural in a sentence, the action noun on buttons | פרק | עונה | עונה | זיכיון | יצירת המקור |
 
 ## Settings
 
@@ -65,6 +76,8 @@ stub only connects to the browser's own session, so its words differ from signin
 | `zh-Hant` | 來源 | 登入, 登出 | 連線, 中斷連線 | 播放順序 | 合併順序 |
 | `tr` | kaynak | Oturum aç, Oturumu kapat | Bağla, Bağlantıyı kes | Oynatma sırası | Birleştirme sırası |
 | `pl` | źródło | Zaloguj się, Wyloguj się | Połącz, Rozłącz | Kolejność odtwarzania | Kolejność scalania |
+| `ar` | مصدر | تسجيل الدخول, تسجيل الخروج | ربط, إلغاء الربط | ترتيب التشغيل | ترتيب الدمج |
+| `he` | מקור | התחברות, התנתקות | קישור, ביטול קישור | סדר הפעלה | סדר מיזוג |
 
 ## Watching
 
@@ -82,6 +95,8 @@ stub only connects to the browser's own session, so its words differ from signin
 | `zh-Hant` | 繼續觀看 | 重新觀看 | 觀看進度 |
 | `tr` | Devam et | Yeniden izle | İzlendi |
 | `pl` | Kontynuuj | Obejrzyj ponownie | Obejrzano |
+| `ar` | متابعة | إعادة المشاهدة | المشاهَد |
+| `he` | המשך צפייה | צפייה חוזרת | נצפו |
 
 ## Watch page and players
 
@@ -105,6 +120,8 @@ noun phrase written in the case the language gives the names around it.
 | `zh-Hant` | 版本 | 播放器 | 登入視窗 | 彈出式視窗 | 重試 | `第{number}集 {title}` | 多種語言 |
 | `tr` | sürüm | oynatıcı | oturum açma penceresi | açılır pencere | Tekrar dene | `{number}. Bölüm - {title}` | Birden fazla dil |
 | `pl` | wydanie | odtwarzacz | okno logowania | wyskakujące okno | Spróbuj ponownie | `Odc. {number} - {title}` | wiele języków |
+| `ar` | إصدار | المشغّل | نافذة تسجيل الدخول | نافذة منبثقة | إعادة المحاولة | `الحلقة {number} - {title}` | لغات متعددة |
+| `he` | גרסה | נגן | חלון ההתחברות | חלון קופץ | ניסיון חוזר | `פרק {number} - {title}` | מספר שפות |
 
 ## Watch party
 
@@ -133,6 +150,8 @@ header's button, renamed from Watch together to take less room, so a language ke
 | `zh-Hant` | 一起看 | 派對 | 主持人 | 成員 | 同步進度 | 跟隨主持人播放 |
 | `tr` | Birlikte izle | parti | ev sahibi | katılımcılar | Eşitle | Oynatmayı takip et |
 | `pl` | Oglądaj razem | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
+| `ar` | مشاهدة جماعية | مجموعة | مضيف | المشاركون | مزامنة | متابعة التشغيل |
+| `he` | צפייה משותפת | קבוצה | מארח | משתתפים | סנכרון | מעקב אחר ההפעלה |
 
 ## Header and search
 
@@ -161,6 +180,8 @@ A card's tag names one title, Movie or Series, so its Series is singular where t
 | `zh-Hant` | 搜尋 | 影集 | 篩選, 清除篩選 | 不限 | 播出狀態 |
 | `tr` | Ara | Diziler | filtrele, Filtreleri temizle | Tümü | Yayın durumu |
 | `pl` | Szukaj | Seriale | Filtruj, Wyczyść filtry | Dowolne | Status emisji |
+| `ar` | بحث | مسلسلات | تصفية, مسح عوامل التصفية | الكل | حالة العرض |
+| `he` | חיפוש | סדרות | סינון, ניקוי המסננים | הכול | סטטוס שידור |
 
 ## Tracking
 
@@ -194,6 +215,8 @@ status.
 | `zh-Hant` | 追蹤器 | 清單、項目 | 評分 | 在看 | 重看中 | 想看 | 看過 | 擱置 | 拋棄 | 快速記錄 |
 | `tr` | takip aracı | liste, kayıt | puan | İzleniyor | Yine izleniyor | İzlenecek | Tamamlandı | Ara verildi | Bırakıldı | Hızlı takip |
 | `pl` | tracker | lista, wpis | ocena | Oglądam | Powtórka | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
+| `ar` | متتبع | قائمة, إدخال | تقييم | أشاهده | أعيد مشاهدته | سأشاهده | مكتمل | متوقف مؤقتًا | متروك | تتبع سريع |
+| `he` | כלי מעקב | רשימה, רשומה | ציון | בצפייה | צפייה חוזרת | מתוכנן | הושלם | מושהה | ננטש | מעקב מהיר |
 
 ## Footer, paging and errors
 
