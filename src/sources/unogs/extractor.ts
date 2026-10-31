@@ -2,7 +2,7 @@ import type { ExtractorServerContext } from '../../worker/extractor'
 import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode, SimilarMediaInput } from '../../generated/schema/types.generated'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri, toUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, simplifyTitle, buildHandlesFromUri, waitForMedia, pickTitleMatch, declaredEpisodeCount } from '../utils'
-import { pickContainingSeason, pickSimilarSeason, type SeasonCandidate } from '../similar'
+import { pickContainingSeason, pickSimilarSeason, type RunEvidence, type SeasonCandidate } from '../similar'
 import { yearAppearsInShow } from '../catalogue-gate'
 import { percentScore } from '../average-score'
 import { fetchNetflixSeasonEpisodes, fetchNetflixTitle, NETFLIX_EMPTY_FACT, NETFLIX_FAILURE_FACT, type NetflixEpisode, type NetflixTitle } from './netflix'
@@ -471,8 +471,9 @@ const netflixFallbackSeasons = async (id: string, ctx: ExtractorServerContext): 
 /**
  * The title as unOGS describes it, or as Netflix's landing query does when unOGS cannot answer.
  *
- * `year` stays empty because Netflix's `latestYear` is the NEWEST year (2026 for a show that began in
- * 2021), and the title's year is offered to the first season as a veto (`netflixCandidates`).
+ * `year` stays empty past one season because Netflix's `latestYear` is the NEWEST year (2026 for a show
+ * that began in 2021), and the title's year is offered to the first season as a veto
+ * (`netflixCandidates`). A lone season's newest year is its own.
  *
  * THROWS when neither answers. A refusal is final for its evidence where a failure is asked again, so
  * reading an outage as "no such title" would cost a show its Netflix row for the session.
@@ -492,7 +493,7 @@ const fetchTitle = async (id: string, ctx: ExtractorServerContext): Promise<Unog
       img: '',
       lgimg: '',
       nfdate: '',
-      year: null,
+      year: result.title.seasons.length === 1 ? result.title.year ?? null : null,
       imdbid: null,
       imdbrating: null
     }
@@ -888,6 +889,24 @@ const netflixCandidates = (seasons: NetflixSeason[], titleYear?: number | string
   }))
 
 /**
+ * The season the shared picker names, without its first-season rule on a title read with no year.
+ *
+ * That rule answers on a count alone and leans on the year veto to stop a later run of the same length.
+ * Stranger Things lists 8, 9, 8, 9, 8, so with no year its season 1 was taken for the 2019 run of 8, and
+ * season 1's own page lost its icons (2026-10-31, uNoGS held, three runs of three). A title Netflix
+ * described has none to offer: `latestYear` is the newest, and `availabilityStartTime` moves with later
+ * seasons (season 2's date for Stranger Things, the newest season's for Mushoku Tensei). So the ask is
+ * refused as the veto would have refused it, and the episode titles settle it when they land.
+ *
+ * `null` is that title. Undefined is a search hit that names no year, where no title was read and uNoGS
+ * has just answered, and the rule stands for it as it always has.
+ */
+const pickNetflixSeason = (evidence: RunEvidence, seasons: NetflixSeason[], titleYear?: number | string | null) => {
+  const verdict = pickSimilarSeason(evidence, netflixCandidates(seasons, titleYear))
+  return verdict?.rule === 'first' && titleYear === null ? undefined : verdict
+}
+
+/**
  * Which of this Netflix series' seasons is the cluster asking, or the whole TITLE when nothing settles it.
  *
  * The rules are `pickSimilarSeason` in ../similar.ts, shared with every source that answers
@@ -923,13 +942,14 @@ const matchNetflixSeason = async (
   const { seasons } = await fetchEpisodes(nfId, ctx)
   if (!seasons.length) return undefined
 
-  const verdict = pickSimilarSeason(
+  const verdict = pickNetflixSeason(
     {
       titles: (known.titles ?? []).map(title => title.title),
       episodeCount: declaredEpisodeCount(known),
       startDate: known.startDate
     },
-    netflixCandidates(seasons, titleYear)
+    seasons,
+    titleYear
   )
   return verdict ? { kind: 'season', season: verdict.season.season } : { kind: 'title' }
 }
@@ -945,7 +965,7 @@ const similarSeason = async (input: SimilarMediaInput, ctx: ExtractorServerConte
   if (detail?.vtype !== 'series') return undefined
   const listing = await fetchEpisodes(input.showId, ctx)
   if (!listing.seasons.length) return undefined
-  const verdict = pickSimilarSeason(input, netflixCandidates(listing.seasons, detail.year))
+  const verdict = pickNetflixSeason(input, listing.seasons, detail.year)
   if (!verdict) return undefined
   // enriched AFTER the pick, never before: the verdict is what names the one season worth a request
   const picked = await withNetflixEpisodes(listing, verdict.season.season, ctx)

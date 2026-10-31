@@ -9,7 +9,7 @@ import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { withBackoff } from '../../../../src/worker/backoff'
 import { ASK_BOUND_MS } from '../../../../src/worker/fanout'
 import { NETFLIX_GRAPHQL_URL } from '../../../../src/sources/unogs/netflix'
-import { getMedia, resetUnogsCaches, resolvers, UNOGS_COOLDOWN_MS, UNOGS_WAIT_MS } from '../../../../src/sources/unogs/extractor'
+import { getMedia, linkNetflix, resetUnogsCaches, resolvers, UNOGS_COOLDOWN_MS, UNOGS_WAIT_MS } from '../../../../src/sources/unogs/extractor'
 
 const UNOGS = 'https://unogs.com/api'
 const SQUID_GAME = '81040344'
@@ -139,6 +139,51 @@ const ALL_OF_US_SEASON_ANSWER = {
   },
 }
 
+const STRANGER_THINGS = '80057281'
+const THIRD_SEASON_EPISODES: [number, string][] = [
+  [80186941, 'Chapter One: Suzie, Do You Copy?'],
+  [80222773, 'Chapter Two: The Mall Rats'],
+  [80222774, 'Chapter Three: The Case of the Missing Lifeguard'],
+  [80222775, 'Chapter Four: The Sauna Test'],
+  [80222776, 'Chapter Five: The Flayed'],
+  [80222777, 'Chapter Six: E Pluribus Unum'],
+  [80222778, 'Chapter Seven: The Bite'],
+  [80222779, 'Chapter Eight: The Battle of Starcourt'],
+]
+
+/** Recorded the same day. Seasons run 8, 9, 8, 9, 8; seasons 2, 4 and 5 keep two episodes each. */
+const STRANGER_THINGS_LANDING = {
+  data: {
+    videos: [{
+      __typename: 'Show',
+      videoId: 80057281,
+      title: 'Stranger Things',
+      latestYear: 2025,
+      seasons: {
+        __typename: 'SeasonsConnection',
+        totalCount: 5,
+        pageInfo: { __typename: 'PageInfo', hasNextPage: false },
+        edges: [
+          seasonEpisodes(80077209, 'Season 1', [
+            [80077368, 'Chapter One: The Vanishing of Will Byers'],
+            [80077369, 'Chapter Two: The Weirdo on Maple Street'],
+            [80077370, 'Chapter Three: Holly, Jolly'],
+            [80077371, 'Chapter Four: The Body'],
+            [80077372, 'Chapter Five: The Flea and the Acrobat'],
+            [80077373, 'Chapter Six: The Monster'],
+            [80077374, 'Chapter Seven: The Bathtub'],
+            [80077375, 'Chapter Eight: The Upside Down'],
+          ]),
+          seasonEpisodes(80117715, 'Season 2', [[80117716, 'Chapter One: MADMAX'], [80144891, 'Chapter Two: Trick or Treat, Freak']]),
+          seasonEpisodes(80186799, 'Season 3', THIRD_SEASON_EPISODES),
+          seasonEpisodes(80229865, 'Season 4', [[80229866, 'Chapter One: The Hellfire Club'], [80229867, "Chapter Two: Vecna's Curse"]]),
+          seasonEpisodes(81297917, 'Season 5', [[81599029, 'Chapter One: The Crawl'], [81599030, 'Chapter Two: The Vanishing of Holly Wheeler']]),
+        ],
+      },
+    }],
+  },
+}
+
 /** What uNoGS answered through the relay while it was down: nothing for about 35 s, then a 502. */
 const down = () => new Promise<Response>(resolve => { setTimeout(() => resolve(new Response('Bad Gateway', { status: 502 })), 35_000) })
 
@@ -164,6 +209,7 @@ const recordedNetflix: NonNullable<Stage['netflix']> = async (operation, { video
   if (operation === 'PreviewModalEpisodeSelectorSeasonEpisodes') {
     return Response.json(seasonId === FIRST_SEASON ? FIRST_SEASON_ANSWER : seasonId === ALL_OF_US_SEASON ? ALL_OF_US_SEASON_ANSWER : { data: { videos: [] } })
   }
+  if (videoId === Number(STRANGER_THINGS)) return Response.json(STRANGER_THINGS_LANDING)
   return Response.json(videoId === Number(GLASS_ONION) ? GLASS_ONION_LANDING : videoId === Number(ALL_OF_US_ARE_DEAD) ? ALL_OF_US_LANDING : SQUID_GAME_LANDING)
 }
 
@@ -190,7 +236,14 @@ const rig = (stage: Stage) => {
   }
 }
 
-const SQUID_GAME_RUN = { showId: SQUID_GAME, titles: ['Squid Game'], episodeCount: 9, startDate: '2021-09-17' }
+const SQUID_GAME_RUN = {
+  showId: SQUID_GAME,
+  titles: ['Squid Game'],
+  episodeCount: 9,
+  startDate: '2021-09-17',
+  episodeTitles: FIRST_SEASON_EPISODES.map(([, title]) => title),
+}
+const THIRD_SEASON_RUN = { showId: STRANGER_THINGS, titles: ['Stranger Things'], episodeCount: 8, startDate: '2019-07-04' }
 
 const askSimilar = async (input: Record<string, unknown>, ctx: ExtractorServerContext) => {
   const { subscribe } = (resolvers.Subscription as { similarMedia: { subscribe: Function } }).similarMedia
@@ -344,6 +397,41 @@ test('nobody answering stays a failure, never a refusal', async () => {
   const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
 
   expect(outcome).toMatchObject({ error: expect.anything() })
+})
+
+// Seasons run 8, 9, 8, 9, 8, and with no year for the first-season veto a 2019 run of 8 took season 1 on its
+// length: three live runs out of three, with season 1's own page left with no Netflix icons at all.
+test('a later run of the first season\'s length takes no season off a count alone', async () => {
+  const { ctx } = rig({ unogs: down })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(THIRD_SEASON_RUN, ctx))
+
+  expect(outcome).toEqual({ value: null })
+})
+
+test('the same run is placed by its episode titles when they land', async () => {
+  const { ctx } = rig({ unogs: down })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar({ ...THIRD_SEASON_RUN, episodeTitles: THIRD_SEASON_EPISODES.map(([, title]) => title) }, ctx))
+
+  expect(outcome).toMatchObject({ value: { uri: 'nf:80057281-3', episodeCount: 8 } })
+})
+
+test('a cluster linked to a title Netflix described gets the title, never a season off its count', async () => {
+  const { ctx } = rig({ unogs: down })
+  const known = { titles: [{ title: 'Stranger Things', language: 'en', score: 1 }], episodeCount: 8, startDate: '2019-07-04' }
+
+  const outcome = await after(ASK_BOUND_MS - 1, linkNetflix(STRANGER_THINGS, 'tvmaze:2993-s3', { ...ctx, findAggregatedMedia: async () => known } as unknown as ExtractorServerContext))
+
+  expect(outcome).toMatchObject({ value: { uri: 'nf:80057281', scope: 'CONTAINER' } })
+})
+
+test('a lone season is dated by the one year Netflix gives, so a run of another year is refused', async () => {
+  const { ctx } = rig({ unogs: down })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar({ showId: ALL_OF_US_ARE_DEAD, titles: ['All of Us Are Dead'], episodeCount: 12, startDate: '2025-06-01' }, ctx))
+
+  expect(outcome).toEqual({ value: null })
 })
 
 test('control: Netflix saying it has no such title is an answer, and a refusal', async () => {
