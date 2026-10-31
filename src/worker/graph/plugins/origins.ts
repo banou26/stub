@@ -30,7 +30,7 @@ export const SHOW_LEVEL_ORIGINS = new Set(['imdb', 'trakt', 'tvdb', 'paramount']
 /**
  * Origins that fold cours into seasons, so one of their season rows can hold two of our runs.
  *
- * `crunchyroll/extractor.ts:379-384`, `unogs/extractor.ts:337-340`, `justwatch/extractor.ts:408-414`.
+ * `crunchyroll/extractor.ts:435-438`, `unogs/extractor.ts:849-850`, `justwatch/extractor.ts:673`.
  * Read by the count guards of 5.2 (7 and 8), which land in step 2b.
  */
 export const FOLDING_ORIGINS = new Set(['cr', 'nf', 'jw'])
@@ -143,15 +143,15 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   // `imdbId` and `tmdbId` (`watchmode:153-155`) plus the stream hosts of `watchmode:67-74`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
   // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:80-86`, minted at
-  // `justwatch:640`), plus its own show container (`justwatch:774`), the title page's
-  // `externalIds.tmdbId` as a link (`justwatch:788`) and a show's `externalIds.imdbId` as one (`justwatch:785`)
+  // `justwatch:648`), plus its own show container (`justwatch:782`), the title page's
+  // `externalIds.tmdbId` as a link (`justwatch:796`) and a show's `externalIds.imdbId` as one (`justwatch:793`)
   jw: new Set([
     'cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo',
     'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb', 'imdb',
   ]),
   // the four that build no handle from their own payload. Empty rather than absent because each one
-  // DOES emit handles, every one of them rebuilt from the asked uri: `cr:527`, `unogs:518,536`,
-  // `appletv:380,393`. tmdb mints none by either route and is here as the read control
+  // DOES emit handles, every one of them rebuilt from the asked uri: `cr:581`, `unogs:1064,1097`,
+  // `appletv:480,493`. tmdb mints none by either route and is here as the read control
   cr: new Set(),
   nf: new Set(),
   appletv: new Set(),
@@ -168,9 +168,9 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
  * nobody read, and the claim keeps `source`. The table above stays complete so this set can grow the
  * day another extractor starts rebuilding.
  *
- * The four, each at the line that rebuilds: `appletv/extractor.ts:380,393` and
- * `unogs/extractor.ts:518,536` and `crunchyroll/extractor.ts:527` replace the handle list wholesale,
- * `justwatch/extractor.ts:711,738` appends through `mergeHandles`.
+ * The four, each at the line that rebuilds: `appletv/extractor.ts:480,493` and
+ * `unogs/extractor.ts:1064,1097` and `crunchyroll/extractor.ts:581` replace the handle list wholesale,
+ * `justwatch/extractor.ts:1066,1130` appends through `mergeHandles`.
  *
  * IT COSTS NOTHING ON REAL DATA, measured over all 8556 rows of the recorded season (2026-09-12):
  * every claim a non-echoing origin makes is already inside its own set, and the echoing four are
