@@ -41,12 +41,13 @@ const style = css`
 type Seasons = readonly { number: number, uri: string }[] | null | undefined
 
 /**
- * The season MediaSeasons sends a show's own page to: its first, when it has two or more and none is on screen.
+ * The season MediaSeasons sends a show's own page to: its first, when none is on screen. A lone season goes too, as
+ * only a season carries a date, and the sources that find a work by its title ask for one (JustWatch, and with it IMDb).
  * A page growing its address holds off while this names one, as the redirect runs first in the same commit and the
  * growth would replace it.
  */
 export const firstSeasonRedirect = (seasons: Seasons, currentUris: readonly string[]): string | undefined =>
-  seasons && seasons.length > 1 && !seasons.some(season => currentUris.includes(season.uri)) ? seasons[0]!.uri : undefined
+  seasons?.length && !seasons.some(season => currentUris.includes(season.uri)) ? seasons[0]!.uri : undefined
 
 /**
  * A show's seasons, each linking its own run as a cluster, the one on screen marked. Nothing for one season or none.
@@ -61,8 +62,8 @@ const MediaSeasons = (props: {
   const { seasons, currentUris } = props
   const intl = useIntl()
   const first = firstSeasonRedirect(seasons, currentUris)
-  return !seasons || seasons.length < 2 ? null
-    : first && 'href' in props ? <Redirect to={props.href(asAggregatedUri(first))} replace/>
+  return first && 'href' in props ? <Redirect to={props.href(asAggregatedUri(first))} replace/>
+    : !seasons || seasons.length < 2 ? null
     : (
       <section className="seasons" css={style} data-seasons>
         <h2>{intl.formatMessage({ id: 'Seasons#of a show', defaultMessage: 'Seasons', description: 'of a show' })}</h2>

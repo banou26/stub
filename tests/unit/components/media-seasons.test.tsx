@@ -40,8 +40,15 @@ test('the show\'s own page, with no season on screen, is replaced by its first s
 })
 
 test('a show with one season draws no Seasons row', () => {
-  expect(render(SEASONS.slice(0, 1)).host.querySelector('[data-seasons]')).toBeNull()
+  expect(render(SEASONS.slice(0, 1), ['tmdb:93405-s1']).host.querySelector('[data-seasons]')).toBeNull()
   expect(render(null).host.querySelector('[data-seasons]')).toBeNull()
+})
+
+// only a season carries a date, and with none JustWatch never looks the show up (HOR-723)
+test('so does the show\'s own page with one season, and a page on that season stays', () => {
+  expect(render(SEASONS.slice(0, 1), ['tmdb:93405']).history).toEqual(['/title/ag:(tmdb:93405-s1)'])
+  expect(render(SEASONS.slice(0, 1), ['tmdb:93405-s1']).history).toEqual(['/title/tmdb:93405'])
+  expect(render(null, ['tmdb:93405']).history).toEqual(['/title/tmdb:93405'])
 })
 
 // HOR-1058: the watch page lists another season without leaving the episode playing
