@@ -118,7 +118,10 @@ export const pluginStatuses = (): PluginStatus[] =>
 
 export const enabledPluginUris = (): string[] => loadEnabled()
 
-export const installedPluginUris = async (): Promise<string[]> => []
+/** The localStorage key a spec sets to the packages FKN holds for this app, whichever of its sites installed them. */
+export const SPEC_HELD_KEY = 'spec.held'
+
+export const installedPluginUris = async (): Promise<string[]> => JSON.parse(localStorage.getItem(SPEC_HELD_KEY) ?? '[]')
 
 export const installPlugin = async (uri: string): Promise<string | null> => {
   await new Promise(resolve => setTimeout(resolve, 500))

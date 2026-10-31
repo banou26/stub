@@ -56,7 +56,7 @@ describe('the layer order', () => {
    */
   test('and no higher than the dialogs that cover the bar on purpose', () => {
     expect(layer.headerPopup).toBeLessThan(layer.franchiseDialog)
-    expect(layer.franchiseDialog).toBeLessThan(layer.pluginPrompt)
+    expect(layer.franchiseDialog).toBeLessThan(layer.pluginNotice)
   })
 
   // the ghost pointer says where the host's HAND is, so it goes over everything the app draws; it

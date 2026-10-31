@@ -384,7 +384,28 @@ test('any other host has no site links', async ({ page }) => {
   await expect(siteLinks(page)).toHaveCount(0)
 })
 
-test('a site link offers this device\'s own sources to the next site, never the FKN account\'s', async ({ page }) => {
+test('a site link brings this device\'s own sources to the next site with no notice, where a new link raises one', async ({ page }) => {
+  const SOURCE = 'npm:@spec/anime-source'
+  await page.addInitScript(source => {
+    if (location.hostname.startsWith('anime.')) localStorage.setItem('stub-enabled-plugins', JSON.stringify([source]))
+    // FKN keeps one install record for every site of an app
+    else localStorage.setItem('spec.held', JSON.stringify([source]))
+  }, SOURCE)
+  const noticed = page.getByRole('status').filter({ has: page.getByRole('button', { name: 'OK' }) })
+
+  await page.goto(at('anime.localhost'))
+  await siteLinks(page).getByText('Movies', { exact: true }).click()
+  await expect(page).toHaveURL(at('movies.localhost', `/?plugins=${SOURCE}`))
+  await page.waitForFunction(source => localStorage.getItem('stub-enabled-plugins')?.includes(source), SOURCE)
+  await page.waitForTimeout(800)
+  await expect(noticed).toHaveCount(0)
+
+  // the control: the same site, with a source FKN does not hold
+  await page.goto(at('movies.localhost', '/?plugins=npm:@spec/source-family'))
+  await expect(noticed).toContainText('Source enabled: Spec Releases, Spec Batches, Spec Archive')
+})
+
+test('a site link carries this device\'s own sources to the next site, never the FKN account\'s', async ({ page }) => {
   await page.addInitScript(() => {
     if (!location.hostname.startsWith('anime.')) return
     localStorage.setItem('stub-enabled-plugins', '["https:stub.plugins.banou.dev"]')

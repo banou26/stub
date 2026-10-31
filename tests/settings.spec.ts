@@ -621,10 +621,10 @@ test('too narrow for one row, the Add button drops under the input at its full w
   expect(await overflowX(page)).toBeLessThanOrEqual(0)
 })
 
-/** Opens the prompt a link carrying this address raises. */
-const linkedPrompt = async (page: Page, uri: string) => {
+/** The notice a link carrying this address raises. */
+const linkedNotice = async (page: Page, uri: string) => {
   await page.goto(`${origin}/settings?plugins=${uri}`)
-  return page.getByRole('dialog', { name: 'Add this source?' }).locator('.dialog')
+  return page.getByRole('status').filter({ has: page.getByRole('button', { name: 'OK' }) })
 }
 
 const lineCount = (locator: Locator) => locator.evaluate(element => {
@@ -633,68 +633,125 @@ const lineCount = (locator: Locator) => locator.evaluate(element => {
   return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size
 })
 
-/** The text of every element in the prompt that reaches past its left or right edge. */
-const pastPrompt = (prompt: Locator) => prompt.evaluate(dialog => {
-  const { left, right } = dialog.getBoundingClientRect()
-  return [...dialog.querySelectorAll('*')].filter(element => {
-    const box = element.getBoundingClientRect()
-    return box.left < left - 0.5 || box.right > right + 0.5
+/** The text of every element in the notice that reaches past its left or right edge. */
+const pastNotice = (notice: Locator) => notice.evaluate(box => {
+  const { left, right } = box.getBoundingClientRect()
+  return [...box.querySelectorAll('*')].filter(element => {
+    const { left: from, right: to } = element.getBoundingClientRect()
+    return from < left - 0.5 || to > right + 0.5
   }).map(element => element.textContent)
 })
 
-for (const [width, height] of [[1920, 1080], [390, 844]] as const) {
-  test(`at ${width}x${height} a linked source that fails to boot says so in one line under its address, inside the prompt`, async ({ page }) => {
-    const DEAD = 'https:dead.spec.test'
-    await page.setViewportSize({ width, height })
-    const prompt = await linkedPrompt(page, DEAD)
-    await prompt.getByRole('button', { name: 'Add source' }).click()
-    const error = prompt.getByText('Could not add this source.', { exact: true })
-    await expect(error).toBeVisible()
-    expect(await lineCount(error), 'one line').toBe(1)
-    await expect(prompt, 'FKN\'s own message stays out of the prompt').not.toContainText('failed to boot')
-    await expect(prompt.getByRole('button', { name: 'Dismiss' })).toBeVisible()
+const ANIME = 'npm:@spec/anime-source'
 
-    const uri = prompt.getByText(DEAD, { exact: true })
-    expect(await lineCount(uri), 'the address keeps its width').toBe(1)
-    const [uriBox, errorBox] = [await uri.boundingBox(), await error.boundingBox()]
-    expect(errorBox!.y, 'the error is under the address').toBeGreaterThanOrEqual(uriBox!.y + uriBox!.height - 1)
-    expect(await pastPrompt(prompt), 'nothing runs past the dialog').toEqual([])
+for (const [width, height] of [[1280, 800], [390, 844]] as const) {
+  test(`at ${width}x${height} a link adds its source with no dialog, and a small notice says so`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    const notice = await linkedNotice(page, ANIME)
+    await expect(notice).toContainText('Source enabled: Spec Anime')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(panel(page).locator(`[data-plugin="${ANIME}"] .pill`)).toHaveText('Connected')
+
+    const box = (await notice.boundingBox())!
+    expect(box.x, 'inside the left gutter').toBeGreaterThanOrEqual(16)
+    expect(box.x + box.width, 'inside the right gutter').toBeLessThanOrEqual(width - 16 + 0.5)
+    expect(box.y, 'under the bar').toBeGreaterThanOrEqual((await page.locator('header').first().boundingBox())!.height)
+    expect(await pastNotice(notice), 'nothing runs past it').toEqual([])
     expect(await overflowX(page)).toBeLessThanOrEqual(0)
   })
 
-  test(`at ${width}x${height} a linked source still connecting shows adding… under its address, which keeps its width`, async ({ page }) => {
-    const CONNECTING = 'https:still.connecting.spec.test'
+  test(`at ${width}x${height} a linked source that fails to boot says so in one line, and can be removed`, async ({ page }) => {
+    const DEAD = 'https:dead.spec.test'
     await page.setViewportSize({ width, height })
-    const prompt = await linkedPrompt(page, CONNECTING)
-    await prompt.getByRole('button', { name: 'Add source' }).click()
-    const state = prompt.getByText('adding…', { exact: true })
-    await expect(state).toBeVisible()
+    const notice = await linkedNotice(page, DEAD)
+    const error = notice.getByText(`Could not add ${DEAD}`, { exact: true })
+    await expect(error).toBeVisible()
+    expect(await lineCount(error), 'one line').toBe(1)
+    await expect(notice, 'FKN\'s own message stays out of it').not.toContainText('failed to boot')
+    expect(await pastNotice(notice), 'nothing runs past it').toEqual([])
 
-    const uri = prompt.getByText(CONNECTING, { exact: true })
-    expect(await lineCount(uri), 'the address keeps its width').toBe(1)
-    const [uriBox, stateBox] = [await uri.boundingBox(), await state.boundingBox()]
-    expect(stateBox!.y, 'adding… is under the address').toBeGreaterThanOrEqual(uriBox!.y + uriBox!.height - 1)
+    await notice.getByRole('button', { name: `Remove ${DEAD}` }).click()
+    await expect(notice).toHaveCount(0)
+    await expect(panel(page).locator(`[data-plugin="${DEAD}"]`)).toHaveCount(0)
+    expect(page.url()).toBe(`${origin}/settings`)
   })
 }
 
-// HOR-1065: plugin-url.ts reads the sources a link offers once, as it loads, so a short link opened after it loses them
-test('a short link opens its address and offers the source it names, and a code that opens nothing is no page', async ({ page }) => {
+test('the first Tab reaches the notice, and a keyboard answers it', async ({ page }) => {
+  const notice = await linkedNotice(page, ANIME)
+  await expect(notice).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(notice.getByRole('button', { name: 'Remove Spec Anime' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(notice.getByRole('button', { name: 'OK' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(notice).toHaveCount(0)
+  await expect(panel(page).locator(`[data-plugin="${ANIME}"] .pill`), 'OK keeps it').toHaveText('Connected')
+})
+
+test('it stays until answered, and a source Remove took stays off the url, through a reload and a Back', async ({ page }) => {
+  const notice = await linkedNotice(page, ANIME)
+  await expect(notice).toBeVisible()
+  await page.waitForTimeout(7_000)
+  await expect(notice).toBeVisible()
+
+  await page.locator('footer').getByRole('link', { name: 'Legal', exact: true }).click()
+  await expect(page).toHaveURL(`${origin}/legal?plugins=${ANIME}`)
+  await notice.getByRole('button', { name: 'Remove Spec Anime' }).click()
+  await expect(notice).toHaveCount(0)
+  await expect(page).toHaveURL(`${origin}/legal`)
+
+  await page.goBack()
+  await expect(page).toHaveURL(`${origin}/settings`)
+  await expect(panel(page)).toBeVisible()
+  await page.waitForTimeout(800)
+  await expect(panel(page).locator(`[data-plugin="${ANIME}"]`)).toHaveCount(0)
+  await expect(notice).toHaveCount(0)
+
+  await page.reload()
+  await expect(panel(page)).toBeVisible()
+  await page.waitForTimeout(800)
+  await expect(panel(page).locator(`[data-plugin="${ANIME}"]`)).toHaveCount(0)
+  await expect(notice).toHaveCount(0)
+})
+
+test('a source already on the list shows nothing', async ({ page }) => {
+  await withSources(page, [ANIME])
+  await page.goto(`${origin}/settings?plugins=${ANIME}`)
+  await expect(panel(page).locator(`[data-plugin="${ANIME}"] .pill`)).toHaveText('Connected')
+  await page.waitForTimeout(800)
+  await expect(page.getByRole('button', { name: 'OK' })).toHaveCount(0)
+})
+
+test('several sources on one link share one notice', async ({ page }) => {
+  await page.goto(`${origin}/settings?plugins=${ANIME}&plugins=npm:@spec/source-family&plugins=https:dead.spec.test`)
+  const notice = page.getByRole('status').filter({ has: page.getByRole('button', { name: 'OK' }) })
+  await expect(notice.locator('li')).toHaveCount(3)
+  await expect(notice).toHaveCount(1)
+  await expect(notice).toContainText('Source enabled: Spec Anime')
+  await expect(notice).toContainText('Source enabled: Spec Releases, Spec Batches, Spec Archive')
+  await expect(notice).toContainText('Could not add https:dead.spec.test')
+})
+
+// HOR-1065: plugin-url.ts reads the sources a link names once, as it loads, so a short link opened after it loses them
+test('a short link opens its address and adds the source it names', async ({ page }) => {
   const address = '/title/ag:(anilist:1,mal:1)?plugins=https:dead.spec.test'
   await page.goto(`${origin}${SHORT_PATH}${shortenPath(address)}`)
-  await expect(page.getByRole('dialog', { name: 'Add this source?' }).getByText('https:dead.spec.test', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').getByText('Could not add https:dead.spec.test', { exact: true })).toBeVisible()
   expect(page.url()).toBe(`${origin}${address}`)
+})
 
+test('a short code that opens nothing is no page', async ({ page }) => {
   await page.goto(`${origin}${SHORT_PATH}AAAA`)
   await expect(page.getByText('404 No page found')).toBeVisible()
   expect(page.url()).toBe(`${origin}${SHORT_PATH}AAAA`)
 })
 
-test('at 390x844 a source whose long host has nowhere to break keeps its error inside the prompt', async ({ page }) => {
+test('at 390x844 a source whose long host has nowhere to break keeps its error inside the notice', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  const prompt = await linkedPrompt(page, 'https:asourcewhosehostnamehasnowheretobreak.spec.test')
-  await prompt.getByRole('button', { name: 'Add source' }).click()
-  await expect(prompt.getByRole('button', { name: 'Dismiss' })).toBeVisible()
-  expect(await pastPrompt(prompt), 'nothing runs past the dialog').toEqual([])
+  const notice = await linkedNotice(page, 'https:asourcewhosehostnamehasnowheretobreak.spec.test')
+  await expect(notice.getByRole('button', { name: 'OK' })).toBeVisible()
+  expect(await pastNotice(notice), 'nothing runs past it').toEqual([])
   expect(await overflowX(page)).toBeLessThanOrEqual(0)
 })
 
@@ -917,7 +974,7 @@ test.describe('in Toronto', () => {
   })
 })
 
-// HOR-1026 (stub in the viewer's language): the page's own words and its prompt's, each text run and label, a run split
+// HOR-1026 (stub in the viewer's language): the page's own words and its notice's, each text run and label, a run split
 // where the page joins its counts with ` · `
 const wordsIn = (page: Page, selector: string) => page.evaluate(selector => {
   const words: string[] = []
@@ -950,8 +1007,8 @@ const SETTINGS = 'h1, nav.index, [data-section]'
 
 /**
  * Draws Sources with an added source in each state, a source off, a sign out asked, an address refused, then Playback,
- * then the prompts a link raises, at `width`, and returns their words and what runs past its card, its section or
- * its dialog. Picks no element by its English.
+ * then the notice a link raises, at `width`, and returns their words and what runs past its card, its section or
+ * its edge. Picks no element by its English.
  */
 const drawnWords = async (page: Page, width: number) => {
   await page.setViewportSize({ width, height: 900 })
@@ -988,15 +1045,12 @@ const drawnWords = async (page: Page, width: number) => {
 
   await page.goto(`${origin}/legal`)
   await page.evaluate(() => localStorage.removeItem('stub-enabled-plugins'))
-  await page.goto(`${origin}/settings?plugins=${SPEC_SOURCES[0]}`)
-  await expect(page.locator('[role="dialog"] .dialog')).toBeVisible()
-  words.push(...await wordsIn(page, '[role="dialog"]'))
-  await page.goto(`${origin}/settings?plugins=https:dead.spec.test&plugins=https:still.connecting.spec.test`)
-  await page.locator('[role="dialog"] .actions button:not(.decline)').click()
-  await expect(page.locator('[role="dialog"] .dismiss')).toBeVisible()
-  past.push(...await pastPrompt(page.locator('[role="dialog"] .dialog')))
+  await page.goto(`${origin}/settings?plugins=${SPEC_SOURCES[0]}&plugins=https:dead.spec.test`)
+  const notice = '[role="status"]:has(.notice)'
+  await expect(page.locator(`${notice} li`)).toHaveCount(2)
+  past.push(...await pastNotice(page.locator(notice)))
   overflow.push(await overflowX(page))
-  words.push(...await wordsIn(page, '[role="dialog"]'))
+  words.push(...await wordsIn(page, notice))
   return { words, past, overflow }
 }
 
@@ -1004,7 +1058,7 @@ test.describe('in German, Japanese and the pseudo-language', () => {
   test.use({ timezoneId: 'America/Toronto' })
 
   for (const language of [PSEUDO, 'de', 'ja']) {
-    test(`${language}: Sources, Playback and the prompt run past nothing at 1440 and 390 px, with none of their own words in English`, async ({ page }) => {
+    test(`${language}: Sources, Playback and the notice run past nothing at 1440 and 390 px, with none of their own words in English`, async ({ page }) => {
       test.setTimeout(240_000)
       await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
       const code = english()

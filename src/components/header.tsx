@@ -390,8 +390,8 @@ const currentSiteStyle = css`
   }
 `
 
-// a link offers the next site only this device's own sources: an FKN account's list reaches it through
-// the account, and offering those too would raise the invite dialog there before the list arrives
+// a site link carries only this device's own sources: an FKN account's list reaches the next site through
+// the account
 const SiteLinks = ({ className }: { className?: string }) => {
   const intl = useIntl()
   return (

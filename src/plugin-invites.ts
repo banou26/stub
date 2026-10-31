@@ -1,14 +1,13 @@
 import { comparablePluginUri } from './utils/plugin-links'
-import { enabledPluginUris, enablePlugin, installedPluginUris, installPlugin, onPluginsChange } from './plugins'
+import { disablePlugin, enabledPluginUris, enablePlugin, installedPluginUris, installPlugin } from './plugins'
 
-export type PluginInvite = {
+export type AddedInvite = {
+  /** The source's id on the list, or the link's address when it never reached the list. */
   uri: string
-  state: 'offered' | 'installing' | 'error'
+  failed?: true
 }
 
-const invites = new Map<string, PluginInvite>()
-// outlives the offer, or the next navigation re-reads the url and asks again
-const declined = new Set<string>()
+const added = new Map<string, AddedInvite>()
 const listeners = new Set<() => void>()
 
 const notify = () => listeners.forEach(listener => { try { listener() } catch {} })
@@ -18,104 +17,62 @@ export const onInvitesChange = (listener: () => void): (() => void) => {
   return () => { listeners.delete(listener) }
 }
 
-export const pluginInvites = (): PluginInvite[] => [...invites.values()]
+export const addedInvites = (): AddedInvite[] => [...added.values()]
 
-// waiting on FKN's list, and kept on the url meanwhile
+// waiting on FKN, and kept on the url meanwhile
 const held = new Set<string>()
 
-export const pendingInviteUris = (): string[] => [...invites.keys(), ...held]
+export const pendingInviteUris = (): string[] => [...held]
 
-const knownUris = () => new Set(enabledPluginUris().map(comparablePluginUri))
+const listedAs = (uri: string) =>
+  enabledPluginUris().find(enabled => comparablePluginUri(enabled) === comparablePluginUri(uri))
 
-// On production, 2026-10-31, FKN's list answered a sibling site's first call in 300 to 370 ms, and in 4 of
-// 8 loads about 25 ms after the dialog had rendered, so offering first would flash it up and away. A
-// broker that never answers costs this wait, then the offer as before.
-const LIST_WAIT_MS = 1_500
-
-const listed = (): Promise<Set<string>> => Promise.race([
-  installedPluginUris().then(uris => new Set(uris.map(comparablePluginUri)), () => new Set<string>()),
-  new Promise<Set<string>>(resolve => setTimeout(() => resolve(new Set()), LIST_WAIT_MS)),
-])
-
-const offerable = (uri: string) => {
-  const key = comparablePluginUri(uri)
-  return Boolean(key) && !knownUris().has(key) && !declined.has(key) && !invites.has(uri) && !held.has(uri)
-}
-
-// FKN confirms on its own when the link names another version than the one it holds, so a no there is
-// kept like a no to the offer; an install FKN refuses is offered like any other link
-const addListed = (uri: string) => installPlugin(uri).then(installed => {
-  if (installed) return
-  declined.add(comparablePluginUri(uri))
-  notify()
-}, error => {
-  console.warn(`Source '${uri}' could not be added:`, error)
-  invites.set(uri, { uri, state: 'offered' })
-  notify()
-})
-
-// FKN keeps one install record for every site of an app, so a link can name a package another of its
-// sites installed: that one is added without asking, and FKN decides whether to say so
-export const offerInvites = async (uris: string[]): Promise<void> => {
-  const fresh = uris.filter(offerable)
-  if (!fresh.length) return
-  for (const uri of fresh) held.add(uri)
-  const installed = await listed()
-  let added = false
-  for (const uri of fresh) {
+const add = async (uri: string, installed: string[]) => {
+  try {
+    if (listedAs(uri)) return
+    // FKN keeps one install record for every site of an app, so a package it holds is a source of another
+    // site, which is what stub's own site links carry: it joins this list with nothing to say, and a
+    // version other than the one held is FKN's to confirm
+    if (installed.includes(comparablePluginUri(uri))) {
+      await installPlugin(uri)
+      return
+    }
+    // null only comes back from a broker too old to honour noConfirm, which still confirms
+    const id = await enablePlugin(uri, { noConfirm: true })
+    if (id) added.set(id, { uri: id })
+  } catch (error) {
+    console.warn(`Source '${uri}' could not be added:`, error)
+    const id = listedAs(uri) ?? uri
+    added.set(id, { uri: id, failed: true })
+  } finally {
     held.delete(uri)
-    if (!offerable(uri)) continue
-    if (installed.has(comparablePluginUri(uri))) {
-      void addListed(uri)
-      continue
-    }
-    invites.set(uri, { uri, state: 'offered' })
-    added = true
-  }
-  if (added) notify()
-}
-
-// a link is read before the account's list arrives, so an offer it already holds is withdrawn then
-onPluginsChange(() => {
-  const known = knownUris()
-  let dropped = false
-  for (const [uri, invite] of invites) {
-    if (invite.state !== 'offered' || !known.has(comparablePluginUri(uri))) continue
-    invites.delete(uri)
-    dropped = true
-  }
-  if (dropped) notify()
-})
-
-export const declineInvites = (): void => {
-  if (!invites.size) return
-  for (const uri of invites.keys()) declined.add(comparablePluginUri(uri))
-  invites.clear()
-  notify()
-}
-
-// one failure does not cancel the rest: a link can carry several addresses and only one be dead
-export const acceptInvites = async (): Promise<void> => {
-  const pending = [...invites.keys()]
-  if (!pending.length) return
-  for (const uri of pending) invites.set(uri, { uri, state: 'installing' })
-  notify()
-  for (const uri of pending) {
-    try {
-      // noConfirm: this dialog is the consent, so FKN notifies instead of confirming; null only comes
-      // back from a broker too old to honour it, which still confirms and can still be refused
-      if (!await enablePlugin(uri, { noConfirm: true })) declined.add(comparablePluginUri(uri))
-      invites.delete(uri)
-    } catch (error) {
-      console.warn(`Source '${uri}' could not be added:`, error)
-      invites.set(uri, { uri, state: 'error' })
-    }
     notify()
   }
 }
 
-export const dismissInvite = (uri: string): void => {
-  if (!invites.delete(uri)) return
-  declined.add(comparablePluginUri(uri))
+/**
+ * Adds the sources a link names that are not on the list, and says so through `addedInvites`. Only FKN's list
+ * tells a link from stub's own mirror of another site's sources, and a site's first one may take seconds, so
+ * it is waited for: with no broker an install would not answer either. A list that fails adds nothing and
+ * leaves the link on the url for the next load.
+ */
+export const addInvites = async (uris: string[]): Promise<void> => {
+  const fresh = uris.filter(uri => !listedAs(uri))
+  if (!fresh.length) return
+  for (const uri of fresh) held.add(uri)
+  const installed = await installedPluginUris().catch(() => undefined)
+  if (!installed) return
+  const comparable = installed.map(comparablePluginUri)
+  await Promise.all(fresh.map(uri => add(uri, comparable)))
+}
+
+export const removeInvite = (uri: string): void => {
+  added.delete(uri)
+  notify()
+  void disablePlugin(uri)
+}
+
+export const closeInvites = (): void => {
+  added.clear()
   notify()
 }

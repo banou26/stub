@@ -19,6 +19,7 @@ import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSour
 import { mergeOrder, readMergeOrder, watchMergeOrder, writeMergeOrder } from '../../sources/merge-order'
 import { DEFAULT_PLAY_ORDER, moved, playOrder, readPlayOrder, watchPlayOrder, writePlayOrder } from '../../sources/play-order'
 import { siteAsks } from '../../site'
+import { pluginName } from '../../utils/use-plugin-statuses'
 import { SourceAccount } from './accounts'
 import { CountryRow } from './country'
 import { reorder } from './reorder'
@@ -424,7 +425,7 @@ const PluginForm = ({ uri, name, fields }: { uri: string, name: string, fields: 
 const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () => void }) => {
   const intl = useIntl()
   const sources = plugin.sources ?? []
-  const name = sources.length ? intl.formatList(sources.map(source => source.name), NAME_LIST) : plugin.uri.replace(/^npm:/, '')
+  const name = pluginName(intl, plugin)
   // a package may register a family of sources, and some of them and not others
   const counts = [
     sources.length > 1 ? intl.formatMessage({ id: '{count, plural, one {{count} source} other {{count} sources}}', defaultMessage: '{count, plural, one {{count} source} other {{count} sources}}' }, { count: sources.length }) : undefined,

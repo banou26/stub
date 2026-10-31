@@ -10,7 +10,7 @@ import { legacySearchTerm, searchPath } from './search/params'
 import { pluginHref } from '../plugin-url'
 import Header from '../components/header'
 import Footer from '../components/footer'
-import PluginPrompt from '../components/plugin-prompt'
+import PluginNotice from '../components/plugin-notice'
 import Home from './home'
 import Title from './title'
 import Search from './search'
@@ -58,6 +58,8 @@ const shellStyle = css`
 const RouterRoot = () => (
   <Router hrefs={pluginHref}>
     <div css={shellStyle}>
+      {/* first, so the first Tab reaches it: it stays until answered, and paints where it is fixed */}
+      <PluginNotice/>
       <Header/>
       <div className="content">
         <Switch>
@@ -79,7 +81,6 @@ const RouterRoot = () => (
         </Switch>
       </div>
       <Footer/>
-      <PluginPrompt/>
       <PartySync/>
       <PartyCursor/>
       <PartyChat/>

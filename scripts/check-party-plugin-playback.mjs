@@ -20,9 +20,9 @@
 // whatever happened (measured on this machine, see agent conventions/lessons/verification.md), so a
 // run that printed `all good` still reports failure to anything gating on the status.
 //
-// Every context ACCEPTS the source its link offers: the host from a watch link, each follower from the
-// invite, which carries the host's sources (HOR-845). A `?plugins=` url only opens an "Add this
-// source?" prompt, so a run that ignores it has no plugin and no player.
+// Every context gets the source its link names: the host from a watch link, each follower from the
+// invite, which carries the host's sources (HOR-845). A `?plugins=` url adds it at once and says so, and a
+// run that moves on before that has no plugin and no player.
 //
 // The plugin and ripple are the deployed ones (stub.plugins.banou.dev, torrent.fkn.app), because the
 // plugin hardcodes ripple's embed origin and the package loader fetches over HTTPS. So this runs after
@@ -88,26 +88,17 @@ const videoOf = async page => {
 const widget = page => page.getByRole('button', { name: /Watch party|Hosting|Following|Joining|Party/ })
 
 /**
- * Accept the source this link offers, which is what makes the plugin exist at all.
- *
- * A `?plugins=` url does not install anything: it OFFERS an invite, and stub renders "Add this
- * source?" over the page until somebody answers. A run that skipped it got a watch page with no
- * plugin, no player and nothing to sync, which reads exactly like a broken chain (2026-09-07).
- * Tolerant of the prompt being absent, since a context that already accepted will not see it.
+ * Waits for the notice that the link's source was added, which is what makes the plugin exist at all, and
+ * closes it. A run that moved on before it got a watch page with no plugin, no player and nothing to sync,
+ * which reads exactly like a broken chain (2026-09-07).
  */
 const addTheSource = async page => {
-  const add = page.getByRole('button', { name: 'Add source', exact: true })
-  // WAITED FOR, not counted on arrival. The prompt is rendered after the page decides the link offers
-  // a source, which is a moment after the navigation resolves: a version of this that asked for the
-  // count straight away always saw zero, returned "no prompt", never clicked, and left every run with
-  // no plugin, no player and a `RIG BLIND` verdict about playback that had nothing to do with
-  // playback (2026-09-07).
-  await add.waitFor({ timeout: 30_000 }).catch(() => {})
-  if (!await add.count()) return false
-  await add.click()
-  // gone means FKN took it; still there means it failed and the dialog says so
-  await until(() => add.count(), count => count === 0, 60_000)
-  return !(await add.count())
+  const added = page.getByRole('status').getByText(/^Source enabled: /)
+  // WAITED FOR, not counted on arrival: FKN answers a moment after the navigation resolves
+  await added.waitFor({ timeout: 60_000 }).catch(() => {})
+  if (!await added.count()) return false
+  await page.getByRole('status').getByRole('button', { name: 'OK', exact: true }).click()
+  return true
 }
 
 const run = async () => {
@@ -138,7 +129,7 @@ const run = async () => {
   if (!/Hosting/.test(hosting)) { console.log('\nRIG BLIND: no party'); await browser.close(); process.exit(2) }
 
   await host.goto(`${ORIGIN}${WATCH}?plugins=${PLUGIN}`, { waitUntil: 'domcontentloaded' })
-  check(await addTheSource(host), 'the host accepted the source the link offers')
+  check(await addTheSource(host), 'the host got the source the link names')
   const hostVideo = await until(() => videoOf(host), video => video && video.ready >= 2, 180_000, 1_000)
   check(Boolean(hostVideo), 'the host’s embed has a video with data', JSON.stringify(hostVideo))
   if (!hostVideo) {
@@ -166,16 +157,13 @@ const run = async () => {
   await widget(host).dispatchEvent('click')
   const link = await host.getByRole('textbox', { name: 'Invite link' }).inputValue()
   await host.keyboard.press('Escape')
-  check(new URL(link).searchParams.getAll('plugins').includes(PLUGIN), 'the invite offers the host’s source', link.replace(/#.*/, '#…'))
+  check(new URL(link).searchParams.getAll('plugins').includes(PLUGIN), 'the invite names the host’s source', link.replace(/#.*/, '#…'))
 
-  console.log('\nthe guest opens the invite, accepts the source it offers, and lands on the same release')
+  console.log('\nthe guest opens the invite, gets the source it names, and lands on the same release')
   await guest.goto(link, { waitUntil: 'domcontentloaded' })
-  check(await addTheSource(guest), 'the guest accepted the source the invite offers')
+  check(await addTheSource(guest), 'the guest got the source the invite names')
   const landed = await until(() => new URL(guest.url()).pathname, path => path.startsWith('/watch/'), 60_000)
   check(landed === WATCH, 'the guest is on the host’s watch page', landed)
-  // one appearing here would mean the acceptance did not take
-  const promptAgain = guest.getByRole('button', { name: 'Add source', exact: true })
-  check((await promptAgain.count()) === 0, 'and is not asked again')
   const guestVideo = await until(() => videoOf(guest), video => video && video.ready >= 2, 180_000, 1_000)
   check(Boolean(guestVideo), 'the guest’s embed has a video with data', JSON.stringify(guestVideo))
   if (!guestVideo) { console.log('\nRIG BLIND: the guest never got a player'); await browser.close(); process.exit(2) }
@@ -194,7 +182,7 @@ const run = async () => {
 
   console.log('\na second guest joins the same way')
   await other.goto(link, { waitUntil: 'domcontentloaded' })
-  check(await addTheSource(other), 'the second guest accepted the source the invite offers')
+  check(await addTheSource(other), 'the second guest got the source the invite names')
   const otherPlaying = await until(() => videoOf(other), video => video && !video.paused && video.time > 0, 180_000, 1_000)
   check(Boolean(otherPlaying), 'the second guest is playing with the party', JSON.stringify(otherPlaying))
   if (!otherPlaying) { console.log('\nRIG BLIND: the second guest never got a playing player'); await browser.close(); process.exit(2) }

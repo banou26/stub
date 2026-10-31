@@ -5,7 +5,7 @@ export const PLUGIN_PARAM = 'plugins'
  *
  * The link is the whole point of this module: an invite is a url someone pasted into a chat, and it
  * outlives the rename by however long that chat does. Reading both costs one line; not reading the
- * old one turns every shared invite into a page that silently offers nothing.
+ * old one turns every shared invite into a page that silently adds nothing.
  */
 const LEGACY_PLUGIN_PARAM = 'plugin'
 
@@ -35,7 +35,7 @@ export const readPluginUris = (url: string, base?: string): string[] => {
   const parsed = parse(url, base)
   if (!parsed) return []
   // walked in the order the url writes them, rather than one name's values and then the other's, so a
-  // link offering several sources prompts for them in the order it names them
+  // link naming several sources adds them in the order it names them
   return dedupe(
     [...parsed.searchParams]
       .filter(([name]) => name === PLUGIN_PARAM || name === LEGACY_PLUGIN_PARAM)

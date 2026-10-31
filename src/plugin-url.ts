@@ -1,16 +1,14 @@
 import { readPluginUris, writePluginUris } from './utils/plugin-links'
 import { enabledPluginUris, onPluginsChange } from './plugins'
-import { offerInvites, onInvitesChange, pendingInviteUris } from './plugin-invites'
+import { addInvites, onInvitesChange, pendingInviteUris } from './plugin-invites'
 
-// pending too: an offer has to stay on the url while its prompt is open, or a reload loses it
+// pending too: a link's source has to stay on the url until FKN answers, or a reload loses it
 const desired = () => [...enabledPluginUris(), ...pendingInviteUris()]
 
 const sync = () => {
   const next = writePluginUris(location.href, desired(), location.href)
   if (next !== location.href) history.replaceState(history.state, '', next)
 }
-
-const ingest = () => { void offerInvites(readPluginUris(location.href)) }
 
 // wouter applies this to the rendered attribute only and navigates with the raw path, so it does not
 // stack with the History patch below
@@ -35,9 +33,11 @@ if (!(INSTALLED in globalThis)) {
   Object.defineProperty(globalThis, INSTALLED, { value: true })
   patch('pushState')
   patch('replaceState')
-  addEventListener('popstate', () => { ingest(); sync() })
+  // a link is read once, as the page loads: an entry Back or Forward reaches is stub's own mirror of the list
+  // as it was then, and a source removed since must not come back through it
+  addEventListener('popstate', sync)
   onPluginsChange(sync)
   onInvitesChange(sync)
-  ingest()
+  void addInvites(readPluginUris(location.href))
   sync()
 }

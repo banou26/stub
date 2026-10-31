@@ -53,8 +53,8 @@ export const layer = {
   headerPopup: 1150,
   /** The relation graph, which opens from inside the modal and covers the bar while it is up. */
   franchiseDialog: 1200,
-  /** The plugin invite, which blocks the page until it is answered. */
-  pluginPrompt: 2000,
+  /** What a link's sources did, which stays until it is answered, so it is over whatever that link opened. */
+  pluginNotice: 2000,
   /**
    * "Updating Stub", the whole page for the moment before an update's reload. Under the party cursor
    * only because an update never goes while a party is running.
