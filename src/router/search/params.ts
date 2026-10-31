@@ -318,7 +318,7 @@ export const legacySearchTerm = (query: string | undefined): string => {
  * The href for a filter set.
  *
  * Lives here rather than in ../path.ts on purpose: that module is imported by the WORKER (through
- * store/aggregate.ts, which builds a media's canonical url) and is deliberately dependency-free, while
+ * store/aggregate.ts, which builds a media's canonical url) and is deliberately light, while
  * this one reaches the generated enums.
  */
 export const searchPath = (filters: Partial<SearchFilters> = {}): string => {

@@ -31,9 +31,7 @@ Group one is the handle list, group two the optional episode tail. `(.*)` is gre
 
 ## An id has to survive being put in a path
 
-The route table builds paths by interpolation, with no encoding anywhere: `` `/media/${uri}` `` at `src/router/path.ts:18`, and `/watch/:mediaUri/:episodeUri/:sourceUri?` at `path.ts:49`. So a character that means something to the grammar, or to the router, cannot appear in an id.
-
-The episode part of a watch address names stub's own sources only: `watchEpisodeUri` (`src/utils/uri.ts`), which `Route.WATCH` runs every address through, leaves out the rows of added sources, since an indexer's releases are rows of the episode and the source segment already names the one playing. An episode only added sources know keeps one id. A link that names every row still opens, because any one id in common finds the episode, and a link whose ids have all left the list finds it by the release it plays.
+The route table builds paths by interpolation, with no encoding anywhere: `` `/media/${uri}` `` in `ROUTES` in `src/router/path.ts`, and `/watch/:mediaUri/:episodeUri/:sourceUri?` in `RouterRoutes` in the same file. So a character that means something to the grammar, or to the router, cannot appear in an id.
 
 `src/utils/uri.ts:82`
 
@@ -270,6 +268,8 @@ A page opened knowing one source ends up naming all of them, because the store k
 > Without the identity check a navigation eats itself. The address changes first and the page still holds the previous work for a beat, so a link to a work known through one source is judged against the old cluster's eight handles, read as a shrinking address, and replaced with the page being left. Every relation and every graph node did nothing at all when clicked (measured 2026-09-09).
 
 The identity half is `matchAggregatedUris` (`uri.ts:266-275`), and it is **any shared handle**, not equality. That is the right test for a growing address and the wrong one for anything that needs identity: two clusters that share one handle are the same cluster as far as this function is concerned, which is exactly the assumption the fuzzy pass is careful never to make.
+
+The episode part of a watch address names stub's own sources only: `watchEpisodeUri` (`src/router/path.ts`), which `Route.WATCH` runs every address through, leaves out the rows of added sources, since an indexer's releases are rows of the episode and the source segment already names the one playing. An episode only added sources know keeps one id. A link that names every row still opens, because any one id in common finds the episode, and a link whose ids have all left the list finds it by the release it plays.
 
 ## The uri is user input, and it reaches graph.link
 

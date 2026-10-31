@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { shownStatus } from '../../../../src/party/status'
-import { getRoutePath, Route } from '../../../../src/router/path'
+import { getRoutePath, Route, watchEpisodeUri } from '../../../../src/router/path'
 import { builtInSources } from '../../../../src/sources/built-in'
 import { expandPath, shortenPath } from '../../../../src/utils/share-link'
-import { type AggregatedUri, fromAggregatedUri, isAggregatedUri, matchAggregatedUris, watchEpisodeUri } from '../../../../src/utils/uri'
+import { type AggregatedUri, fromAggregatedUri, isAggregatedUri, matchAggregatedUris } from '../../../../src/utils/uri'
 
 const mediaUri = 'ag:(anilist:178789,kitsu:49002,mal:59193)'
 const own = ['anizip:18104-1', 'cr:GX1', 'kitsu:1036601', 'nf:81']
