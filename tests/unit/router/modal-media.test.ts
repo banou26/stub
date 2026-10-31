@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { currentMedia, listedMediaFor, namesSameWork } from '../../../src/router/home/modal-media'
+import { currentMedia, listedMediaFor, namesSameWork, notKept } from '../../../src/router/home/modal-media'
 import { shouldRewriteAddress } from '../../../src/utils/uri'
 
 // The record's own example, read off the running home page on 2026-09-12: the card carries four
@@ -113,6 +113,14 @@ describe('the details a page holds after a navigation', () => {
   test('and nothing before any answer', () => {
     expect(currentMedia({}, 'ag:(anilist:1)')).toBeUndefined()
     expect(currentMedia({ data: { media: A }, operation: answering('ag:(anilist:1)') }, undefined)).toBeUndefined()
+  })
+
+  test('say the site does not keep a title only on a null for the uri it asks on now', () => {
+    const uri = 'ag:(anilist:1)'
+    expect(notKept({ data: { media: null }, operation: answering(uri) }, uri)).toBe(true)
+    expect(notKept({ data: { media: null }, operation: answering(uri) }, 'ag:(anilist:2)'), "urql's kept result for the previous work").toBe(false)
+    expect(notKept({ data: { media: A }, operation: answering(uri) }, uri)).toBe(false)
+    expect(notKept({ operation: answering(uri) }, uri), 'still asking').toBe(false)
   })
 
   // the two pages cannot load under vitest (see the top of this file), so their wiring is read

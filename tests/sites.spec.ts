@@ -338,8 +338,12 @@ test('a title\'s address answers only on a site that keeps it', async ({ page })
   await expect(page.getByRole('heading', { level: 1, name: 'Squid Game' }), 'and series keeps a live-action show').toBeVisible()
   await page.goto(at('series.localhost', '/title/tmdb:209867-s1'))
   await expect(page.getByRole('textbox', { name: 'Search' }), 'the wait starts once series has drawn').toBeVisible()
-  await page.waitForTimeout(8_000)
+  // a source that never answers here holds the page to ASK_BOUND_MS: 30.4 s on both pages, 1 run each, 2026-10-31
+  const settled = { timeout: 45_000 }
+  await expect(page.getByText('404 No page found'), 'with every source answered, the wait ends').toBeVisible(settled)
   await expect(frieren).toHaveCount(0)
+  await page.goto(at('series.localhost', '/media/tmdb:209867-s1'))
+  await expect(page.locator('.modal').getByText('404 No page found'), 'and so does the modal\'s').toBeVisible(settled)
 })
 
 const siteLinks = (page: Page) => page.locator('header nav').getByRole('link')

@@ -23,11 +23,12 @@ import TraceLink from '../debug/link'
 import ShareButton from '../../components/share-button'
 import { carriedSearch } from '../debug/trace'
 import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
-import { currentMedia, listedMediaFor } from './modal-media'
+import { currentMedia, listedMediaFor, notKept } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay, { FilmSources } from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { filmFacts, filmLine, seriesFacts, seriesLine } from './preview-facts'
+import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { useNow } from '../../utils/use-now'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
@@ -922,6 +923,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const heading = title || settled ? <h2 className="title">{title}</h2> : <Placeholder className="title-pending"/>
 
   if (!open) return <Redirect to="/" />
+  if (notKept({ data, operation }, uri)) return <ModalBackdrop css={style} onClose={() => onOpenChange(false)}><NotFound/></ModalBackdrop>
 
   return (
     /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party

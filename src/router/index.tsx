@@ -22,6 +22,7 @@ import Continue from './continue'
 import Watch from './watch'
 import Party from './party'
 import Debug from './debug'
+import NotFound from './not-found'
 import PartySync from '../components/party-sync'
 import PartyCursor from '../components/party-cursor'
 import PartyChat from '../components/party-chat'
@@ -53,13 +54,6 @@ const shellStyle = css`
     flex: 1;
   }
 `
-
-// the header is fixed, so a route that starts its own flow at y=0 renders its first line behind the bar
-const notFoundStyle = css`
-  padding: calc(var(--stub-header-height) + 3rem) 3rem 4rem;
-`
-
-const NotFound = () => <div css={notFoundStyle}>{useIntl().formatMessage({ id: '404 No page found', defaultMessage: '404 No page found' })}</div>
 
 const RouterRoot = () => (
   <Router hrefs={pluginHref}>

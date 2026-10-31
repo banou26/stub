@@ -61,3 +61,10 @@ export const currentMedia = <M>(
   uri: string | undefined
 ): M | undefined =>
   uri && state.operation?.variables?.input?.uri === uri ? state.data?.media ?? undefined : undefined
+
+/**
+ * Whether the worker answered `uri`, the uri the page asks on now, with null: this site does not keep that title and no
+ * source is left to change it. No answer at all only means it is still asking.
+ */
+export const notKept = (state: Parameters<typeof currentMedia>[0], uri: string | undefined): boolean =>
+  state.operation?.variables?.input?.uri === uri && state.data?.media === null

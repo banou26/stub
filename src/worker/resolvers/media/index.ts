@@ -161,6 +161,7 @@ export const resolvers = {
           return { media: siteMedia(media), asking: askSimilarRuns(cluster) }
         }
 
+        let drawn = false
         const answer = async () => {
           // A read under way as the last ask ends holds neither that answer's rows nor the asks they lead
           // to (a Netflix id JustWatch names), so only a read begun after it says settled; its wake follows.
@@ -168,16 +169,21 @@ export const resolvers = {
           // on the graph path the last answers' rows are a pass away from the read
           if (reader && settling.settled()) await passSettled()
           const found = await read()
-          if (!found?.media) return undefined
+          if (!found) return undefined
           // after the read, which may have asked a source the cluster has only just named, and with nothing
           // out, after the asks it makes past awaits of its own, or the page hears settled as one starts
           if (settling.settled()) await found.asking
-          return { ...found.media, settled: settling.settled() && settles === since }
+          const settled = settling.settled() && settles === since
+          // Null is a title the site does not keep, and only once settled: a category can arrive late, and a page
+          // on a 404 until it does would flash one. A page already drawn stays.
+          if (!found.media) return settled && !drawn ? null : undefined
+          drawn = true
+          return { ...found.media, settled }
         }
 
         try {
           const first = await answer()
-          if (first) yield first
+          if (first !== undefined) yield first
 
           for await (const detail of iterator) {
             // An empty cluster yields nothing and WAITS, on its requested uris until one resolves and
@@ -185,7 +191,7 @@ export const resolvers = {
             // costing a read that answers the same row. No detail is the sources settling.
             if (reader && detail && !reader.wakes(detail as { clusters: string[], uris: string[] })) continue
             const next = await answer()
-            if (next) yield next
+            if (next !== undefined) yield next
           }
         } finally {
           settling.close()

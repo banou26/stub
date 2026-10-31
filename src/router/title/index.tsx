@@ -20,9 +20,10 @@ import ShareButton from '../../components/share-button'
 import SourceSelector from '../../components/source-selector'
 import { carriedSearch } from '../debug/trace'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, MediaPlay, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from '../home/media-details'
-import { currentMedia } from '../home/modal-media'
+import { currentMedia, notKept } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { filmRelease } from '../home/episodes'
+import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
@@ -735,6 +736,8 @@ const TitlePage = () => {
   useEffect(() => { setOpen(false) }, [uri])
   const trailer = media?.trailers.at(0)?.url
   const trailerLabel = intl.formatMessage({ id: 'Trailer', defaultMessage: 'Trailer' })
+
+  if (notKept({ data, operation }, uri)) return <NotFound/>
 
   return (
     <div css={style}>

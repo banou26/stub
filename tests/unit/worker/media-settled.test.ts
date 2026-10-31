@@ -2,6 +2,7 @@
 // sources are what the page waits on before it says a media has no episodes.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { setSite } from '../../../src/site'
 import { ASK_BOUND_MS, askEntry, openFanout, type FanoutEntry, type Settling } from '../../../src/worker/fanout'
 import { emit } from '../../../src/worker/store/events'
 
@@ -20,7 +21,7 @@ const source = (name: string): Source => {
 // the sources asked at subscribe time, and those asked once the media is found under their origin
 const sources = vi.hoisted(() => ({ asked: [] as unknown[], byOrigin: {} as Record<string, unknown> }))
 // the address the store answers the media under, which the resolver re-asks newly named origins on
-const cluster = vi.hoisted(() => ({ uri: 'ag:(anilist:1)' }))
+const cluster = vi.hoisted(() => ({ uri: 'ag:(anilist:1)', categories: ['ANIME'] }))
 // the graph read store, off unless a test turns it on: `rows` stands in for the rows a pass folds in
 const graph = vi.hoisted(() => ({
   on: false,
@@ -66,7 +67,7 @@ vi.mock('../../../src/worker/graph', async original => ({
     read: async () => {
       const rows = graph.rows
       await graph.reading()
-      return { _id: 'cl:1', uri: cluster.uri, categories: ['ANIME'], rows }
+      return { _id: 'cl:1', uri: cluster.uri, categories: cluster.categories, rows }
     },
     wakes: () => true,
   }),
@@ -101,6 +102,8 @@ afterEach(() => {
   sources.asked = []
   sources.byOrigin = {}
   cluster.uri = 'ag:(anilist:1)'
+  cluster.categories = ['ANIME']
+  setSite('stub')
   Object.assign(graph, { on: false, rows: 0, address: async () => '', show: async () => '', pass: async () => null, reading: async () => {} })
   similar.run = async () => {}
   similar.answer = async () => ({ outcome: 'refused', reason: 'null' })
@@ -121,6 +124,79 @@ describe('the media subscription', { timeout: 5_000 }, () => {
     anilist!.end()
     anizip!.end()
     expect(await media.next()).toBe(true)
+  })
+
+  test('answers null for a title the site does not keep, only once every source has answered', async () => {
+    graph.on = true
+    setSite('series')
+    const [anilist, anizip] = sources.asked = [source('anilist'), source('anizip')]
+    const media = open()
+    opened.push(media)
+    const next = media.answer()
+    anilist!.end()
+    expect(await Promise.race([next, quiet().then(() => 'nothing')]), 'one source is still out').toBe('nothing')
+
+    anizip!.end()
+    expect(await next).toBeNull()
+  })
+
+  test('answers null on the first read when no source is out', async () => {
+    graph.on = true
+    setSite('series')
+    const media = open()
+    opened.push(media)
+    expect(await media.answer()).toBeNull()
+  })
+
+  test('a source the last read only then names holds the null back', async () => {
+    graph.on = true
+    setSite('series')
+    const [anilist] = sources.asked = [source('anilist')]
+    const kitsu = source('kitsu')
+    sources.byOrigin = { kitsu }
+    const media = open()
+    opened.push(media)
+    const next = media.answer()
+    await quiet()
+
+    graph.address = async () => {
+      await new Promise(resolve => setTimeout(resolve, 1))
+      return 'ag:(anilist:1,kitsu:1)'
+    }
+    anilist!.end()
+    expect(await Promise.race([next, quiet().then(() => 'nothing')]), 'Kitsu has not answered').toBe('nothing')
+    kitsu.end()
+    expect(await next).toBeNull()
+  })
+
+  test('a title the site comes to keep replaces the null', async () => {
+    graph.on = true
+    setSite('series')
+    const [anilist] = sources.asked = [source('anilist')]
+    const media = open()
+    opened.push(media)
+    const first = media.answer()
+    anilist!.end()
+    expect(await first).toBeNull()
+
+    cluster.categories = ['SERIES']
+    emit('view:changed', { clusters: ['cl:1'], uris: [] })
+    expect(await media.answer()).toMatchObject({ uri: 'ag:(anilist:1)', settled: true })
+  })
+
+  test('a page already drawn is not taken away when its title stops being one the site keeps', async () => {
+    graph.on = true
+    setSite('series')
+    cluster.categories = ['SERIES']
+    const [anilist] = sources.asked = [source('anilist')]
+    const media = open()
+    opened.push(media)
+    expect(await media.next()).toBe(false)
+    cluster.categories = ['ANIME']
+    anilist!.end()
+
+    const next = media.answer()
+    expect(await Promise.race([next, quiet().then(() => 'nothing')])).toBe('nothing')
   })
 
   test('is not settled while one source is still out', async () => {
