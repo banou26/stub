@@ -27,7 +27,7 @@ import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
 import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from './store/db'
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
-import { normalizeToStoreMedia } from './store/normalize'
+import { handleClaims, normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
 import { askAccount, readPluginPayload, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
@@ -124,21 +124,7 @@ const mediaInserter = new DataLoader<Media, Media>(async (medias) => {
   // unions the cluster and PART_OF hangs a directed edge that unions nothing. Deduping on the RELATION
   // too, not just the pair, so one media may hold both kinds for one origin without either silently
   // winning on arrival order.
-  const handlePairs: { mediaUri: string; handleUri: string; relation: ClaimedRelation }[] = []
-  const seen = new Set<string>()
-  for (const media of allUnwrapped) {
-    for (const handle of media.handles ?? []) {
-      // a handle naming no node claims nothing; the row it sits on still lands
-      if (!handle?.node) continue
-      const key = `${media.uri}\0${handle.node.uri}\0${handle.relation}`
-      if (!seen.has(key)) {
-        seen.add(key)
-        handlePairs.push({ mediaUri: media.uri, handleUri: handle.node.uri, relation: handle.relation })
-      }
-    }
-  }
-
-  await upsertMedia(allUnwrapped.map(normalizeToStoreMedia), handlePairs)
+  await upsertMedia(allUnwrapped.map(normalizeToStoreMedia), handleClaims(allUnwrapped))
   return medias
 }, {
   cache: false,

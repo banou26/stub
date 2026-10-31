@@ -637,14 +637,15 @@ export const SHOW_TITLE_THRESHOLD = 0.9
  */
 export const answerNamesOurShow = async (
   runTitles: readonly string[],
-  answerTitles: readonly string[]
+  answerTitles: readonly string[],
+  threshold = SHOW_TITLE_THRESHOLD
 ): Promise<{ ok: boolean, score: number }> => {
   const ours = runTitles.filter(title => title.trim())
   const theirs = answerTitles.filter(title => title.trim())
   if (!ours.length || !theirs.length) return { ok: false, score: 0 }
   const scores = await Promise.all(theirs.map(title => bestTitleScore(ours, title)))
   const score = Math.max(...scores)
-  return { ok: score >= SHOW_TITLE_THRESHOLD, score }
+  return { ok: score >= threshold, score }
 }
 
 /**

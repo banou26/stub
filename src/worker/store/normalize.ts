@@ -1,4 +1,4 @@
-import type { Media } from '../../generated/schema/types.generated'
+import type { Media, MediaHandle } from '../../generated/schema/types.generated'
 import type { Media as StoreMedia } from './types'
 import type { Uri } from '../../utils/uri'
 
@@ -77,3 +77,20 @@ export const normalizeToStoreMedia = (media: Media): StoreMedia => ({
       }
       : null,
 })
+
+/**
+ * What rows claim through their handles, one claim per pair and relation. `address` marks a handle a source rebuilt
+ * from the uri it was asked (`buildHandlesFromUri`), which names a source to ask and says nothing of the two rows.
+ */
+export const handleClaims = (medias: Media[]) => {
+  const claims = new Map<string, { mediaUri: string, handleUri: string, relation: MediaHandle['relation'], address: boolean }>()
+  for (const media of medias) {
+    for (const handle of media.handles ?? []) {
+      // a handle naming no node claims nothing; the row it sits on still lands
+      if (!handle?.node) continue
+      const key = `${media.uri}\0${handle.node.uri}\0${handle.relation}`
+      if (!claims.has(key)) claims.set(key, { mediaUri: media.uri, handleUri: handle.node.uri, relation: handle.relation, address: handle.provenance === 'address' })
+    }
+  }
+  return [...claims.values()]
+}

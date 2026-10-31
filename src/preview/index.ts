@@ -96,9 +96,8 @@ export const previewOf = (media?: Media): Preview | undefined => {
  * `preview` it draws when it holds a title and a cover. Reads only what the build bundled: it asks nothing of anyone,
  * and boots none of what `answer` does.
  *
- * `uri` may pick the show but only `address` may be run. Stub's asks read the old store, which unions everything an
- * address names, so a made-up address welds across shows: `ag:(jw:34435,mal:6)` claimed Cowboy Bebop's JustWatch and
- * Netflix seasons as Trigun's, and the inbox wrote them as its members (through the relays, 2026-10-31).
+ * `uri` may pick the show but only `address` may be run: a link's ids are whatever its text says, and the similar step
+ * only keeps out a show titled unlike the run (`agreeingRows` in src/worker/similar-consumer.ts).
  */
 export const offlineShow = async (uri: string, site: Site): Promise<{ address: string, preview?: Preview } | undefined> => {
   if (!siteAsks(offline, site)) return undefined

@@ -14,6 +14,10 @@ import { fromAggregatedUri, isAggregatedUri, type AggregatedUri } from '../../ut
 const MEDIA_SAME_AS = 'media:same_as'
 const CONTAINER_SAME_AS = 'container:same_as'
 
+// The run space less the unions only an address made, for `findClaimedMedia`. An address says nothing of how the rows it
+// names relate, and a link can name two shows, but a search hit's only handles are the address's, so the run space keeps them.
+const MEDIA_CLAIMED = 'media:claimed'
+
 // Origins whose id names a SHOW and has no season-level equivalent to name instead.
 //
 // A handle is an identity claim: linking it says "this media and that one are the same thing". An
@@ -107,7 +111,7 @@ const isPlaceholder = (media: Media) =>
   && Object.entries(media).every(([field, value]) =>
     IDENTITY_FIELDS.has(field) || value == null || (Array.isArray(value) && value.length === 0))
 
-type Claim = { mediaUri: string; handleUri: string; relation?: ClaimedRelation }
+type Claim = { mediaUri: string; handleUri: string; relation?: ClaimedRelation; address?: boolean }
 const claimKey = ({ mediaUri, handleUri, relation }: Claim) => `${mediaUri}\0${handleUri}\0${relation ?? 'SAME_AS'}`
 
 /**
@@ -177,7 +181,7 @@ export async function upsertMedia(
   // every listener back in the re-read loop tests/unit/worker/store/edge-idempotence.test.ts exists to
   // stop, since the two records can go new at different times.
   for (const claim of claims) {
-    const { mediaUri, handleUri, relation } = claim
+    const { mediaUri, handleUri, relation, address } = claim
     // `INCLUDES` is an OUTPUT value of `MediaHandleRelation` (6.3): a run's page lists the catalogue
     // seasons that hold it. This store has no edge for that direction, and reading it as PART_OF
     // would point the containment the wrong way round, so it is refused here rather than guessed.
@@ -196,6 +200,7 @@ export async function upsertMedia(
       if (graph.edge(run, container, MEDIA_PART_OF)) changed = true
     } else if (claimed === 'SAME_AS') {
       graph.connect(mediaUri, handleUri, mediaScope === 'CONTAINER' ? ASSERTED_LABELS.CONTAINER : ASSERTED_LABELS.RUN)
+      if (!address) graph.link(mediaUri, handleUri, MEDIA_CLAIMED)
       if (graph.link(mediaUri, handleUri, sameAsLabelFor(mediaScope))) changed = true
     } else {
       graph.edge(mediaUri, handleUri, ASSERTED_LABELS.PART_OF)
@@ -268,6 +273,9 @@ export async function findAggregatedMedia(uri: string): Promise<Media[]> {
   // a container row clusters in the container space, so its own SAME_AS siblings are what comes back
   return graph.cluster(resolved, sameAsLabelFor(scopeOf(resolved))) as Media[]
 }
+
+/** The rows some source's own claims join to `uri`, itself included: its cluster less what only an address joined. */
+export const findClaimedMedia = (uri: string): Media[] => graph.cluster(uri, MEDIA_CLAIMED) as Media[]
 
 /**
  * Every row a cluster points at but does not claim to be, deduped by uri.

@@ -27,7 +27,7 @@ import type { AskOutcome } from './graph/asks'
 import type { Media } from './store/types'
 import type { RequestContext } from './request-context'
 
-import { findAggregatedEpisodesForMedia, findAggregatedMedia, findPartOfMedia, upsertMedia } from './store/db'
+import { findAggregatedEpisodesForMedia, findAggregatedMedia, findClaimedMedia, findPartOfMedia, upsertMedia } from './store/db'
 import { clusterRunsOf, writeAskClaim } from './graph/ingest'
 import { graphEnabled } from './graph/engine'
 import { readStore } from './graph/read'
@@ -46,6 +46,7 @@ import {
   type SimilarOutcome,
 } from '../sources/similar'
 import { isOnlySeasonLabel } from '../sources/season'
+import { simplifyTitle, TITLE_MATCH_THRESHOLD } from '../sources/utils'
 import { policyFor } from './request-context'
 
 export type SimilarAsk = { runUri: string, origin: string, showId: string, containerUri: string }
@@ -281,6 +282,34 @@ const runUriOf = (cluster: Media[]): string | undefined => {
   return (named.length ? named : runs).map(media => media.uri).sort()[0]
 }
 
+/**
+ * The rows of a cluster that agree on the show.
+ *
+ * The old store joins everything an address names, and no text tells a link naming two shows from a real one:
+ * `ag:(jw:34435,mal:6)` put Cowboy Bebop's JustWatch season in Trigun's cluster, whose titles then vouched for Cowboy
+ * Bebop's answers, and its JustWatch and Netflix seasons were claimed as Trigun's (through the relays, 2026-10-31). So a
+ * row only an address joined stays when a search could have found it: the loosest gate a catalogue hit clears, on any
+ * rung of the titles a source's own claims join to the run, reading it with the show its own source hangs it off.
+ *
+ * NOT the 0.9 an answer is held to, nor the row's titles alone, as real merges rest on both: Netflix's "Frieren: Beyond
+ * the Journey's End" scores 0.842 and only its own row in the evidence passes its answer, and JustWatch titles Demon
+ * Slayer's first season "Unwavering Resolve Arc". Two shows titled alike clear this gate, as a search can confuse them.
+ */
+const agreeingRows = async (cluster: Media[]): Promise<Media[]> => {
+  const runUri = runUriOf(cluster)
+  if (!runUri) return cluster
+  const claimed = new Set(findClaimedMedia(runUri).map(media => media.uri))
+  const titles = (runEvidence(cluster.filter(media => claimed.has(media.uri)), []).titles ?? [])
+    .flatMap(title => [title, ...simplifyTitle(title)])
+  const agrees = await Promise.all(cluster.map(async media => {
+    if (claimed.has(media.uri)) return true
+    const shows = findPartOfMedia([media]).filter(show => show.origin === media.origin)
+    const named = [media, ...shows].flatMap(row => (row.titles ?? []).map(title => title.title))
+    return (await answerNamesOurShow(titles, named, TITLE_MATCH_THRESHOLD)).ok
+  }))
+  return cluster.filter((_, index) => agrees[index])
+}
+
 const isAsked = (record: AskRecord, question: Question): boolean =>
   record.fingerprints.has(question.fingerprint) || record.refusedTitles.has(question.titles)
 
@@ -501,9 +530,10 @@ const drive = async (start: AskRecord, context: RequestContext, deps: SimilarDep
  * never touched. The graph takes the same claim through `claim`, where the answer's row is an
  * anchoring placeholder until the answering extractor describes it (4.3).
  */
-export const resolveSimilarRuns = async (cluster: Media[], context: RequestContext, deps: SimilarDeps): Promise<void> => {
+export const resolveSimilarRuns = async (read: Media[], context: RequestContext, deps: SimilarDeps): Promise<void> => {
   try {
     if (!policyFor({ context }).crossSource) return
+    const cluster = await agreeingRows(read)
     const runUri = runUriOf(cluster)
     if (!runUri) return
     // ONLY when the graph is what the page is served from. On the old store the plan keeps reading

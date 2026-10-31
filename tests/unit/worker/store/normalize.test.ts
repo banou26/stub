@@ -4,7 +4,7 @@ import { beforeEach, expect, test } from 'vite-plus/test'
 
 import { aggregateMedia } from '../../../../src/worker/store/aggregate'
 import { resetStore } from '../../../../src/worker/store/db'
-import { normalizeToStoreMedia } from '../../../../src/worker/store/normalize'
+import { handleClaims, normalizeToStoreMedia } from '../../../../src/worker/store/normalize'
 
 const gql = (uri: string, scope?: 'RUN' | 'CONTAINER' | null, fields: Record<string, unknown> = {}) => ({
   _id: uri,
@@ -87,4 +87,23 @@ test('normalizeToStoreMedia carries the next airing and the schedule through, an
   expect(scheduled.airingSchedule).toEqual([airing])
   expect(normalizeToStoreMedia(gql('anilist:1', 'RUN')).nextAiringEpisode).toBeNull()
   expect(normalizeToStoreMedia(gql('anilist:1', 'RUN')).airingSchedule).toBeNull()
+})
+
+// Mutation: drop `address` from the claim, and every claim reads as a source's.
+test('handleClaims says which claims an address rebuilt, one per pair and relation', () => {
+  const node = gql('mal:6')
+  const media = gql('jw:1-1', 'RUN', {
+    handles: [
+      { node: gql('tmdb:1'), relation: 'PART_OF' },
+      { node, relation: 'SAME_AS', provenance: 'address' },
+      { node, relation: 'SAME_AS', provenance: 'address' },
+      { node, relation: 'PART_OF' },
+      { node: null, relation: 'SAME_AS' },
+    ],
+  })
+  expect(handleClaims([media as never])).toEqual([
+    { mediaUri: 'jw:1-1', handleUri: 'tmdb:1', relation: 'PART_OF', address: false },
+    { mediaUri: 'jw:1-1', handleUri: 'mal:6', relation: 'SAME_AS', address: true },
+    { mediaUri: 'jw:1-1', handleUri: 'mal:6', relation: 'PART_OF', address: false },
+  ])
 })
