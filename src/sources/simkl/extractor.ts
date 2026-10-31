@@ -306,11 +306,12 @@ const SEARCH_ROWS_PER_TYPE = 10
 const DETAIL_READS_AT_ONCE = 10
 
 // The page starts a search for every prefix that holds for 350 ms, and the relay spends its per-viewer
-// burst (40, then 20 a second) before it reads its cache, so reads a replaced search has sent still count
-// against the search that replaced it. Measured 2026-10-31, "the morning show" at 400 ms a key: 840 relay
-// requests and 420 refused; stopping at the replacement alone left 200 and 20, as the first ten reads go
-// before the next key, and waiting this long too left 130 and none. Only this source's rows land later.
-const READS_AFTER_MS = 500
+// burst (40, then 20 a second) before it reads its cache, so what a replaced search has sent still counts
+// against the search that replaced it. A search here is 3 posts and up to 30 reads, so it asks nothing
+// until it has held this long, and only this source's rows land later. Measured 2026-10-31, "the morning
+// show", relay requests and refusals: at 400 ms a key 900 and 470 asking at once, 90 and none with this
+// wait; at 1200 ms a key 600 and 136 asking at once, 390 and 12 with half of it, 260 and none with it.
+const SEARCH_AFTER_MS = 1_000
 
 const searchType = async (query: string, type: SimklType, ctx: ExtractorServerContext): Promise<SiteRow[]> =>
   (await siteSearch(query, type, ctx))
@@ -319,6 +320,7 @@ const searchType = async (query: string, type: SimklType, ctx: ExtractorServerCo
     .slice(0, SEARCH_ROWS_PER_TYPE)
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
+  await new Promise(resolve => setTimeout(resolve, SEARCH_AFTER_MS))
   const perType = await Promise.all((['tv', 'anime', 'movies'] as const).map(type => searchType(query, type, ctx)))
   const rows: SiteRow[] = []
   const seen = new Set<string>()
@@ -327,7 +329,6 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
     seen.add(row.id)
     rows.push(row)
   }
-  await new Promise(resolve => setTimeout(resolve, READS_AFTER_MS))
   const { signal } = ctx.request
   const out: GQLMedia[] = []
   for (let at = 0; at < rows.length; at += DETAIL_READS_AT_ONCE) {

@@ -3,7 +3,7 @@
 // directly on 2026-10-16, each cut to the rows of exactly the titles tested. Stub reads a Simkl anime series as
 // ANIME and SERIES with no date, and an anime film as a film. IMDb and Watchmode date a film by its year alone,
 // so a dated anime series would meet any film of its title and year.
-import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { ClusterCard } from '../../../../src/worker/graph/plugins/fields'
 
@@ -54,8 +54,12 @@ const simklAnswers = (recorded: Recorded) => async (url: string, init?: { body?:
 
 const search = async (source: { resolvers: unknown }, fetch: unknown, query: string) => {
   const context = { request: new Request('http://d/graphql'), findAggregatedMedia: async () => null, listenForMediaChanges: async function* () {}, fetch }
-  const { value } = await (source.resolvers as any).Subscription.mediaPage.subscribe(undefined, { input: { search: query } }, context).next()
-  return value.mediaPage.nodes as Row[]
+  // Simkl waits for a search to hold before it asks
+  vi.useFakeTimers({ toFake: ['setTimeout'] })
+  const answer = (source.resolvers as any).Subscription.mediaPage.subscribe(undefined, { input: { search: query } }, context).next()
+  await vi.advanceTimersByTimeAsync(2_000)
+  vi.useRealTimers()
+  return (await answer).value.mediaPage.nodes as Row[]
 }
 
 const searches = async (source: { resolvers: unknown }, answers: Record<string, (url: string, init?: { body?: string }) => unknown>) => {

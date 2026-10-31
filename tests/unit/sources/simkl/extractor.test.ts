@@ -163,11 +163,11 @@ test('a special is not numbered as an episode of the run, nor counted in it', as
   expect(media.episodeCount).toBe(2)
 })
 
-// The reads wait for a search to hold, which only the tests at the end of this file are about.
+// A search waits to hold before it asks anything, which only the tests at the end of this file are about.
 const searchFor = async (ctx: object, search = 'frieren') => {
   vi.useFakeTimers({ toFake: ['setTimeout'] })
   const answer = (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search } }, { request: new Request('http://d/graphql'), ...ctx }).next()
-  await vi.advanceTimersByTimeAsync(1_000)
+  await vi.advanceTimersByTimeAsync(2_000)
   vi.useRealTimers()
   return (await answer).value.mediaPage.nodes as Row[]
 }
@@ -458,14 +458,31 @@ const upstream = ({ post, read, wait = async () => {} }: Answers = {}) => {
   }
 }
 
-test('a search replaced before its reads are due asks for no detail', async () => {
+test('a search replaced before it has held long enough asks nothing at all', async () => {
   const { posts, reads, target } = upstream()
   const search = subscribe(target, SEARCH, { input: { search: 'the' } })
-  await vi.waitFor(() => expect(posts()).toHaveLength(3))
+  await elapsed(50)
   search.close()
-  await elapsed(600)
+  await elapsed(1_100)
 
+  expect(posts()).toEqual([])
   expect(reads()).toEqual([])
+})
+
+test('a search asks nothing for its first second, which a prefix typed at a slow pace does not outlast', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout'] })
+  const sent: string[] = []
+  const fetch = async (url: string) => { sent.push(url); return { json: async () => [] } }
+  const answer = (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: 'the' } }, { request: new Request('http://d/graphql'), fetch }).next()
+
+  await vi.advanceTimersByTimeAsync(999)
+  const early = [...sent]
+  await vi.advanceTimersByTimeAsync(1)
+  vi.useRealTimers()
+  await answer
+
+  expect(early).toEqual([])
+  expect(sent).toHaveLength(3)
 })
 
 test('a search replaced during its reads starts no more of them', async () => {
@@ -496,7 +513,7 @@ test('a refused site search is not asked again once its search is replaced', asy
   const { gate, open } = closed()
   const { posts, target } = upstream({ post: async () => new Response(null, { status: 429 }), wait: () => gate })
   const search = subscribe(target, SEARCH, { input: { search: 'the' } })
-  await vi.waitFor(() => expect(posts()).toHaveLength(3))
+  await vi.waitFor(() => expect(posts()).toHaveLength(3), { timeout: 5_000 })
   search.close()
   open()
   await elapsed(50)
@@ -509,14 +526,15 @@ test('the search that holds reads every row and answers what a lone search answe
   const alone = await subscribe(lone.target, SEARCH, { input: { search: 'the morning' } }).until(result => !!result.data)
 
   const { posts, reads, target } = upstream()
-  for (const [index, search] of ['t', 'th', 'the'].entries()) {
+  for (const search of ['t', 'th', 'the']) {
     const replaced = subscribe(target, SEARCH, { input: { search } })
-    await vi.waitFor(() => expect(posts()).toHaveLength((index + 1) * 3))
+    await elapsed(50)
     replaced.close()
   }
   const settled = await subscribe(target, SEARCH, { input: { search: 'the morning' } }).until(result => !!result.data)
 
   expect(settled.data).toEqual(alone.data)
   expect(settled.data.mediaPage.nodes).toHaveLength(30)
-  expect(reads(), 'the replaced searches read nothing').toEqual(lone.reads())
+  expect(posts(), 'the replaced searches asked nothing').toEqual(lone.posts())
+  expect(reads()).toEqual(lone.reads())
 })
