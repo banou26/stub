@@ -1,5 +1,6 @@
 // What the viewer entered for a source following their FKN account, in a file beside the source list. FKN
 // is faked at @fkn/lib's surface (./tracking/fkn-fake.ts) and reached through the tracker's real adapter.
+import { inspect } from 'node:util'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { FknStorage } from '../../src/tracking/fkn-cloud'
@@ -131,6 +132,22 @@ describe('what the viewer entered on the FKN account', () => {
     expect(anime.items.get(ACCOUNT_VALUES_KEY)).not.toContain(KEY)
   })
 
+  test('a removal hides the values at once, while FKN does not answer', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S, T])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser)
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: KEY })
+    await anime.sync.save(T, { apiKey: 'its-own' })
+
+    browser.state.reachable = false
+    void anime.sync.remove(S)
+    expect(anime.shown(S)).toEqual({})
+    expect(anime.items.get(ACCOUNT_VALUES_KEY)).not.toContain(KEY)
+    expect(anime.shown(T)).toEqual({ apiKey: 'its-own' })
+  })
+
   test('a source added back after a removal starts with nothing', async () => {
     const world = fknWorld()
     holds(world, 'alice', [S])
@@ -203,7 +220,7 @@ describe('what the viewer entered on the FKN account', () => {
       expect(world.storageOf('alice').get(SOURCES_PATH)!.text).not.toContain(KEY)
       expect(anime.items.get(ACCOUNT_PLUGINS_KEY)).not.toContain(KEY)
       expect(JSON.stringify(fetching.mock.calls)).not.toContain(KEY)
-      expect(JSON.stringify(lines.mock.calls)).not.toContain(KEY)
+      expect(inspect(lines.mock.calls, { depth: 8 })).not.toContain(KEY)
     } finally {
       vi.unstubAllGlobals()
     }
@@ -214,15 +231,18 @@ describe('what the viewer entered on the FKN account', () => {
     holds(world, 'alice', [T])
     const browser = world.browser()
     const anime = site(browser)
+    const now = vi.spyOn(Date, 'now')
     await anime.sync.add(S)
     await anime.sync.add(T)
     await anime.sync.save(S, { apiKey: KEY })
     await anime.sync.save(T, { address: 'from-the-device', category: 'from-the-device' })
 
+    now.mockReturnValue(1_000)
     const movies = site(world.browser({ account: 'alice' }))
     await movies.sync.check()
     await movies.sync.save(T, { address: ADDRESS })
 
+    now.mockReturnValue(9_000)
     browser.account.signIn('alice')
     await anime.sync.check()
     expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
@@ -509,6 +529,7 @@ describe('what the viewer entered on the FKN account', () => {
     }))
     await anime.sync.check()
     await anime.sync.save(S, { apiKey: KEY })
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
 
     refuse = true
     holds(world, 'alice', [S, T])
@@ -517,14 +538,18 @@ describe('what the viewer entered on the FKN account', () => {
     expect(anime.shown(S)).toEqual({ apiKey: KEY })
   })
 
-  test('a file that cannot be read counts as none, and logs nothing of it', async () => {
+  test('a file that cannot be read counts as none, stops nothing, logs nothing, and the next save replaces it', async () => {
     const world = fknWorld()
     holds(world, 'alice', [S])
-    world.storageOf('alice').set(VALUES_PATH, { text: `{${KEY}`, updatedAt: new Date(0).toISOString() })
+    world.storageOf('alice').set(VALUES_PATH, { text: `${KEY} is not json`, updatedAt: new Date(0).toISOString() })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const anime = site(world.browser({ account: 'alice' }))
     await anime.sync.check()
     expect(anime.shown(S)).toEqual({})
-    expect(JSON.stringify(warn.mock.calls)).not.toContain(KEY)
+    expect(anime.items.get(ACCOUNT_PLUGINS_KEY), 'the list still followed').toBe(JSON.stringify([S]))
+    expect(warn, 'a parse error quotes the text it read').not.toHaveBeenCalled()
+
+    await anime.sync.save(S, { address: ADDRESS })
+    expect(fieldsOf(world, 'alice', S)).toEqual({ address: ADDRESS })
   })
 })
