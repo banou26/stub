@@ -587,8 +587,9 @@ test('adding by address shows a refused address\'s error under the group, and a 
   const add = group.getByRole('button')
   const alert = panel(page).getByRole('alert')
 
-  const [inputBox, addBox] = [await input.boundingBox(), await add.boundingBox()]
-  expect(Math.abs(inputBox!.y - addBox!.y), 'one row at a phone\'s width').toBeLessThan(2)
+  // read in one go: the row moves as what sits above it lands, so two reads can straddle that move
+  const rowGap = await group.evaluate(element => Math.abs(element.querySelector('input')!.getBoundingClientRect().top - element.querySelector('button')!.getBoundingClientRect().top))
+  expect(rowGap, 'one row at a phone\'s width').toBeLessThan(2)
 
   await input.fill('not a package')
   await add.click()
