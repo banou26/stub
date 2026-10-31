@@ -38,7 +38,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'source-settings',
     title: 'Source settings',
-    what: 'What you enter in Settings for a source you added, such as a server address or an API key, as you typed it, not encrypted. stub hands it to that source each time the source connects and when you save it, and to no other source. It never goes to your FKN account, so you enter it again on each site and device.',
+    what: 'What you enter in Settings for a source you added, such as a server address or an access key, as you typed it, not encrypted. stub hands it to that source each time the source connects and when you save it, and to no other source. It never goes to your FKN account, so you enter it again on each site and device.',
     where: LOCAL,
     lasts: "Until you change it or remove the source, or clear this site's data in your browser. A source from your FKN account's list goes from this browser when you sign out, and this goes with it",
     keys: { store: 'local', names: [PLUGIN_VALUES_KEY] },
