@@ -53,6 +53,12 @@ test('a malformed or repeated field costs only itself', async () => {
   expect(settings[1]!.label).toHaveLength(64)
 })
 
+// the form reads a saved value by key, so `constructor` would read Object's own member and fail Settings as it renders
+test.each(['constructor', 'toString', 'valueOf', '__proto__'])('a field keyed %s, a member of every object, costs only itself', async key => {
+  const { settings } = await register({ ...source('spec-one'), settings: [{ key, label: 'Odd', kind: 'text' }, { key: 'address', label: 'Address', kind: 'url' }] })
+  expect(settings.map(field => field.key)).toEqual(['address'])
+})
+
 test('a list of fields that is no list is none', async () => {
   expect((await register({ ...source('spec-one'), settings: 'junk' })).settings).toEqual([])
 })

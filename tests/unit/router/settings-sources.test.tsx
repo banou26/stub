@@ -38,6 +38,7 @@ const { startLanguage } = await import('../../../src/i18n')
 const { builtInSources } = await import('../../../src/sources/built-in')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
 const { PLUGIN_VALUES_KEY } = await import('../../../src/plugin-list')
+const { readPluginSettings } = await import('../../../src/worker/plugin-sources')
 const { HIDDEN_ICONS_KEY } = await import('../../../src/sources/hidden-icons')
 const { DEFAULT_MERGE_ORDER } = await import('../../../src/sources/merge-order')
 
@@ -372,6 +373,12 @@ describe('a source that lists settings', () => {
     expect([...row(ASKING.uri).querySelectorAll('input')].map(input => input.getAttribute('type'))).toEqual(['url', 'password', 'text'])
     expect(row(FAILED.uri).querySelector('form')).toBeNull()
     expect(row('npm:@spec/two').querySelector('form')).toBeNull()
+  })
+
+  test('a field keyed after a member of every object, as the worker reads it, leaves the form and the row standing', () => {
+    const settings = readPluginSettings([{ key: 'constructor', label: 'Odd', kind: 'text' }, ASKING.settings![0]])
+    const { row } = render([{ ...ASKING, settings }])
+    expect([...row(ASKING.uri).querySelectorAll('label')].map(label => label.textContent)).toEqual(['Server address'])
   })
 
   test('a secret is a password input, and what was saved for it is never on the page as text', () => {

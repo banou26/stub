@@ -127,7 +127,8 @@ export const readPluginSettings = (settings: unknown): PluginSettingField[] => {
   const claimed = new Set<string>()
   return settings.flatMap((field: unknown) => {
     if (!isObject(field) || typeof field.key !== 'string' || !field.key || typeof field.label !== 'string' || !field.label) return []
-    if (!FIELD_KINDS.includes(field.kind) || claimed.has(field.key)) return []
+    // `in {}`: a value read back by a key like `constructor` would be Object's own member, not what was entered
+    if (!FIELD_KINDS.includes(field.kind) || claimed.has(field.key) || field.key in {}) return []
     claimed.add(field.key)
     return [{ key: field.key, label: field.label.slice(0, 64), kind: field.kind as PluginSettingKind, required: field.required === true }]
   })
