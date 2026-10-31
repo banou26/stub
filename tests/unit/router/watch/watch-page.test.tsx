@@ -2773,13 +2773,13 @@ const open = async () => {
 
 test('the last episode of an anime links the first of its sequel, on the release playing now', async () => {
   lastOf({ relations: [SEQUEL] }, 'nyaa:b')
-  nextRun('anilist:2')
+  nextRun('ag:(anilist:2)')
   const host = await open()
   expect(episodeLinks(host)).toEqual([
     ['Previous episode', watchPath(2, 'nyaa:a'), 'E2 - Title 2'],
     ['Next episode', `${NEXT_SEASON}/nyaa:d`, 'E1 - Second season'],
   ])
-  expect(asked).toEqual(['anilist:2'])
+  expect(asked).toEqual(['ag:(anilist:2)'])
 })
 
 test('the last episode of a show\'s season links the first of the next season', async () => {
@@ -2796,7 +2796,7 @@ test('the last episode of a show\'s season links the first of the next season', 
 test('with no next season, or one whose first episode is not out, there is no next episode', async () => {
   for (const [linked, first] of [[{}, {}], [{ relations: [SEQUEL] }, { releaseDate: '2099-01-01' }]] as const) {
     lastOf(linked, 'cr:GX3')
-    nextRun('anilist:2', first)
+    nextRun('ag:(anilist:2)', first)
     const host = await open()
     expect(episodeLinks(host).map(([label]) => label), JSON.stringify(linked)).toEqual(['Previous episode'])
     unmount(hosts.pop()!)
@@ -2807,7 +2807,7 @@ test('the first episode links the last of the season before', async () => {
   series()
   media = { ...media, relations: [PREQUEL] }
   params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
-  runs['anilist:0'] = { uri: 'ag:(anilist:0)', episodes: [{ uri: 'ag:(anilist:0-12)', episodeNumber: 12, titles: [{ title: 'Finale' }], handles: [handle('cr:GW12', 'cr', 'https://www.crunchyroll.com/watch/GW12')] }] }
+  runs['ag:(anilist:0)'] = { uri: 'ag:(anilist:0)', episodes: [{ uri: 'ag:(anilist:0-12)', episodeNumber: 12, titles: [{ title: 'Finale' }], handles: [handle('cr:GW12', 'cr', 'https://www.crunchyroll.com/watch/GW12')] }] }
   const host = await open()
   expect(episodeLinks(host)).toEqual([
     ['Previous episode', '/watch/ag:(anilist:0)/ag:(anilist:0-12)/cr:GW12', 'E12 - Finale'],
@@ -2818,7 +2818,7 @@ test('the first episode links the last of the season before', async () => {
 test('an episode inside its season asks for no other run', async () => {
   series({}, 'cr:GX2')
   media = { ...media, relations: [PREQUEL, SEQUEL] }
-  nextRun('anilist:2')
+  nextRun('ag:(anilist:2)')
   await open()
   expect(asked).toEqual([])
 })
@@ -2827,13 +2827,13 @@ test('a film links no episode of its sequel or prequel, and counts down to none'
   for (const type of ['MOVIE', 'TV']) {
     media = { ...single, type, relations: [PREQUEL, SEQUEL] }
     params = { ...params, sourceUri: 'cr:GX1' }
-    nextRun('anilist:2')
+    nextRun('ag:(anilist:2)')
     asked = []
     const host = await open()
     await report(played, ended)
     const film = type === 'MOVIE'
     expect(episodeLinks(host).map(([label]) => label), type).toEqual(film ? [] : ['Next episode'])
-    expect(asked, type).toEqual(film ? [] : ['anilist:0', 'anilist:2'])
+    expect(asked, type).toEqual(film ? [] : ['ag:(anilist:0)', 'ag:(anilist:2)'])
     expect(Boolean(host.querySelector('.up-next')), type).toBe(!film)
     unmount(hosts.pop()!)
   }
@@ -2841,7 +2841,7 @@ test('a film links no episode of its sequel or prequel, and counts down to none'
 
 test('at the end of a season, the countdown opens the next season\'s first episode', async () => {
   lastOf({ relations: [SEQUEL] }, 'cr:GX3')
-  nextRun('anilist:2')
+  nextRun('ag:(anilist:2)')
   const host = await open()
   await report(played, ended)
   expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E1 - Second season')
@@ -2853,7 +2853,7 @@ test('a run that has not answered yet is never read from the one asked before it
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
   lastOf({ relations: [SEQUEL] }, 'cr:GX3')
-  nextRun('anilist:2')
+  nextRun('ag:(anilist:2)')
   const location = memoryLocation()
   const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
@@ -2862,11 +2862,11 @@ test('a run that has not answered yet is never read from the one asked before it
   expect(episodeLinks(host).at(-1)?.[1]).toBe(`${NEXT_SEASON}/cr:GY1`)
 
   // on to the sequel's last episode, whose own sequel has not answered
-  media = { ...runs['anilist:2'], relations: [{ ...SEQUEL, node: { _id: 'anilist:3', uri: 'anilist:3' } }] }
+  media = { ...runs['ag:(anilist:2)'], relations: [{ ...SEQUEL, node: { _id: 'anilist:3', uri: 'anilist:3' } }] }
   params = { ...params, mediaUri: 'ag:(anilist:2)', episodeUri: 'ag:(anilist:2-1)', sourceUri: 'cr:GY1' }
   act(() => { render(tree(), host) })
   await settle()
-  expect(asked).toEqual(['anilist:2', 'anilist:3'])
+  expect(asked).toEqual(['ag:(anilist:2)', 'ag:(anilist:3)'])
   expect(host.querySelector('.episode-step')).toBeNull()
 })
 

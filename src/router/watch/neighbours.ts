@@ -39,7 +39,8 @@ export const adjacentRun = (
   const relation = step > 0 ? 'SEQUEL' : 'PREQUEL'
   // listed in uri order, which says nothing about which came first
   const runs = relations?.filter(edge => edge.relation === relation && isVideoFormat(edge.format)) ?? []
-  return (runs.find(edge => edge.format === type) ?? runs[0])?.node.uri
+  const run = runs.find(edge => edge.format === type) ?? runs[0]
+  return run && asAggregatedUri(run.node.uri)
 }
 
 /**

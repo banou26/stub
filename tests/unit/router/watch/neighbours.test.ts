@@ -63,8 +63,8 @@ const relations = [
 
 test('an anime\'s run beside this one is its sequel or prequel that plays', () => {
   const anime = { handles: answersTo('anilist:1'), seasons: null, relations }
-  expect(adjacentRun(anime, 1)).toBe('anilist:2')
-  expect(adjacentRun(anime, -1)).toBe('anilist:0')
+  expect(adjacentRun(anime, 1)).toBe('ag:(anilist:2)')
+  expect(adjacentRun(anime, -1)).toBe('ag:(anilist:0)')
   expect(adjacentRun({ ...anime, relations: relations.slice(0, 2) }, 1), 'only a book follows it').toBeUndefined()
   expect(adjacentRun({ handles: answersTo('anilist:1'), relations: [] }, 1)).toBeUndefined()
 })
@@ -74,10 +74,10 @@ const edge = (relation: string, id: number, format: string) => ({ relation, form
 
 test('an anime\'s sequel or prequel of its own format comes first, else any that plays', () => {
   const tv = (id: number, ...edges: ReturnType<typeof edge>[]) => ({ handles: answersTo(`anilist:${id}`), type: 'TV', relations: edges })
-  expect(adjacentRun(tv(11757, edge('SEQUEL', 20021, 'SPECIAL'), edge('SEQUEL', 20594, 'TV')), 1), 'Sword Art Online, past its recap').toBe('anilist:20594')
-  expect(adjacentRun(tv(101922, edge('SEQUEL', 112151, 'MOVIE'), edge('SEQUEL', 129874, 'TV')), 1), 'Demon Slayer, past the film').toBe('anilist:129874')
-  expect(adjacentRun(tv(142329, edge('PREQUEL', 112151, 'MOVIE'), edge('PREQUEL', 129874, 'TV')), -1), 'and back').toBe('anilist:129874')
-  expect(adjacentRun(tv(131681, edge('SEQUEL', 146984, 'SPECIAL')), 1), 'a special that ends the story').toBe('anilist:146984')
+  expect(adjacentRun(tv(11757, edge('SEQUEL', 20021, 'SPECIAL'), edge('SEQUEL', 20594, 'TV')), 1), 'Sword Art Online, past its recap').toBe('ag:(anilist:20594)')
+  expect(adjacentRun(tv(101922, edge('SEQUEL', 112151, 'MOVIE'), edge('SEQUEL', 129874, 'TV')), 1), 'Demon Slayer, past the film').toBe('ag:(anilist:129874)')
+  expect(adjacentRun(tv(142329, edge('PREQUEL', 112151, 'MOVIE'), edge('PREQUEL', 129874, 'TV')), -1), 'and back').toBe('ag:(anilist:129874)')
+  expect(adjacentRun(tv(131681, edge('SEQUEL', 146984, 'SPECIAL')), 1), 'a special that ends the story').toBe('ag:(anilist:146984)')
 })
 
 test('a film has no run beside it', () => {
@@ -85,7 +85,7 @@ test('a film has no run beside it', () => {
   expect(adjacentRun({ ...film, type: 'MOVIE' }, 1)).toBeUndefined()
   expect(adjacentRun({ ...film, type: 'MOVIE' }, -1)).toBeUndefined()
   expect(adjacentRun({ ...film, categories: ['MOVIE'] }, 1), 'a film by its categories').toBeUndefined()
-  expect(adjacentRun({ ...film, type: 'TV' }, 1), 'the control').toBe('anilist:142329')
+  expect(adjacentRun({ ...film, type: 'TV' }, 1), 'the control').toBe('ag:(anilist:142329)')
 })
 
 const ways: Ways = {
