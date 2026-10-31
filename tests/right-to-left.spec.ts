@@ -374,6 +374,12 @@ test('in English the same readings find a left to right page: the wordmark at th
   expect(await flipped(page, '.scroll-button.next svg')).toBe('none')
   expect((await row.locator('.scroll-button.previous').boundingBox())!.x).toBeLessThan((await row.locator('.scroll-button.next').boundingBox())!.x)
   await expect(page.locator('html')).not.toHaveAttribute('dir', 'rtl')
+
+  await page.goto(at(WATCH))
+  const episode = page.locator(':has(> .episode-link[aria-current])').first()
+  await expect(episode).toBeAttached({ timeout: 45_000 })
+  expect(await episode.evaluate(element => getComputedStyle(element).boxShadow)).toContain(' 3px 0px 0px 0px inset')
+  expect(await page.locator('.source.active').first().evaluate(element => getComputedStyle(element).backgroundImage)).toContain('to right')
 })
 
 test('a row\'s first card keeps its gutter on the side the row starts from', async ({ page }) => {
