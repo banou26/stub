@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useState } from 'preact/compat'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import Draggable from '../../components/draggable'
-import { intl, isRightToLeft } from '../../i18n'
 
 /** A home row card's size in CSS px: 25rem x 35rem, and the smaller 15rem x 21rem on a phone. */
 export type RowCard = { width: number, height: number }
@@ -119,7 +118,6 @@ export const CardRow = <P extends object>({ count, cell, cellProps }: { count: n
         <Grid<P & { card: RowCard }>
           gridRef={gridRef}
           className='virtual-list'
-          dir={isRightToLeft(intl.locale) ? 'rtl' : undefined}
           cellComponent={cell}
           cellProps={{ ...cellProps, card } as GridProps<P & { card: RowCard }>['cellProps']}
           columnCount={count}
