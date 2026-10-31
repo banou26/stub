@@ -538,6 +538,7 @@ into them.
 | `similarSeason` | `:586-595` | the `similarMedia` implementation. Asks node `` `ts${input.showId}` ``, picks a season, refuses a film outright |
 | `searchAndLinkMedia` | `:636-722` | the search gate. Covered on [the search gate](/sources/search-gate/) |
 | `datedLikeThisMedia` | `:611-615` | the date axis, read at SEASON level only |
+| `seasonLinks` | `:1082-1085` | the seasons a page of a show links when its address names JustWatch, which is what moves a show's own page onto a run when no other source lists them. Not an anime's, a season not out yet, or the specials |
 | `Subscription.mediaPage` | `:761-774` | search results, and only films survive |
 | `Media.episodes` | `:776-796` | refetches the node and filters on `ep.content.isReleased` |
 

@@ -1076,6 +1076,14 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
   return container
 }
 
+// The seasons a page of this show links, as TMDB's and TVmaze's do, and what moves its own address onto a run: with none
+// from any source, The Diplomat's home card opened a page with no episodes and nothing to play. None for an anime, whose
+// runs are its cours rather than a catalogue's seasons.
+const seasonLinks = (node: JWShowNode): GQLMedia['seasons'] =>
+  categoriesOf(node).includes('ANIME') ? undefined : node.seasons
+    ?.filter(({ content }) => content.isReleased && content.seasonNumber > 0)
+    .map(({ objectId, content }) => ({ number: content.seasonNumber, uri: toUri({ origin, id: jwId(node.objectId, objectId) }) }))
+
 // movies.fkn.app keeps films alone and series.fkn.app shows alone, so there a bare id is the node of that kind.
 // Opened cold, `ag:(jw:<id>)` has nothing else to name a format: the cluster's wait ran its 15 s, and the film
 // The End of Oak Street was asked as the show `ts1465819`, which does not exist (2026-10-19).
@@ -1109,7 +1117,8 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext, details?: 
     // a show its address names alone has no run to pick, so it is the show, as the home row answers it; only on
     // series.fkn.app, since elsewhere the node is the cluster's guess at which of two titles the id names
     if (site === 'series' && seasonObjectId == null && originsOfUri(uri).every(member => member === origin)) {
-      return showAsContainer(node, ctx, UNKNOWN_POLICY, true)
+      const show = await showAsContainer(node, ctx, UNKNOWN_POLICY, true)
+      return show && { ...show, seasons: seasonLinks(node) }
     }
     // the uri pins a season by ITS id, so the number the episode lists use is looked up, not assumed
     const pinned = seasonObjectId != null
@@ -1119,7 +1128,7 @@ const resolveMedia = async (uri: string, ctx: ExtractorServerContext, details?: 
     const media = await normalizeMedia(node, { seasons: node.seasons, seasonNumber }, ctx)
     if (!media) return null
     if (isAggregatedUri(uri)) mergeHandles(media, uri)
-    return media
+    return { ...media, seasons: seasonLinks(node) }
   }
   if (!isAggregatedUri(uri)) return null
   // no `jw:` in the uri, so no source ever supplied one. Search, under the gate above.

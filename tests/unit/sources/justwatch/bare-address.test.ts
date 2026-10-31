@@ -84,6 +84,37 @@ test('series.fkn.app: a season its address names alone is that season, not the s
     .toEqual({ asked: ['ts224087'], listened: false, uri: 'jw:224087-274066', scope: 'RUN', categories: ['SERIES'], title: 'Ted Lasso' })
 })
 
+const seasonsAt = async (uri: string, node: unknown = NODES.ts224087) => {
+  const context = { fetch: async () => ({ json: async () => ({ data: { node } }) }) }
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri } }, context).next()
+  return value.media.seasons
+}
+
+// the links are what move a show's page onto a run: a card no other source knows the seasons of opened a page with no
+// episodes and nothing to play (The Diplomat and MobLand, 2026-10-31)
+test('series.fkn.app: a show links its seasons, from its own page and from each of them', async () => {
+  current.site = 'series'
+  const seasons = [[1, 233988], [2, 274066], [3, 281160], [4, 469982]].map(([number, id]) => ({ number, uri: `jw:224087-${id}` }))
+  expect(await seasonsAt('ag:(jw:224087)')).toEqual(seasons)
+  expect(await seasonsAt('ag:(jw:224087-274066)')).toEqual(seasons)
+})
+
+test('series.fkn.app: a season not out yet, or the specials, is not linked', async () => {
+  current.site = 'series'
+  const node = structuredClone(NODES.ts224087) as { seasons: { content: { seasonNumber: number, isReleased: boolean } }[] }
+  node.seasons[0]!.content.seasonNumber = 0
+  node.seasons[3]!.content.isReleased = false
+  expect((await seasonsAt('ag:(jw:224087)', node)).map((season: { number: number }) => season.number)).toEqual([2, 3])
+})
+
+test('series.fkn.app: an anime links none, its runs being its cours', async () => {
+  current.site = 'series'
+  const node = structuredClone(NODES.ts224087) as { content: { genres: { shortName: string }[], productionCountries: string[] } }
+  node.content.genres = [{ shortName: 'ani' }]
+  node.content.productionCountries = ['JP']
+  expect(await seasonsAt('ag:(jw:224087)', node)).toBeUndefined()
+})
+
 test('an address naming another source still waits for what that source answers', async () => {
   current.site = 'series'
   const secondSeason = { categories: ['SERIES'], titles: [{ title: 'Ted Lasso' }], startDate: '2021-07-23', episodeCount: 12 }
