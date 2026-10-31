@@ -586,8 +586,24 @@ configure?: (values: Record<string, string>) => Promise<void>
 - **A rejection or a late answer changes nothing.** Stub waits `CONFIGURE_WAIT_MS = 3_000` at most and then
   goes on, and drops what the plugin rejected with unread, since it could quote a value.
 
-The values stay in this browser, per site, under `'stub-plugin-values'`, and go when the source does. They are
-not encrypted and never reach the FKN account's list, and stub never logs them.
+Signed out, the values stay in this browser, per site, under `'stub-plugin-values'`, not encrypted, and go when
+the source does. Stub never logs them and never puts one in a url.
+
+Signed in, they follow the account as the source list does, and through the same step (`src/plugin-sync.ts`). They
+are stub's, not FKN's: `sources/v1/values.json`, sealed in the browser like the list, needing no FKN change.
+
+- **Beside the list, not in it.** A client older than the values rewrites `sources/v1/list.json` as an array of
+  strings, so it would drop them. It never opens the other file.
+- **Values entered signed out join at sign in,** where the account has no value of its own, and leave the device,
+  as an addition does.
+- **The later save of a field wins,** and a save only marks the fields it changed, so two sites saving different
+  fields keep both. No lock spans two sites, so a save stays in the page until a read shows the file holding it,
+  and a write that went over it is repaired by the next check.
+- **The file holds only the sources on the list just read,** so a removal anywhere removes their values everywhere,
+  a removal by an older client included.
+- **At sign out** the account's copy leaves this browser with the list, and the account keeps the file.
+
+A connected source takes values another site saved at the next check, through `configure`.
 
 ## What is not reduced
 
