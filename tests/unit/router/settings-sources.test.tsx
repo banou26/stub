@@ -2,6 +2,7 @@
 import { button, mount, unmount, withIntl } from '../components/dom'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { render as renderTree } from 'preact'
 import { act } from 'preact/test-utils'
 
 import type { PluginStatus } from '../../../src/plugins'
@@ -411,7 +412,7 @@ describe('a source that lists settings', () => {
     await fill(field(form, 'Category'), '   ')
     expect(saveButton(form).getAttribute('aria-disabled')).toBeNull()
     await save(form)
-    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET })
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET, category: null })
     expect(field(form, 'Server address').value).toBe('https://server.spec.test')
     expect(saveButton(form).getAttribute('aria-disabled')).toBe('true')
   })
@@ -428,7 +429,45 @@ describe('a source that lists settings', () => {
     expect(field(form, 'Category').value, 'the field being typed in').toBe('typing')
 
     await save(form)
-    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET, category: 'typing' })
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { category: 'typing' })
+  })
+
+  test('a form that has not heard of what this browser holds saves only what the viewer changed in it', async () => {
+    keep({ address: 'https://server.spec.test', apiKey: 'old' })
+    const { row } = render([ASKING])
+    const form = row(ASKING.uri)
+
+    keep({ address: 'https://server.spec.test', apiKey: 'newer, from another tab' })
+    await fill(field(form, 'Category'), 'typing')
+    await save(form)
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { category: 'typing' })
+  })
+
+  test('a field the package no longer asks for goes at the next save', async () => {
+    keep({ address: 'https://server.spec.test', retired: 'kept-from-an-older-version' })
+    const { row } = render([ASKING])
+    const form = row(ASKING.uri)
+    await fill(field(form, 'Category'), 'typing')
+    await save(form)
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { category: 'typing', retired: null })
+  })
+
+  // without `act` a page's effects wait for the next frame, as they do on a page, and nothing tells a form not yet subscribed
+  test('what arrives between the form\'s first render and its subscribing shows', async () => {
+    keep({ apiKey: 'old' })
+    fake.statuses = [ASKING]
+    const host = document.createElement('div')
+    document.body.append(host)
+    hosts.push(host)
+    renderTree(withIntl(<SourcesSection {...ACCOUNTS}/>), host)
+    const form = host.querySelector<HTMLElement>(`[data-plugin="${ASKING.uri}"]`)!
+    expect(field(form, 'Server key').value).toBe('old')
+
+    keep({ apiKey: SECRET })
+    await vi.waitFor(async () => {
+      await flush()
+      expect(field(form, 'Server key').value).toBe(SECRET)
+    })
   })
 
   test('Save stays on the page, whether or not there is anything to save', async () => {
@@ -459,7 +498,7 @@ describe('a source that lists settings', () => {
     await fill(field(form, 'Server address'), '')
     await fill(field(form, 'Server key'), '')
     await save(form)
-    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, {})
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: null, apiKey: null })
     expect(form.querySelector('.failure')!.textContent).toBe('Required: Server address, Server key')
   })
 })

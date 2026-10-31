@@ -381,14 +381,20 @@ const PluginForm = ({ uri, name, fields }: { uri: string, name: string, fields: 
   const changed = fields.some(({ key }) => entered[key] !== saved[key])
   const missing = fields.filter(field => field.required && !saved[field.key]).map(field => field.label)
 
-  useEffect(() => onPluginsChange(() => setSaved(loadPluginValues(uri))), [uri])
+  // re-read on subscribe, as the section does: what arrived since the first render told nobody here
+  useEffect(() => {
+    const follow = () => setSaved(loadPluginValues(uri))
+    follow()
+    return onPluginsChange(follow)
+  }, [uri])
 
   const onSave = (event: Event) => {
     event.preventDefault()
     if (!changed) return
     setSaved(entered)
     setDraft({})
-    void configurePlugin(uri, entered)
+    // what differs from what this form shows, and no more: its other fields may be behind this browser's copy
+    void configurePlugin(uri, Object.fromEntries(Object.keys({ ...saved, ...entered }).filter(key => entered[key] !== saved[key]).map(key => [key, entered[key] ?? null])))
   }
 
   // aria-disabled, so the press that saves leaves the focus on the button

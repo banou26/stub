@@ -29,7 +29,7 @@ const account = await vi.hoisted(async () => {
   const browser = world.browser()
   return { world, browser, cloud: fknTrackerCloud(browser.lib, { timeoutMs: 20 }) }
 })
-vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: account.cloud, onTrackerAccountChange: account.browser.onChange }))
+vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: account.cloud, onTrackerAccountChange: account.browser.onChange, unlockTracker: account.browser.account.unlock }))
 
 const stored = new Map<string, string>()
 vi.stubGlobal('localStorage', {
@@ -101,7 +101,7 @@ test('a reconnect hands the values over again, as they are by then', async () =>
   await installPlugin(SOURCE)
   await vi.waitFor(() => expect(handed(SOURCE)).toHaveLength(1))
 
-  await configurePlugin(SOURCE, { apiKey: 'a-newer-value' })
+  await configurePlugin(SOURCE, { address: null, apiKey: 'a-newer-value' })
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.useFakeTimers()
   try {
@@ -122,11 +122,27 @@ test('saving keeps the values on this device and hands them over at once, leavin
   expect(worker.configureRemoteSource).toHaveBeenCalledExactlyOnceWith(SOURCE, VALUES)
 })
 
+test('a save on this device leaves the fields it does not name', async () => {
+  keep({ [SOURCE]: VALUES })
+  await configurePlugin(SOURCE, { apiKey: 'a-newer-value' })
+  expect(kept()).toEqual({ [SOURCE]: { address: VALUES.address, apiKey: 'a-newer-value' } })
+})
+
 test('saving nothing keeps nothing, and hands the source that nothing', async () => {
   keep({ [SOURCE]: VALUES })
-  await configurePlugin(SOURCE, {})
+  await configurePlugin(SOURCE, { address: null, apiKey: null })
   expect(stored.has(PLUGIN_VALUES_KEY)).toBe(false)
   expect(worker.configureRemoteSource).toHaveBeenCalledExactlyOnceWith(SOURCE, {})
+})
+
+test('a save hands over what this browser holds with the edits, and tells the open form', async () => {
+  keep({ [SOURCE]: VALUES })
+  const told = vi.fn()
+  const unsubscribe = onPluginsChange(told)
+  await configurePlugin(SOURCE, { category: 'edited' })
+  unsubscribe()
+  expect(worker.configureRemoteSource).toHaveBeenCalledExactlyOnceWith(SOURCE, { ...VALUES, category: 'edited' })
+  expect(told).toHaveBeenCalled()
 })
 
 test('removing a source removes its values, and no other source\'s', async () => {
@@ -251,6 +267,21 @@ test('signed in, saving reaches the account and the source at once, and a sign o
   expect(stored.has(ACCOUNT_VALUES_KEY)).toBe(false)
   expect(JSON.stringify([...stored])).not.toContain(VALUES.apiKey)
   expect(account.world.storageOf('alice').get(VALUES_PATH)!.text, 'the account keeps them').toContain(VALUES.apiKey)
+})
+
+test('signed in with no key here, a save asks FKN for the key and reaches the account', async () => {
+  connecting()
+  file(SOURCES_PATH, [SOURCE])
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    account.browser.state.unlocked = false
+    await configurePlugin(SOURCE, VALUES)
+    await vi.waitFor(() => expect(account.world.storageOf('alice').get(VALUES_PATH)?.text).toContain(VALUES.apiKey))
+  } finally {
+    account.browser.state.unlocked = true
+    await signOutOfAlice()
+  }
 })
 
 test('what the viewer entered reaches the values file alone, and never a line of the console', async () => {

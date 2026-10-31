@@ -3,18 +3,17 @@
 // FKN's storage, the account notification, the lock and this browser's storage injected, so every rule can
 // be pinned under vitest.
 
-import type { PluginValues } from './plugin-api'
 import type { Call, TrackerCloud } from './tracking/account-link'
 
 import { accountGeneration } from './tracking/account-link'
 import {
+  editedValues,
   listedValues,
   loadAccount,
   loadAccountValues,
   loadDevice,
   loadEnabled,
   loadOwnValues,
-  loadPluginValues,
   mergeSaved,
   ownAsSaved,
   parseList,
@@ -25,6 +24,7 @@ import {
   savePluginValues,
   unheld,
   type ListStorage,
+  type PluginEdits,
   type SavedField,
   type SavedValues,
 } from './plugin-list'
@@ -39,8 +39,6 @@ export const SOURCES_PATH = 'sources/v1/list.json'
 export const VALUES_PATH = 'sources/v1/values.json'
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
-
-const without = (uri: string, values: SavedValues) => Object.fromEntries(Object.entries(values).filter(([kept]) => kept !== uri))
 
 /**
  * The added sources, following the viewer's FKN account.
@@ -59,13 +57,15 @@ const without = (uri: string, values: SavedValues) => Object.fromEntries(Object.
  *
  * The values follow in the same step, so they are here before `onList` connects a source. What this
  * device entered outside the account joins where the account has no value and leaves here, as an addition
- * does. A save made here while the account's list is in use marks only the fields it changed, and stays
- * until a read shows the file holding them, so one another site's write put over is written again. No lock
- * spans two sites: the later save of a field wins, and fields saved on one site only are all kept. The file
- * only ever holds the sources on the list just read, so a removal anywhere, by a client older than the
- * values too, removes them for every site. At sign out they leave this browser with the list.
+ * does. A save made here while the account's list is in use marks only the fields it is given. Both stay in
+ * this page until a read shows the file holding them, so one another site's write put over is written again.
+ * No lock spans two sites: the later save of a field wins, and fields saved on one site only are all kept.
+ * The file only ever holds the sources on the list just read, so a removal anywhere, by a client older than
+ * the values too, removes them for every site, and a removal made here also waits as a save clearing every
+ * field, so a source added back before that read starts with nothing. At an account switch or a sign out
+ * they leave this browser, and the account keeps the file.
  */
-export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, onValues }: {
+export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, onValues, unlock }: {
   cloud: Pick<TrackerCloud, 'availability' | 'unlocked' | 'read' | 'write'>
   /** `account.onChange` of the @fkn/lib realm that `cloud` calls. */
   onAccountChange: (listener: (change?: { switched: boolean }) => void) => unknown
@@ -75,6 +75,8 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
   onList: (before: string[], after: string[]) => void
   /** Told after each step that kept what it found, which may have changed the values shown here. */
   onValues: () => void
+  /** Asks FKN for the key the account's files are sealed with. Raises its card, so a click only. */
+  unlock: () => Promise<unknown>
 }) => {
   const account = accountGeneration()
   // every tab of a site shares its storage, so the storage already holds a change another tab applied
@@ -82,6 +84,12 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
   const drops = new Set<string>()
   // in memory, as a removal is, so a save never outlives the page into another account's file
   let saves: SavedValues = {}
+
+  // later than all this page knows of `uri` whatever its clock says, or a slow clock's change would lose to what it replaces
+  const stamped = (uri: string, edits: PluginEdits) => {
+    const savedAt = Math.max(Date.now(), ...Object.values({ ...loadAccountValues(storage)[uri], ...saves[uri] }).map(([, at]) => at + 1))
+    return Object.fromEntries(Object.entries(edits).map(([field, value]): [string, SavedField] => [field, [value, savedAt]]))
+  }
 
   const exchangeValues = async (call: Call, list: string[]) => {
     const read = await call(() => cloud.read(VALUES_PATH))
@@ -123,7 +131,7 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
     if (!current()) return
     saveAccount(list, storage)
     if (!list) saves = {}
-    else if (values) saves = listedValues(unheld(values.theirs, saves), list)
+    else if (values) saves = listedValues(unheld(values.theirs, mergeSaved(ownAsSaved(values.own), saves)), list)
     if (values || !list) saveAccountValues(values && mergeSaved(values.next, saves), storage)
     const after = loadEnabled(storage)
     if (!same(after, applied)) {
@@ -139,8 +147,11 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
 
   void onAccountChange(change => {
     account.moved()
-    // false: the same account, its connection renewed, so a save made here is still its own
-    if (change?.switched !== false) saves = {}
+    // false: the same account, its connection renewed, so what is kept here is still its own
+    if (change?.switched !== false) {
+      saves = {}
+      saveAccountValues(undefined, storage)
+    }
     void start(step)
   })
 
@@ -160,28 +171,26 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
       const theirs = loadAccount(storage)
       if (theirs) {
         saveAccount(theirs.filter(enabled => enabled !== uri), storage)
-        saveAccountValues(without(uri, loadAccountValues(storage) ?? {}), storage)
-        saves = without(uri, saves)
+        const { [uri]: fields, ...others } = loadAccountValues(storage)
+        saves = { ...saves, [uri]: stamped(uri, Object.fromEntries(Object.keys({ ...fields, ...saves[uri] }).map(field => [field, null]))) }
+        saveAccountValues(others, storage)
         drops.add(uri)
       }
       applied = applied.filter(enabled => enabled !== uri)
       return start(step)
     },
-    /** Keeps what the viewer entered for `uri`: the account's once one is in use here, else this device's own. */
-    save: (uri: string, values: PluginValues) => {
+    /** Applies what the viewer changed for `uri`: to the account's values once they are in use here, else to this device's own. */
+    save: async (uri: string, edits: PluginEdits) => {
       if (!loadAccount(storage)) {
-        savePluginValues(uri, values, storage)
+        savePluginValues(uri, editedValues(loadOwnValues(storage)[uri], edits), storage)
         return start(step)
       }
-      const copy = loadAccountValues(storage) ?? {}
-      const shown = loadPluginValues(uri, storage)
-      // later than what it replaces whatever this device's clock says, or a slow clock's save would lose to it
-      const savedAt = Math.max(Date.now(), ...Object.values(copy[uri] ?? {}).map(([, at]) => at + 1))
-      const changed = [...new Set([...Object.keys(shown), ...Object.keys(values)])]
-        .filter(field => shown[field] !== values[field])
-        .map((field): [string, SavedField] => [field, [values[field] ?? null, savedAt]])
-      saves = { ...saves, [uri]: { ...saves[uri], ...Object.fromEntries(changed) } }
-      saveAccountValues({ ...copy, [uri]: { ...copy[uri], ...Object.fromEntries(changed) } }, storage)
+      const fields = stamped(uri, edits)
+      saves = { ...saves, [uri]: { ...saves[uri], ...fields } }
+      const copy = loadAccountValues(storage)
+      saveAccountValues({ ...copy, [uri]: { ...copy[uri], ...fields } }, storage)
+      // a save is a click, the one thing that may raise FKN's card: with no key here it could only wait in this page
+      if (await cloud.availability() === 'connected' && !await cloud.unlocked()) await unlock()
       return start(step)
     },
     /** Drops `uri` from this device's own list only. One the account's list holds stays: that list is the account's. */

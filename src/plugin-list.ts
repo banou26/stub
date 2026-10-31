@@ -23,6 +23,9 @@ export type SavedField = [value: string | null, savedAt: number]
 /** The account's values, by package id and then by field. */
 export type SavedValues = Record<string, Record<string, SavedField>>
 
+/** What a save changes, by field: its new value, or null to clear it. */
+export type PluginEdits = Record<string, string | null>
+
 const defaultStorage = (): ListStorage | undefined => {
   try { return globalThis.localStorage } catch { return undefined }
 }
@@ -108,13 +111,12 @@ export const ownAsSaved = (own: Record<string, PluginValues>): SavedValues =>
   Object.fromEntries(Object.entries(own).map(([uri, values]) =>
     [uri, Object.fromEntries(Object.entries(values ?? {}).map(([field, value]) => [field, [value, 0]]))]))
 
-/** The FKN account's values as last read, or undefined while none are in use here. */
-export const loadAccountValues = (storage = defaultStorage()): SavedValues | undefined => {
+/** The FKN account's values as last read, none while none are in use here. */
+export const loadAccountValues = (storage = defaultStorage()): SavedValues => {
   try {
-    const text = storage?.getItem(ACCOUNT_VALUES_KEY)
-    return text == null ? undefined : parseSaved(text)
+    return parseSaved(storage?.getItem(ACCOUNT_VALUES_KEY) ?? '{}')
   } catch {
-    return undefined
+    return {}
   }
 }
 
@@ -126,11 +128,13 @@ export const saveAccountValues = (values: SavedValues | undefined, storage = def
   } catch {}
 }
 
-/** What a source is handed: the account's value of each field that has one, then this browser's own. */
-export const loadPluginValues = (uri: string, storage = defaultStorage()): PluginValues => ({
-  ...loadOwnValues(storage)[uri],
-  ...Object.fromEntries(Object.entries(loadAccountValues(storage)?.[uri] ?? {}).flatMap(([field, [value]]) => value === null ? [] : [[field, value]])),
-})
+/** `values` with `edits` applied: a field edited to null leaves. */
+export const editedValues = (values: PluginValues | undefined, edits: PluginEdits): PluginValues =>
+  Object.fromEntries(Object.entries({ ...values, ...edits }).flatMap(([field, value]) => value === null ? [] : [[field, value]]))
+
+/** What a source is handed: this browser's own values under the account's, a field the account cleared gone from both. */
+export const loadPluginValues = (uri: string, storage = defaultStorage()): PluginValues =>
+  editedValues(loadOwnValues(storage)[uri], Object.fromEntries(Object.entries(loadAccountValues(storage)[uri] ?? {}).map(([field, [value]]) => [field, value])))
 
 /** Keeps what the viewer entered for a source as this browser's own, or with no values removes it. */
 export const savePluginValues = (uri: string, values: PluginValues, storage = defaultStorage()) => {

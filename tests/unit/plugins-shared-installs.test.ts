@@ -11,7 +11,7 @@ const fkn = vi.hoisted(() => ({
 }))
 vi.mock('@fkn/lib', () => ({ packages: { list: fkn.list, connect: fkn.connect, uninstall: fkn.uninstall, install: vi.fn(), pick: vi.fn() } }))
 vi.mock('../../src/worker', () => ({ registerRemoteSource: vi.fn(), unregisterRemoteSource: vi.fn() }))
-vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: {}, onTrackerAccountChange: () => {} }))
+vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: {}, onTrackerAccountChange: () => {}, unlockTracker: async () => false }))
 
 const stored = new Map<string, string>()
 vi.stubGlobal('localStorage', {

@@ -23,7 +23,7 @@ const account = await vi.hoisted(async () => {
   const browser = world.browser()
   return { world, browser, cloud: fknTrackerCloud(browser.lib, { timeoutMs: 20 }) }
 })
-vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: account.cloud, onTrackerAccountChange: account.browser.onChange }))
+vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: account.cloud, onTrackerAccountChange: account.browser.onChange, unlockTracker: account.browser.account.unlock }))
 
 const stored = new Map<string, string>()
 vi.stubGlobal('localStorage', {

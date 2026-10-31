@@ -3,10 +3,10 @@ import type { InstallOptions } from '@fkn/lib/packages'
 import { packages } from '@fkn/lib'
 
 import { configureRemoteSource, registerRemoteSource, unregisterRemoteSource } from './worker'
-import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type PluginValues, type SourceAccess } from './plugin-api'
-import { loadEnabled, loadPluginValues, savePluginValues } from './plugin-list'
+import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type SourceAccess } from './plugin-api'
+import { loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
-import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
+import { onTrackerAccountChange, trackerCloud, unlockTracker } from './tracking/fkn-cloud-live'
 import { comparablePluginUri } from './utils/plugin-links'
 
 const RECONNECT_DELAY_MS = 3_000
@@ -189,7 +189,7 @@ const listLock = <T>(work: () => Promise<T>): Promise<T> =>
     ? navigator.locks.request('stub:source-list', work)
     : work()
 
-const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow, onValues: followValues })
+const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow, onValues: followValues, unlock: unlockTracker })
 
 /** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
 export const checkSources = () => sourceList.check()
@@ -229,10 +229,12 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   await packages.uninstall(uri).catch(() => {})
 }
 
-/** Keeps what the viewer entered for a source, on the account while one is in use here, and hands it to the source at once. */
-export const configurePlugin = async (uri: string, values: PluginValues): Promise<void> => {
-  void sourceList.save(uri, values)
-  handed.set(uri, JSON.stringify(loadPluginValues(uri)))
+/** Applies what the viewer changed for a source, on the account while one is in use here, and hands the source its values at once. */
+export const configurePlugin = async (uri: string, edits: PluginEdits): Promise<void> => {
+  void sourceList.save(uri, edits)
+  const values = loadPluginValues(uri)
+  handed.set(uri, JSON.stringify(values))
+  notify()
   await configureRemoteSource(uri, values)
 }
 

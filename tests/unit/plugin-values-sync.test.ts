@@ -19,7 +19,7 @@ type World = ReturnType<typeof fknWorld>
 type Browser = ReturnType<World['browser']>
 
 /** One of stub's sites open in `browser`, with its own storage and lock, and what its page heard. */
-const site = (browser: Browser, wrap = (lib: FknStorage) => lib) => {
+const site = (browser: Browser, wrap = (lib: FknStorage) => lib, unlock: () => Promise<unknown> = browser.account.unlock) => {
   const items = new Map<string, string>()
   const storage: ListStorage = {
     getItem: key => items.get(key) ?? null,
@@ -36,6 +36,7 @@ const site = (browser: Browser, wrap = (lib: FknStorage) => lib) => {
     storage,
     onList: (before, after) => { for (const uri of after) if (!before.includes(uri)) connecting.push({ [uri]: shown(uri) }) },
     onValues: () => {},
+    unlock,
   })
   return { items, sync, connecting, shown }
 }
@@ -162,6 +163,85 @@ describe('what the viewer entered on the FKN account', () => {
     expect(fieldsOf(world, 'alice', S)).toEqual({})
   })
 
+  test('a source added back while the file could not be read starts with nothing too', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    let refuse = false
+    const anime = site(browser, lib => ({
+      ...lib,
+      readFile: async (path) => {
+        if (refuse && path === VALUES_PATH) throw new Error('storage: the request failed')
+        return lib.readFile(path)
+      },
+    }))
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: KEY })
+    await anime.sync.check()
+
+    refuse = true
+    await anime.sync.remove(S)
+    expect(world.storageOf('alice').get(VALUES_PATH)!.text, 'still there for the next read to take').toContain(KEY)
+    refuse = false
+    await anime.sync.add(S)
+    expect(anime.shown(S)).toEqual({})
+    expect(world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(KEY)
+
+    await anime.sync.save(S, { apiKey: 'typed-after' })
+    await anime.sync.check()
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: 'typed-after' })
+  })
+
+  test('removing it a second time before that read keeps the first clearing', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    let refuse = false
+    const anime = site(browser, lib => ({
+      ...lib,
+      readFile: async (path) => {
+        if (refuse && path === VALUES_PATH) throw new Error('storage: the request failed')
+        return lib.readFile(path)
+      },
+    }))
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: KEY })
+    await anime.sync.check()
+
+    refuse = true
+    await anime.sync.remove(S)
+    await anime.sync.add(S)
+    await anime.sync.remove(S)
+    refuse = false
+    await anime.sync.add(S)
+    expect(anime.shown(S)).toEqual({})
+    expect(world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(KEY)
+  })
+
+  test('a waiting save for a source another site removed does not come back', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S, T])
+    const browser = world.browser({ account: 'alice' })
+    let refuse = false
+    const movies = site(browser, lib => ({
+      ...lib,
+      writeFile: async (path, text) => {
+        if (refuse && path === VALUES_PATH) throw new Error('storage: the request failed')
+        return lib.writeFile(path, text)
+      },
+    }))
+    const anime = site(browser)
+    await anime.sync.check()
+    await movies.sync.check()
+    refuse = true
+    await movies.sync.save(S, { apiKey: KEY })
+    refuse = false
+    await anime.sync.remove(S)
+    await movies.sync.check()
+    expect(movies.shown(S)).toEqual({})
+    expect(movies.items.get(ACCOUNT_VALUES_KEY)).not.toContain(KEY)
+  })
+
   test('signed out, what the viewer entered makes no call to FKN at all, and it joins the account only at a sign in', async () => {
     const world = fknWorld()
     const calls: string[] = []
@@ -193,6 +273,40 @@ describe('what the viewer entered on the FKN account', () => {
     await anime.sync.check()
     expect(browser.state.writes).toEqual([])
     expect(browser.state.cards, 'no connect card without a click').toBe(0)
+    expect(anime.shown(S)).toEqual({ apiKey: KEY })
+
+    await browser.account.unlock()
+    await anime.sync.check()
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
+  })
+
+  test('with the account\'s list in use and no key here, a save, being a click, asks FKN for the key and then reaches the account', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser)
+    await anime.sync.check()
+    await anime.sync.save(S, { address: ADDRESS })
+    expect(browser.state.cards, 'none with the key held').toBe(0)
+
+    browser.state.unlocked = false
+    await anime.sync.check()
+    expect(browser.state.cards, 'no card from a check').toBe(0)
+    await anime.sync.save(S, { apiKey: KEY })
+    expect(browser.state.cards).toBe(1)
+    expect(fieldsOf(world, 'alice', S)).toEqual({ address: ADDRESS, apiKey: KEY })
+  })
+
+  test('a key refused leaves the save waiting in this page, and the key reaching it later writes it', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser, lib => lib, async () => false)
+    await anime.sync.check()
+
+    browser.state.unlocked = false
+    await anime.sync.save(S, { apiKey: KEY })
+    expect(browser.state.writes).toEqual([])
     expect(anime.shown(S)).toEqual({ apiKey: KEY })
 
     await browser.account.unlock()
@@ -249,6 +363,145 @@ describe('what the viewer entered on the FKN account', () => {
     expect(fieldsOf(world, 'alice', T), 'the account\'s value stays where it has one').toEqual({ address: ADDRESS, category: 'from-the-device' })
     expect(anime.items.has(PLUGIN_VALUES_KEY), 'merged, so no longer this device\'s own').toBe(false)
     expect(anime.shown(T)).toEqual({ address: ADDRESS, category: 'from-the-device' })
+  })
+
+  // two sites have no lock in common, so both read the file before either wrote, and the last write has one field
+  test('two sites hearing one sign in both keep what they entered, whichever write lands last', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser()
+    const anime = site(browser)
+    const movies = site(browser)
+    await anime.sync.add(S)
+    await movies.sync.add(S)
+    await anime.sync.save(S, { address: ADDRESS })
+    await movies.sync.save(S, { apiKey: KEY })
+
+    browser.account.signIn('alice')
+    await anime.sync.check()
+    await movies.sync.check()
+    await anime.sync.check()
+    await movies.sync.check()
+    expect(fieldsOf(world, 'alice', S)).toEqual({ address: ADDRESS, apiKey: KEY })
+    expect(anime.shown(S)).toEqual({ address: ADDRESS, apiKey: KEY })
+    expect(movies.shown(S)).toEqual({ address: ADDRESS, apiKey: KEY })
+    expect(anime.items.has(PLUGIN_VALUES_KEY), 'gone from the device all the same').toBe(false)
+    expect(movies.items.has(PLUGIN_VALUES_KEY)).toBe(false)
+
+    const writes = browser.state.writes.length
+    await anime.sync.check()
+    await movies.sync.check()
+    expect(browser.state.writes.length, 'settled').toBe(writes)
+  })
+
+  test('a value typed on the device while a step takes the others stays, and joins at the next one', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser()
+    let typing = true
+    const anime: ReturnType<typeof site> = site(browser, lib => ({
+      ...lib,
+      writeFile: async (path, text) => {
+        await lib.writeFile(path, text)
+        if (path === VALUES_PATH && typing) {
+          typing = false
+          void anime.sync.save(S, { address: 'typed-during' })
+        }
+      },
+    }))
+    await anime.sync.add(S)
+    await anime.sync.save(S, { apiKey: 'first' })
+    browser.account.signIn('alice')
+    await anime.sync.check()
+    await anime.sync.check()
+    await anime.sync.check()
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: 'first', address: 'typed-during' })
+  })
+
+  test('values joined just as the account switches do not reach the next account too', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    holds(world, 'bob', [S])
+    const browser = world.browser()
+    const anime: ReturnType<typeof site> = site(browser, lib => ({
+      ...lib,
+      writeFile: async (path, text) => {
+        await lib.writeFile(path, text)
+        if (path === VALUES_PATH && browser.state.account === 'alice') browser.account.signIn('bob')
+      },
+    }))
+    await anime.sync.add(S)
+    await anime.sync.save(S, { apiKey: KEY })
+    browser.account.signIn('alice')
+    await anime.sync.check()
+    await anime.sync.check()
+    await vi.waitFor(() => expect(anime.items.has(ACCOUNT_VALUES_KEY)).toBe(true))
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
+    expect(fieldsOf(world, 'bob', S)).toEqual({})
+    expect(anime.shown(S)).toEqual({})
+  })
+
+  test('a save made after a sign out this page never heard of reaches no account', async () => {
+    const world = fknWorld()
+    holds(world, 'bob', [S])
+    const browser = world.browser()
+    const unlock = vi.fn(async () => true)
+    const anime = site(browser, lib => lib, unlock)
+    anime.items.set(ACCOUNT_PLUGINS_KEY, JSON.stringify([S]))
+    await anime.sync.save(S, { apiKey: KEY })
+    expect(unlock, 'nobody to raise FKN\'s card for').not.toHaveBeenCalled()
+    browser.state.account = 'bob'
+    await anime.sync.check()
+    expect(world.storageOf('bob').get(VALUES_PATH)?.text ?? '').not.toContain(KEY)
+  })
+
+  test('a switch takes the last account\'s values at once, even if the next account\'s cannot be read', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    holds(world, 'bob', [S])
+    const browser = world.browser({ account: 'alice' })
+    let refuse = false
+    const anime = site(browser, lib => ({
+      ...lib,
+      readFile: async (path) => {
+        if (refuse && path === VALUES_PATH) throw new Error('storage: the request failed')
+        return lib.readFile(path)
+      },
+    }))
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: KEY })
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
+
+    refuse = true
+    browser.account.signIn('bob')
+    await anime.sync.check()
+    expect(anime.items.get(ACCOUNT_PLUGINS_KEY), 'the list followed').toBe(JSON.stringify([S]))
+    expect(anime.shown(S)).toEqual({})
+    expect(JSON.stringify([...anime.items])).not.toContain(KEY)
+  })
+
+  test('a renewal of the same account\'s connection leaves the values shown', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser)
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: KEY })
+
+    browser.state.reachable = false
+    browser.account.renew()
+    expect(anime.shown(S)).toEqual({ apiKey: KEY })
+    browser.state.reachable = true
+  })
+
+  test('a site closed at the sign out takes its copy away when it next opens', async () => {
+    const world = fknWorld()
+    const anime = site(world.browser())
+    anime.items.set(ACCOUNT_PLUGINS_KEY, JSON.stringify([S]))
+    anime.items.set(ACCOUNT_VALUES_KEY, JSON.stringify({ [S]: { apiKey: [KEY, 1_000] } }))
+    await anime.sync.check()
+    expect(anime.items.has(ACCOUNT_VALUES_KEY)).toBe(false)
+    expect(anime.shown(S)).toEqual({})
   })
 
   test('a sign out takes them from this browser with the list, leaves them on the account, and hands them to nobody else', async () => {
@@ -325,9 +578,9 @@ describe('what the viewer entered on the FKN account', () => {
 
     gate.open = new Promise(resolve => { gate.release = resolve })
     const reached = new Promise<void>(resolve => { gate.reached = resolve })
-    const saving = anime.sync.save(S, { address: ADDRESS, apiKey: 'first' })
+    const saving = anime.sync.save(S, { address: ADDRESS })
     await reached
-    await movies.sync.save(S, { address: 'first', apiKey: KEY })
+    await movies.sync.save(S, { apiKey: KEY })
     expect(fieldsOf(world, 'alice', S)).toEqual({ address: 'first', apiKey: KEY })
     gate.release()
     await saving
@@ -367,6 +620,68 @@ describe('what the viewer entered on the FKN account', () => {
     expect(anime.shown(S)).toEqual({ apiKey: 'later' })
   })
 
+  test('a save touches only the fields it is given, whatever a form behind this browser\'s copy held', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser)
+    const movies = site(browser)
+    await anime.sync.check()
+    await anime.sync.save(S, { apiKey: 'newer' })
+    await movies.sync.check()
+    const stamp = filed(world, 'alice')![S]!.apiKey![1]
+
+    await movies.sync.save(S, { category: '5000' })
+    expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: 'newer', category: '5000' })
+    expect(filed(world, 'alice')![S]!.apiKey![1], 'no newer than it was').toBe(stamp)
+  })
+
+  test('a removal is stamped later than the value it clears, on a clock that runs behind too', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    let refuse = false
+    const anime = site(browser, lib => ({
+      ...lib,
+      readFile: async (path) => {
+        if (refuse && path === VALUES_PATH) throw new Error('storage: the request failed')
+        return lib.readFile(path)
+      },
+    }))
+    await anime.sync.check()
+    const now = vi.spyOn(Date, 'now')
+    now.mockReturnValue(10_000)
+    await anime.sync.save(S, { apiKey: KEY })
+
+    now.mockReturnValue(4_000)
+    refuse = true
+    await anime.sync.remove(S)
+    refuse = false
+    await anime.sync.add(S)
+    expect(world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(KEY)
+  })
+
+  test('a save after a removal is stamped later than the clearing it follows, on a clock that runs behind too', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    const browser = world.browser({ account: 'alice' })
+    const anime = site(browser)
+    await anime.sync.check()
+    const now = vi.spyOn(Date, 'now')
+    now.mockReturnValue(10_000)
+    await anime.sync.save(S, { apiKey: KEY })
+
+    now.mockReturnValue(4_000)
+    browser.state.reachable = false
+    void anime.sync.remove(S)
+    void anime.sync.add(S)
+    void anime.sync.save(S, { apiKey: 'typed-after' })
+    browser.state.reachable = true
+    await anime.sync.check()
+    await vi.waitFor(() => expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: 'typed-after' }))
+    expect(anime.shown(S)).toEqual({ apiKey: 'typed-after' })
+  })
+
   test('a device whose clock runs behind still replaces the value it was shown', async () => {
     const world = fknWorld()
     holds(world, 'alice', [S])
@@ -402,10 +717,10 @@ describe('what the viewer entered on the FKN account', () => {
 
     now.mockReturnValue(3_000)
     browser.state.reachable = false
-    void movies.sync.save(S, { address: ADDRESS, apiKey: 'typed-while-away' })
+    void movies.sync.save(S, { apiKey: 'typed-while-away' })
     browser.state.reachable = true
     now.mockReturnValue(4_000)
-    await anime.sync.save(S, { address: ADDRESS })
+    await anime.sync.save(S, { apiKey: null })
     expect(world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(KEY)
     expect(fieldsOf(world, 'alice', S)).toEqual({ address: ADDRESS, apiKey: null })
 
@@ -425,7 +740,7 @@ describe('what the viewer entered on the FKN account', () => {
     const anime = site(browser)
     await anime.sync.add(S)
     await anime.sync.save(S, { apiKey: 'on-this-device' })
-    await anime.sync.save(S, {})
+    await anime.sync.save(S, { apiKey: null })
     browser.account.signIn('alice')
     await anime.sync.check()
     expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: KEY })
@@ -468,7 +783,7 @@ describe('what the viewer entered on the FKN account', () => {
         await lib.writeFile(path, text)
         if (saveOnWrite) {
           saveOnWrite = false
-          void anime.sync.save(S, { address: 'https://next.spec.test', apiKey: KEY })
+          void anime.sync.save(S, { apiKey: KEY })
         }
       },
     }))
@@ -495,8 +810,9 @@ describe('what the viewer entered on the FKN account', () => {
     void anime.sync.add(S)
     browser.state.reachable = true
     await anime.sync.check()
-    await vi.waitFor(() => expect(JSON.parse(world.storageOf('alice').get(SOURCES_PATH)!.text)).toEqual([S]))
-    expect(world.storageOf('alice').get(VALUES_PATH)).toBeUndefined()
+    await vi.waitFor(() => expect(fieldsOf(world, 'alice', S)).toEqual({ apiKey: null }))
+    expect(JSON.parse(world.storageOf('alice').get(SOURCES_PATH)!.text)).toEqual([S])
+    expect(world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(KEY)
     expect(anime.shown(S)).toEqual({})
   })
 
@@ -551,5 +867,21 @@ describe('what the viewer entered on the FKN account', () => {
 
     await anime.sync.save(S, { address: ADDRESS })
     expect(fieldsOf(world, 'alice', S)).toEqual({ address: ADDRESS })
+  })
+
+  test('a malformed field in the file never reaches a source', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [S])
+    world.storageOf('alice').set(VALUES_PATH, { text: JSON.stringify({ [S]: { apiKey: 'bare', other: 7, ok: ['kept', 1] } }), updatedAt: new Date(0).toISOString() })
+    const anime = site(world.browser({ account: 'alice' }))
+    await anime.sync.check()
+    expect(anime.shown(S)).toEqual({ ok: 'kept' })
+  })
+
+  test('while both hold a field the account\'s wins over the device\'s own, and one it cleared is gone from both', () => {
+    const anime = site(fknWorld().browser())
+    anime.items.set(PLUGIN_VALUES_KEY, JSON.stringify({ [S]: { apiKey: 'own', address: 'own', category: 'own' } }))
+    anime.items.set(ACCOUNT_VALUES_KEY, JSON.stringify({ [S]: { apiKey: ['account', 5], address: [null, 5] } }))
+    expect(anime.shown(S)).toEqual({ apiKey: 'account', category: 'own' })
   })
 })
