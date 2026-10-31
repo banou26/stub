@@ -570,6 +570,7 @@ export const Header = () => {
           className="powered"
           label={intl.formatMessage({ id: 'Powered by FKN', defaultMessage: 'Powered by FKN' })}
           linkLabel={intl.formatMessage({ id: 'How it works', defaultMessage: 'How it works' })}
+          href="https://docs.fkn.dev/user/"
         />
         {siteLinks.length > 0 && (
           <nav className="sites">

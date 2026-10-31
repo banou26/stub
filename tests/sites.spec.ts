@@ -547,7 +547,7 @@ test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, it
     expect(Math.abs(svg.height - line.height), `${width}: as tall as a capital`).toBeLessThanOrEqual(0.5)
     await mark.hover()
     await expect(card, `${width}`).toBeVisible()
-    await expect(card.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', 'https://docs.fkn.dev/')
+    await expect(card.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', 'https://docs.fkn.dev/user/')
     const box = (await card.boundingBox())!
     expect([box.x >= 0, box.x + box.width <= width], `${width}: the card in view`).toEqual([true, true])
     await page.mouse.move(width / 2, height / 2)
