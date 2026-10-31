@@ -8,7 +8,7 @@ import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
 import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { COUNTRY_KEY } from '../../../src/sources/country'
@@ -33,7 +33,7 @@ const byId = (id: string) => {
 describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
-    expect(byId('source-settings').keys).toEqual({ store: 'local', names: [PLUGIN_VALUES_KEY] })
+    expect(byId('source-settings').keys).toEqual({ store: 'local', names: [PLUGIN_VALUES_KEY, ACCOUNT_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
       names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],
@@ -110,6 +110,17 @@ describe('what stub keeps per viewer', () => {
     expect(added.lasts).toContain('Until you remove them')
     expect(added.lasts).toContain("The account's copy is deleted with your FKN account")
     expect(added.lasts).toContain("this browser's copy of it when you sign out")
+  })
+
+  test('says what is entered for a source is kept on the FKN account, encrypted in this browser, and what joins it', () => {
+    const kept = byId('source-settings')
+    expect(kept.where).toContain("your FKN account's storage while you are signed in, encrypted in this browser before it is stored")
+    expect(kept.where, 'and plainly what is not').toContain('not encrypted')
+    expect(kept.what).toContain('every stub site and device you sign in on')
+    expect(kept.what).toContain('What you entered while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
+    expect(kept.lasts).toContain('Until you change it or remove the source, on any site or device')
+    expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
+    expect(kept.lasts).toContain("this browser's copy of it when you sign out")
   })
 
   test('says the settings are kept on the FKN account, encrypted in this browser, until changed or the account is deleted', () => {

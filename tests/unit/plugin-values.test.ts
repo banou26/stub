@@ -1,10 +1,11 @@
 // What the viewer entered for a source, in the real src/plugins.ts with FKN and the worker faked: handed to the source
-// on every connection and when saved, kept for that source alone, on this device alone, and gone with the source.
+// on every connection and when saved, kept for that source alone, and gone with the source. How it follows the FKN
+// account is ./plugin-values-sync.test.ts; here it is what a source connected in this page is handed of it.
 import { inspect } from 'node:util'
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../src/plugin-list'
-import { SOURCES_PATH } from '../../src/plugin-sync'
+import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, loadPluginValues, PLUGIN_VALUES_KEY } from '../../src/plugin-list'
+import { SOURCES_PATH, VALUES_PATH } from '../../src/plugin-sync'
 
 const fkn = vi.hoisted(() => ({
   uninstall: vi.fn(async (_uri: string) => {}),
@@ -37,7 +38,7 @@ vi.stubGlobal('localStorage', {
   removeItem: (key: string) => { stored.delete(key) },
 })
 
-const { checkSources, configurePlugin, disablePlugin, installPlugin, pluginStatuses } = await import('../../src/plugins')
+const { checkSources, configurePlugin, disablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
 
 const SOURCE = 'npm:@spec/asking'
 const OTHER = 'npm:@spec/other'
@@ -55,8 +56,14 @@ const connecting = () => {
   return closes
 }
 
+const signOutOfAlice = async () => {
+  account.browser.account.signOut()
+  await checkSources()
+}
+
 beforeEach(() => {
   stored.clear()
+  account.world.storageOf('alice').clear()
   worker.registerRemoteSource.mockClear()
   worker.configureRemoteSource.mockClear()
   fkn.list.mockReset()
@@ -141,11 +148,14 @@ test('a source the account\'s list dropped leaves with its values', async () => 
     keep({ [SOURCE]: VALUES, [OTHER]: { apiKey: 'its-own' } })
     holds([OTHER])
     await checkSources()
-    expect(kept()).toEqual({ [OTHER]: { apiKey: 'its-own' } })
+    expect(loadPluginValues(SOURCE)).toEqual({})
+    expect(loadPluginValues(OTHER)).toEqual({ apiKey: 'its-own' })
+    expect(account.world.storageOf('alice').get(VALUES_PATH)!.text).not.toContain(VALUES.apiKey)
   } finally {
     account.browser.account.signOut()
     await checkSources()
-    expect(stored.has(PLUGIN_VALUES_KEY), 'the last source left at the sign out').toBe(false)
+    expect(loadPluginValues(OTHER), 'the last source left at the sign out').toEqual({})
+    expect(stored.has(PLUGIN_VALUES_KEY)).toBe(false)
   }
 })
 
@@ -163,7 +173,87 @@ test('a source removed on another site of this app leaves with its values when F
   }
 })
 
-test('what the viewer entered never reaches the account\'s files or a line of the console', async () => {
+const file = (path: string, value: unknown) =>
+  account.world.storageOf('alice').set(path, { text: JSON.stringify(value), updatedAt: new Date(0).toISOString() })
+
+test('a source first connected here after another site saved its values takes them on connect', async () => {
+  connecting()
+  file(SOURCES_PATH, [SOURCE])
+  file(VALUES_PATH, { [SOURCE]: { apiKey: [VALUES.apiKey, 1_000] } })
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    await vi.waitFor(() => expect(handed(SOURCE)).toEqual([{ apiKey: VALUES.apiKey }]))
+    expect(worker.configureRemoteSource, 'there on connect, so nothing to hand after it').not.toHaveBeenCalled()
+  } finally {
+    await signOutOfAlice()
+  }
+})
+
+test('a source already connected takes what another site saved, once, and no other source is told', async () => {
+  connecting()
+  file(SOURCES_PATH, [SOURCE, OTHER])
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    await vi.waitFor(() => expect(pluginStatuses().map(plugin => plugin.state)).toEqual(['connected', 'connected']))
+    worker.configureRemoteSource.mockClear()
+
+    const told = vi.fn()
+    const unsubscribe = onPluginsChange(told)
+    file(VALUES_PATH, { [SOURCE]: { apiKey: [VALUES.apiKey, 1_000] } })
+    await checkSources()
+    await checkSources()
+    unsubscribe()
+    expect(worker.configureRemoteSource).toHaveBeenCalledExactlyOnceWith(SOURCE, { apiKey: VALUES.apiKey })
+    expect(told, 'the open form hears it').toHaveBeenCalled()
+  } finally {
+    await signOutOfAlice()
+  }
+})
+
+test('what the account sends while a source registers reaches it once it can take it', async () => {
+  connecting()
+  file(SOURCES_PATH, [SOURCE])
+  let registered = (_: object) => {}
+  worker.registerRemoteSource.mockImplementationOnce(() => new Promise(resolve => { registered = resolve }))
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    await vi.waitFor(() => expect(handed(SOURCE)).toEqual([{}]))
+
+    file(VALUES_PATH, { [SOURCE]: { apiKey: [VALUES.apiKey, 1_000] } })
+    await checkSources()
+    // the real worker has no `configure` to call before the registration gets that far
+    expect(worker.configureRemoteSource).not.toHaveBeenCalled()
+    registered({ ok: { sources: [], rejected: [], settings: [] } })
+    await vi.waitFor(() => expect(worker.configureRemoteSource).toHaveBeenCalledExactlyOnceWith(SOURCE, { apiKey: VALUES.apiKey }))
+  } finally {
+    await signOutOfAlice()
+  }
+})
+
+test('signed in, saving reaches the account and the source at once, and a sign out takes it from this browser', async () => {
+  connecting()
+  file(SOURCES_PATH, [SOURCE])
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    await configurePlugin(SOURCE, VALUES)
+    await checkSources()
+    await checkSources()
+    expect(JSON.parse(account.world.storageOf('alice').get(VALUES_PATH)!.text)[SOURCE].apiKey[0]).toBe(VALUES.apiKey)
+    expect(worker.configureRemoteSource, 'its own save is not handed back').toHaveBeenCalledExactlyOnceWith(SOURCE, VALUES)
+    expect(stored.has(PLUGIN_VALUES_KEY), 'the account\'s, not this device\'s own').toBe(false)
+  } finally {
+    await signOutOfAlice()
+  }
+  expect(stored.has(ACCOUNT_VALUES_KEY)).toBe(false)
+  expect(JSON.stringify([...stored])).not.toContain(VALUES.apiKey)
+  expect(account.world.storageOf('alice').get(VALUES_PATH)!.text, 'the account keeps them').toContain(VALUES.apiKey)
+})
+
+test('what the viewer entered reaches the values file alone, and never a line of the console', async () => {
   fkn.connect.mockImplementation(async () => { throw new Error('no frame') })
   fkn.list.mockResolvedValue([{ uri: SOURCE }])
   const lines = vi.fn()
@@ -174,14 +264,13 @@ test('what the viewer entered never reaches the account\'s files or a line of th
     await installPlugin(SOURCE)
     await configurePlugin(SOURCE, VALUES)
     await checkSources()
-    await vi.waitFor(() => expect(account.world.storageOf('alice').get(SOURCES_PATH)?.text).toContain(SOURCE))
-    expect(JSON.stringify([...account.world.storageOf('alice').entries()])).not.toContain(VALUES.apiKey)
+    await vi.waitFor(() => expect(account.world.storageOf('alice').get(VALUES_PATH)?.text).toContain(VALUES.apiKey))
+    expect(account.world.storageOf('alice').get(SOURCES_PATH)?.text).not.toContain(VALUES.apiKey)
     expect(stored.get(ACCOUNT_PLUGINS_KEY)).not.toContain(VALUES.apiKey)
     expect(inspect(lines.mock.calls, { depth: 8 })).not.toContain(VALUES.apiKey)
   } finally {
     for (const spy of spies) spy.mockRestore()
     await disablePlugin(SOURCE)
-    account.browser.account.signOut()
-    await checkSources()
+    await signOutOfAlice()
   }
 })

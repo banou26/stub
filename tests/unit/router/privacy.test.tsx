@@ -112,6 +112,12 @@ test('says what a source added in Settings is told of the viewer: the languages,
   expect(page).toContain('A source also receives what you enter for it there, such as an access key, and its own code decides where that goes.')
 })
 
+test('says what is entered for a source follows the FKN account, encrypted in this browser', () => {
+  const { text: page } = text()
+  expect(page).toContain("Signed in to FKN, it is your account's, so every stub site and device you sign in on gets it.")
+  expect(page).not.toContain('you enter it again on each site and device')
+})
+
 // a video, an embed and a stylesheet the browser loads itself, outside any source's fetch, so direct-fetch.ts lists none
 test('names the hosts of the theme videos, the trailer embeds and the fonts', () => {
   const { text: page } = text()

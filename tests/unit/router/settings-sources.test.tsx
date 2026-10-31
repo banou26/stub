@@ -416,6 +416,21 @@ describe('a source that lists settings', () => {
     expect(saveButton(form).getAttribute('aria-disabled')).toBe('true')
   })
 
+  test('what another site saved shows in an open form, keeps what is being typed, and a save does not put the old value back', async () => {
+    keep({ address: 'https://old.spec.test', apiKey: 'old' })
+    const { row } = render([ASKING])
+    const form = row(ASKING.uri)
+    await fill(field(form, 'Category'), 'typing')
+
+    keep({ address: 'https://server.spec.test', apiKey: SECRET })
+    await act(async () => { for (const listener of fake.listeners) listener() })
+    expect(field(form, 'Server address').value).toBe('https://server.spec.test')
+    expect(field(form, 'Category').value, 'the field being typed in').toBe('typing')
+
+    await save(form)
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET, category: 'typing' })
+  })
+
   test('Save stays on the page, whether or not there is anything to save', async () => {
     const { row } = render([ASKING])
     const submit = new Event('submit', { bubbles: true, cancelable: true })

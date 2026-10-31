@@ -70,6 +70,8 @@ const withDeadline = <T>(promise: Promise<T>, message: string): Promise<T> =>
   ])
 
 const connected = new Set<string>()
+// what each source registered in this page last took, as JSON
+const handed = new Map<string, string>()
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const RECONNECT_MAX_MS = 30_000
 
@@ -101,12 +103,16 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
       void unregisterRemoteSource(uri)
       scheduleReconnect(uri, 1)
     })
+    const values = loadPluginValues(uri)
     const result = await withDeadline(Promise.race([
-      registerRemoteSource(port, uri, loadPluginValues(uri)),
+      registerRemoteSource(port, uri, values),
       closed.then(() => ({ error: 'the plugin closed while connecting' as string })),
     ]), `'${uri}' did not finish connecting`)
     if ('error' in result) throw new Error(result.error)
     setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected, settings: result.ok.settings })
+    // the worker can only hand values over from here, so what the account sent while it registered goes now
+    handed.set(uri, JSON.stringify(values))
+    followValues()
   } catch (error) {
     console.warn(`Plugin '${uri}' failed to connect:`, error)
     // the slot stays claimed while FKN is asked, so nothing reconnects meanwhile
@@ -124,6 +130,19 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
   }
 }
 
+// another site saved them, or they came with the account: a source already connected takes them now
+const followValues = () => {
+  let moved = false
+  for (const [uri, text] of handed) {
+    const values = loadPluginValues(uri)
+    if (JSON.stringify(values) === text) continue
+    handed.set(uri, JSON.stringify(values))
+    configureRemoteSource(uri, values).catch(() => {})
+    moved = true
+  }
+  if (moved) notify()
+}
+
 const cancelReconnect = (uri: string) => {
   const timer = retryTimers.get(uri)
   if (timer !== undefined) { clearTimeout(timer); retryTimers.delete(uri) }
@@ -134,6 +153,7 @@ const disconnect = (uri: string) => {
   cancelReconnect(uri)
   connected.delete(uri)
   statuses.delete(uri)
+  handed.delete(uri)
   savePluginValues(uri, {})
   void unregisterRemoteSource(uri)
 }
@@ -169,7 +189,7 @@ const listLock = <T>(work: () => Promise<T>): Promise<T> =>
     ? navigator.locks.request('stub:source-list', work)
     : work()
 
-const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow })
+const sourceList = sourceListSync({ cloud: trackerCloud, onAccountChange: onTrackerAccountChange, lock: listLock, onList: follow, onValues: followValues })
 
 /** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
 export const checkSources = () => sourceList.check()
@@ -209,9 +229,10 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   await packages.uninstall(uri).catch(() => {})
 }
 
-/** Keeps what the viewer entered for a source on this device, and hands it to the source at once. */
+/** Keeps what the viewer entered for a source, on the account while one is in use here, and hands it to the source at once. */
 export const configurePlugin = async (uri: string, values: PluginValues): Promise<void> => {
-  savePluginValues(uri, values)
+  void sourceList.save(uri, values)
+  handed.set(uri, JSON.stringify(loadPluginValues(uri)))
   await configureRemoteSource(uri, values)
 }
 

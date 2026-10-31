@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import type { MessageDescriptor } from 'react-intl'
-import type { PluginSettingField } from '../../plugin-api'
+import type { PluginSettingField, PluginValues } from '../../plugin-api'
 import type { AccountsProps } from './accounts'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
@@ -374,16 +374,20 @@ const INPUT_TYPE = { text: 'text', url: 'url', secret: 'password' }
 const PluginForm = ({ uri, name, fields }: { uri: string, name: string, fields: PluginSettingField[] }) => {
   const intl = useIntl()
   const [saved, setSaved] = useState(() => loadPluginValues(uri))
-  const [draft, setDraft] = useState(saved)
-  const entered = Object.fromEntries(fields.flatMap(({ key }) => draft[key]?.trim() ? [[key, draft[key].trim()]] : []))
+  // what was typed since the last save alone, so a value another site saved reaches every other field
+  const [draft, setDraft] = useState<PluginValues>({})
+  const shown = { ...saved, ...draft }
+  const entered = Object.fromEntries(fields.flatMap(({ key }) => shown[key]?.trim() ? [[key, shown[key].trim()]] : []))
   const changed = fields.some(({ key }) => entered[key] !== saved[key])
   const missing = fields.filter(field => field.required && !saved[field.key]).map(field => field.label)
+
+  useEffect(() => onPluginsChange(() => setSaved(loadPluginValues(uri))), [uri])
 
   const onSave = (event: Event) => {
     event.preventDefault()
     if (!changed) return
     setSaved(entered)
-    setDraft(entered)
+    setDraft({})
     void configurePlugin(uri, entered)
   }
 
@@ -398,7 +402,7 @@ const PluginForm = ({ uri, name, fields }: { uri: string, name: string, fields: 
             autoComplete={kind === 'secret' ? 'new-password' : 'off'}
             spellcheck={false}
             aria-required={required ? true : undefined}
-            value={draft[key] ?? ''}
+            value={shown[key] ?? ''}
             onInput={event => setDraft({ ...draft, [key]: (event.target as HTMLInputElement).value })}
           />
         </label>

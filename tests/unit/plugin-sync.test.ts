@@ -36,6 +36,7 @@ const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, w
     lock: shared.lock,
     storage: shared.storage,
     onList: (before, after) => { changes.push({ before, after }) },
+    onValues: () => {},
   })
   return { items: shared.items, sync, changes, shown: () => loadEnabled(shared.storage) }
 }
