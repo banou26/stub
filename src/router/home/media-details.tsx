@@ -546,7 +546,7 @@ const episodesStyle = css`
     /* the episode playing */
     &:has(> .episode-link[aria-current]) {
       background-color: rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0.3rem 0 0 #fff;
+      box-shadow: inset calc(0.3rem * var(--inline-sign, 1)) 0 0 #fff;
     }
 
     &.unreleased {

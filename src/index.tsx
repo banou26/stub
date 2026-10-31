@@ -41,19 +41,23 @@ const style = css`
   }
 
   :root[dir='rtl'] {
-    /* a gradient has no logical direction to name */
+    /* a gradient and a shadow have no logical direction to name */
     --inline-end: left;
+    --inline-sign: -1;
   }
 
   /* :dir() rather than [dir]: a player stays left to right inside a right to left page, and its icons with it */
-  :is(.lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-external-link):dir(rtl) {
+  :is(.lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-external-link, .lucide-send):dir(rtl) {
     scale: -1 1;
   }
 
-  /* a title or a synopsis is in its source's words, mostly Latin: each keeps its own order and is cut at its own end, on
-     the side of the page it sits on. No specificity, so a component's own alignment wins. Blocks alone: an inline one
-     would hide its letters from the block choosing the direction. Chrome 156 reads only the prefixed match-parent */
-  :where(h1, h2, [class*='title']:not(.title-text), .title-text div, [class*='description'], [class*='description'] :is(div, p)):where(:dir(rtl)) {
+  /* a name, a title, a synopsis or what a viewer types is in its own words, mostly Latin: each keeps its own order and is
+     cut at its own end, on the side of the page it sits on. No specificity, so a component's own alignment wins, though
+     under plaintext a Latin text's end is its right, which .artists avoids with a <bdi>. Text the page translates stays
+     out of this, but a fact's dd (GLOSSARY.md): a line opening on a Latin word would turn left to right. So does an inline
+     inside a listed block, whose letters would be hidden from the block choosing the direction. Chrome 156 reads only
+     the prefixed match-parent */
+  :where(h1, h2, h4, dd, input, textarea, .name, .from, .second, .song, .person .detail, .line .who, .line .text, [class*='title']:not(.title-text), .title-text div, [class*='description'], [class*='description'] :is(div, p)):where(:dir(rtl)) {
     unicode-bidi: plaintext;
     text-align: -webkit-match-parent;
     text-align: match-parent;

@@ -11,9 +11,9 @@ import { build } from 'vite-plus'
 import { catalogues, LANGUAGE_KEY } from './languages'
 import { workerFakes } from './worker-fakes'
 
-// HOR-1026 (stub in the viewer's language), step 9: Arabic and Hebrew as they ship (src/i18n/offered.json), on the real
-// pages, built and served as tests/language-setting.spec.ts builds them. Each page reads right to left but the player,
-// the series graph and the privacy and legal pages, which stay left to right.
+// Arabic and Hebrew as they ship (src/i18n/offered.json), on the real pages, built and served as
+// tests/language-setting.spec.ts builds them. Each page reads right to left but the player, the series graph and the
+// privacy and legal pages, which stay left to right.
 
 test.describe.configure({ timeout: 180_000 })
 
@@ -79,6 +79,19 @@ const pick = (page: Page, language: string) => page.addInitScript(([key, value])
 const direction = (page: Page, selector: string) => page.locator(selector).first().evaluate(element => getComputedStyle(element).direction)
 const flipped = (page: Page, selector: string) => page.locator(selector).first().evaluate(element => getComputedStyle(element).scale)
 const box = async (page: Page, selector: string) => (await page.locator(selector).first().boundingBox())!
+/** Whether a name ending in a mark shows that mark after its last letter, drawn in the page's own element: no fixture holds such a name. */
+const keepsItsOrder = (page: Page, selector: string) => page.locator(selector).first().evaluate(element => {
+  // a fact or a second title may still be a placeholder, which holds no text
+  const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode() as Text | null ?? element.appendChild(new Text())
+  text.data = 'Tank!'
+  const left = (offset: number) => {
+    const range = document.createRange()
+    range.setStart(text, offset)
+    range.setEnd(text, offset + 1)
+    return range.getBoundingClientRect().left
+  }
+  return left(4) > left(3)
+})
 
 for (const language of ['ar', 'he']) {
   test.describe(language, () => {
@@ -123,7 +136,7 @@ for (const language of ['ar', 'he']) {
       const list = row.locator('.virtual-list').first()
       await expect(list.locator('a').first()).toBeVisible({ timeout: 45_000 })
       const first = (await list.locator('a').first().boundingBox())!
-      expect(first.x + first.width, 'the first card sits at the right, past the gutter').toBeGreaterThan(1000)
+      expect(first.x + first.width, 'the first card sits at the right').toBeGreaterThan(1000)
       await expect(row.locator('.scroll-button')).toHaveCount(2)
       const previous = (await row.locator('.scroll-button.previous').boundingBox())!
       const next = (await row.locator('.scroll-button.next').boundingBox())!
@@ -161,6 +174,7 @@ for (const language of ['ar', 'he']) {
       const description = (await page.locator('.description').first().boundingBox())!
       expect(heading.x + heading.width, 'the modal\'s title starts at the right').toBeGreaterThan(640)
       expect(description.x + description.width, 'and so does its synopsis').toBeGreaterThan(640)
+      expect(await page.locator('.trailer').first().evaluate(element => getComputedStyle(element, '::after').backgroundImage), 'the picture darkens from the line\'s start').toContain('to left')
 
       await page.goto(at(SERIES))
       await page.locator('[data-franchise-open]').click()
@@ -203,6 +217,83 @@ for (const language of ['ar', 'he']) {
       })
       expect(ends.stop, 'the full stop follows the word').toBeGreaterThan(ends.word)
       await expect(synopsis).toBeInViewport()
+    })
+
+    test('a name in its source\'s words keeps its marks after its last letter, on each page that draws one', async ({ page }) => {
+      test.setTimeout(240_000)
+      const read = async (path: string, selectors: string[]) => {
+        await page.goto(at(path))
+        const found: [string, boolean][] = []
+        for (const selector of selectors) {
+          await expect(page.locator(selector).first()).toBeAttached({ timeout: 45_000 })
+          found.push([selector, await keepsItsOrder(page, selector)])
+        }
+        return found
+      }
+      const found = Object.fromEntries([
+        ...await read(TITLE, ['.second', '[data-themes] .song', '[data-themes] .artists', '.person .name', '.person .detail', 'dl.facts dd']),
+        ...await read('/settings#sources', ['.card h4']),
+        ...await read(WATCH, ['.source .name']),
+      ])
+      expect(found).toEqual(Object.fromEntries(Object.keys(found).map(selector => [selector, true])))
+
+      // the chat draws only in a party, so its two lines are its own markup and layout on a page carrying the global rule
+      await page.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<div class="line" style="display: flex; flex-direction: column"><span class="who">a</span><span class="text">a</span></div><div class="not-a-name">a</div>'))
+      expect(await keepsItsOrder(page, '.line .who')).toBe(true)
+      expect(await keepsItsOrder(page, '.line .text')).toBe(true)
+      expect(await keepsItsOrder(page, '.not-a-name'), 'the control: text left to the page\'s order loses its mark to the far side').toBe(false)
+    })
+
+    test('a long address is cut at its own end, its start in view', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(at('/settings#sources'))
+      const from = page.locator('.card .from').first()
+      await expect(from).toBeVisible({ timeout: 45_000 })
+      const offset = await from.evaluate(element => {
+        element.textContent = `https://github.com/${'a'.repeat(120)}`
+        const range = document.createRange()
+        range.setStart(element.firstChild!, 0)
+        range.setEnd(element.firstChild!, 1)
+        return range.getBoundingClientRect().left - element.getBoundingClientRect().left
+      })
+      expect(offset).toBeGreaterThanOrEqual(0)
+    })
+
+    test('text typed in a search field keeps its own order, and an empty field its side', async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 844 })
+      await page.goto(at('/search?genre=Action&format=TV'))
+      for (const selector of ['header input', '.text-field input:not([type="file"])']) {
+        const field = page.locator(selector).first()
+        await expect(field).toBeVisible({ timeout: 45_000 })
+        expect(await field.evaluate(element => getComputedStyle(element).unicodeBidi)).toBe('plaintext')
+        expect(await field.evaluate(element => getComputedStyle(element).direction), 'its placeholder stays at the right').toBe('rtl')
+      }
+    })
+
+    test('the episode playing is marked at its line\'s start, and the source playing lit from it', async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 844 })
+      await page.goto(at(WATCH))
+      const episode = page.locator(':has(> .episode-link[aria-current])').first()
+      await expect(episode).toBeAttached({ timeout: 45_000 })
+      expect(await episode.evaluate(element => getComputedStyle(element).boxShadow)).toContain('-3px 0px 0px 0px inset')
+      const source = page.locator('.source.active').first()
+      await expect(source).toBeAttached({ timeout: 45_000 })
+      expect(await source.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('to left')
+    })
+
+    test('the chat\'s send arrow flips with the line, and in a left to right part it does not', async ({ page }) => {
+      await page.goto(at('/'))
+      await expect(page.locator('header')).toBeVisible({ timeout: 45_000 })
+      await page.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<svg class="lucide-send"></svg><div dir="ltr"><svg class="lucide-send kept"></svg></div>'))
+      expect(await flipped(page, 'svg.lucide-send')).toBe('-1 1')
+      expect(await flipped(page, 'svg.lucide-send.kept')).toBe('none')
+    })
+
+    test('the debug page stays left to right, its words English', async ({ page }) => {
+      await page.goto(at('/debug/trace'))
+      const trace = page.locator('[data-debug-trace]')
+      await expect(trace).toBeAttached({ timeout: 45_000 })
+      expect(await trace.evaluate(element => getComputedStyle(element).direction)).toBe('ltr')
     })
 
     test('the privacy and legal pages stay in English, left to right, under the page\'s own header', async ({ page }) => {
@@ -283,6 +374,22 @@ test('in English the same readings find a left to right page: the wordmark at th
   expect(await flipped(page, '.scroll-button.next svg')).toBe('none')
   expect((await row.locator('.scroll-button.previous').boundingBox())!.x).toBeLessThan((await row.locator('.scroll-button.next').boundingBox())!.x)
   await expect(page.locator('html')).not.toHaveAttribute('dir', 'rtl')
+})
+
+test('a row\'s first card keeps its gutter on the side the row starts from', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 })
+  const gutter = async (side: 'left' | 'right') => {
+    await page.goto(at('/'))
+    const list = page.locator('.home-row .virtual-list').first()
+    await expect(list.locator('a').first()).toBeVisible({ timeout: 45_000 })
+    const row = (await list.boundingBox())!
+    const card = (await list.locator('a').first().boundingBox())!
+    return side === 'left' ? card.x - row.x : row.x + row.width - card.x - card.width
+  }
+  const english = await gutter('left')
+  expect(english, 'the control: there is a gutter to read').toBeGreaterThan(0)
+  await pick(page, 'ar')
+  expect(await gutter('right')).toBe(english)
 })
 
 test('a row steps as far right to left as left to right, onward and back', async ({ page }) => {

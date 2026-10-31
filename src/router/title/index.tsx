@@ -638,7 +638,7 @@ const ThemeRows = ({ themes }: { themes: Theme[] }) => {
               }
               <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
               <span className="song">{theme.title}</span>
-              <span className="artists">{intl.formatList(theme.artists, NAME_LIST)}</span>
+              <span className="artists"><bdi>{intl.formatList(theme.artists, NAME_LIST)}</bdi></span>
             </div>
             {playing === index && url ? <ThemeVideo url={url}/> : undefined}
           </li>

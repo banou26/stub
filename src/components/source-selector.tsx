@@ -138,7 +138,7 @@ const style = css`
       border-color: var(--brand);
       background:
         linear-gradient(
-          90deg,
+          to var(--inline-end, right),
           color-mix(in srgb, var(--brand) 24%, transparent),
           color-mix(in srgb, var(--brand) 7%, transparent)
         );
