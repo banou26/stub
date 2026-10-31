@@ -26,6 +26,7 @@ const graph = vi.hoisted(() => ({
   on: false,
   rows: 0,
   address: async () => '',
+  show: async () => '',
   pass: async (): Promise<unknown> => null,
   // what a read waits on after it has read the rows
   reading: async () => {},
@@ -70,6 +71,7 @@ vi.mock('../../../src/worker/graph', async original => ({
     wakes: () => true,
   }),
   askAddressOf: () => graph.address(),
+  followedShowAddress: () => graph.show(),
   passSettled: () => graph.pass(),
 }))
 vi.mock('../../../src/worker/store/db', async original => ({
@@ -99,7 +101,7 @@ afterEach(() => {
   sources.asked = []
   sources.byOrigin = {}
   cluster.uri = 'ag:(anilist:1)'
-  Object.assign(graph, { on: false, rows: 0, address: async () => '', pass: async () => null, reading: async () => {} })
+  Object.assign(graph, { on: false, rows: 0, address: async () => '', show: async () => '', pass: async () => null, reading: async () => {} })
   similar.run = async () => {}
   similar.answer = async () => ({ outcome: 'refused', reason: 'null' })
   reads.count = 0
@@ -242,6 +244,24 @@ describe('the media subscription', { timeout: 5_000 }, () => {
       anilist!.end()
       expect(await media.next(), 'Kitsu has not answered').toBe(false)
       kitsu.end()
+      expect(await media.next()).toBe(true)
+    })
+
+    // Mutation: drop the `followedShowAddress` ask and JustWatch is never asked, so the media settles without it.
+    test('a source only the followed show names is asked and holds the media', async () => {
+      graph.on = true
+      const [anilist] = sources.asked = [source('anilist')]
+      const jw = source('jw')
+      sources.byOrigin = { jw }
+      const media = open()
+      opened.push(media)
+      expect(await media.next()).toBe(false)
+
+      // the page is drawn as the run, whose address names no JustWatch id; its show does
+      graph.show = async () => 'ag:(anilist:1,jw:1)'
+      anilist!.end()
+      expect(await media.next(), 'JustWatch has not answered').toBe(false)
+      jw.end()
       expect(await media.next()).toBe(true)
     })
 

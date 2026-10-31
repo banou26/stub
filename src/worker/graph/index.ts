@@ -55,7 +55,7 @@ export { seedOrigins } from './seed-origins'
 // Section 6: the read path, and the flag that switches the three reads onto it. It lives in `./read`
 // rather than here so `../extractor.ts` can read the flag without importing every plugin.
 export {
-  addressUris, askAddressOf, createMediaReader, createPageReader, episodesOf, memberUrisOf,
+  addressUris, askAddressOf, createMediaReader, createPageReader, episodesOf, followedShowAddress, memberUrisOf,
   pageClusters, placeholdersOf, readStore, resolveMedia, setReadStore,
 } from './read'
 export type { Placeholder, ReadStore } from './read'

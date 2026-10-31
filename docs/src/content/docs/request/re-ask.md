@@ -172,7 +172,10 @@ Six things in that figure that are easy to get wrong.
 
 **The re-ask is driven by the aggregate, not by the request.** `askUnasked(media.uri)` is called at
 `src/worker/resolvers/media/index.ts:74`, inside `read()`, after `aggregateMedia`. `media.uri` is the
-cluster's aggregated uri, which grows every time a union lands. `requestedUri` never changes.
+cluster's aggregated uri, which grows every time a union lands. `requestedUri` never changes. A page
+drawn as its show's `preferredRun` has a `media.uri` naming the run alone, so on the graph store the
+read also hands over the show's own address (`followedShowAddress`, `src/worker/graph/read.ts`): a
+source that found only the show after the run attached is otherwise never asked by its own id.
 
 **A cluster that never resolves never re-asks.** `if (!cluster.length) return undefined`
 (`src/worker/resolvers/media/index.ts:72`) sits above the call, so a uri that resolves to nothing,

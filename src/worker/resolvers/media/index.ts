@@ -9,7 +9,7 @@ import { findAggregatedMedia, findAllAggregatedMedia, findAggregatedEpisodesForM
 import { applyMediaSorts, isListing, pageRows, siteMedia, thinLast } from '../../store/filter'
 import { fuzzyMergeMediaClusters } from '../../store/fuzzy-merge'
 import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/aggregate'
-import { askAddressOf, createMediaReader, createPageReader, episodesOf, passSettled, readStore } from '../../graph'
+import { askAddressOf, createMediaReader, createPageReader, episodesOf, followedShowAddress, passSettled, readStore } from '../../graph'
 import { listen, listenIterator, listenMultipleIterator, debouncedListenIterator } from '../../store/events'
 import { createSettling } from '../../fanout'
 import { descriptionAs } from '../utils'
@@ -92,15 +92,18 @@ export const resolvers = {
          * alone would ask jikan about `mal:39535` and leave a source addressable by two origins with
          * only one of them. `askUnasked` still keys on origins, so an origin enters the asked set
          * once and never leaves, which is what makes the loop terminate.
+         *
+         * The show a read followed to its run is asked the same way, under its own address, as it
+         * would have been had the run attached a pass later (`followedShowAddress`).
          */
-        const askPlaceholders = async (clusterId: string, mediaUri: string) => {
-          const address = await askAddressOf(clusterId, mediaUri).catch(error => {
+        const askAddress = async (address: Promise<string>) => {
+          const uri = await address.catch(error => {
             // an ask that failed must not take the page down: the row it would have fetched is
             // missing, which is the state the read already renders
-            console.error(new Error('media: the placeholder ask failed', { cause: error }))
+            console.error(new Error('media: the address ask failed', { cause: error }))
             return ''
           })
-          if (address) askUnasked(address)
+          if (uri) askUnasked(uri)
         }
 
         // a MEDIA root by construction: only this resolver runs it, so a listing never asks. The
@@ -140,7 +143,8 @@ export const resolvers = {
             const asking = Promise.all([
               // the placeholders of the cluster this read landed on, which is the one the page draws:
               // `resolveMedia` follows a container's `preferredRun`, so `_id` is not always the uri's
-              askPlaceholders(String(media._id ?? ''), String(media.uri)),
+              askAddress(askAddressOf(String(media._id ?? ''), String(media.uri))),
+              askAddress(followedShowAddress(requestedUri)),
               findMediaForPage(requestedUri).then(askSimilarRuns, error => {
                 console.error(new Error('media: the similar asks failed', { cause: error }))
               }),

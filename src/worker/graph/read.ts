@@ -404,6 +404,11 @@ const holds = async (id: string, uris: readonly string[]): Promise<boolean> => {
  * rather than on a null while the sources are still answering.
  */
 export const resolveMedia = async (uri: string, member?: string): Promise<AggregatedMedia | undefined> => {
+  const resolved = await resolveCluster(uri, member)
+  return resolved && viewOfResolved(resolved)
+}
+
+const resolveCluster = async (uri: string, member?: string): Promise<ResolvedCluster | undefined> => {
   const memberUris = member ? addressUris(member) : []
   // statement 1 then 1a over the address's members, then 1b over the same string read as a cluster
   // id: a value that is neither matches nothing in either, at the cost of two key lookups
@@ -417,11 +422,28 @@ export const resolveMedia = async (uri: string, member?: string): Promise<Aggreg
     if (fallthrough) resolved = fallthrough
   }
 
-  return viewOfResolved(resolved)
+  return resolved
 }
 
+const isFollowed = (resolved: ResolvedCluster): resolved is ResolvedCluster & { preferredRun: string } =>
+  resolved.scope === 'CONTAINER' && Boolean(resolved.preferredRun)
+
 const viewOfResolved = (resolved: ResolvedCluster): Promise<AggregatedMedia | undefined> =>
-  viewOfCluster(resolved.scope === 'CONTAINER' && resolved.preferredRun ? resolved.preferredRun : resolved.id)
+  viewOfCluster(isFollowed(resolved) ? resolved.preferredRun : resolved.id)
+
+/**
+ * The address of the show `uri` opens when the page is drawn as that show's `preferredRun`, empty on any other page.
+ *
+ * A page drawn as the run names none of its show's members, so a source that found only the show once the run had
+ * attached is in no address the page reads. JustWatch lands that way when its search reads the show before the run
+ * attaches: its season, which Netflix's claim hangs on, then takes an ask by its own id (8 of 29 searches for Squid
+ * Game drew no Netflix, 2026-10-31).
+ */
+export const followedShowAddress = async (uri: string): Promise<string> => {
+  const resolved = await resolveCluster(uri)
+  if (!resolved || !isFollowed(resolved)) return ''
+  return String((await viewOfCluster(resolved.id))?.uri ?? '')
+}
 
 /**
  * The cluster of a member that says it IS one of `uris` (a `SAME_AS` claim, never an `address` echo), for an address
