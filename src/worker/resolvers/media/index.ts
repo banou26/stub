@@ -203,15 +203,19 @@ export const resolvers = {
           : undefined
         const iterator = debouncedListenIterator([page ? 'view:changed' : 'media:changed'], 100, { abortSignal: ctx.request.signal })
         const listing = isListing(args.input)
+        // Whether the page draws what was answered, rather than the whole store. An answer the store
+        // already holds changes nothing and so fires no event, and such a page would never draw it, so
+        // the answer wakes it. It must not wake one on the whole store, which holds that answer already:
+        // the read would swap its cards for the answers so far, so a repeated search shrinks and regrows,
+        // and stays short of any source that fails this time.
+        let narrowed = listing
         const { subscriptions, insertedUris, close } =
           proxyRequestToExtractors(
             ctx,
             'MEDIA_PAGE',
             (result: { data: { mediaPage: MediaPage } }) => {
               const uris = result?.data?.mediaPage?.nodes?.map(({ uri }) => uri)
-              // an answer the store already holds changes nothing and so fires no event, and a
-              // page, which draws what was answered, would never draw it
-              if (uris?.length) iterator.wake()
+              if (narrowed && uris?.length) iterator.wake()
               return uris
             }
           )
@@ -256,6 +260,7 @@ export const resolvers = {
 
         const getPage = async () => {
           const uris = [...insertedUris]
+          narrowed ||= uris.length > 0
           if (listing && !uris.length) {
             named.clear()
             return []
@@ -271,9 +276,9 @@ export const resolvers = {
           //
           // `insertedUris` is empty until a source answers, so this is the first yield's only content.
           // Refusing it and answering [] instead is the obvious way to keep a filtered page from
-          // opening on the previous page's results, and it BREAKS the page outright: this generator
-          // only re-runs on `media:changed`, and a second subscription over a warm store changes
-          // nothing, because `graph.set` is idempotent (tests/unit/worker/store/edge-idempotence.test.ts).
+          // opening on the previous page's results, and it BREAKS the page outright: until `narrowed`
+          // this generator only re-runs on `media:changed`, and a second subscription over a warm store
+          // changes nothing, because `graph.set` is idempotent (tests/unit/worker/store/edge-idempotence.test.ts).
           // So no event ever fires and the page stays empty. Measured 2026-09-06 on the search page:
           // picking a format on a loaded season sat at 0 cards for 60 seconds, where the same url
           // opened cold answered 24.
@@ -281,8 +286,7 @@ export const resolvers = {
           // What keeps the fallback honest is `applyMediaFilters` below, which runs on it like any
           // other page: a stale row from an earlier query only survives if it genuinely matches the
           // season, format, genres and tags now being asked for. A listing is the one page that answers
-          // [] instead, since no filter can tell its rows from the store's, and it is woken by its own
-          // sources' answers rather than by a store change.
+          // [] instead, since no filter can tell its rows from the store's, so it starts `narrowed`.
           let clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)
           if (await fuzzyMergeMediaClusters(clusters)) {
             clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)
