@@ -1,4 +1,5 @@
 import type { MediaChapter } from '@banou/media-player'
+import type { PlaybackState } from '../party/protocol'
 
 import { classifyChapters } from '@banou/media-player/chapters'
 
@@ -8,6 +9,10 @@ import { classifyChapters } from '@banou/media-player/chapters'
 
 /** media-player's skip offer lead: an offer is on screen a second before its part starts. */
 const LEAD_S = 1
+/** How long media-player keeps a skip offer on screen. */
+const OFFER_MS = 6_000
+/** A jump back by more than this opens media-player's skip offer again. */
+const SEEK_BACK_S = 1
 /** Less than this after an ending is nothing to wait for. */
 const NOTHING_S = 10
 /** More than this after an ending is the episode going on, so that ending is not its end. */
@@ -55,4 +60,36 @@ export const nextOfferAt = (chapters: MediaChapter[], duration: number | undefin
 export const chaptersBesideNext = (chapters: MediaChapter[], duration: number | undefined): MediaChapter[] => {
   const last = known(duration) ? lastEnding(chapters, duration) : undefined
   return last && last.after < NOTHING_S ? chapters.filter(chapter => chapter !== last.ending) : chapters
+}
+
+/**
+ * media-player's skip offer as a page can follow it from outside the player's document: `hear` takes each report, with
+ * the chapters the player offers on, and `onChange` says whether an offer is up. As in its SkipChapter, an offer opens
+ * a second before a chapter worth skipping or where a seek lands in one, opens again on a jump back, and closes after
+ * 6 s or as the chapter ends, whichever comes first. Reports come seconds apart, so what falls between two is timed
+ * from the last, until `stop`.
+ */
+export const followSkipOffer = (onChange: (up: boolean) => void) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let offer: { end: number, at: number } | undefined
+  let last = 0
+  const stop = () => clearTimeout(timer)
+  const hear = (chapters: MediaChapter[], { paused, time, rate, at }: PlaybackState) => {
+    stop()
+    const kinds = classifyChapters(chapters)
+    const skippable = chapters.filter((_, index) => kinds[index])
+    const part = skippable.find(({ start, end }) => start - LEAD_S <= time && time < end)
+    if (part?.end !== offer?.end || time < last - SEEK_BACK_S) offer = part && { end: part.end, at }
+    last = time
+    const playing = !paused && rate > 0
+    const left = part && offer ? Math.min(offer.at + OFFER_MS - at, playing ? (part.end - time) / rate * 1000 : Infinity) : 0
+    onChange(left > 0)
+    const ahead = playing ? skippable.find(({ start }) => start - LEAD_S > time) : undefined
+    const wait = left > 0 ? left : ahead && (ahead.start - LEAD_S - time) / rate * 1000
+    if (wait === undefined) return
+    // whole milliseconds, so a step always lands past the line it waits for
+    const step = Math.ceil(wait)
+    timer = setTimeout(() => hear(chapters, { paused, rate, time: playing ? time + step / 1000 * rate : time, at: at + step }), step)
+  }
+  return { hear, stop }
 }

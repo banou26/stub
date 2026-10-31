@@ -8,7 +8,7 @@ import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
 import { readAutoplay } from '../../utils/autoplay'
-import { chaptersBesideNext, hasEnding, nextOfferAt } from '../../utils/next-offer'
+import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
@@ -26,6 +26,20 @@ const style = css`
   bottom: 8rem;
   display: flex;
   gap: 0.8rem;
+  transition: bottom 0.18s ease;
+
+  /* above the player's skip offer, which is sized in px wherever the page's rem goes: it tops out at 112 px, 134 px for a finger */
+  &.above-skip {
+    bottom: 120px;
+
+    @media (pointer: coarse) {
+      bottom: 142px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 
   button {
     padding: 1rem 1.6rem;
@@ -64,11 +78,21 @@ const ownOfferAt = (link: PlaybackLink, chapters: MediaChapter[], duration: numb
 }
 
 /**
+ * The chapters the player draws its skip offers from: a file's own, without the last ending once it has said that offer
+ * is gone, and for stub's own embed the ones `chapters` says, which it is handed through `chaptersBesideNext`.
+ */
+const offeredOn = (link: PlaybackLink, chapters: MediaChapter[], duration: number | undefined) => {
+  const marks = link.chapters ? link.chapters() ?? [] : chapters
+  return link.chapters && link.endingOffered?.() !== false ? marks : chaptersBesideNext(marks, duration)
+}
+
+/**
  * Next episode over the player, from the moment `ownOfferAt` reads off the player's own chapters when they mark an
  * ending, else `nextOfferAt` off `chapters`, and once the player has ended. With autoplay on, the end counts down with
  * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`, and a player that left its
  * Skip Ending out for one gets it back. A seek back or a pause before the moment withdraws the button, and a report
- * that the player is no longer at its end (a seek back, a play) withdraws the countdown.
+ * that the player is no longer at its end (a seek back, a play) withdraws the countdown. It stands above the player's
+ * skip offer while one is up.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
  * `episode` carries into the next, whose player may be the same link.
@@ -84,6 +108,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
   const intl = useIntl()
   const [, navigate] = useLocation()
   const [shown, setShown] = useState<'counting' | 'offered'>()
+  const [aboveSkip, setAboveSkip] = useState(false)
   const href = next?.href
   // a player fullscreened inside its frame hides anything the page draws, and takes the stage under it out of
   // fullscreen when its frame goes, unless it has left first
@@ -119,10 +144,13 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
     let timer: ReturnType<typeof setTimeout> | undefined
     // the early button waits for a press: only the end counts down
     const offer = () => setShown('offered')
-    const stop = link.onReport(({ paused, time, rate }) => {
+    const skipOffer = followSkipOffer(setAboveSkip)
+    const stop = link.onReport(state => {
+      const { paused, time, rate } = state
       clearTimeout(timer)
       const before = last
       last = time
+      skipOffer.hear(offeredOn(link, marks.current, link.duration?.()), state)
       if (link.ended?.()) {
         if (!played) return
         played = false
@@ -147,6 +175,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
     return () => {
       stop()
       clearTimeout(timer)
+      skipOffer.stop()
     }
     // whether there is a next, not its address: that grows as sources join the episode, mid-countdown too
   }, [link, Boolean(href), episode])
@@ -159,7 +188,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
 
   if (!shown || !href) return null
   return (
-    <div css={style}>
+    <div css={style} className={aboveSkip ? 'above-skip' : undefined}>
       <button type="button" className={`up-next ${shown}`} title={next?.title} onClick={() => open(href)}>{intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })}</button>
       {shown === 'counting' ? <button type="button" className="up-next-cancel" onClick={cancel}>{intl.formatMessage({ id: 'Cancel', defaultMessage: 'Cancel' })}</button> : undefined}
     </div>

@@ -22,7 +22,7 @@ import { PLAYER_ORIGIN, PLUGIN_ORIGIN, STAGE_PLUGIN, stageWatchPath, torrentWatc
 const ROOT = join(import.meta.dirname, '..')
 // a secure origin, as stub always has: the players' channels ask for crypto.randomUUID
 const ORIGIN = 'https://stage.test'
-const PAGE = '<!doctype html><html style="font-size: 62.5%"><body style="margin: 0; background: #0f0f0f; color: #fff"><div id="root"></div><script type="module" src="/main.js"></script>'
+const PAGE = '<!doctype html><html style="font-size: 62.5%"><meta name="viewport" content="width=device-width, initial-scale=1.0"><body style="margin: 0; background: #0f0f0f; color: #fff"><div id="root"></div><script type="module" src="/main.js"></script>'
 // the app's own embed page, running the fixture
 const EMBED = readFileSync(join(ROOT, 'embed.html'), 'utf8').replace('/src/embed.tsx', '/embed.js')
 const framePage = (script: string) => `<!doctype html><html><body style="margin: 0"><script type="module" src="/${script}"></script>`
@@ -236,6 +236,56 @@ test('Next episode comes after the player\'s Skip Ending has gone, for a file it
     await page.close()
   }
 })
+
+// Both up, the player's real Skip Ending in its frame and Next on the page, by a seek into the last of an ending with a
+// scene after it. Paused, so the offer runs its 6 s and goes, and Next comes down with it.
+const seekIntoTheEndingsLastSecond = async (page: Page, fullscreen: boolean) => {
+  await serve(page)
+  await page.addInitScript(() => { Object.assign(window, { stageSceneAfterEnding: true }) })
+  await page.goto(`${ORIGIN}${stageWatchPath(1)}`)
+  const embed = page.frameLocator('.stage iframe')
+  const button = embed.locator('button.full-screen')
+  await button.waitFor({ state: 'attached', timeout: 30_000 })
+  if (fullscreen) {
+    await button.click()
+    await expect.poll(() => fullscreenElement(page)).toBe('stage')
+  }
+  const player = page.frames().find(frame => frame.url().startsWith(`${ORIGIN}/embed.html?`))!
+  const next = page.locator('.stage .up-next')
+  const skip = embed.locator('button.skip-chapter')
+  await expect(async () => {
+    await player.evaluate(() => { (window as unknown as { seek: (time: number) => void }).seek(89.5) })
+    await expect(next).toBeVisible({ timeout: 1_000 })
+    await expect(skip).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
+  const clear = async () => {
+    const [row, offer] = await Promise.all([next.boundingBox(), skip.boundingBox()])
+    return offer!.y - (row!.y + row!.height)
+  }
+  await expect.poll(clear, { message: 'Next stands above Skip Ending' }).toBeGreaterThanOrEqual(4)
+  await expect(skip).toBeHidden({ timeout: 8_000 })
+  const offTheBottom = async () => {
+    const [row, stage] = await Promise.all([next.boundingBox(), page.locator('.stage iframe').boundingBox()])
+    return stage!.y + stage!.height - (row!.y + row!.height)
+  }
+  await expect.poll(offTheBottom, { message: 'and comes back down as it goes', timeout: 1_000 }).toBeCloseTo(80, 0)
+}
+
+for (const [where, options, fullscreen] of [
+  ['at 390 px by touch', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false],
+  ['at desktop width', { viewport: VIEWPORT }, false],
+  ['in fullscreen', { viewport: VIEWPORT }, true],
+] as const) {
+  test(`Next episode stands clear of the player's Skip Ending ${where}, in Chromium`, async ({ browser }) => {
+    test.setTimeout(90_000)
+    const page = await browser.newPage(options)
+    try {
+      await seekIntoTheEndingsLastSecond(page, fullscreen)
+    } finally {
+      await page.close()
+    }
+  })
+}
 
 const launchFirefox = async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH

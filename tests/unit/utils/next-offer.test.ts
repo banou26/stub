@@ -1,9 +1,9 @@
 import type { MediaChapter } from '@banou/media-player'
 
-import { describe, expect, test } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { skipEventsToChapters } from '../../../src/sources/crunchyroll/skip-events'
-import { chaptersBesideNext, hasEnding, nextOfferAt } from '../../../src/utils/next-offer'
+import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt } from '../../../src/utils/next-offer'
 import { CREDITS_KEY_ONLY, EVERY_EVENT, OPENING_ONLY } from '../sources/crunchyroll/skip-events-fixture'
 
 // an episode of `duration` s marked `title` from `start` to `end`, in the shape skip-events.ts hands chapters over
@@ -173,4 +173,102 @@ test('chapters have an ending only where Skip Ending would read one', () => {
   expect(hasEnding([{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }])).toBe(false)
   expect(hasEnding(skipEventsToChapters(OPENING_ONLY, 1440))).toBe(false)
   expect(hasEnding([])).toBe(false)
+})
+
+describe('media-player\'s skip offer, followed from its reports', () => {
+  const ENDING = marked(1300, 1390, 1420)
+  let up: boolean
+  let follow: ReturnType<typeof followSkipOffer>
+  const hear = (time: number, { paused = false, rate = 1, chapters = ENDING } = {}) => {
+    follow.hear(chapters, { paused, time, rate, at: Date.now() })
+    return up
+  }
+  const after = (ms: number) => {
+    vi.advanceTimersByTime(ms)
+    return up
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    up = false
+    follow = followSkipOffer(value => { up = value })
+  })
+
+  afterEach(() => {
+    follow.stop()
+    vi.useRealTimers()
+  })
+
+  test('a seek into the last seconds of an ending has it up until the ending goes', () => {
+    expect(hear(600)).toBe(false)
+    expect(hear(1387)).toBe(true)
+    expect(after(2_999)).toBe(true)
+    expect(after(1)).toBe(false)
+  })
+
+  test('played into, it opens a second before the chapter and closes 6 s on, between two reports', () => {
+    expect(hear(1290)).toBe(false)
+    expect(after(8_999), 'at 1298.999 s').toBe(false)
+    expect(after(1), 'at 1299 s').toBe(true)
+    expect(after(5_999)).toBe(true)
+    expect(after(1)).toBe(false)
+    expect(hear(1389), 'closed long before Next is offered in that ending\'s last second').toBe(false)
+  })
+
+  test('it closes on the clock while paused, with the playhead staying put', () => {
+    expect(hear(1389.5, { paused: true })).toBe(true)
+    expect(after(5_999), 'past where the chapter would have ended').toBe(true)
+    expect(after(1)).toBe(false)
+    expect(hear(1298, { paused: true })).toBe(false)
+    expect(after(60_000), 'and nothing plays up to the next one').toBe(false)
+  })
+
+  test('it goes with the chapter at the rate played', () => {
+    expect(hear(1500, { rate: 2 })).toBe(false)
+    expect(hear(1389, { rate: 2 })).toBe(true)
+    expect(after(499)).toBe(true)
+    expect(after(1)).toBe(false)
+  })
+
+  test('a jump back opens it again, and a seek on does not', () => {
+    hear(1299)
+    after(7_000)
+    expect(hear(1320), 'a seek on').toBe(false)
+    expect(hear(1319), 'a second back').toBe(false)
+    expect(hear(1310), 'more than a second back').toBe(true)
+    expect(after(6_000)).toBe(false)
+  })
+
+  test('leaving ends it, and coming back opens it again', () => {
+    expect(hear(1380)).toBe(true)
+    expect(hear(1395)).toBe(false)
+    expect(hear(1389.5)).toBe(true)
+  })
+
+  test('an opening counts as an ending does, ahead of the playhead too', () => {
+    const chapters = marked(1400, 1490, 1500, 'Opening')
+    expect(hear(1399, { chapters })).toBe(true)
+    expect(after(6_000)).toBe(false)
+    expect(hear(1500, { chapters })).toBe(false)
+
+    expect(hear(1395, { chapters })).toBe(false)
+    expect(after(3_999)).toBe(false)
+    expect(after(1)).toBe(true)
+  })
+
+  test('nothing is up on a chapter the player offers no skip for', () => {
+    for (const chapters of [marked(600, 640, 1440, 'Preview'), marked(600, 610, 1440), marked(600, 690, 1440, 'Recap'), [{ start: 600, end: 690, title: 'Ending' }]]) {
+      expect(hear(620, { chapters }), chapters[1]?.title ?? 'all themes').toBe(false)
+    }
+  })
+
+  test('nothing is timed once stopped', () => {
+    hear(1380)
+    follow.stop()
+    expect(after(60_000)).toBe(true)
+    up = false
+    hear(1290)
+    follow.stop()
+    expect(after(60_000)).toBe(false)
+  })
 })

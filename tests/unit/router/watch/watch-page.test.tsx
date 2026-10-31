@@ -1946,6 +1946,67 @@ test('the next file in the same player is asked again', async () => {
   expect(ending.asked).toEqual([false])
 })
 
+// Next episode and the player's Skip Ending sit in one corner. A seek into an ending's last seconds has both up for a
+// moment, the ending's offer not having run its 6 s, so Next stands above it while it is
+const aboveSkip = (host: HTMLElement) => Boolean(host.querySelector('.above-skip'))
+const SCENE_AFTER = { start: 1300, end: 1390 }
+const seekNearItsEnd = async (host: HTMLElement) => {
+  await report({ paused: false, time: 600 }, { paused: false, time: 1388 })
+  await wait(1_000)
+  expect(nextShown(host), 'offered at 1389 s').toBe('E3 - Title 3')
+  expect(aboveSkip(host), 'over Skip Ending').toBe(true)
+  await wait(1_000)
+  expect(aboveSkip(host), 'Skip Ending went with the ending').toBe(false)
+  expect(nextShown(host), 'and Next stays').toBe('E3 - Title 3')
+}
+
+test('after a seek into the last seconds of Crunchyroll\'s credits, Next episode stands above Skip Ending until it goes', async () => {
+  relay.files[skipEventsUrl('GX2')] = { credits: SCENE_AFTER }
+  bridge.duration = 1420
+  const { host } = await atTheEnd()
+  await seekNearItsEnd(host)
+})
+
+test('after a seek into the last seconds of a torrent\'s ending, Next episode stands above Skip Ending until it goes', async () => {
+  pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }, { start: 1390, end: 1420, title: 'Part B' }]
+  bridge.duration = 1420
+  const { host } = await atTheEnd({}, 'nyaa:a')
+  await seekNearItsEnd(host)
+})
+
+test('played through an ending, Next episode comes on its own row and stays there, Skip Ending having long gone', async () => {
+  relay.files[skipEventsUrl('GX2')] = { credits: SCENE_AFTER }
+  bridge.duration = 1420
+  const { host } = await atTheEnd()
+  await report({ paused: false, time: 1295 })
+  await wait(4_000)
+  expect(nextShown(host)).toBeUndefined()
+  await wait(90_000)
+  expect(nextShown(host), 'at 1389 s').toBe('E3 - Title 3')
+  expect(aboveSkip(host)).toBe(false)
+  await report({ paused: false, time: 1389.5 })
+  expect(aboveSkip(host), 'a heartbeat in the ending\'s last second').toBe(false)
+  await wait(1_000)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  expect(aboveSkip(host), 'past it').toBe(false)
+})
+
+test('Next episode stays down over Crunchyroll\'s credits closing the file, which stub leaves out of its own player', async () => {
+  const { host } = await atTheCredits()
+  await report({ paused: false, time: 1330 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  expect(aboveSkip(host)).toBe(false)
+})
+
+test('Next episode stays down over a file\'s ending once the player has said it left its Skip Ending out', async () => {
+  const { host, ending } = await relayedEnding()
+  await report({ paused: false, time: 1295 })
+  ending.offered = false
+  await report({ paused: false, time: 1305 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  expect(aboveSkip(host)).toBe(false)
+})
+
 // HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,
 // else aniskip's ending. The second episode as a torrent of 1395 s whose file's chapters are `chapters`, on a show
 // MyAnimeList knows as 5, its third episode as given.
@@ -1976,6 +2037,18 @@ test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when 
   expect(nextShown(host), 'at 1298.9 s').toBeUndefined()
   await wait(100)
   expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
+})
+
+test('Crunchyroll\'s credits time Next episode on a torrent, and are no Skip Ending of its player to stand above', async () => {
+  lengths.byUrl[crunchyrollUrl(2)] = 1420
+  relay.files[skipEventsUrl('GX2')] = CREDITS
+  const { host } = await torrentOf(PARTS)
+  bridge.duration = 1420
+  await report({ paused: false, time: 600 })
+  await settle()
+  await report({ paused: false, time: 1389.5 })
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  expect(host.querySelector('.above-skip')).toBeNull()
 })
 
 test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor aniskip', async () => {
