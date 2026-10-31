@@ -5,7 +5,7 @@
  * or refuses, and a mocked connection would pass whatever it was handed (the whole class of failure
  * `docs/design-inputs/00-engine-facts.md` exists to record).
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import type { PluginId, PluginOutput, Scope } from '../../../../../src/worker/graph/plugins/contract'
 
@@ -14,7 +14,7 @@ import { closeGraph } from '../../../../../src/worker/graph/engine'
 import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { SOURCE_NODE_TABLES } from '../../../../../src/worker/graph/schema'
 import { acceptEveryPair } from '../../../../../src/worker/graph/plugins/guards'
-import { applyPluginOutput, columnsOf, retractPlugin } from '../../../../../src/worker/graph/plugins/writer'
+import { applyPluginOutput, columnsOf, pairOf, retractPlugin } from '../../../../../src/worker/graph/plugins/writer'
 import { answer, episode, media, rowsOf, title } from './fixtures'
 
 const PLUGIN = {
@@ -305,6 +305,14 @@ test('an episode pair is written with its own status, and a flip to active is an
 // and `//` comments on most lines.
 // Mutation: split the DDL on ',' without counting depth and `fieldSeq` becomes two columns named
 // `fieldSeq MAP(STRING` and `INT64)`, which writes a binder error rather than a row.
+// Mutation: return the first pair without looking for a second, and a table of two loads and loses an edge wherever a
+// uri names a row on both sides.
+test('a plugin rel table of two pairs is refused at load', () => {
+  expect(pairOf('CREATE REL TABLE IF NOT EXISTS HAS_KEY(FROM Media TO TitleKey, key STRING)')).toEqual({ from: 'Media', to: 'TitleKey' })
+  expect(() => pairOf('CREATE REL TABLE X(FROM MediaProfile TO Media, FROM EpisodeProfile TO Episode, by STRING)')).toThrow('one FROM/TO pair')
+  expect(() => pairOf('CREATE REL TABLE X(by STRING)')).toThrow('one FROM/TO pair')
+})
+
 test('the column parser reads the DDL, nested commas and comments included', () => {
   const columns = columnsOf(SOURCE_NODE_TABLES.find(statement => statement.includes('TABLE IF NOT EXISTS Media'))!)
   const byName = new Map(columns.map(column => [column.name, column]))

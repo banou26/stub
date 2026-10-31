@@ -131,9 +131,16 @@ export const columnsOf = (statement: string): Column[] => {
   return columns
 }
 
-/** The `FROM A TO B` pairs a rel table declares, in the order it declares them. */
-export const pairsOf = (statement: string): { from: string, to: string }[] =>
-  [...statement.matchAll(/FROM (\w+) TO (\w+)/g)].map(match => ({ from: match[1]!, to: match[2]! }))
+/**
+ * The one `FROM A TO B` pair of a plugin's rel table. Refuses a second: an edge's diff key is its two uris, and one uri
+ * can name a row of two tables, so an edge of one pair would read as the same edge of the other and that one is never
+ * written.
+ */
+export const pairOf = (statement: string): { from: string, to: string } => {
+  const [pair, ...more] = [...statement.matchAll(/FROM (\w+) TO (\w+)/g)]
+  if (!pair || more.length) throw new Error(`A plugin rel table declares one FROM/TO pair: ${statement}`)
+  return { from: pair[1]!, to: pair[2]! }
+}
 
 /**
  * How a row of each label is ADDRESSED, and what places it in a scope.
@@ -167,7 +174,7 @@ type NodeTableSpec = {
 type EdgeTableSpec = {
   table: PluginEdgeTable
   columns: Column[]
-  pairs: { from: string, to: string }[]
+  pair: { from: string, to: string }
   /** True when the table declares its own `key` column, which then joins the diff key. */
   keyed: boolean
 }
@@ -191,7 +198,7 @@ for (const statement of PLUGIN_REL_TABLES) {
   const table = tableNameOf(statement) as PluginEdgeTable
   const columns = columnsOf(statement)
   edgeSpecs.set(table, {
-    table, columns, pairs: pairsOf(statement), keyed: columns.some(column => column.name === 'key'),
+    table, columns, pair: pairOf(statement), keyed: columns.some(column => column.name === 'key'),
   })
 }
 
@@ -690,29 +697,28 @@ export const applyPluginOutput = async (options: {
   for (const [table, desired] of desiredEdges) {
     const spec = edgeSpecs.get(table)!
     const current = new Map<string, Record<string, unknown>>()
-    for (const pair of spec.pairs) {
-      const from = LABELS[pair.from]!
-      const to = LABELS[pair.to]!
-      const projection = [
-        `a.${from.key} AS __from`,
-        `b.${to.key} AS __to`,
-        ...from.place ? [`a.${from.place} AS __fromPlace`] : [],
-        ...to.place ? [`b.${to.place} AS __toPlace`] : [],
-        ...spec.columns.map(column => `e.${column.name} AS ${column.name}`),
-      ].join(', ')
-      const take = (rows: Record<string, unknown>[]) => {
-        for (const row of rows) {
-          const key = `${String(row.__from)}${LIST_SEPARATOR}${String(row.__to)}${LIST_SEPARATOR}${spec.keyed ? String(row.key ?? '') : ''}`
-          current.set(key, row)
-        }
+    const { pair } = spec
+    const from = LABELS[pair.from]!
+    const to = LABELS[pair.to]!
+    const projection = [
+      `a.${from.key} AS __from`,
+      `b.${to.key} AS __to`,
+      ...from.place ? [`a.${from.place} AS __fromPlace`] : [],
+      ...to.place ? [`b.${to.place} AS __toPlace`] : [],
+      ...spec.columns.map(column => `e.${column.name} AS ${column.name}`),
+    ].join(', ')
+    const take = (rows: Record<string, unknown>[]) => {
+      for (const row of rows) {
+        const key = `${String(row.__from)}${LIST_SEPARATOR}${String(row.__to)}${LIST_SEPARATOR}${spec.keyed ? String(row.key ?? '') : ''}`
+        current.set(key, row)
       }
-      if (scope.full) {
-        take(await query(
-          `MATCH (a:${pair.from})-[e:${table}]->(b:${pair.to}) WHERE e.by = $by RETURN ${projection}`,
-          { by: id }
-        ))
-        continue
-      }
+    }
+    if (scope.full) {
+      take(await query(
+        `MATCH (a:${pair.from})-[e:${table}]->(b:${pair.to}) WHERE e.by = $by RETURN ${projection}`,
+        { by: id }
+      ))
+    } else {
       // both directions, because an edge belongs to the scope that named EITHER endpoint. An endpoint
       // in no space (`TitleKey`) places nothing, so that direction is not asked: the edge is still
       // read through its other end, which is the one a scope can name.
@@ -835,8 +841,8 @@ const retain = (
   return merged
 }
 
-/** The one MATCH an edge update or delete opens with, per declared FROM/TO pair. */
-const edgeMatch = (table: string, pair: { from: string, to: string }): string =>
+/** The one MATCH an edge update or delete opens with. */
+const edgeMatch = ({ table, pair }: EdgeTableSpec): string =>
   `MATCH (a:${pair.from} {${LABELS[pair.from]!.key}: r.__from})-[e:${table}]->(b:${pair.to} {${LABELS[pair.to]!.key}: r.__to})`
 
 const applyEdgeCreate = async (query: Query, id: PluginId, spec: EdgeTableSpec, rows: DesiredRow[]): Promise<void> => {
@@ -844,34 +850,29 @@ const applyEdgeCreate = async (query: Query, id: PluginId, spec: EdgeTableSpec, 
   // the same idempotence guard the ingest writes its claims with: the pair is matched, the edge this
   // plugin already carries there is refused, and the rest are created
   const exists = spec.keyed ? '{key: r.key, by: $by}' : '{by: $by}'
-  for (const pair of spec.pairs) {
-    await runChunked(query,
-      `UNWIND $rows AS r
-       MATCH (a:${pair.from} {${LABELS[pair.from]!.key}: r.__from}), (b:${pair.to} {${LABELS[pair.to]!.key}: r.__to})
-       WHERE NOT EXISTS { MATCH (a)-[:${spec.table} ${exists}]->(b) }
-       CREATE (a)-[:${spec.table} {${properties}}]->(b)`,
-      rows.map(row => paramsOf(spec.columns, row)), { by: id })
-  }
+  const { pair } = spec
+  await runChunked(query,
+    `UNWIND $rows AS r
+     MATCH (a:${pair.from} {${LABELS[pair.from]!.key}: r.__from}), (b:${pair.to} {${LABELS[pair.to]!.key}: r.__to})
+     WHERE NOT EXISTS { MATCH (a)-[:${spec.table} ${exists}]->(b) }
+     CREATE (a)-[:${spec.table} {${properties}}]->(b)`,
+    rows.map(row => paramsOf(spec.columns, row)), { by: id })
 }
 
 const applyEdgeUpdate = async (query: Query, id: PluginId, spec: EdgeTableSpec, rows: DesiredRow[]): Promise<void> => {
   const assignments = spec.columns.filter(column => column.name !== 'key').map(column => assignment('e', column)).join(', ')
   if (!assignments) return
-  for (const pair of spec.pairs) {
-    await runChunked(query,
-      `UNWIND $rows AS r ${edgeMatch(spec.table, pair)}
-       WHERE e.by = $by${spec.keyed ? ' AND e.key = r.key' : ''} SET ${assignments}`,
-      rows.map(row => paramsOf(spec.columns, row)), { by: id })
-  }
+  await runChunked(query,
+    `UNWIND $rows AS r ${edgeMatch(spec)}
+     WHERE e.by = $by${spec.keyed ? ' AND e.key = r.key' : ''} SET ${assignments}`,
+    rows.map(row => paramsOf(spec.columns, row)), { by: id })
 }
 
 const applyEdgeDelete = async (query: Query, id: PluginId, spec: EdgeTableSpec, rows: DesiredRow[]): Promise<void> => {
-  for (const pair of spec.pairs) {
-    await runChunked(query,
-      `UNWIND $rows AS r ${edgeMatch(spec.table, pair)}
-       WHERE e.by = $by${spec.keyed ? ' AND e.key = r.key' : ''} DELETE e`,
-      rows.map(row => ({ __from: row.from, __to: row.to, key: row.row.key ?? null })), { by: id })
-  }
+  await runChunked(query,
+    `UNWIND $rows AS r ${edgeMatch(spec)}
+     WHERE e.by = $by${spec.keyed ? ' AND e.key = r.key' : ''} DELETE e`,
+    rows.map(row => ({ __from: row.from, __to: row.to, key: row.row.key ?? null })), { by: id })
 }
 
 /**

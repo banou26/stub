@@ -183,8 +183,8 @@ export const PLUGIN_REL_TABLES = [
     by STRING, version INT64, status STRING, reason STRING, confidence DOUBLE, evidence JSON,
     fromNumber INT64, toNumber INT64,   // the two rows' own numbers, so a renumbering is readable off the edge
     supports STRING[])`,
-  // Two tables, as one uri can name a media and an episode (Watchmode links a Netflix show by its episodes' ids) and the
-  // writer diffs an edge by its two uris: in one table, the media's edge read as the episode's, which was never written
+  // Two tables, as one uri can name a media and an episode (Watchmode links a Netflix show by its episodes' ids), which
+  // is why `pairOf` in the writer refuses a table of two pairs
   'CREATE REL TABLE IF NOT EXISTS PROFILE_OF(FROM MediaProfile TO Media, by STRING)',
   'CREATE REL TABLE IF NOT EXISTS EPISODE_PROFILE_OF(FROM EpisodeProfile TO Episode, by STRING)',
   'CREATE REL TABLE IF NOT EXISTS HAS_KEY(FROM Media TO TitleKey, key STRING, by STRING, version INT64, score DOUBLE, language STRING, class STRING)',

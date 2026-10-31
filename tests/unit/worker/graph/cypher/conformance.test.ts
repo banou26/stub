@@ -21,7 +21,7 @@
  * The tables are prefixed `C` so nothing here can collide with `schema.ts`, which this file
  * deliberately does not load: the point is the ENGINE's behaviour, not the app's schema.
  */
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { closeGraph, openGraph } from '../../../../../src/worker/graph/engine'
 
@@ -103,7 +103,7 @@ const FIXTURE = [
   'CREATE NODE TABLE CDiverge(uri STRING PRIMARY KEY, categories STRING[], score DOUBLE, fieldSeq MAP(STRING, INT64))',
   'CREATE REL TABLE CLINK(FROM CMedia TO CMedia, kind STRING, status STRING, confidence DOUBLE)',
   'CREATE REL TABLE CHAS_EPISODE(FROM CMedia TO CEpisode, claimer STRING)',
-  // three declared pairs on one rel table, the shape `ABOUT` and `PROFILE_OF` both use
+  // three declared pairs on one rel table, the shape `ABOUT` uses
   'CREATE REL TABLE CABOUT(FROM CAnswer TO CMedia, FROM CAnswer TO CEpisode, FROM CAnswer TO CAnswer, by STRING)',
   'CREATE REL TABLE CWEDGE(FROM CWrite TO CWrite, kind STRING)',
 ]
