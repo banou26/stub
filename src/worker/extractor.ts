@@ -119,11 +119,6 @@ const listenForMediaChangesForContext = async function* (
 
 const mediaInserter = new DataLoader<Media, Media>(async (medias) => {
   const allUnwrapped = (medias as Media[]).flatMap(recursivelyUnwrapMediaHandles)
-
-  // The relation rides all the way to the store, because it is the store that acts on it: SAME_AS
-  // unions the cluster and PART_OF hangs a directed edge that unions nothing. Deduping on the RELATION
-  // too, not just the pair, so one media may hold both kinds for one origin without either silently
-  // winning on arrival order.
   await upsertMedia(allUnwrapped.map(normalizeToStoreMedia), handleClaims(allUnwrapped))
   return medias
 }, {

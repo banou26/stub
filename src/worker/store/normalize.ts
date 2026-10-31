@@ -79,8 +79,14 @@ export const normalizeToStoreMedia = (media: Media): StoreMedia => ({
 })
 
 /**
- * What rows claim through their handles, one claim per pair and relation. `address` marks a handle a source rebuilt
- * from the uri it was asked (`buildHandlesFromUri`), which names a source to ask and says nothing of the two rows.
+ * What rows claim through their handles, one claim per pair and relation.
+ *
+ * The relation rides all the way to the store, because it is the store that acts on it: SAME_AS unions the cluster and
+ * PART_OF hangs a directed edge that unions nothing. Deduping on the RELATION too, not just the pair, so one media may
+ * hold both kinds for one origin without either silently winning on arrival order.
+ *
+ * `address` marks a handle a source rebuilt from the uri it was asked (`buildHandlesFromUri`), which names a source to
+ * ask and says nothing of the two rows.
  */
 export const handleClaims = (medias: Media[]) => {
   const claims = new Map<string, { mediaUri: string, handleUri: string, relation: MediaHandle['relation'], address: boolean }>()
