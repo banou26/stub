@@ -200,6 +200,9 @@ const answered = (url: string, after = 0) => new Promise<Response>((resolve) => 
   setTimeout(() => resolve(new Response(JSON.stringify(HEALTHY[url]), { status: 200 })), after)
 })
 
+/** Headers and then nothing: the relay streams a body, so an answer can stop after its first line. */
+const stalled = () => Promise.resolve(new Response(new ReadableStream({ start() {} }), { status: 200 }))
+
 type Stage = {
   unogs: (url: string) => Promise<Response>
   netflix?: (operation: string, variables: { videoId?: number, seasonId?: number }) => Promise<Response>
@@ -397,6 +400,53 @@ test('nobody answering stays a failure, never a refusal', async () => {
   const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
 
   expect(outcome).toMatchObject({ error: expect.anything() })
+})
+
+// All three parse, so nothing threw and the first element of a body that is no list read as no such title.
+test.each([
+  ['the relay failing', 502, '{"error":"upstream fetch failed: connection reset"}'],
+  ['a revoked token', 500, '{"message": "Internal Server Error"}'],
+  ['something else answering', 200, '{"error":"rate limit exceeded"}'],
+])('%s in JSON is uNoGS not answering, never no such title', async (_, status, body) => {
+  const stage: Stage = { unogs: url => answered(url) }
+  const { ctx, landingCalls, tokenCalls } = rig(stage)
+  await after(1_000, getMedia(SQUID_GAME, ctx, 1, true))
+  expect(tokenCalls(), 'the token is minted and held').toBe(1)
+
+  stage.unogs = url => url === `${UNOGS}/user` ? answered(url) : Promise.resolve(new Response(body, { status }))
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome).toMatchObject({ value: { uri: 'nf:81040344-1', episodeCount: 9 } })
+  expect(landingCalls(), 'Netflix was asked').toBeGreaterThan(0)
+})
+
+test('control: uNoGS answering an empty list is no such title, and Netflix is not asked', async () => {
+  const { ctx, landingCalls } = rig({ unogs: url => url === `${UNOGS}/user` ? answered(url) : Promise.resolve(Response.json([])) })
+
+  const outcome = await after(1_000, getMedia(SQUID_GAME, ctx, 1, true))
+
+  expect(outcome).toEqual({ value: undefined })
+  expect(landingCalls()).toBe(0)
+})
+
+test('a token answer that stalls after its headers fails, so no later ask waits on it', async () => {
+  const { ctx, tokenCalls } = rig({ unogs: url => url === `${UNOGS}/user` ? stalled() : answered(url) })
+
+  const first = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+  const later = await after(0, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(first).toMatchObject({ value: { uri: 'nf:81040344-1' } })
+  expect(later, 'answered with no time passing').toMatchObject({ value: { uri: 'nf:81040344-1' } })
+  expect(tokenCalls()).toBe(1)
+})
+
+test('a detail answer that stalls after its headers goes on to Netflix', async () => {
+  const { ctx, landingCalls } = rig({ unogs: url => url.includes('/detail') ? stalled() : answered(url) })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome).toMatchObject({ value: { uri: 'nf:81040344-1' } })
+  expect(landingCalls()).toBeGreaterThan(0)
 })
 
 // Seasons run 8, 9, 8, 9, 8, and with no year for the first-season veto a 2019 run of 8 took season 1 on its

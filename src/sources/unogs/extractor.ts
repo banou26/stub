@@ -50,8 +50,8 @@ let _unogsDownUntil = 0
 
 /**
  * Arms the cooldown, which stops EVERY title, so only evidence about unOGS itself may reach here: the
- * token call failed, or a request never arrived. A non-success status or a body this source cannot read
- * is about one id. unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
+ * token call failed, or a request never arrived or never finished. A non-success status or a body this
+ * source cannot read is about one id. unOGS answers HTTP 200 with `{}` for any id it cannot parse, including the
  * season-suffixed ids this app mints itself (measured 2026-09-12), so one such id arming a global gate
  * would send every Netflix row to the truncated fallback for a minute for no reason at all.
  */
@@ -61,14 +61,17 @@ const upstreamFailure = (error: unknown): never => {
 }
 
 /**
- * One request to unOGS, given up on at `UNOGS_WAIT_MS`. The signal is what ends the backoff's retries;
- * the race is what ends the wait, since the relay's fetch may stay out past an abort.
+ * One request to unOGS and its JSON (undefined when the body is not JSON), given up on at
+ * `UNOGS_WAIT_MS`. The signal is what ends the backoff's retries; the race is what ends the wait, since
+ * the relay's fetch may stay out past an abort. The body is inside it because the relay streams, so an
+ * answer can stop after its headers.
  */
-const unogsFetch = (url: string, init: RequestInit, ctx: ExtractorServerContext): Promise<Response> => {
+const unogsFetch = (url: string, init: RequestInit, ctx: ExtractorServerContext) => {
   const wait = new AbortController()
   const timer = setTimeout(() => wait.abort(), UNOGS_WAIT_MS)
   return Promise.race([
-    ctx.fetch(url, { ...init, signal: wait.signal }),
+    ctx.fetch(url, { ...init, signal: wait.signal })
+      .then(async response => ({ response, body: await response.json().catch(() => undefined) as unknown })),
     new Promise<never>((_, reject) => {
       wait.signal.addEventListener('abort', () => reject(new Error(`uNoGS did not answer ${url} in ${UNOGS_WAIT_MS} ms`)), { once: true })
     }),
@@ -79,7 +82,7 @@ const getToken = async (ctx: ExtractorServerContext): Promise<string> => {
   if (_token && Date.now() < _tokenExpiry) return _token
   if (_tokenPromise) return _tokenPromise
   _tokenPromise = (async () => {
-    const res = await unogsFetch('https://unogs.com/api/user', {
+    const { body } = await unogsFetch('https://unogs.com/api/user', {
       headers: {
         accept: 'application/json',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -89,10 +92,11 @@ const getToken = async (ctx: ExtractorServerContext): Promise<string> => {
       method: 'POST',
       mode: 'cors',
       credentials: 'include'
-    }, ctx).then(r => r.json())
-    if (!res.token?.access_token) throw new Error(`uNoGS token fetch failed: ${JSON.stringify(res)}`)
+    }, ctx)
+    const token = (body as { token?: { access_token?: string } } | undefined)?.token?.access_token
+    if (!token) throw new Error(`uNoGS token fetch failed: ${JSON.stringify(body)}`)
     _tokenExpiry = Date.now() + 12 * 60 * 60 * 1000
-    return (_token = res.token.access_token)
+    return (_token = token)
   })().finally(() => { _tokenPromise = undefined })
   return _tokenPromise
 }
@@ -138,10 +142,8 @@ const dedupe = <T>(key: string, call: () => Promise<T>): Promise<T> => {
 }
 
 /**
- * `requireOk` turns a non-success status into a throw, and ONLY the episodes path asks for it, because
- * only it has somewhere to fall back to. Applied to every endpoint it would change the meaning of a
- * 404 for an unknown title from "no such title" (an empty detail array, which `getMedia` already reads
- * as undefined) into a rejected resolver.
+ * `requireOk` turns a non-success status into a throw, and only the two paths with somewhere to fall
+ * back to ask for it: detail and episodes. Search has none, so its error body stays no results.
  */
 const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } = {}): Promise<T> => {
   // refused ahead of `upstreamFailure`, or asking during the cooldown would keep extending it
@@ -156,14 +158,14 @@ const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } 
       },
       mode: 'cors',
       credentials: 'include'
-    }, ctx).catch(upstreamFailure).then(r => {
+    }, ctx).catch(upstreamFailure).then(({ response, body }) => {
       // a stubbed Response may omit `ok`, and an absent field is not a claim that the call failed
-      if (requireOk && r.ok === false) {
+      if (requireOk && response.ok === false) {
         // a revoked token is answered 500, and the 12 h cache would otherwise keep serving it
         forgetToken()
-        throw new Error(`uNoGS answered ${r.status} for ${url}`)
+        throw new Error(`uNoGS answered ${response.status} for ${url}`)
       }
-      return r.json() as T
+      return body as T
     })
   ))
 }
@@ -285,8 +287,12 @@ type SeasonListing = {
 
 const UNOGS = 'https://unogs.com/api'
 
-const fetchDetail = (id: string, ctx: ExtractorServerContext) =>
-  api<UnogsTitle[]>(`${UNOGS}/title/detail?netflixid=${id}`, ctx)
+const fetchDetail = async (id: string, ctx: ExtractorServerContext): Promise<UnogsTitle[]> => {
+  const body = await api<unknown>(`${UNOGS}/title/detail?netflixid=${id}`, ctx, { requireOk: true })
+  // an unknown id answers `[]`, so anything else is unOGS not answering, whatever its status said
+  if (!Array.isArray(body)) throw new Error(`uNoGS detail for ${id} came back in a shape this source cannot read`)
+  return body
+}
 
 const fetchBgImages = (id: string, ctx: ExtractorServerContext): Promise<UnogsBgImages | undefined> =>
   api<UnogsBgImages>(`${UNOGS}/title/bgimages?netflixid=${id}`, ctx).catch(() => undefined)
@@ -441,7 +447,6 @@ export const resetUnogsCaches = () => {
  * season-suffixed id does.
  */
 const unogsSeasons = async (id: string, ctx: ExtractorServerContext): Promise<NetflixSeason[] | undefined> => {
-  if (Date.now() < _unogsDownUntil) return undefined
   try {
     const seasons = parseUnogsSeasons(await api<unknown>(`${UNOGS}/title/episodes?netflixid=${id}`, ctx, { requireOk: true }))
     if (!seasons) console.error(`uNoGS episodes for ${id} came back in a shape this source cannot read`)
