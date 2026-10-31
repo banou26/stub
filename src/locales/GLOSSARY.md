@@ -37,6 +37,9 @@ same change, using the terms below, and runs `npm run i18n:check`.
   and guillemets (`«{term}»`), Hebrew gershayim (`״{term}״`) and geresh in loanwords (`צ׳אט`, `ז׳אנרים`). A value beside
   an adjective or a past verb would ask it to agree with a number or a person nobody knows, so the line is a label and a
   colon: `جاهز: {count}`, `מוכנים: {count}`, `{member}: إيقاف مؤقت`, `{member}: השהיה`.
+  The isolate splits a value from a Latin letter touching it, so the speed reads `×{rate}` where other languages write
+  `{rate}x`, and the version `الإصدار {version}`, `גרסה {version}`. A format's name leads with the language's own letters
+  (`مسلسل TV قصير`, `סדרת TV קצרה`), since a fact's value takes its direction from its first letter.
 
 ## Register and terms
 
