@@ -64,7 +64,7 @@ import {
 import { disagree } from './guards'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const TITLE_VERSION = 3
+export const TITLE_VERSION = 4
 
 /** The ordinal at which a run stops being the one a show's own date is about. Two, and never one. */
 export const LATER_RUN_ORDINAL = 2
@@ -129,6 +129,7 @@ export type TitleMemberRow = {
   seasonOrdinal: number | null
   partOrdinal: number | null
   companion: boolean | null
+  categories: string[] | null
 }
 
 /**
@@ -157,6 +158,11 @@ export type ClusterTitleProfile = {
   seasons: Set<number>
   /** Whether any member title ends in a companion marker: the cheap half of gate 4's premise. */
   companion: boolean
+  /**
+   * Whether a source files this cluster as a show or a season of one, and none as anime. No format says so: a show's and
+   * a season's rows name no `type` (`formatOf`). Anime is left out because its catalogues file films under `SERIES`.
+   */
+  show: boolean
   /**
    * The container titles this cluster's own titles name, by `containerKeyOf`: empty for a container
    * cluster, and empty for a run that declares no ordinal of 2 or more in any of its six titles.
@@ -271,6 +277,7 @@ export const profileClusters = (rows: TitleMemberRow[]): Map<string, ClusterTitl
     const formats = new Set<string>()
     const workKinds = new Set<string>()
     const seasons = new Set<number>()
+    const shelves = new Set(members.flatMap(member => member.categories ?? []))
     let companion = false
     for (const member of members) {
       for (const entry of keysOf(member.titleKeys)) {
@@ -327,6 +334,7 @@ export const profileClusters = (rows: TitleMemberRow[]): Map<string, ClusterTitl
       workKinds,
       seasons,
       companion,
+      show: shelves.has('SERIES') && !shelves.has('ANIME'),
       containerKeys,
       laterRun: [...seasons].some(season => season >= LATER_RUN_ORDINAL),
     })
@@ -372,6 +380,17 @@ export const laterRunAgainstContainer = (
 }
 
 /**
+ * Whether one side is a film and the other a show or a season, which a shared title cannot make one work.
+ *
+ * Gate 1 has nothing to set a film against here, since the other side names no format, and a film's date is often a
+ * year, which silences gate 3 too. Watchmode's 2011 film "Black Mirror" then hung under the show of that name and year
+ * and welded to its first season. Neither is the cheap badge a wrong attachment usually is: a show follows to its run,
+ * so the page opened as the film, and a season source waiting on it found no season to pick.
+ */
+const filmAgainstShow = (a: ClusterTitleProfile, b: ClusterTitleProfile): boolean =>
+  (a.formats.has('MOVIE') && b.show) || (b.formats.has('MOVIE') && a.show)
+
+/**
  * The four gates of 5.4 P3 that are recorded, each as `passed`, `refused` or `silent`.
  *
  * SILENCE IS THE PREMISE FAILING, never a verdict: a gate whose rule needs both sides to say
@@ -386,7 +405,8 @@ export const laterRunAgainstContainer = (
  */
 export const gatesFor = (a: ClusterTitleProfile, b: ClusterTitleProfile): TitleGates => ({
   format:
-    a.formats.size && b.formats.size ? (disjoint(a.formats, b.formats) ? 'refused' : 'passed') : 'silent',
+    a.formats.size && b.formats.size ? (disjoint(a.formats, b.formats) ? 'refused' : 'passed')
+      : filmAgainstShow(a, b) ? 'refused' : 'silent',
   season:
     a.seasons.size && b.seasons.size ? (disjoint(a.seasons, b.seasons) ? 'refused' : 'passed') : 'silent',
   date:
@@ -614,7 +634,7 @@ export const MEMBER_SCAN =
    RETURN c.id AS cluster, c.scope AS clusterScope, m.uri AS uri, p.scope AS memberScope,
      p.dateSubject AS dateSubject, p.titleKeys AS titleKeys, p.year AS year, p.startDay AS startDay,
      p.format AS format, p.workKind AS workKind, p.seasonOrdinal AS seasonOrdinal,
-     p.partOrdinal AS partOrdinal, p.companion AS companion
+     p.partOrdinal AS partOrdinal, p.companion AS companion, m.categories AS categories
    ORDER BY cluster, uri`
 
 /**

@@ -901,7 +901,7 @@ test('a run decides only the pairs whose clusters moved, and keeps every other v
   const member = (index: number, key: string, fields: Partial<TitleMemberRow> = {}): TitleMemberRow => ({
     cluster: `delta:${String(index).padStart(3, '0')}`, clusterScope: 'RUN', uri: `anilist:${90_000 + index}`,
     memberScope: 'RUN', dateSubject: 'run', titleKeys: titleKeys([key, 0.9]), year: 2031, startDay: 22_400,
-    format: 'SERIES', workKind: 'TV', seasonOrdinal: null, partOrdinal: null, companion: false, ...fields,
+    format: 'SERIES', workKind: 'TV', seasonOrdinal: null, partOrdinal: null, companion: false, categories: null, ...fields,
   })
   const rows = Array.from({ length: 330 }, (_, index) => member(index, index < 2 ? 'delta probe' : name(index)))
   const scored: string[][] = []

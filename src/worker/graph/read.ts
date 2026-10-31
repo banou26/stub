@@ -30,6 +30,7 @@ import {
   isAggregatedUri, isRoutableUri, isUri, fromAggregatedUri, toAggregatedUri,
   type AggregatedUri, type Uri,
 } from '../../utils/uri'
+import { siteAllows } from '../../site'
 import { listen } from '../store/events'
 import { inTurn } from './engine'
 import { aggregateFields } from './plugins/fields'
@@ -428,8 +429,17 @@ const resolveCluster = async (uri: string, member?: string): Promise<ResolvedClu
 const isFollowed = (resolved: ResolvedCluster): resolved is ResolvedCluster & { preferredRun: string } =>
   resolved.scope === 'CONTAINER' && Boolean(resolved.preferredRun)
 
-const viewOfResolved = (resolved: ResolvedCluster): Promise<AggregatedMedia | undefined> =>
-  viewOfCluster(isFollowed(resolved) ? resolved.preferredRun : resolved.id)
+/**
+ * The view of a resolved cluster: a show's run when it has one, else the cluster's own.
+ *
+ * A run the site does not keep (a film a source files under a show, on the series site) leaves the show's own view:
+ * `siteMedia` answers nothing for that run, so following it would leave the page and the sources waiting on it with no
+ * answer at all.
+ */
+const viewOfResolved = async (resolved: ResolvedCluster): Promise<AggregatedMedia | undefined> => {
+  const run = isFollowed(resolved) ? await viewOfCluster(resolved.preferredRun) : undefined
+  return run && siteAllows((run.categories ?? []) as string[]) ? run : viewOfCluster(resolved.id)
+}
 
 /**
  * The address of the show `uri` opens when the page is drawn as that show's `preferredRun`, empty on any other page.

@@ -1,0 +1,236 @@
+{
+"id": 305,
+"name": "Black Mirror",
+"premiered": "2011-12-04",
+"externals": {
+"imdb": "tt2085059"
+},
+"_embedded": {
+"episodes": [
+{
+"id": 30902,
+"name": "The National Anthem",
+"season": 1,
+"number": 1,
+"airdate": "2011-12-04"
+},
+{
+"id": 30903,
+"name": "Fifteen Million Merits",
+"season": 1,
+"number": 2,
+"airdate": "2011-12-11"
+},
+{
+"id": 30904,
+"name": "The Entire History of You",
+"season": 1,
+"number": 3,
+"airdate": "2011-12-18"
+},
+{
+"id": 30905,
+"name": "Be Right Back",
+"season": 2,
+"number": 1,
+"airdate": "2013-02-11"
+},
+{
+"id": 30906,
+"name": "White Bear",
+"season": 2,
+"number": 2,
+"airdate": "2013-02-18"
+},
+{
+"id": 30907,
+"name": "The Waldo Moment",
+"season": 2,
+"number": 3,
+"airdate": "2013-02-25"
+},
+{
+"id": 878471,
+"name": "Nosedive",
+"season": 3,
+"number": 1,
+"airdate": "2016-10-21"
+},
+{
+"id": 878474,
+"name": "Playtest",
+"season": 3,
+"number": 2,
+"airdate": "2016-10-21"
+},
+{
+"id": 878470,
+"name": "Shut Up and Dance",
+"season": 3,
+"number": 3,
+"airdate": "2016-10-21"
+},
+{
+"id": 878469,
+"name": "San Junipero",
+"season": 3,
+"number": 4,
+"airdate": "2016-10-21"
+},
+{
+"id": 878472,
+"name": "Men Against Fire",
+"season": 3,
+"number": 5,
+"airdate": "2016-10-21"
+},
+{
+"id": 878473,
+"name": "Hated in the Nation",
+"season": 3,
+"number": 6,
+"airdate": "2016-10-21"
+},
+{
+"id": 1281042,
+"name": "USS Callister",
+"season": 4,
+"number": 1,
+"airdate": "2017-12-29"
+},
+{
+"id": 1281040,
+"name": "Arkangel",
+"season": 4,
+"number": 2,
+"airdate": "2017-12-29"
+},
+{
+"id": 1281039,
+"name": "Crocodile",
+"season": 4,
+"number": 3,
+"airdate": "2017-12-29"
+},
+{
+"id": 1281041,
+"name": "Hang the DJ",
+"season": 4,
+"number": 4,
+"airdate": "2017-12-29"
+},
+{
+"id": 1281043,
+"name": "Metalhead",
+"season": 4,
+"number": 5,
+"airdate": "2017-12-29"
+},
+{
+"id": 1281044,
+"name": "Black Museum",
+"season": 4,
+"number": 6,
+"airdate": "2017-12-29"
+},
+{
+"id": 1656203,
+"name": "Striking Vipers",
+"season": 5,
+"number": 1,
+"airdate": "2019-06-05"
+},
+{
+"id": 1656204,
+"name": "Smithereens",
+"season": 5,
+"number": 2,
+"airdate": "2019-06-05"
+},
+{
+"id": 1659382,
+"name": "Rachel, Jack and Ashley, Too",
+"season": 5,
+"number": 3,
+"airdate": "2019-06-05"
+},
+{
+"id": 2506146,
+"name": "Joan Is Awful",
+"season": 6,
+"number": 1,
+"airdate": "2023-06-15"
+},
+{
+"id": 2506147,
+"name": "Loch Henry",
+"season": 6,
+"number": 2,
+"airdate": "2023-06-15"
+},
+{
+"id": 2506148,
+"name": "Beyond the Sea",
+"season": 6,
+"number": 3,
+"airdate": "2023-06-15"
+},
+{
+"id": 2506149,
+"name": "Mazey Day",
+"season": 6,
+"number": 4,
+"airdate": "2023-06-15"
+},
+{
+"id": 2506150,
+"name": "Demon 79",
+"season": 6,
+"number": 5,
+"airdate": "2023-06-15"
+},
+{
+"id": 3172640,
+"name": "Common People",
+"season": 7,
+"number": 1,
+"airdate": "2025-04-10"
+},
+{
+"id": 3172692,
+"name": "Bête Noire",
+"season": 7,
+"number": 2,
+"airdate": "2025-04-10"
+},
+{
+"id": 3172693,
+"name": "Hotel Reverie",
+"season": 7,
+"number": 3,
+"airdate": "2025-04-10"
+},
+{
+"id": 3172695,
+"name": "Plaything",
+"season": 7,
+"number": 4,
+"airdate": "2025-04-10"
+},
+{
+"id": 3172696,
+"name": "Eulogy",
+"season": 7,
+"number": 5,
+"airdate": "2025-04-10"
+},
+{
+"id": 3172697,
+"name": "USS Callister: Into Infinity",
+"season": 7,
+"number": 6,
+"airdate": "2025-04-10"
+}
+]
+}
+}

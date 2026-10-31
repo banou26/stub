@@ -1358,7 +1358,7 @@ ORDER BY year
 | # | gate | rule | record |
 | --- | --- | --- | --- |
 | 0 | year bucket | only clusters sharing a RUN-scoped `year` are compared | `fuzzy-merge.ts:597-605` |
-| 1 | format | both name a format and they are disjoint: refuse; else `silent` when either is unnamed | `fuzzy-merge.ts:397` |
+| 1 | format | both name a format and they are disjoint: refuse; a film against a cluster filed as a show or season and not as anime: refuse (`filmAgainstShow`, Black Mirror and the 2011 film of that name, 2026-10-31); else `silent` when either is unnamed | `fuzzy-merge.ts:397` |
 | 2 | season | both name an ordinal and they disagree: refuse. Silence never blocks: making it block refuses 323 welds and destroys 12,007 correct merges, one per 37 (`fuzzy-merge.ts:405-411`, 1432a9e) | `fuzzy-merge.ts:431` |
 | 3 | start date | both have a `startDay` and no pair within `START_DATE_WINDOW_DAYS = 45` (`fuzzy-merge.ts:46`): refuse. 83 refused for 81 lost at 45 days (`:163-164`); consecutive cours sit about 91 days apart, so the window has a structural ceiling (`:35-41`) | `fuzzy-merge.ts:494-497` |
 | 4 | companion | both name a work kind, disjoint, AND a companion marker: refuse. Both signals: 49 of 84 refused, 2 correct lost, ratio 24.5; the marker alone destroys 77, the disagreement alone 547 (`fuzzy-merge.ts:507-514`) | `fuzzy-merge.ts:562-565` |
@@ -1925,7 +1925,8 @@ opened it with none of the episodes (`anilist:189046` split off Re:ZERO Season 4
 the visible rest of the address opens instead. Ranking by the most of the address held was tried and
 refused: it sends a visible card that kept its id to the larger fragment, another title.
 The caller follows `preferredRun` when the resolved cluster is a container (`findMediaForPage` then
-`preferAttachedRun`, `db.ts:349-364`: "a show page follows to its attached run, earliest first"). Both
+`preferAttachedRun`, `db.ts:349-364`: "a show page follows to its attached run, earliest first"), unless
+the site does not keep that run (`siteAllows`), and then the show's own view is what it draws. Both
 paths fall through the same way: a resolve by `_id`, or through `published`, that lands on a cluster
 not holding the member the route names (`/media/:uri/:mediaUri`) falls through to resolving that member
 uri by statement 1, so a client holding an old `_id` or an old address never silently opens a cluster
