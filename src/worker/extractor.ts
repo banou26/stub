@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { SourceAccount, ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, SourceAccount, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -29,7 +29,7 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { handleClaims, normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { askAccount, readPluginPayload, readPluginSources, type RegisteredSource } from './plugin-sources'
+import { askAccount, handValues, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -605,7 +605,7 @@ export const extractors = Object.values(extractorDefinitions).map(definition => 
 type RemotePluginContext = { similarMedia: ExtractorServerContext['similarMedia'], languages: ViewerLanguages }
 type RemotePluginSubscribe = (parent: undefined, args: unknown, ctx: RemotePluginContext) => Promise<AsyncIterable<any>>
 /** One connection may carry several sources, so a package can ship a whole family of them. */
-type RemotePluginPayload = RemotePluginSource & { sources?: unknown }
+type RemotePluginPayload = RemotePluginSource & { sources?: unknown, settings?: unknown, configure?: unknown }
 type RemotePluginSource = {
   origin?: unknown
   originUrl?: unknown
@@ -720,15 +720,29 @@ export const remoteAccount = async (origin: string): Promise<SourceAccount | und
   return entry ? askAccount(entry.ask) : undefined
 }
 
+type Configure = (values: PluginValues) => Promise<unknown>
+const configurers = new Map<string, Configure>()
+
+/** Hands a package the values saved in Settings on its connection; one that serves no `configure` or is gone takes nothing. */
+export const configureRemoteExtractor = async (pluginUri: string, values: PluginValues) => {
+  const configure = configurers.get(pluginUri)
+  if (configure) await handValues(configure, values)
+}
+
 export const registerRemoteExtractor = async (
   port: MessagePort,
-  pluginUri: string
-): Promise<{ sources: RegisteredSource[], rejected: { origin: string, reason: string }[] }> => {
+  pluginUri: string,
+  values: PluginValues = {}
+): Promise<{ sources: RegisteredSource[], rejected: { origin: string, reason: string }[], settings: PluginSettingField[] }> => {
   const remote = await attach(port) as RemotePluginPayload
+  const configure = typeof remote.configure === 'function' ? remote.configure as Configure : undefined
+  // before its sources join: a fan-out still open asks them at once, and an answer needs what the viewer entered
+  if (configure) await handValues(configure, values)
   const { sources, rejected } = readPluginSources(remote, pluginUri)
 
   // a reconnect re-registers the same plugin, so drop its own previous entries before the collision check
   unregisterRemoteExtractor(pluginUri)
+  if (configure) configurers.set(pluginUri, configure)
 
   const registered: RegisteredSource[] = []
   const failed = [...rejected]
@@ -764,7 +778,7 @@ export const registerRemoteExtractor = async (
     throw new Error(`plugin '${pluginUri}': no source could be registered${detail ? ` (${detail})` : ''}`)
   }
 
-  return { sources: registered, rejected: failed }
+  return { sources: registered, rejected: failed, settings: readPluginSettings(remote.settings) }
 }
 
 export const unregisterRemoteExtractor = (pluginUri: string) => {
@@ -777,6 +791,7 @@ export const unregisterRemoteExtractor = (pluginUri: string) => {
   for (const [origin, account] of accounts) {
     if (account.pluginUri === pluginUri) accounts.delete(origin)
   }
+  configurers.delete(pluginUri)
   for (let index = extractors.length - 1; index >= 0; index -= 1) {
     const entry = extractors[index]!
     if (entry.pluginUri !== pluginUri) continue

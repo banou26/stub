@@ -1,6 +1,6 @@
 // nothing here touches the graph or the source barrel, so it stays importable outside a browser
 
-import type { SourceAccess, SourceAccount } from '../plugin-api'
+import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount } from '../plugin-api'
 
 /** A short lowercase token. Origins name things across the store, the UI and the uri grammar. */
 export const PLUGIN_ORIGIN_TOKEN = /^[a-z0-9][a-z0-9-]{0,31}$/
@@ -102,9 +102,36 @@ export const askAccount = (account: () => Promise<unknown>): Promise<SourceAccou
     new Promise<undefined>(resolve => setTimeout(resolve, ACCOUNT_WAIT_MS)),
   ])
 
+/** How long a plugin has to take its values. The connection has no time limit of its own, and its sources wait for this. */
+export const CONFIGURE_WAIT_MS = 3_000
+
+/**
+ * Hands a plugin its values, settling within CONFIGURE_WAIT_MS. What a plugin rejects with is dropped unread, since it
+ * may quote a value and a caller could log it.
+ */
+export const handValues = (configure: (values: PluginValues) => Promise<unknown>, values: PluginValues): Promise<unknown> =>
+  Promise.race([
+    Promise.resolve().then(() => configure(values)).catch(() => {}),
+    new Promise(resolve => setTimeout(resolve, CONFIGURE_WAIT_MS)),
+  ])
+
 type PluginEdge = { node: unknown, relation: string }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+const FIELD_KINDS: readonly unknown[] = ['text', 'url', 'secret'] satisfies PluginSettingKind[]
+
+/** The fields a connection lists. As with a source, a malformed or repeated one costs only itself. */
+export const readPluginSettings = (settings: unknown): PluginSettingField[] => {
+  if (!Array.isArray(settings)) return []
+  const claimed = new Set<string>()
+  return settings.flatMap((field: unknown) => {
+    if (!isObject(field) || typeof field.key !== 'string' || !field.key || typeof field.label !== 'string' || !field.label) return []
+    if (!FIELD_KINDS.includes(field.kind) || claimed.has(field.key)) return []
+    claimed.add(field.key)
+    return [{ key: field.key, label: field.label.slice(0, 64), kind: field.kind as PluginSettingKind, required: field.required === true }]
+  })
+}
 
 // a bare row names a media by uri, or by origin and id; the uri is derived when only the pair is there
 const asRow = (value: unknown): Record<string, unknown> | undefined => {

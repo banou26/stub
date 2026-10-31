@@ -1,5 +1,7 @@
-// Which plugin packages the viewer added, as kept in this browser. Import free, so the settings page's
-// list of what stub keeps can name the keys without loading the plugin runtime.
+// Which plugin packages the viewer added, and what they entered for each, as kept in this browser. Import
+// free, so the settings page's list of what stub keeps can name the keys without loading the plugin runtime.
+
+import type { PluginValues } from './plugin-api'
 
 /**
  * The localStorage key holding the packages this device added outside an FKN account's list, a JSON
@@ -8,6 +10,8 @@
 export const ENABLED_PLUGINS_KEY = 'stub-enabled-plugins'
 /** The localStorage key holding the FKN account's list as last read, while this browser uses it. */
 export const ACCOUNT_PLUGINS_KEY = 'stub-account-plugins'
+/** The localStorage key holding what the viewer entered for each source, by package id. It never leaves this browser. */
+export const PLUGIN_VALUES_KEY = 'stub-plugin-values'
 
 export type ListStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -50,5 +54,25 @@ export const saveAccount = (uris: string[] | undefined, storage = defaultStorage
   try {
     if (uris) storage?.setItem(ACCOUNT_PLUGINS_KEY, JSON.stringify(uris))
     else storage?.removeItem(ACCOUNT_PLUGINS_KEY)
+  } catch {}
+}
+
+const readValues = (storage: ListStorage | undefined): Record<string, PluginValues> => {
+  try {
+    return JSON.parse(storage?.getItem(PLUGIN_VALUES_KEY) ?? '{}') ?? {}
+  } catch {
+    return {}
+  }
+}
+
+export const loadPluginValues = (uri: string, storage = defaultStorage()): PluginValues => readValues(storage)[uri] ?? {}
+
+/** Keeps what the viewer entered for a source, or with no values removes it. */
+export const savePluginValues = (uri: string, values: PluginValues, storage = defaultStorage()) => {
+  const { [uri]: _, ...others } = readValues(storage)
+  const all = Object.keys(values).length ? { ...others, [uri]: values } : others
+  try {
+    if (Object.keys(all).length) storage?.setItem(PLUGIN_VALUES_KEY, JSON.stringify(all))
+    else storage?.removeItem(PLUGIN_VALUES_KEY)
   } catch {}
 }

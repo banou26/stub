@@ -38,7 +38,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 26 October 2026</div>
+    <div className="updated">Last updated 31 October 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -142,7 +142,8 @@ const Privacy = () => (
     <p>
       Sources you add in <Link to="/settings#sources">Settings</Link> are told the language you picked there, or else
       your browser's, and the audio and subtitle languages you last picked in a player, so they can offer releases in
-      them.
+      them. A source also receives what you enter for it there, such as an API key, and its own code decides where
+      that goes.
     </p>
 
     <h2>The optional browser extension</h2>

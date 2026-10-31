@@ -4,7 +4,7 @@
 import { CARRIED_LANGUAGE_KEY } from '../../i18n/languages'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { UPDATE_RELOADS_KEY } from '../../update/gate'
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../plugin-list'
 import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
 import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
@@ -34,6 +34,14 @@ export const STORED: readonly StoredItem[] = [
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
     lasts: "Until you remove them. The account's copy is deleted with your FKN account, and this browser's copy of it when you sign out",
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
+  },
+  {
+    id: 'source-settings',
+    title: 'Source settings',
+    what: 'What you enter in Settings for a source you added, such as a server address or an API key, as you typed it, not encrypted. stub hands it to that source each time the source connects and when you save it, and to no other source. It never goes to your FKN account, so you enter it again on each site and device.',
+    where: LOCAL,
+    lasts: "Until you change it or remove the source, or clear this site's data in your browser. A source from your FKN account's list goes from this browser when you sign out, and this goes with it",
+    keys: { store: 'local', names: [PLUGIN_VALUES_KEY] },
   },
   {
     id: 'settings',

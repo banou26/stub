@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 
+import { PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
 import { keepAudioLanguage, keepSubtitleLanguage } from '../../../src/utils/track-languages'
 
 // FKN's mount of a package into the player's frame: each call is one document of the package, serving `source`
@@ -76,6 +77,17 @@ test("the source's player is handed the release and the viewer's languages", asy
   keepSubtitleLanguage(null)
   await shown(1)
   expect(source.play).toHaveBeenCalledWith({ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null } })
+})
+
+test('the document that plays is not the one the worker connected to, so it takes the saved values before it plays', async () => {
+  const told: string[] = []
+  const configure = vi.fn(async () => { told.push('configure') })
+  const source = { play: vi.fn(async () => { told.push('play'); return true }), configure }
+  fkn.source = source
+  stored.set(PLUGIN_VALUES_KEY, JSON.stringify({ [PACKAGE]: { apiKey: 'a-saved-value' }, 'npm:@spec/another': { apiKey: 'not-its-own' } }))
+  await shown(1)
+  expect(configure).toHaveBeenCalledExactlyOnceWith({ apiKey: 'a-saved-value' })
+  expect(told).toEqual(['configure', 'play'])
 })
 
 test('one document of the package plays each release of its source in turn, and goes with the player', async () => {

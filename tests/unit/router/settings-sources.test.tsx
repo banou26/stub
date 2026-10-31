@@ -20,6 +20,7 @@ const calls = vi.hoisted(() => ({
   addPlugins: vi.fn(async () => {}),
   installPlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
   disablePlugin: vi.fn(async (_uri: string) => {}),
+  configurePlugin: vi.fn(async (_uri: string, _values: object) => {}),
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null, GripVertical: () => null }))
@@ -36,6 +37,7 @@ const { SourcesSection } = await import('../../../src/router/settings/sources')
 const { startLanguage } = await import('../../../src/i18n')
 const { builtInSources } = await import('../../../src/sources/built-in')
 const { DISABLED_SOURCES_KEY } = await import('../../../src/sources/disabled-sources')
+const { PLUGIN_VALUES_KEY } = await import('../../../src/plugin-list')
 const { HIDDEN_ICONS_KEY } = await import('../../../src/sources/hidden-icons')
 const { DEFAULT_MERGE_ORDER } = await import('../../../src/sources/merge-order')
 
@@ -342,5 +344,85 @@ describe('in Russian', () => {
     expect(row(FIVE.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/five · 5 источников · 2 недоступны')
     expect(row(FIVE.uri).querySelector('.pill')!.textContent).toBe('Подключён')
     expect(row(FIVE.uri).querySelector('button')!.getAttribute('aria-label')).toBe('Удалить A, B, C, D, E')
+  })
+})
+
+describe('a source that lists settings', () => {
+  const ASKING: PluginStatus = {
+    ...CONNECTED,
+    settings: [
+      { key: 'address', label: 'Server address', kind: 'url', required: true },
+      { key: 'apiKey', label: 'Server key', kind: 'secret', required: true },
+      { key: 'category', label: 'Category', kind: 'text' },
+    ],
+  }
+  const SECRET = 'a-secret-the-page-keeps'
+  const keep = (values: object) => stored.set(PLUGIN_VALUES_KEY, JSON.stringify({ [ASKING.uri]: values }))
+  const field = (row: HTMLElement, label: string) => [...row.querySelectorAll('label')].find(item => item.textContent === label)!.querySelector('input')!
+  const fill = (input: HTMLInputElement, value: string) => act(() => {
+    input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  const save = (row: HTMLElement) => act(async () => { row.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+  const saveButton = (row: HTMLElement) => row.querySelector('form button')!
+
+  test('shows a form on its row in the words of the plugin, each field its kind, and one that lists none shows none', () => {
+    const { row } = render([ASKING, { ...FAILED }, { ...CONNECTED, uri: 'npm:@spec/two' }])
+    expect([...row(ASKING.uri).querySelectorAll('label')].map(label => label.textContent)).toEqual(['Server address', 'Server key', 'Category'])
+    expect([...row(ASKING.uri).querySelectorAll('input')].map(input => input.getAttribute('type'))).toEqual(['url', 'password', 'text'])
+    expect(row(FAILED.uri).querySelector('form')).toBeNull()
+    expect(row('npm:@spec/two').querySelector('form')).toBeNull()
+  })
+
+  test('a secret is a password input, and what was saved for it is never on the page as text', () => {
+    keep({ address: 'https://server.spec.test', apiKey: SECRET })
+    const { host, row } = render([ASKING])
+    const input = field(row(ASKING.uri), 'Server key')
+    expect(input.getAttribute('type')).toBe('password')
+    expect(input.value, 'it can be replaced or cleared').toBe(SECRET)
+    expect(host.textContent).not.toContain(SECRET)
+  })
+
+  test('Save hands over what was entered, trimmed, without what was left empty, and has nothing to do until the next change', async () => {
+    keep({ category: 'old' })
+    const { row } = render([ASKING])
+    const form = row(ASKING.uri)
+    expect(saveButton(form).getAttribute('aria-disabled'), 'nothing to save yet').toBe('true')
+    await save(form)
+    expect(calls.configurePlugin).not.toHaveBeenCalled()
+
+    await fill(field(form, 'Server address'), '  https://server.spec.test ')
+    await fill(field(form, 'Server key'), SECRET)
+    await fill(field(form, 'Category'), '   ')
+    expect(saveButton(form).getAttribute('aria-disabled')).toBeNull()
+    await save(form)
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: 'https://server.spec.test', apiKey: SECRET })
+    expect(field(form, 'Server address').value).toBe('https://server.spec.test')
+    expect(saveButton(form).getAttribute('aria-disabled')).toBe('true')
+  })
+
+  test('a required field left empty shows in one line on its row, until it is saved, and the rest of the list stays', async () => {
+    keep({ address: 'https://server.spec.test' })
+    const { row } = render([ASKING, FAMILY])
+    const form = row(ASKING.uri)
+    expect(form.querySelector('.failure')!.textContent).toBe('Required: Server key')
+    expect(row(FAMILY.uri).querySelector('.failure'), 'on its own row').toBeNull()
+    expect(row(FAMILY.uri).querySelector('.pill')!.textContent).toBe('Connected')
+
+    await fill(field(form, 'Server key'), SECRET)
+    expect(form.querySelector('.failure'), 'typed is not saved').not.toBeNull()
+    await save(form)
+    expect(form.querySelector('.failure')).toBeNull()
+  })
+
+  test('a required field can be saved empty, and so can every field', async () => {
+    keep({ address: 'https://server.spec.test', apiKey: SECRET })
+    const { row } = render([ASKING])
+    const form = row(ASKING.uri)
+    await fill(field(form, 'Server address'), '')
+    await fill(field(form, 'Server key'), '')
+    await save(form)
+    expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, {})
+    expect(form.querySelector('.failure')!.textContent).toBe('Required: Server address, Server key')
   })
 })

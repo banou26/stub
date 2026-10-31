@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import type { MessageDescriptor } from 'react-intl'
+import type { PluginSettingField } from '../../plugin-api'
 import type { AccountsProps } from './accounts'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
@@ -10,7 +11,8 @@ import { defineMessages, useIntl } from 'react-intl'
 import OriginIcon from '../../components/origin-icon'
 import { switchStyle } from '../../components/switch-style'
 import { NAME_LIST } from '../../i18n'
-import { addPlugins, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
+import { loadPluginValues } from '../../plugin-list'
+import { addPlugins, configurePlugin, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources, drawnAs } from '../../sources/built-in'
 import { setIconShown, useHiddenIcons } from '../../sources/hidden-icons'
 import { readDisabledSources, setSourceEnabled, turnSourcesOn, watchDisabledSources } from '../../sources/disabled-sources'
@@ -238,6 +240,40 @@ const style = css`
     font-size: 1.3rem;
   }
 
+  .plugin form {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    max-width: 52rem;
+  }
+
+  .plugin form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    overflow-wrap: anywhere;
+  }
+
+  .plugin form input {
+    height: 3.6rem;
+    padding: 0 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: #fff;
+    font: inherit;
+    font-size: 1.4rem;
+    outline: none;
+  }
+
+  .plugin form input:focus { border-color: rgba(255, 255, 255, 0.5); }
+  .plugin form button { align-self: flex-start; }
+  .plugin form button[aria-disabled='true'] { opacity: 0.6; cursor: default; }
+
   /* on a phone the pill goes under the address, so Remove stays at the right edge of every row */
   @media (max-width: 480px) {
     .row.plugin { grid-template-columns: minmax(0, 1fr) auto; }
@@ -331,6 +367,50 @@ const MOVE = defineMessages({
 // an address's own form, the same in every language
 const ADDRESS_EXAMPLE = 'npm:@scope/package'
 
+// Preact's types tell its input apart by a literal `type`, so a union of them only checks through a cast
+const INPUT_TYPE = { text: 'text', url: 'url', secret: 'password' }
+
+/** What a package asks the viewer for. A field left empty is not kept, which is how a required one reads as missing. */
+const PluginForm = ({ uri, name, fields }: { uri: string, name: string, fields: PluginSettingField[] }) => {
+  const intl = useIntl()
+  const [saved, setSaved] = useState(() => loadPluginValues(uri))
+  const [draft, setDraft] = useState(saved)
+  const entered = Object.fromEntries(fields.flatMap(({ key }) => draft[key]?.trim() ? [[key, draft[key].trim()]] : []))
+  const changed = fields.some(({ key }) => entered[key] !== saved[key])
+  const missing = fields.filter(field => field.required && !saved[field.key]).map(field => field.label)
+
+  const onSave = (event: Event) => {
+    event.preventDefault()
+    if (!changed) return
+    setSaved(entered)
+    setDraft(entered)
+    void configurePlugin(uri, entered)
+  }
+
+  // aria-disabled, so the press that saves leaves the focus on the button
+  return (
+    <form onSubmit={onSave}>
+      {fields.map(({ key, label, kind, required }) => (
+        <label key={key}>
+          {label}
+          <input
+            type={INPUT_TYPE[kind] as 'text'}
+            autoComplete={kind === 'secret' ? 'new-password' : 'off'}
+            spellcheck={false}
+            aria-required={required ? true : undefined}
+            value={draft[key] ?? ''}
+            onInput={event => setDraft({ ...draft, [key]: (event.target as HTMLInputElement).value })}
+          />
+        </label>
+      ))}
+      {missing.length ? <p className="failure">{intl.formatMessage({ id: 'Required: {fields}', defaultMessage: 'Required: {fields}' }, { fields: intl.formatList(missing, NAME_LIST) })}</p> : undefined}
+      <button type="submit" className="secondary small" aria-label={intl.formatMessage({ id: 'Save {name} settings', defaultMessage: 'Save {name} settings' }, { name })} aria-disabled={changed ? undefined : true}>
+        {intl.formatMessage({ id: 'Save', defaultMessage: 'Save' })}
+      </button>
+    </form>
+  )
+}
+
 const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () => void }) => {
   const intl = useIntl()
   const sources = plugin.sources ?? []
@@ -359,6 +439,7 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
         {intl.formatMessage({ id: 'Remove', defaultMessage: 'Remove' })}
       </button>
       {plugin.state === 'error' ? <p className="failure">{intl.formatMessage({ id: 'Could not connect to this source.', defaultMessage: 'Could not connect to this source.' })}</p> : undefined}
+      {plugin.settings?.length ? <PluginForm uri={plugin.uri} name={name} fields={plugin.settings}/> : undefined}
     </li>
   )
 }

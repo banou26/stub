@@ -8,7 +8,7 @@ import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../../src/plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
 import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { COUNTRY_KEY } from '../../../src/sources/country'
@@ -33,6 +33,7 @@ const byId = (id: string) => {
 describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
+    expect(byId('source-settings').keys).toEqual({ store: 'local', names: [PLUGIN_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
       names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],

@@ -2,9 +2,9 @@ import type { InstallOptions } from '@fkn/lib/packages'
 
 import { packages } from '@fkn/lib'
 
-import { registerRemoteSource, unregisterRemoteSource } from './worker'
-import { STUB_SOURCE_PROTOCOL, type SourceAccess } from './plugin-api'
-import { loadEnabled } from './plugin-list'
+import { configureRemoteSource, registerRemoteSource, unregisterRemoteSource } from './worker'
+import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type PluginValues, type SourceAccess } from './plugin-api'
+import { loadEnabled, loadPluginValues, savePluginValues } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud } from './tracking/fkn-cloud-live'
 import { comparablePluginUri } from './utils/plugin-links'
@@ -20,6 +20,8 @@ export type PluginStatus = {
   sources?: { origin: string, name: string, icon?: string | null, isApiOnly?: boolean, access?: SourceAccess }[]
   /** sources the package declared that could not be registered; the rest still serve */
   rejected?: { origin: string, reason: string }[]
+  /** what the package asks the viewer for, known once it connected */
+  settings?: PluginSettingField[]
 }
 
 const statuses = new Map<string, PluginStatus>()
@@ -100,11 +102,11 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
       scheduleReconnect(uri, 1)
     })
     const result = await withDeadline(Promise.race([
-      registerRemoteSource(port, uri),
+      registerRemoteSource(port, uri, loadPluginValues(uri)),
       closed.then(() => ({ error: 'the plugin closed while connecting' as string })),
     ]), `'${uri}' did not finish connecting`)
     if ('error' in result) throw new Error(result.error)
-    setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected })
+    setStatus(uri, { state: 'connected', sources: result.ok.sources, rejected: result.ok.rejected, settings: result.ok.settings })
   } catch (error) {
     console.warn(`Plugin '${uri}' failed to connect:`, error)
     // the slot stays claimed while FKN is asked, so nothing reconnects meanwhile
@@ -127,10 +129,12 @@ const cancelReconnect = (uri: string) => {
   if (timer !== undefined) { clearTimeout(timer); retryTimers.delete(uri) }
 }
 
+// the source left this site, by any way a source leaves it, so what the viewer entered for it goes too
 const disconnect = (uri: string) => {
   cancelReconnect(uri)
   connected.delete(uri)
   statuses.delete(uri)
+  savePluginValues(uri, {})
   void unregisterRemoteSource(uri)
 }
 
@@ -203,6 +207,12 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   // told before the uninstall, which FKN may never answer
   notify()
   await packages.uninstall(uri).catch(() => {})
+}
+
+/** Keeps what the viewer entered for a source on this device, and hands it to the source at once. */
+export const configurePlugin = async (uri: string, values: PluginValues): Promise<void> => {
+  savePluginValues(uri, values)
+  await configureRemoteSource(uri, values)
 }
 
 // picks over npm packages tagged fkn-plugin--stub

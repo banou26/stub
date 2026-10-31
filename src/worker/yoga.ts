@@ -1,7 +1,7 @@
 import type { YogaInitialContext } from 'graphql-yoga'
 import type { Resolvers as MainThreadResolvers } from '../worker'
 import type { RegisteredSource } from './plugin-sources'
-import type { ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, ViewerLanguages } from '../plugin-api'
 
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
 import { createSchema, createYoga, useErrorHandler, useExecutionCancellation } from 'graphql-yoga'
@@ -9,7 +9,7 @@ import { expose } from 'osra'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
-import { extractors, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
+import { configureRemoteExtractor, extractors, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remotePicker, remotePlayer, selectRemoteRelease } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
 import { holdViewerLanguages } from '../viewer-languages'
@@ -68,14 +68,15 @@ export const osraResolvers = {
   // the merge order set in Settings, handed over before the engine boots and again on every change
   setMergeOrder: (order: string[]) => setMergeOrder(order),
   setViewerLanguages: (languages: ViewerLanguages) => holdViewerLanguages(languages),
-  registerRemoteSource: async (port: MessagePort, pluginUri: string): Promise<{ ok: { sources: RegisteredSource[], rejected: { origin: string, reason: string }[] } } | { error: string }> => {
+  registerRemoteSource: async (port: MessagePort, pluginUri: string, values?: PluginValues): Promise<{ ok: { sources: RegisteredSource[], rejected: { origin: string, reason: string }[], settings: PluginSettingField[] } } | { error: string }> => {
     try {
-      return { ok: await registerRemoteExtractor(port, pluginUri) }
+      return { ok: await registerRemoteExtractor(port, pluginUri, values) }
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) }
     }
   },
   unregisterRemoteSource: (pluginUri: string) => unregisterRemoteExtractor(pluginUri),
+  configureRemoteSource: (pluginUri: string, values: PluginValues) => configureRemoteExtractor(pluginUri, values),
   // the plugin origins are derived HERE rather than taken from the caller, so a caller cannot decline
   // to exclude them: a plugin's rows are that user's, never the product's.
   exportStore: (options?: { excludeOrigins?: string[] }) =>

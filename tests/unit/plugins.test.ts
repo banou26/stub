@@ -132,7 +132,7 @@ test('a connection after the source failed, or after it closed, reads as a retry
     if (uri === closing) return { port: {}, closed }
     return new Promise(() => {})
   })
-  vi.mocked(worker.registerRemoteSource).mockResolvedValue({ ok: { sources: [], rejected: [] } })
+  vi.mocked(worker.registerRemoteSource).mockResolvedValue({ ok: { sources: [], rejected: [], settings: [] } })
   const seen = new Map<string, object[]>()
   const stop = onPluginsChange(() => {
     for (const { uri, ...status } of pluginStatuses()) {
@@ -151,7 +151,7 @@ test('a connection after the source failed, or after it closed, reads as a retry
 
     await installPlugin(closing)
     await vi.advanceTimersByTimeAsync(0)
-    expect(seen.get(closing)).toEqual([{ state: 'connecting' }, { state: 'connected', sources: [], rejected: [] }])
+    expect(seen.get(closing)).toEqual([{ state: 'connecting' }, { state: 'connected', sources: [], rejected: [], settings: [] }])
     close()
     await vi.advanceTimersByTimeAsync(0)
     expect(seen.get(closing)?.at(-1)).toEqual({ state: 'connecting', retry: true })

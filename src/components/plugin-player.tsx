@@ -9,10 +9,12 @@ import { useIntl } from 'react-intl'
 
 import type { PlaybackLink } from '../party/bridge'
 
-import { STUB_SOURCE_PROTOCOL, type ViewerLanguages } from '../plugin-api'
+import { STUB_SOURCE_PROTOCOL, type PluginSettings, type ViewerLanguages } from '../plugin-api'
 import { pluginPlaybackLink, servePluginFullscreen, type PlaybackSource } from '../party/plugin-link'
+import { loadPluginValues } from '../plugin-list'
 import { fromUri } from '../utils/uri'
 import { viewerLanguages } from '../viewer-languages'
+import { handValues } from '../worker/plugin-sources'
 
 const style = css`
   position: relative;
@@ -47,7 +49,7 @@ type PlayableSource = PlaybackSource & {
   play?: (release: { uri: string, url?: string, languages?: ViewerLanguages }) => Promise<boolean>
 }
 
-type PluginPayload = PlayableSource & { sources?: PlayableSource[] }
+type PluginPayload = PlayableSource & Pick<PluginSettings, 'configure'> & { sources?: PlayableSource[] }
 
 export type PluginPlayerProps = {
   /** the package, the same for the component's life: the page keys it on this */
@@ -109,6 +111,9 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
         // is what every plugin written before source families sends.
         const { origin } = fromUri(release.uri as `${string}:${string}`)
         const payload = connection.remote
+        // this document is not the one the worker's connection configured
+        if (payload.configure) await handValues(payload.configure, loadPluginValues(pluginUri))
+        if (done) return
         const source = payload.sources?.find(entry => entry.origin === origin) ?? payload
         const played = await source.play?.({ uri: release.uri, url: release.url, languages: viewerLanguages() })
         if (done) return

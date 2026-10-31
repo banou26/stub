@@ -1,6 +1,7 @@
+import type { PluginValues } from '../src/plugin-api'
 import type { PluginStatus } from '../src/plugins'
 
-import { loadDevice, loadEnabled, saveDevice } from '../src/plugin-list'
+import { loadDevice, loadEnabled, loadPluginValues, saveDevice, savePluginValues } from '../src/plugin-list'
 
 // What tests/settings.spec.ts builds the app with in place of src/plugins.ts. FKN never answers there,
 // so a real install or connection would wait forever: here each address in SPEC_PLUGINS is installed at
@@ -13,6 +14,10 @@ export const FREE_RELEASES = 'npm:@spec/free-releases'
 /** An added source like FREE_RELEASES whose releases need an account, and whose `account` answers what SPEC_ACCOUNT_KEY holds. */
 export const ACCOUNT_RELEASES = 'npm:@spec/account-releases'
 export const SPEC_ACCOUNT_KEY = 'spec.account'
+
+/** An added source that asks for an address and an API key, and writes each `configure` it gets to SPEC_CONFIGURED_KEY in this tab. */
+export const CONFIGURED_SOURCE = 'npm:@spec/configured-source'
+export const SPEC_CONFIGURED_KEY = 'spec.configured'
 
 export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   'npm:@spec/anime-source': { state: 'connected', sources: [{ origin: 'spec-anime', name: 'Spec Anime' }] },
@@ -31,6 +36,7 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
   // connected once the worker has registered them, below
   [FREE_RELEASES]: { state: 'connecting' },
   [ACCOUNT_RELEASES]: { state: 'connecting' },
+  [CONFIGURED_SOURCE]: { state: 'connecting' },
 }
 
 const row = (origin: string, id: string, fields: object = {}) => ({
@@ -86,6 +92,17 @@ const releasing = (origin: string, name: string, fields: object = {}) => ({
 const REGISTERED: Record<string, object> = {
   [FREE_RELEASES]: releasing('spec-free', 'Spec Free'),
   [ACCOUNT_RELEASES]: releasing('spec-paid', 'Spec Paid', { access: 'account', account: async () => localStorage.getItem(SPEC_ACCOUNT_KEY) }),
+  [CONFIGURED_SOURCE]: releasing('spec-configured', 'Spec Configured', {
+    settings: [
+      { key: 'address', label: 'Address', kind: 'url', required: true },
+      { key: 'apiKey', label: 'API key', kind: 'secret', required: true },
+      { key: 'category', label: 'Category', kind: 'text' },
+    ],
+    configure: async (values: PluginValues) => {
+      const before = JSON.parse(sessionStorage.getItem(SPEC_CONFIGURED_KEY) ?? '[]') as PluginValues[]
+      sessionStorage.setItem(SPEC_CONFIGURED_KEY, JSON.stringify([...before, values]))
+    },
+  }),
 }
 
 const listeners = new Set<() => void>()
@@ -123,7 +140,14 @@ export const enablePlugin = async (uri: string): Promise<string | null> => {
 
 export const disablePlugin = async (uri: string): Promise<void> => {
   saveDevice(loadDevice().filter(enabled => enabled !== uri))
+  savePluginValues(uri, {})
   notify()
+}
+
+export const configurePlugin = async (uri: string, values: PluginValues): Promise<void> => {
+  savePluginValues(uri, values)
+  const { configureRemoteSource } = await import('../src/worker')
+  await configureRemoteSource(uri, values)
 }
 
 export const addPlugins = async (): Promise<void> => {}
@@ -133,8 +157,8 @@ for (const [uri, source] of Object.entries(REGISTERED)) {
   void Promise.all([import('@fkn/lib/packages'), import('../src/worker')]).then(async ([{ attach }, { registerRemoteSource }]) => {
     const { port1, port2 } = new MessageChannel()
     void attach(port1, source)
-    const result = await registerRemoteSource(port2, uri)
-    if ('ok' in result) SPEC_PLUGINS[uri] = { state: 'connected', sources: result.ok.sources }
+    const result = await registerRemoteSource(port2, uri, loadPluginValues(uri))
+    if ('ok' in result) SPEC_PLUGINS[uri] = { state: 'connected', sources: result.ok.sources, settings: result.ok.settings }
     notify()
   })
 }

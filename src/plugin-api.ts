@@ -126,6 +126,31 @@ export type StubSource = {
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
+/** What a field of a plugin's settings holds. A `secret` is drawn as a password input. */
+export type PluginSettingKind = 'text' | 'url' | 'secret'
+
+/** One value a plugin asks the viewer for. `label` is shown as written, so it is the plugin's own words. */
+export type PluginSettingField = { key: string, label: string, kind: PluginSettingKind, required?: boolean }
+
+/** What the viewer entered, by field key. A field left empty is not there. */
+export type PluginValues = Record<string, string>
+
+/**
+ * What a package asks the viewer for, beside `origin` on a single source or beside `sources` on a family, so one form
+ * serves the whole connection. Optional and additive to stub-source@1: a package without it connects as before and
+ * shows no form.
+ */
+export type PluginSettings = {
+  /** The fields Settings shows on the package's row. A malformed or repeated one is dropped on its own. */
+  settings?: PluginSettingField[]
+  /**
+   * Take the viewer's values: on every connection, before the package's sources are asked anything, and at once when
+   * the viewer saves. The first call may hold no values at all, and a required field left empty stays out of them, so
+   * a package answers what it can without it. Stub waits 3 s at most, and a rejection changes nothing.
+   */
+  configure?: (values: PluginValues) => Promise<void>
+}
+
 /**
  * What a plugin serves: one source, or a family of them.
  *
@@ -135,6 +160,6 @@ export type StubSource = {
  * normally, so grouping sources into one package never makes them more fragile than shipping them
  * separately. They are torn down together when the package disconnects.
  */
-export type StubPluginAPI = StubSource | { sources: StubSource[] }
+export type StubPluginAPI = (StubSource | { sources: StubSource[] }) & PluginSettings
 
 export const STUB_SOURCE_PROTOCOL = 'stub-source@1'

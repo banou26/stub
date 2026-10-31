@@ -106,9 +106,10 @@ test('names every host stub asks from the browser, and of their services only An
   expect(items.map(item => item.firstChild!.textContent!.trim()).filter(service => proxied!.includes(service))).toEqual(['AniList'])
 })
 
-test('says what a source added in Settings is told of the viewer: the languages', () => {
+test('says what a source added in Settings is told of the viewer: the languages, and what they entered for it', () => {
   const { text: page } = text()
   expect(page).toContain("Sources you add in Settings are told the language you picked there, or else your browser's, and the audio and subtitle languages you last picked in a player")
+  expect(page).toContain('A source also receives what you enter for it there, such as an API key, and its own code decides where that goes.')
 })
 
 // a video, an embed and a stylesheet the browser loads itself, outside any source's fetch, so direct-fetch.ts lists none
