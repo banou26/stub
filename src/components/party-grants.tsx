@@ -55,8 +55,7 @@ const style = css`
   th { font-weight: 500; text-align: start; color: rgba(255, 255, 255, 0.6); }
   thead th { text-align: center; padding-bottom: 0.4rem; }
   /* the row header takes what the controls leave: a name and its time never widen the menu past them */
-  tbody th { width: 100%; max-width: 0; padding-block: 0.2rem;
- padding-inline: 0 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tbody th { width: 100%; max-width: 0; padding-block: 0.2rem; padding-inline: 0 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   td { text-align: center; padding: 0.2rem 0; }
   .who { display: flex; align-items: center; gap: 0.6rem; }
   .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
