@@ -413,6 +413,17 @@ test('uNoGS describing the title while nobody lists its seasons stays a failure'
   expect(outcome).toMatchObject({ error: expect.anything() })
 })
 
+test('control: uNoGS describing a title Netflix says it has not is an answer, and a refusal', async () => {
+  const { ctx } = rig({
+    unogs: url => url.includes('/episodes') ? down() : answered(url),
+    netflix: async () => Response.json({ data: { videos: [] } }),
+  })
+
+  const outcome = await after(ASK_BOUND_MS - 1, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(outcome).toEqual({ value: null })
+})
+
 test('Netflix describing the title and then failing on its seasons stays a failure', async () => {
   let landings = 0
   const { ctx } = rig({
@@ -441,6 +452,19 @@ test.each([
 
   expect(outcome).toMatchObject({ value: { uri: 'nf:81040344-1', episodeCount: 9 } })
   expect(landingCalls(), 'Netflix was asked').toBeGreaterThan(0)
+})
+
+test('a body that is not JSON is about that one answer, so uNoGS is not left alone for it', async () => {
+  const stage: Stage = { unogs: url => url === `${UNOGS}/user` ? answered(url) : Promise.resolve(new Response('<html>', { status: 200 })) }
+  const { ctx, landingCalls } = rig(stage)
+  await after(1_000, askSimilar(SQUID_GAME_RUN, ctx))
+  const landings = landingCalls()
+  expect(landings, 'the control: it went on to Netflix').toBeGreaterThan(0)
+
+  stage.unogs = url => answered(url)
+  await after(1_000, askSimilar(SQUID_GAME_RUN, ctx))
+
+  expect(landingCalls(), 'the next ask went to uNoGS').toBe(landings)
 })
 
 test('control: uNoGS answering an empty list is no such title, and Netflix is not asked', async () => {
@@ -497,6 +521,9 @@ test('a title whose season list is cut publishes no count for the seasons it saw
 
   expect(outcome).toMatchObject({ value: { uri: 'nf:80107103', scope: 'CONTAINER' } })
   expect(outcome).not.toMatchObject({ value: { episodeCount: expect.anything() } })
+
+  const season = await after(ASK_BOUND_MS - 1, getMedia('80107103', ctx, 3, true))
+  expect(season, 'a season read whole has its count, whatever the list').toMatchObject({ value: { uri: 'nf:80107103-3', episodeCount: 12 } })
 })
 
 // Seasons run 8, 9, 8, 9, 8, and with no year for the first-season veto a 2019 run of 8 took season 1 on its

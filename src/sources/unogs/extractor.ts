@@ -142,8 +142,9 @@ const dedupe = <T>(key: string, call: () => Promise<T>): Promise<T> => {
 }
 
 /**
- * `requireOk` turns a non-success status into a throw, and only the two paths with somewhere to fall
- * back to ask for it: detail and episodes. Search has none, so its error body stays no results.
+ * `requireOk` turns a non-success status into a throw and forgets the token, and only the episodes path
+ * asks for it. Detail judges its body instead (`fetchDetail`), and search has nowhere to fall back to, so
+ * its error body stays no results.
  */
 const api = <T>(url: string, ctx: ExtractorServerContext, { requireOk = false } = {}): Promise<T> => {
   // refused ahead of `upstreamFailure`, or asking during the cooldown would keep extending it
@@ -290,7 +291,7 @@ type SeasonListing = {
 const UNOGS = 'https://unogs.com/api'
 
 const fetchDetail = async (id: string, ctx: ExtractorServerContext): Promise<UnogsTitle[]> => {
-  const body = await api<unknown>(`${UNOGS}/title/detail?netflixid=${id}`, ctx, { requireOk: true })
+  const body = await api<unknown>(`${UNOGS}/title/detail?netflixid=${id}`, ctx)
   // an unknown id answers `[]`, so anything else is unOGS not answering, whatever its status said
   if (!Array.isArray(body)) throw new Error(`uNoGS detail for ${id} came back in a shape this source cannot read`)
   return body
