@@ -40,6 +40,30 @@ const style = css`
     }
   }
 
+  :root[dir='rtl'] {
+    /* a gradient has no logical direction to name */
+    --inline-end: left;
+  }
+
+  /* :dir() rather than [dir]: a player stays left to right inside a right to left page, and its icons with it */
+  :is(.lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-external-link):dir(rtl) {
+    scale: -1 1;
+  }
+
+  /* a title or a synopsis is in its source's words, mostly Latin: each keeps its own order and is cut at its own end, on
+     the side of the page it sits on. No specificity, so a component's own alignment wins. Blocks alone: an inline one
+     would hide its letters from the block choosing the direction. Chrome 156 reads only the prefixed match-parent */
+  :where(h1, h2, [class*='title']:not(.title-text), .title-text div, [class*='description'], [class*='description'] :is(div, p)):where(:dir(rtl)) {
+    unicode-bidi: plaintext;
+    text-align: -webkit-match-parent;
+    text-align: match-parent;
+  }
+
+  /* spacing pulls Arabic's joined letters apart */
+  :lang(ar) {
+    letter-spacing: normal !important;
+  }
+
   *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;

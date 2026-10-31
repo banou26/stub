@@ -45,7 +45,7 @@ const style = css`
 
 /** The privacy and legal pages, kept in English whatever the page's language until a person reviews a translation. */
 export const LegalDoc = ({ children }: { children: ComponentChildren }) => (
-  <div css={style} lang="en">{children}</div>
+  <div css={style} lang="en" dir="ltr">{children}</div>
 )
 
 export default LegalDoc

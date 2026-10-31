@@ -424,6 +424,7 @@ const Graph = (
         <Href.Provider value={href}>
           <Hover.Provider value={setHover}>
             <ReactFlow
+              dir="ltr"
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}

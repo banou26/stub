@@ -308,7 +308,7 @@ const Debug = ({ load = loadTrace, loadAnswerBytes = loadAnswer, warm = warmTrac
   }
 
   return (
-    <div css={style} data-debug-trace>
+    <div css={style} dir="ltr" data-debug-trace>
       <h1>Graph trace</h1>
       <p className="intro">
         Everything the graph holds for one cluster: its members, every link between them including the

@@ -206,6 +206,10 @@ const style = css`
     .ext {
       font-size: 1.4rem;
       color: rgba(255, 255, 255, 0.45);
+
+      &:dir(rtl) {
+        scale: -1 1;
+      }
     }
 
     .playing {
@@ -388,6 +392,11 @@ const style = css`
       flex-shrink: 0;
       font-size: 1rem;
       color: rgba(255, 255, 255, 0.45);
+
+      /* a font mirrors the picker's › by itself, and not this ▸ */
+      &.closed:dir(rtl) {
+        scale: -1 1;
+      }
     }
   }
 
@@ -661,7 +670,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
       <SourceIcon source={source} />
       <span className="name">{source.name}</span>
       <span className="count">{releases.length}</span>
-      <span className="chevron">{owned ? MARKS.picker : open ? MARKS.open : MARKS.closed}</span>
+      <span className={!owned && !open ? 'chevron closed' : 'chevron'}>{owned ? MARKS.picker : open ? MARKS.open : MARKS.closed}</span>
     </>
   )
   const card = detailed(source)
