@@ -44,11 +44,17 @@ sequenceDiagram
   end
   K-->>P: port and closed
   P->>P: closed.then teardown wired BEFORE the handshake
-  P->>W: registerRemoteSource port, uri
+  P->>W: registerRemoteSource port, uri, the values kept for uri
   W->>FR: attach port
   FR-->>W: data fields materialize locally, resolver functions stay remote in the frame
   W->>W: readPluginSources remote, pluginUri
   W->>W: unregisterRemoteExtractor pluginUri, BEFORE the collision check
+  opt the package serves configure
+    W->>FR: configure values, waited for CONFIGURE_WAIT_MS = 3_000 at most, BEFORE any source joins
+    alt unregistered during the wait
+      W-->>P: error, left while connecting
+    end
+  end
   loop each source readPluginSources accepted
     alt extractors already hold this origin
       W->>W: throw, failed.push origin and reason, siblings carry on
@@ -61,8 +67,8 @@ sequenceDiagram
     W-->>P: error, no source could be registered
     P->>P: setStatus error, scheduleReconnect uri, attempt + 1
   else at least one source registered
-    W-->>P: ok, sources and rejected
-    P->>P: setStatus connected, both lists on screen
+    W-->>P: ok, sources, rejected and settings
+    P->>P: setStatus connected, both lists on screen, a form for the settings
   end
 ```
 
@@ -570,7 +576,7 @@ configure?: (values: Record<string, string>) => Promise<void>
 - **`settings`** lists the fields. Once the package connected, its row in Settings, under Sources, shows a
   small form for them. `label` is shown as written, so it is the plugin's own words in its own language. A
   `url` field holds an address, and a `secret` is a password input. A malformed or repeated field is dropped
-  on its own.
+  on its own, and so is one keyed like a member of every object, such as `constructor`.
 - **`configure`** is handed the values by `key`, with a field left empty not there. It is called on every
   connection, before the package's sources join any fan-out, so a search never reaches a plugin still waiting
   for its address, and at once when the viewer saves. The player's own document (`packages.mount`) takes them
