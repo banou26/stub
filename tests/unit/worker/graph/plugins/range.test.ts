@@ -11,7 +11,7 @@
  * Every case names the mutation that reddens it. A rule whose whole output is "nothing was proven" is
  * the kind that passes while doing nothing, and three of the cases below assert exactly that.
  */
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -258,6 +258,118 @@ const samuraiAnswers = async () => [
     })),
   })),
 ]
+
+// HOR-1175, the numbers, days and titles of two recorded pages (2026-10-31). Crunchyroll numbers these
+// seasons on from the last one with as many rows as the run has, so it agrees about the length.
+const JJK2_TITLES = [
+  'Hidden Inventory', 'Hidden Inventory 2', 'Hidden Inventory 3', 'Hidden Inventory 4', 'Premature Death',
+  'That\'s How It Is', 'Evening Festival', 'The Shibuya Incident', 'Shibuya Incident - Gate, Open', 'Pandemonium',
+  'Seance', 'Dull Knife', 'Red Scale', 'Fluctuations', 'Fluctuations, Part 2', 'Thunderclap', 'Thunderclap, Part 2',
+  'Right and Wrong', 'Right and Wrong, Part 2', 'Right and Wrong, Part 3', 'Metamorphosis', 'Metamorphosis, Part 2',
+  'Shibuya Incident - Gate, Close',
+]
+const JJK2_CR_TITLES = JJK2_TITLES.map((name, index) =>
+  index === 5 ? 'It\'s Like That' : index === 7 ? 'Shibuya Incident' : name)
+const JJK2_BROADCAST = [...weekly('2023-07-05', 5), ...weekly('2023-08-30', 18)]
+const JJK2_JW = [...weekly('2023-07-06', 5), ...weekly('2023-08-31', 18)]
+// a day behind JustWatch on episodes 8 to 11, so two days from the broadcast, which no slack reaches
+const JJK2_CR = [...JJK2_JW.slice(0, 7), ...weekly('2023-09-15', 4), ...JJK2_JW.slice(11)]
+
+const SOLO2_BROADCAST = [...weekly('2025-01-04', 7), '2025-02-21', ...weekly('2025-03-01', 5)]
+const SOLO2_CR = weekly('2025-01-04', 13)
+// JustWatch numbers on too, and dates episodes 2, 7 and 9 of the season on other episodes' days
+const SOLO2_JW = [
+  '2025-01-05', '2025-01-05', '2025-01-19', '2025-01-26', '2025-02-02', '2025-02-08', '2025-03-15',
+  '2025-02-22', '2025-02-01', '2025-03-08', '2025-03-16', '2025-03-22', '2025-03-29',
+]
+
+const jjk2Answers = async () => [
+  await answer('media', media('anilist:145064', {
+    score: 0.8, type: 'TV', status: 'FINISHED', episodeCount: 23, startDate: '2023-07-06',
+    titles: [title('en', 'Jujutsu Kaisen Season 2')],
+    handles: [
+      sameAs(media('mal:51009', { score: 0.9 })),
+      sameAs(media('anizip:17196', {})),
+      sameAs(media('kitsu:45857', { score: 0.3 })),
+      sameAs(media('jw:222852-338582', { score: 0.2 })),
+      sameAs(media('cr:GRDV0019R-G6MGC3778', { score: 0.5 })),
+    ],
+  })),
+  await answer('media', media('mal:51009', {
+    score: 0.9, type: 'TV', status: 'FINISHED', episodeCount: 23, startDate: '2023-07-06',
+    titles: [title('en', 'Jujutsu Kaisen Season 2')],
+  })),
+  await answer('media', media('anizip:17196', {
+    type: 'TV', episodeCount: 23, titles: [title('en', 'Jujutsu Kaisen Season 2')],
+    episodes: JJK2_BROADCAST.map((day, index) => episode(`anizip:17196-${index + 1}`, 'anizip:17196', {
+      episodeNumber: index + 1, releaseDate: anizipDay(day), titles: [title('en', JJK2_TITLES[index]!)],
+    })),
+  })),
+  await answer('media', media('kitsu:45857', {
+    score: 0.3, type: 'TV', status: 'FINISHED', episodeCount: 23, titles: [title('en', 'Jujutsu Kaisen Season 2')],
+    episodes: JJK2_TITLES.map((name, index) => episode(`kitsu:326${index + 102}`, 'kitsu:45857', {
+      episodeNumber: index + 1, titles: [title('en', name)],
+    })),
+  })),
+  await answer('media', media('jw:222852-338582', {
+    score: 0.2, type: 'TV', status: 'FINISHED', episodeCount: 23, titles: [title('en', 'Jujutsu Kaisen Season 2')],
+    episodes: JJK2_JW.map((day, index) => episode(`jw:6${index + 388858}`, 'jw:222852-338582', {
+      episodeNumber: index + 1, releaseDate: day, titles: [title('en', JJK2_CR_TITLES[index]!)],
+    })),
+  })),
+  await answer('media', media('cr:GRDV0019R-G6MGC3778', {
+    score: 0.5, type: 'TV', status: 'FINISHED', episodeCount: 23, titles: [title('en', 'Jujutsu Kaisen Season 2')],
+    episodes: JJK2_CR.map((day, index) => episode(`cr:G6MGC3778-${index + 25}`, 'cr:GRDV0019R-G6MGC3778', {
+      episodeNumber: index + 25, releaseDate: day, titles: [title('en', JJK2_CR_TITLES[index]!)],
+    })),
+  })),
+]
+
+const solo2Answers = async () => {
+  const named = (index: number) => [title('en', `Hunter Rank ${index + 1}`)]
+  return [
+    await answer('media', media('anilist:176496', {
+      score: 0.8, type: 'TV', status: 'FINISHED', episodeCount: 13, startDate: '2025-01-05',
+      titles: [title('en', 'Solo Leveling Season 2')],
+      handles: [
+        sameAs(media('mal:58567', { score: 0.9 })),
+        sameAs(media('anizip:18576', {})),
+        sameAs(media('kitsu:48671', { score: 0.3 })),
+        sameAs(media('jw:359486-444272', { score: 0.2 })),
+        sameAs(media('cr:GDKHZEJ0K-GY09CX813', { score: 0.5 })),
+      ],
+    })),
+    await answer('media', media('mal:58567', {
+      score: 0.9, type: 'TV', status: 'FINISHED', episodeCount: 13, startDate: '2025-01-05',
+      titles: [title('en', 'Solo Leveling Season 2')],
+    })),
+    await answer('media', media('anizip:18576', {
+      type: 'TV', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
+      episodes: SOLO2_BROADCAST.map((day, index) => episode(`anizip:18576-${index + 1}`, 'anizip:18576', {
+        episodeNumber: index + 1, releaseDate: anizipDay(day), titles: named(index),
+      })),
+    })),
+    // the same titles as ani.zip's, so a title names two reference rows and the gap closure cannot use it
+    await answer('media', media('kitsu:48671', {
+      score: 0.3, type: 'TV', status: 'FINISHED', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
+      episodes: SOLO2_BROADCAST.map((_, index) => episode(`kitsu:48671-${index + 1}`, 'kitsu:48671', {
+        episodeNumber: index + 1, titles: named(index),
+      })),
+    })),
+    await answer('media', media('jw:359486-444272', {
+      score: 0.2, type: 'TV', status: 'FINISHED', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
+      episodes: SOLO2_JW.map((day, index) => episode(`jw:904${index + 13}`, 'jw:359486-444272', {
+        episodeNumber: index + 13, releaseDate: day, titles: named(index),
+      })),
+    })),
+    await answer('media', media('cr:GDKHZEJ0K-GY09CX813', {
+      score: 0.5, type: 'TV', status: 'FINISHED', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
+      episodes: SOLO2_CR.map((day, index) => episode(`cr:GY09CX813-${index + 13}`, 'cr:GDKHZEJ0K-GY09CX813', {
+        episodeNumber: index + 13, releaseDate: day, titles: named(index),
+      })),
+    })),
+  ]
+}
 
 // 8.3. The catalogue run's ids are not in the record, so the fixture names them; the Netflix title
 // and the epid at position 14 are the record's. Netflix's rows carry OUR titles here, which is the
@@ -700,6 +812,8 @@ beforeAll(async () => {
   await ingestAnswers([
     ...await mushokuAnswers(),
     ...await samuraiAnswers(),
+    ...await jjk2Answers(),
+    ...await solo2Answers(),
     ...await exorcistAnswers(),
     ...await fmaAnswers(),
     ...await windowAnswers(),
@@ -915,6 +1029,43 @@ test('8.2 the renumbered member rows fill 1 to 8, and say a pair put them there'
      RETURN collect(o.uri) AS uris`
   )
   expect((slot!.uris as string[]).sort()).toEqual(['anizip:18903-1', 'cr:GS00366034-13', 'kitsu:49265-1'])
+})
+
+/** What a run's page draws: each row's number and the sources on it. */
+const rowsDrawn = async (uri: string) => {
+  const [cluster] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.episodes AS episodes', { uri })
+  const episodes = JSON.parse(String(cluster!.episodes)) as { episodeNumber: number, handles: { node: { uri: string } }[] }[]
+  return episodes.map(row => ({ number: row.episodeNumber, uris: row.handles.map(handle => handle.node.uri) }))
+}
+const onRows = (rows: Awaited<ReturnType<typeof rowsDrawn>>, origin: string) =>
+  rows.map(row => row.uris.filter(uri => uri.startsWith(`${origin}:`)))
+const oneToN = (length: number) => Array.from({ length }, (_, index) => index + 1)
+
+// HOR-1175: Crunchyroll's 25 to 47 agree about the length, 23, which made them a reference and kept
+// them from ever being paired, so the page drew 1 to 23 without Crunchyroll and 25 to 47 with it alone.
+// Mutation: make `startsPastOne` answer false and the page is those 46 rows again.
+test('a sequel Crunchyroll numbers on from the last season draws one row per episode', async () => {
+  const rows = await rowsDrawn('anilist:145064')
+  expect(rows.map(row => row.number)).toEqual(oneToN(23))
+  expect(onRows(rows, 'cr'), 'each Crunchyroll row on its own episode, the two days off included')
+    .toEqual(oneToN(23).map(number => [`cr:G6MGC3778-${number + 24}`]))
+})
+
+// Solo Leveling season 2 drew 25 rows, and row 13 held Crunchyroll's 13, which is the season's first
+// episode, on the season's last. JustWatch counts on the same way, with three wrong days.
+// Mutation: drop the `ownShift` filter in `decideCandidate` and rows 1, 5 and 11 each hold two
+// JustWatch rows; return no pairs from `closeByOrder` and the page is 16 rows, its three unpaired.
+test('a list as long as the run holds to its own order, so a wrong date moves no row', async () => {
+  const rows = await rowsDrawn('anilist:176496')
+  expect(rows.map(row => row.number)).toEqual(oneToN(13))
+  expect(onRows(rows, 'cr')).toEqual(oneToN(13).map(number => [`cr:GY09CX813-${number + 12}`]))
+  expect(onRows(rows, 'jw')).toEqual(oneToN(13).map(number => [`jw:904${number + 12}`]))
+
+  // a row order placed says so, rather than claiming a date it does not have
+  const pairs = await pairsFrom('jw:359486-444272')
+  const placed = pairs.filter(row => 'between' in evidenceOf(row))
+  expect(placed.map(row => [Number(row.fromNumber), Number(row.toNumber), row.reason]))
+    .toEqual([[14, 2, 'dates-gap'], [19, 7, 'dates-gap'], [21, 9, 'dates-gap']])
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -2226,6 +2377,132 @@ test('an empty reference refuses as no-reference, and a filled one places the se
     .toEqual([[6, 5], [7, 6], [8, 7], [9, 8], [10, 9], [11, 10], [12, 11]])
   // every pair NAMES ani.zip's row and never Kitsu's, which carries the same number and no title
   expect(verdict.ok && verdict.pairs.every(pair => pair.to.uri.startsWith('anizip:980-'))).toBe(true)
+})
+
+// A VOTER THAT COUNTS ON LEAVES THE REFERENCE, and only that one. ani.zip keeps a special's own number,
+// so a list that starts at 1 can reach past the run and is still the run's numbering.
+// Mutation: test `numbersOutsideRun` in place of `startsPastOne` and ani.zip leaves the reference below;
+// drop the second branch of the vote and the run every source counts on is left with no reference.
+test('a voter leaves the reference only for counting on while another starts at 1', () => {
+  const days = weekly('2023-07-06', 23)
+  const from = (prefix: string, first: number) => listed(prefix, first, days)
+  const kitsu = from('kitsu:1', 1)
+  const voters = ['anilist:1', 'anizip:1', 'kitsu:1', 'cr:1']
+  const originsOf = (rows: SideEpisode[]) => [...new Set(rows.map(row => row.origin))].sort()
+
+  const onward = referenceEpisodes({
+    episodes: [...from('anizip:1', 1), ...kitsu, ...from('cr:1', 25)], runLengthFrom: voters, runLength: 23,
+  })
+  expect(originsOf(onward.reference)).toEqual(['anizip', 'kitsu'])
+  expect(onward.origins.has('cr'), 'so class 3 can take it').toBe(false)
+
+  const special = side('anizip:1-S1', 40, '2023-08-10')
+  expect(numbersOutsideRun([...from('anizip:1', 1), special], 23), 'the control').toBe(true)
+  expect(originsOf(referenceEpisodes({
+    episodes: [...from('anizip:1', 1), special, ...kitsu], runLengthFrom: voters, runLength: 23,
+  }).reference)).toEqual(['anizip', 'kitsu'])
+
+  const everyone = [...from('anizip:1', 13), ...from('cr:1', 13)]
+  expect(referenceEpisodes({ episodes: everyone, runLengthFrom: voters, runLength: 23 }).reference,
+    'no voter starts at 1, so nothing says which numbering is the run\'s').toEqual(everyone)
+})
+
+// THE PROOF, the way the two pages have it: the days and the exact titles, and order for what is left.
+// Episode 8 has neither, two days off the broadcast and titled without its article, and only a
+// bracket reaches it once JustWatch's days are taken away.
+// Mutation: drop `closeByOrder` and that row is left out, which is one Crunchyroll row at the bottom
+// of the page and an episode 8 without it.
+test('every row of a list that counts on is placed, by a day, a title, or order between them', () => {
+  const titled = (name: string) => [stripTitle(name)]
+  const reference = JJK2_BROADCAST.map((day, index) =>
+    side(`anizip:r-${index + 1}`, index + 1, anizipDay(day), titled(JJK2_TITLES[index]!)))
+  const episodes = JJK2_CR.map((day, index) => side(`cr:r-${index + 25}`, index + 25, day, titled(JJK2_CR_TITLES[index]!)))
+
+  const verdict = decideCandidate({ runLength: 23, reference, candidate: { retranslates: false, episodes } })
+  if (!verdict.ok) throw new Error(verdict.reason)
+  expect(verdict.rule).toBe('dates')
+  expect(verdict.pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!))
+    .toEqual(oneToN(23).map(number => [number + 24, number]))
+  const by = (kind: string) => verdict.pairs.filter(pair => kind in pair.evidence).map(pair => pair.fromNumber).sort((a, b) => a - b)
+  expect(by('gap'), 'the two days off with the same title').toEqual([33, 34, 35])
+  expect(by('between'), 'and the one with neither').toEqual([32])
+})
+
+// NOTHING RATHER THAN A GUESS. Neither case may draw a Crunchyroll row one episode off.
+// Mutation: drop the `ownShift` filter and the first verdict is `dates`, pairing 14 to 24 onto 1 to 11,
+// which is every episode on the row before its own.
+test('a list dated a week off keeps no pair, and the titles decide it or it stays apart', () => {
+  const days = weekly('2026-07-01', 12)
+  const week = weekly('2026-06-24', 12)
+  const reference = days.map((day, index) => side(`anizip:k-${index + 1}`, index + 1, anizipDay(day), [`chapter ${index + 1}`]))
+
+  const unnamed = week.map((day, index) => side(`cr:k-${index + 13}`, index + 13, day))
+  expect(decideCandidate({ runLength: 12, reference, candidate: { retranslates: false, episodes: unnamed } }))
+    .toEqual({ ok: false, reason: 'no-dates' })
+
+  const named = week.map((day, index) => side(`cr:n-${index + 13}`, index + 13, day, [`chapter ${index + 1}`]))
+  const settled = decideCandidate({ runLength: 12, reference, candidate: { retranslates: false, episodes: named } })
+  expect(settled.ok && settled.rule).toBe('titles')
+  expect(settled.ok && settled.pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!))
+    .toEqual(oneToN(12).map(number => [number + 12, number]))
+})
+
+// ORDER REACHES ONLY BETWEEN PROVEN PAIRS. Past the last day there is nothing to count from, and a
+// bracket with a row more on one side says which of them is the extra row no better than a guess.
+// Mutation: place every row at `ownShift` rather than through the bracket and the first case pairs 23.
+test('a row past the last pair, or inside an unequal bracket, stays apart', () => {
+  const reference = JJK2_BROADCAST.map((day, index) => side(`anizip:o-${index + 1}`, index + 1, anizipDay(day)))
+  const dated = JJK2_CR.map((day, index) => side(`cr:o-${index + 25}`, index + 25, index < 7 ? day : null))
+  const verdict = decideCandidate({ runLength: 23, reference, candidate: { retranslates: false, episodes: dated } })
+  expect(verdict.ok && verdict.pairs.map(pair => pair.fromNumber).sort((a, b) => a - b)).toEqual([25, 26, 27, 28, 29, 30, 31])
+
+  // the run lists no episode 9 here, so ten of theirs lie across nine of ours
+  const holed = reference.filter(row => row.number !== 9)
+  const bracket = decideCandidate({ runLength: 23, reference: holed, candidate: { retranslates: false, episodes: [
+    ...dated.slice(0, 7),
+    ...JJK2_CR.slice(7, 12).map((_, index) => side(`cr:o-${index + 32}`, index + 32, null)),
+    ...JJK2_CR.slice(12).map((day, index) => side(`cr:o-${index + 37}`, index + 37, day)),
+  ] } })
+  expect(bracket.ok && bracket.pairs.some(pair => pair.fromNumber > 31 && pair.fromNumber < 37)).toBe(false)
+  expect(bracket.ok && bracket.pairs).toHaveLength(18)
+})
+
+// WHAT MUST KEEP WORKING. The shapes are recorded (2026-10-31): on all of them every voter starts at
+// 1, so the reference and the pairs are what they were. One Piece's counts are its own, its days are
+// weekly here, and only its first Crunchyroll season was recorded, so the later one is written the way
+// a season numbered on looks. Being shorter than the run, it claims nothing row for row.
+// Mutation: make `ownShift` answer for any list past 1, whatever its span, and One Piece's later
+// season loses the row a date placed at another shift, where one row disagreeing costs that row alone.
+test('a long-running show and a split cour keep the numbers they had', () => {
+  // One Piece: ani.zip counts 1184 and numbers them so, and Kitsu's 1410 rows do not vote
+  const onePiece = listed('anizip:69', 1, weekly('1999-10-20', 1184))
+  const kitsu = Array.from({ length: 1410 }, (_, index) => side(`kitsu:12-${index + 1}`, index + 1, null))
+  const { reference, origins } = referenceEpisodes({
+    episodes: [...onePiece, ...kitsu], runLengthFrom: ['anilist:21', 'mal:21', 'anizip:69'], runLength: 1184,
+  })
+  expect(reference).toEqual(onePiece)
+  expect(origins.has('kitsu')).toBe(false)
+
+  // a season of it numbered on from the last, on the days ani.zip has for those rows
+  const eastBlue = listed('cr:GY3VWX3MR', 1, weekly('1999-10-20', 61))
+  const alabasta = listed('cr:GYVNXMVP6', 62, weekly('1999-10-20', 74, 61))
+  expect(decideCandidate({ runLength: 1184, reference, candidate: { retranslates: false, episodes: eastBlue } }))
+    .toMatchObject({ ok: true, rule: 'dates' })
+  const later = decideCandidate({ runLength: 1184, reference, candidate: { retranslates: false, episodes: alabasta } })
+  expect(later.ok && later.pairs.every(pair => pair.fromNumber === pair.toNumber), 'and it stays on its own numbers').toBe(true)
+  expect(later.ok && later.pairs).toHaveLength(74)
+  // one row dated on the wrong week is that row's own evidence on a list that does not claim the run
+  const stray = alabasta.map(row => row.number === 70 ? { ...row, day: dayOf(weekly('1999-10-20', 1, 90)[0]!) } : row)
+  const strayed = decideCandidate({ runLength: 1184, reference, candidate: { retranslates: false, episodes: stray } })
+  expect(strayed.ok && strayed.pairs.find(pair => pair.fromNumber === 70)?.toNumber).toBe(91)
+
+  // Spy x Family part 2, a cour Crunchyroll folds into one season of 25: its 13 to 25 are the run's 1 to 13
+  const part2 = listed('anizip:17061', 1, weekly('2022-10-01', 13).map(anizipDay))
+  const folded = listed('cr:GY19CPX0W', 1, [...weekly('2022-04-09', 12), ...weekly('2022-10-01', 13)])
+  const fold = decideCandidate({ runLength: 13, reference: part2, candidate: { retranslates: false, episodes: folded } })
+  expect(fold.ok && fold.rule).toBe('dates')
+  expect(fold.ok && fold.pairs.map(pair => [pair.fromNumber, pair.toNumber]).sort((a, b) => a[0]! - b[0]!))
+    .toEqual(oneToN(13).map(number => [number + 12, number]))
 })
 
 // ---------------------------------------------------------------------------------------------

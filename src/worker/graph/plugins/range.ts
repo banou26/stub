@@ -88,7 +88,7 @@ import { RETRANSLATING_ORIGINS } from './origins'
 import { synopsisKeyOf } from './profile'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const RANGE_VERSION = 7
+export const RANGE_VERSION = 8
 
 /**
  * Two pairs or nothing (`consensus.ts:111`).
@@ -290,6 +290,27 @@ export const scheduleSkew = (options: {
   const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
   if (Math.min(...numbers) !== 1 || Math.max(...numbers) > runLength) return null
   return numbers.every(number => number + offset >= 1 && number + offset <= runLength) ? null : offset
+}
+
+/**
+ * How far a list exactly as long as the run sits from it when it starts past 1, or NULL for any other.
+ *
+ * Such a list claims the run row for row, so its own numbering names the one shift it can have, which
+ * asks more of rule 1 and gives it more:
+ *
+ * - a day reaching a row at any other shift is a wrong date. JustWatch's Solo Leveling season 2 numbers
+ *   13 to 25 against a run of 13 and dates its S2E2 on S2E1's day, S2E9 on S2E5's and S2E7 on S2E11's
+ *   (2026-10-31), so taken one at a time the days hand three rows to the wrong episode. A whole list
+ *   dated a week off keeps nothing, and the titles decide it;
+ * - a row strictly between two of the pairs left is placed by order, the way rule 3's bracket does,
+ *   since those three have no date and `closeDatesWithTitles` cannot use a title two references share.
+ *
+ * A row order cannot reach, because it sits past the last pair or a bracket counts unequal, stays apart.
+ */
+const ownShift = (episodes: readonly SideEpisode[], runLength: number): number | null => {
+  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+  const first = Math.min(...numbers)
+  return first > 1 && Math.max(...numbers) - first + 1 === runLength ? first - 1 : null
 }
 
 /**
@@ -525,6 +546,20 @@ const pairOnto = (from: SideEpisode, slot: CanonicalEpisode, evidence: PairEvide
   toNumber: slot.number,
   evidence,
 })
+
+const numberedInOrder = (episodes: readonly SideEpisode[]): SideEpisode[] =>
+  episodes
+    .filter(episode => episode.number !== null)
+    .sort((a, b) => a.number! - b.number! || compare(a.uri, b.uri))
+
+const canonicalOf = (reference: readonly SideEpisode[]): CanonicalEpisode[] => {
+  const byNumber = new Map<number, SideEpisode[]>()
+  for (const row of [...reference].sort(byUri)) {
+    if (row.number === null) continue
+    byNumber.set(row.number, [...byNumber.get(row.number) ?? [], row])
+  }
+  return [...byNumber.keys()].sort((a, b) => a - b).map(number => ({ number, rows: byNumber.get(number)! }))
+}
 
 /**
  * The longest strictly increasing run of matches, which is the monotone alignment of rule 3.
@@ -1193,18 +1228,8 @@ export const alignByTitle = (
   reference: readonly SideEpisode[],
   theirs: readonly SideEpisode[]
 ): Alignment => {
-  const ordered = [...theirs]
-    .filter(episode => episode.number !== null)
-    .sort((a, b) => a.number! - b.number! || compare(a.uri, b.uri))
-
-  const byNumber = new Map<number, SideEpisode[]>()
-  for (const row of [...reference].sort(byUri)) {
-    if (row.number === null) continue
-    byNumber.set(row.number, [...byNumber.get(row.number) ?? [], row])
-  }
-  const canonical: CanonicalEpisode[] = [...byNumber.keys()]
-    .sort((a, b) => a - b)
-    .map(number => ({ number, rows: byNumber.get(number)! }))
+  const ordered = numberedInOrder(theirs)
+  const canonical = canonicalOf(reference)
   const specials = [...reference].filter(episode => episode.number === null).sort(byUri)
 
   const ourKey = new Map<string, { index: number, row: SideEpisode } | null>()
@@ -1282,7 +1307,9 @@ export const alignByTitle = (
  * not, and which row that is is exactly what order cannot say. `unequal` counts those regions so a
  * refusal can name what it saw.
  */
-export const forcedByBracket = (alignment: Alignment): { pairs: Pair[], unequal: number } => {
+export const forcedByBracket = (
+  alignment: Pick<Alignment, 'anchors' | 'theirs' | 'canonical'>
+): { pairs: Pair[], unequal: number } => {
   const { anchors, theirs, canonical } = alignment
   if (anchors.length < 2) return { pairs: [], unequal: 0 }
   const pairs: Pair[] = []
@@ -1507,6 +1534,26 @@ export const pairsBySequence = (
   }
 }
 
+/** The rows `ownShift`'s list leaves strictly between pairs already proven, in rule 3's own bracket. */
+const closeByOrder = (options: {
+  reference: readonly SideEpisode[]
+  theirs: readonly SideEpisode[]
+  pairs: readonly Pair[]
+}): Pair[] => {
+  const theirs = numberedInOrder(options.theirs)
+  const canonical = canonicalOf(options.reference)
+  const anchors = [...options.pairs]
+    .sort((a, b) => a.fromNumber - b.fromNumber)
+    .map(pair => ({
+      from: pair.from,
+      to: pair.to,
+      fromIndex: theirs.indexOf(pair.from),
+      toIndex: canonical.findIndex(entry => entry.number === pair.toNumber),
+      key: '',
+    }))
+  return forcedByBracket({ anchors, theirs, canonical }).pairs
+}
+
 /** One thing to be proven against one run: a season row, a lend, or a member that numbers differently. */
 export type Candidate = {
   clusterId: string
@@ -1567,7 +1614,7 @@ export type Verdict =
  *
  * | outcome | when |
  * | --- | --- |
- * | `dates` | rule 1 left at least `MIN_ALIGNED` pairs inside the window and they are not a skew, plus whatever `closeDatesWithTitles` could close on top of them |
+ * | `dates` | rule 1 left at least `MIN_ALIGNED` pairs inside the window and they are not a skew, plus whatever `closeDatesWithTitles` could close on top of them, and on `ownShift`'s lists whatever order then forces between them |
  * | `titles` | rule 1 did not, the candidate's origin does not retranslate, and rule 2 cleared both halves of its bar |
  * | `sequence` | neither did, and rule 3's alignment placed a row by ORDER: `minAnchorsFor` anchors, at least one row forced by a bracket or by 3.4a's closure AND still inside the window, `MIN_ALIGNED` pairs inside the window, and not the same offset rule 1 refused as a skew |
  * | `no-reference` | the run carries no numbered episode of its own, so no rule was asked anything (2026-09-13) |
@@ -1611,7 +1658,8 @@ export const decideCandidate = (options: {
   const inWindow = (pairs: Pair[]) => pairs.filter(pair => pair.toNumber >= 1 && pair.toNumber <= runLength)
 
   const dates = pairsByDay(reference, candidate.episodes)
-  const dated = inWindow(dates.pairs)
+  const shift = ownShift(candidate.episodes, runLength)
+  const dated = inWindow(dates.pairs).filter(pair => shift === null || pair.fromNumber - pair.toNumber === shift)
   // rule 1 stands unless the pairing it found is a schedule skew, in which case it is evidence that
   // the two lists are the same sequence and NOT evidence of a renumbering, so rule 2 decides
   const skew = dated.length >= MIN_ALIGNED
@@ -1622,7 +1670,10 @@ export const decideCandidate = (options: {
     // window again: a row an equality reaches beyond `1..runLength` is the neighbouring cour's and is
     // dropped exactly as a dated one is
     const gaps = inWindow(closeDatesWithTitles({ reference, theirs: candidate.episodes, pairs: dated }))
-    return { ok: true, rule: 'dates', pairs: [...dated, ...gaps], coverage: 1, gaps: gaps.length }
+    const forced = shift === null
+      ? []
+      : closeByOrder({ reference, theirs: candidate.episodes, pairs: [...dated, ...gaps] })
+    return { ok: true, rule: 'dates', pairs: [...dated, ...gaps, ...forced], coverage: 1, gaps: gaps.length + forced.length }
   }
 
   // rule 2, refused OUTRIGHT for a retranslating origin, where rule 3 below is not (3.4a)
@@ -1703,10 +1754,11 @@ export const decideCandidate = (options: {
  *
  * Read off the evidence rather than off a field, because the evidence IS the rule here: a shape
  * carrying `gap` was placed by an anchor equality under a standing date alignment and by nothing
- * else, and the two can never disagree because only `closeDatesWithTitles` writes that shape.
+ * else, and the two can never disagree because only `closeDatesWithTitles` writes that shape. A
+ * `between` on a `dates` verdict is `closeByOrder`'s, which no date reached either.
  */
 export const ruleOfPair = (pair: Pair, rule: 'dates' | 'titles' | 'sequence'): string =>
-  'gap' in pair.evidence ? 'dates-gap' : rule
+  'gap' in pair.evidence || (rule === 'dates' && 'between' in pair.evidence) ? 'dates-gap' : rule
 
 /** The `INCLUDES` range of 3.4, as literal properties: the hull of the pairs on both sides. */
 export type Hull = {
@@ -1916,6 +1968,15 @@ export const numbersOutsideRun = (episodes: readonly SideEpisode[], runLength: n
 }
 
 /**
+ * Whether an origin's own numbering starts past 1, which `numbersOutsideRun` cannot say: ani.zip keeps
+ * a special's number, so a list that does start at 1 can still reach past the run.
+ */
+const startsPastOne = (episodes: readonly SideEpisode[]): boolean => {
+  const numbers = episodes.map(episode => episode.number).filter((number): number is number => number !== null)
+  return numbers.length > 0 && Math.min(...numbers) > 1
+}
+
+/**
  * The run's own episodes, which are the left hand side of every rule below.
  *
  * THE VOTE'S WINNERS FIRST, which is `runLengthFrom` and is what this was until 2026-09-13. Then the
@@ -1932,6 +1993,12 @@ export const numbersOutsideRun = (episodes: readonly SideEpisode[], runLength: n
  * lend refused in silence. Its neighbour `ag:(anilist:166873)` has `12 from anilist, anizip, kitsu`,
  * witnesses 3, and places 22 pairs against the same two containers.
  *
+ * A VOTER THAT COUNTS ON FROM AN EARLIER SEASON IS NOT ONE OF THEM, as long as another voter starts
+ * at 1: it agrees about how long the run is and not about what its rows are called, and leaving it
+ * here kept it from ever being class 3. Measured 2026-10-31 on Jujutsu Kaisen season 2: Crunchyroll
+ * lists 23 rows numbered 25 to 47 against ani.zip's 1 to 23, and the page drew 46 rows. Where no voter
+ * starts at 1 the whole run counts on, there is nothing to measure against, and the vote stands.
+ *
  * THE FALLBACK TAKES ONLY AN ORIGIN THAT NUMBERS IN THE RUN'S OWN SPACE, which is `numbersOutsideRun`
  * read the other way round, so nothing can be a reference here and a class 3 candidate at the same
  * time, and a pair still lands on `1..runLength` where the window expects it. It is not a lowered bar:
@@ -1940,8 +2007,7 @@ export const numbersOutsideRun = (episodes: readonly SideEpisode[], runLength: n
  * list of specials can anchor nothing.
  *
  * It is consulted ONLY when the vote's own members list nothing, never to widen a reference that
- * exists: a run whose length came from a member that does list episodes keeps exactly the reference it
- * had, which is what leaves the four working routes byte identical.
+ * exists.
  */
 export const referenceEpisodes = (options: {
   episodes: readonly SideEpisode[]
@@ -1949,12 +2015,19 @@ export const referenceEpisodes = (options: {
   runLength: number
 }): { reference: SideEpisode[], origins: Set<string> } => {
   const { episodes, runLengthFrom, runLength } = options
-  const voted = new Set(runLengthFrom.map(originOf))
-  const byVote = episodes.filter(episode => voted.has(episode.origin))
-  if (byVote.length) return { reference: byVote, origins: voted }
-
   const byOrigin = new Map<string, SideEpisode[]>()
   for (const episode of episodes) byOrigin.set(episode.origin, [...byOrigin.get(episode.origin) ?? [], episode])
+
+  const voted = new Set(runLengthFrom.map(originOf))
+  const byVote = episodes.filter(episode => voted.has(episode.origin))
+  if (byVote.length) {
+    const counted = new Set([...voted].filter(origin => !startsPastOne(byOrigin.get(origin) ?? [])))
+    const fromOne = byVote.filter(episode => counted.has(episode.origin))
+    return fromOne.some(episode => episode.number !== null)
+      ? { reference: fromOne, origins: counted }
+      : { reference: byVote, origins: voted }
+  }
+
   const origins = new Set<string>()
   for (const origin of [...byOrigin.keys()].sort(compare)) {
     const own = byOrigin.get(origin)!
