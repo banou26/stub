@@ -14,8 +14,9 @@ import { fromAggregatedUri, isAggregatedUri, type AggregatedUri } from '../../ut
 const MEDIA_SAME_AS = 'media:same_as'
 const CONTAINER_SAME_AS = 'container:same_as'
 
-// The run space less the unions only an address made, for `findClaimedMedia`. An address says nothing of how the rows it
-// names relate, and a link can name two shows, but a search hit's only handles are the address's, so the run space keeps them.
+// What sources said themselves, for `findClaimedMedia` and `findClaimedShows`: unions as links and the shows a run hangs off
+// as edges, less what only an address made. An address says nothing of how the rows it names relate, and a link can name
+// two shows, but a search hit's only handles are the address's, so the labels the page reads keep those.
 const MEDIA_CLAIMED = 'media:claimed'
 
 // Origins whose id names a SHOW and has no season-level equivalent to name instead.
@@ -197,6 +198,7 @@ export async function upsertMedia(
     if (mediaScope !== handleScope) {
       const [run, container] = mediaScope === 'RUN' ? [mediaUri, handleUri] : [handleUri, mediaUri]
       graph.edge(run, container, ASSERTED_LABELS.PART_OF)
+      if (!address) graph.edge(run, container, MEDIA_CLAIMED)
       if (graph.edge(run, container, MEDIA_PART_OF)) changed = true
     } else if (claimed === 'SAME_AS') {
       graph.connect(mediaUri, handleUri, mediaScope === 'CONTAINER' ? ASSERTED_LABELS.CONTAINER : ASSERTED_LABELS.RUN)
@@ -276,6 +278,11 @@ export async function findAggregatedMedia(uri: string): Promise<Media[]> {
 
 /** The rows some source's own claims join to `uri`, itself included: its cluster less what only an address joined. */
 export const findClaimedMedia = (uri: string): Media[] => graph.cluster(uri, MEDIA_CLAIMED) as Media[]
+
+/** The shows some source hangs `rows` off, of those stored. `findPartOfMedia` also reads the ones an address hung there. */
+export const findClaimedShows = (rows: Media[]): Media[] =>
+  [...new Set(rows.flatMap(row => [...graph.targets(row.uri, MEDIA_CLAIMED)]))]
+    .flatMap(uri => (graph.get(uri) as Media | undefined) ?? [])
 
 /**
  * Every row a cluster points at but does not claim to be, deduped by uri.

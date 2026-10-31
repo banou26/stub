@@ -1,6 +1,7 @@
 // What the similar step joins, on answers recorded through the relays on 2026-10-31. The store unions everything an
 // address names, so a link naming two shows looks like one cluster: the step takes the rows a source's own claims join
-// to the run, and of the rest only those a search could have found. A real address must come out exactly as it did.
+// to the run, those a search could have found, and the seasons of the shows a source names on them. A real address must
+// come out exactly as it did.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Media } from '../../../src/generated/schema/types.generated'
@@ -170,9 +171,9 @@ const frieren = () => [
   row('nf:81726714-1', [FRIEREN_NF], { episodeCount: 28, handles: buildHandlesFromUri(FRIEREN, 'nf') }),
 ]
 
-// The merge that rests on an address's ids: Netflix's row is a search hit only the address joins, its title scores 0.842
-// against the run's, and that title in the evidence is what passes its own answer.
-// Mutation: hold the rows to the answers' 0.9, and Netflix's season is refused by title.
+// The merge that rests on an address's ids: Netflix's row is a search hit only the address joins, and its title in the
+// evidence is what passes its own answer. Two things keep the row here, its title at 0.842 and Kitsu naming Netflix's show.
+// Mutation: drop `agreeingRows`' seasons and hold the rows to the answers' 0.9, and Netflix's season is refused by title.
 test('a real address asks and claims as it did, a search hit\'s own title vouching for its answer', async () => {
   await land(...frieren())
   const cluster = await findMediaForPage(FRIEREN)
@@ -190,19 +191,21 @@ test('a real address asks and claims as it did, a search hit\'s own title vouchi
 })
 
 // Netflix's `Ace of Diamond` clears the search gate only on a shortened title (`simplifyTitle`): 0.308 on the whole ones.
-// Mutation: hold it to the whole titles, and its season is refused by title.
+// The recording's Kitsu row names Netflix's show, which keeps the row on its own: here it names Crunchyroll's, so only the
+// title does.
+// Mutation: hold it to the whole titles, and its title leaves the evidence.
 test('a search hit found on a shorter title stays', async () => {
   const uri = 'ag:(anilist:177634,mal:58877)'
   await land(
     row('anilist:177634', ['Ace of the Diamond act II -Second Season-', 'Diamond no Ace act II: Second Season'], { handles: [sameAs(bare('mal:58877'))] }),
-    row('kitsu:48878', ['ダイヤのA actII -Second Season-'], { handles: [sameAs(bare('anilist:177634')), partOf(bare('nf:81424512'))] }),
+    row('kitsu:48878', ['ダイヤのA actII -Second Season-'], { handles: [sameAs(bare('anilist:177634')), partOf(bare('cr:GY8VEQ95Y'))] }),
     row('nf:81424512-1', ['Ace of Diamond'], { handles: buildHandlesFromUri(uri, 'nf') }),
   )
 
-  const ask = asking({ 'nf:81424512': row('nf:81424512-1', ['Ace of Diamond']) })
+  const ask = asking({})
   await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
 
-  expect(await claimsFrom('anilist:177634')).toEqual(['nf:81424512-1'])
+  expect(ask.mock.calls[0]![1].titles).toContain('Ace of Diamond')
 })
 
 // JustWatch titles a season by its own name, which agrees with nothing: the show its row hangs off is what names it, and
@@ -232,9 +235,8 @@ test('a season titled by its arc is read with the show its source hangs it off',
   expect(await claimsFrom('anilist:101922')).toEqual(['jw:87466-102514', 'nf:81091393-1'])
 })
 
-// A season's address handles skip its own origin, so a show of the origin is its source's word: a show of another origin
-// can be the address's, which names one by its bare id, and vouches for nothing.
-// Mutation: read every show a row hangs off, and the Netflix season is asked for.
+// An address names a show by its bare id and hangs it off whatever row it joins, so that show vouches for nothing.
+// Mutations: read every show a row hangs off, or take an address's edge as a source's, and the Netflix season is asked for.
 test('a show only the address hung a row off says nothing of that row', async () => {
   const uri = 'ag:(jw:34435-51923,mal:6,tvdb:77680)'
   await land(...trigun(), row('tvdb:77680', ['Trigun', 'TRIGUN'], { scope: 'CONTAINER' }), bebopOnJustWatch(uri))
@@ -257,6 +259,134 @@ test('a row a source claims stays, with no title to check', async () => {
 
   const ask = asking({})
   await resolveSimilarRuns(await findMediaForPage('ag:(anilist:6)'), root, { ask, implemented })
+
+  expect(ask.mock.calls.map(([origin]) => origin)).toEqual(['cr'])
+})
+
+const AVATAR = 'Avatar: The Last Airbender'
+
+// A series page has no AniList row, so JustWatch's season anchors the run, and JustWatch titles it by its own name.
+// Mutation: drop both the show's titles and the seasons of its shows, and the address's own row goes, then the answer.
+test('a real address anchored on a season titled by its own name keeps its rows and its merge', async () => {
+  const uri = 'ag:(tmdb:246-s1)'
+  await land(
+    row('tmdb:246-s1', [AVATAR], { startDate: '2005-02-21', episodeCount: 20 }),
+    addressed(row('jw:3371-3253', ['Book One: Water'], {
+      startDate: '2005-02-21',
+      episodeCount: 20,
+      handles: [partOf(bare('nf:70142405')), partOf(row('jw:3371', [AVATAR])), partOf(bare('tmdb:246'))],
+    }), uri),
+  )
+
+  const ask = asking({ 'nf:70142405': row('nf:70142405-1', [AVATAR]) })
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
+
+  expect(ask.mock.calls[0]![1].titles).toContain(AVATAR)
+  expect(await claimsFrom('jw:3371-3253')).toEqual(['nf:70142405-1'])
+})
+
+// The recording's row also names `tmdb:1413`, which keeps the address's row on its own: left out here, so only the title
+// of JustWatch's show ties the two. Netflix's show is a search hit hung off the address's row, and refused the ask.
+// Mutation: read the run's rows without their shows, and that row goes and Netflix is never asked.
+test('the run is read with the show its source hangs it off', async () => {
+  const uri = 'ag:(tmdb:1413-s1)'
+  await land(
+    row('tmdb:1413-s1', ['American Horror Story'], { startDate: '2011-10-05', episodeCount: 12 }),
+    addressed(row('jw:5746-5091', ['Murder House'], {
+      startDate: '2011-10-05',
+      episodeCount: 12,
+      handles: [partOf(row('jw:5746', ['American Horror Story']))],
+    }), uri),
+    row('nf:81599108', ['Vietnamese Horror Story'], { scope: 'CONTAINER', handles: buildHandlesFromUri(uri, 'nf') }),
+  )
+
+  const ask = asking({})
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
+
+  expect(ask.mock.calls.map(([origin]) => origin)).toContain('nf')
+})
+
+const DAHMER = 'DAHMER - Monster: The Jeffrey Dahmer Story'
+const DAHMER_TAPES = 'Conversations with a Killer: The Jeffrey Dahmer Tapes'
+
+// JustWatch's offer names Netflix's show and the next address pins its season by that id, with no show of its own on it.
+// Netflix titles it "DAHMER", 0.142 and under every gate, and that title in the evidence is what passes its own answer.
+// The Netflix search hit beside it clears the search gate at 0.503.
+// Mutations: drop the seasons of a source's shows, and its answer is refused; raise the gate, and the hit's title goes.
+test('a season of a show a source named stays whatever its title', async () => {
+  const uri = 'ag:(tmdb:113988-s1)'
+  await land(
+    row('tmdb:113988-s1', [DAHMER], { startDate: '2022-09-21', episodeCount: 10 }),
+    addressed(row('jw:258748-272033', [DAHMER], {
+      startDate: '2022-09-21',
+      episodeCount: 10,
+      handles: [partOf(bare('nf:81287562')), partOf(row('jw:258748', [DAHMER])), partOf(bare('tmdb:113988'))],
+    }), uri),
+    row('nf:81173345-1', [DAHMER_TAPES], { episodeCount: 3, handles: buildHandlesFromUri(uri, 'nf') }),
+    row('nf:81287562-1', ['DAHMER'], { episodeCount: 10, handles: buildHandlesFromUri('ag:(jw:258748-272033,tmdb:113988-s1)', 'nf') }),
+  )
+
+  const ask = asking({ 'nf:81287562': row('nf:81287562-1', ['DAHMER']) })
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
+
+  expect([...ask.mock.calls[0]![1].titles!].sort()).toEqual([DAHMER_TAPES, 'DAHMER', DAHMER].sort())
+  expect(await claimsFrom('jw:258748-272033')).toEqual(['nf:81287562-1'])
+})
+
+// Not a recording: Dahmer's Netflix season on an AniList page, where JustWatch's row is only kept by its title.
+// Mutation: read the shows of the claimed rows alone, and the season goes.
+test('a row kept by its title names a show as well as a claimed one', async () => {
+  const uri = 'ag:(anilist:101922,mal:38000)'
+  await land(
+    row('anilist:101922', ['Demon Slayer: Kimetsu no Yaiba', 'Kimetsu no Yaiba'], { handles: [sameAs(bare('mal:38000'))] }),
+    addressed(row('jw:87466-102514', ['Demon Slayer: Kimetsu no Yaiba'], { handles: [partOf(bare('nf:81091393'))] }), uri),
+    row('nf:81091393-1', ['Tanjiro'], { handles: buildHandlesFromUri(uri, 'nf') }),
+  )
+
+  const ask = asking({ 'nf:81091393': row('nf:81091393-1', ['Tanjiro']) })
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
+
+  expect(await claimsFrom('anilist:101922')).toContain('nf:81091393-1')
+})
+
+// The address hangs Netflix's Cowboy Bebop off Trigun's `mal:6` and joins its season, so the show is asked, and that season
+// in the evidence would pass its own answer.
+// Mutations: take an address's edge as a source's, or read every show of the kept rows, and it is claimed as Trigun's.
+test('a season of a show only the address hung off the run stays out', async () => {
+  const uri = 'ag:(mal:6,nf:80001305)'
+  await land(
+    ...trigun(),
+    row('nf:80001305', ['Cowboy Bebop'], { scope: 'CONTAINER', handles: buildHandlesFromUri(uri, 'nf') }),
+    row('nf:80001305-1', ['Cowboy Bebop'], { episodeCount: 26, handles: buildHandlesFromUri(uri, 'nf') }),
+  )
+  const cluster = await findMediaForPage(uri)
+  expect(cluster.map(media => media.uri)).toContain('nf:80001305-1')
+
+  await resolveSimilarRuns(cluster, root, { ask: asking({ 'nf:80001305': NF_BEBOP_SEASON }), implemented })
+
+  expect(await claimsFrom('anilist:6')).toEqual([])
+})
+
+// Kitsu names Crunchyroll's `cr:GYP58QMMY`, and an id that merely starts with it is another show.
+// Mutation: read the show's uri as a bare prefix, and the other show's season is kept.
+test('a season is of a show by the show\'s whole id', async () => {
+  const uri = 'ag:(cr:GYP58QMMY1-1,mal:6)'
+  await land(...trigun(), addressed(row('cr:GYP58QMMY1-1', ['Cowboy Bebop'], { handles: [partOf(bare('nf:80001305'))] }), uri))
+
+  const ask = asking({})
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
+
+  expect(ask.mock.calls.map(([origin]) => origin)).toEqual(['cr'])
+})
+
+// Triage X scores 0.421 against Trigun, just under what a search takes. Its row only an address joined.
+// Mutation: loosen the gate, and the show its source hangs it off is asked.
+test('a row just under the search gate stays out', async () => {
+  const uri = 'ag:(jw:1,mal:6)'
+  await land(...trigun(), addressed(row('jw:1-2', ['Triage X'], { handles: [partOf(bare('nf:3'))] }), uri))
+
+  const ask = asking({})
+  await resolveSimilarRuns(await findMediaForPage(uri), root, { ask, implemented })
 
   expect(ask.mock.calls.map(([origin]) => origin)).toEqual(['cr'])
 })
