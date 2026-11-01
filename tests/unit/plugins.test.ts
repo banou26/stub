@@ -385,3 +385,23 @@ test('the close of a connection the source has left tears down nothing of the on
     vi.mocked(worker.registerRemoteSource).mockReset()
   }
 })
+
+test('a Remove while Make temporary moves the source leaves FKN holding nothing, and connects nothing', async () => {
+  const [one] = URIS as [string]
+  stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([one]))
+  const { log, undo } = answering()
+  let answer!: (held: Held[]) => void
+  fkn.list.mockImplementationOnce(() => new Promise(resolve => { answer = resolve }))
+  fkn.connect.mockClear()
+  try {
+    const moving = makeTemporary(one)
+    await disablePlugin(one)
+    answer([{ uri: one, version: '1.0.0' }])
+    await moving
+    expect(log).toEqual([['uninstall', one], ['uninstall', one], ['install', one, { temporary: true, noConfirm: true, version: '1.0.0' }], ['uninstall', one]])
+    expect(fkn.connect).not.toHaveBeenCalled()
+    expect(pluginStatuses()).toEqual([])
+  } finally {
+    undo()
+  }
+})

@@ -294,6 +294,11 @@ const holdForTab = async (uri: string) => {
     return
   }
   connected.delete(uri)
+  // removed while it moved, which FKN heard before this install
+  if (!shown().includes(uri)) {
+    void packages.uninstall(uri).catch(() => {})
+    return
+  }
   connectPlugin(uri).catch(() => {})
 }
 
