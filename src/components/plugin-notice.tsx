@@ -11,7 +11,7 @@ const style = css`
   --notice-top: calc(var(--fkn-inset-top, 0px) + var(--stub-header-height) + 1.6rem);
   position: fixed;
   top: var(--notice-top);
-  right: 1.6rem;
+  inset-inline-end: 1.6rem;
   z-index: ${layer.pluginNotice};
   width: min(36rem, calc(100vw - 3.2rem));
 
@@ -59,7 +59,7 @@ const style = css`
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   .temporary {
