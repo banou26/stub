@@ -99,9 +99,9 @@ test('on a show TMDB\'s id settles, its season number places a season two years 
   expect(imdbOf(media)).toEqual(['PART_OF imdb:tt0386676'])
 })
 
-test('and a season JustWatch lists shorter, in a year two seasons share', async () => {
-  const media = await answer('ag:(tmdb:71446-s1)', cluster('Money Heist', '2017-05-02', 15), [MONEY_HEIST])
-  expect(media?.uri).toBe(`jw:56768-${seasonId(MONEY_HEIST, 1)}`)
+// TMDB's season 1 is the 15 episode broadcast, JustWatch's the 13 episode recut Netflix streams
+test('but a season JustWatch lists shorter is another cut of the show, and stays unplaced', async () => {
+  expect(await answer('ag:(tmdb:71446-s1)', cluster('Money Heist', '2017-05-02', 15), [MONEY_HEIST])).toBeNull()
 })
 
 test('the number stops at the picker\'s rules: a season longer than the run, or dated another year, stays unplaced', async () => {

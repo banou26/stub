@@ -1052,14 +1052,16 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
       // the season is the shared picker's to name, on the cluster's titles, count and date as they
       // stand; a show with no season the evidence establishes is refused by `normalizeMedia` below
       // The Office's seasons 1 and 2 share a year, so nothing here tells them apart. A number is no identity between two
-      // catalogues, but on a show the ids settled it is TMDB's for its own season, and the picker's vetoes still apply.
+      // catalogues, but on a show the ids settled it is TMDB's for its own season when both hold as many episodes. Money
+      // Heist's first is TMDB's 15 episode broadcast and JustWatch's 13 episode recut, whose episodes the rows would
+      // pair by number with the wrong ones, and Netflix's season 1 after them (2026-11-02).
       const evidence = { titles: knownTitles, episodeCount: declaredEpisodeCount(known), startDate }
       const seasons = jwCandidates(node.seasons ?? [])
-      const seasonNumber = (pickSimilarSeason(evidence, seasons) ?? (
-        tmdb.seasonNumber != null && sameShow(candidate)
-          ? pickSimilarSeason({ ...evidence, titles: [...knownTitles, `Season ${tmdb.seasonNumber}`] }, seasons)
-          : undefined
-      ))?.season.content.seasonNumber
+      const byNumber = tmdb.seasonNumber != null && sameShow(candidate)
+        ? pickSimilarSeason({ ...evidence, titles: [...knownTitles, `Season ${tmdb.seasonNumber}`] }, seasons)
+        : undefined
+      const seasonNumber = (pickSimilarSeason(evidence, seasons)
+        ?? (byNumber?.season.totalEpisodeCount === evidence.episodeCount ? byNumber : undefined))?.season.content.seasonNumber
 
       const media = await normalizeMedia(node, { seasons: node.seasons, seasonNumber }, ctx)
       if (media) {

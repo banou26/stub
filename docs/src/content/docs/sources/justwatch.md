@@ -398,7 +398,9 @@ gain the TMDB link the title page asks for). When the page's address names a TMD
 - an entry whose ids disagree is refused, however well it reads: Skins (2011) is dated inside the 2007 show's run, and
   both are titled Skins;
 - on a show the ids settled, a season the picker refuses is asked again with TMDB's own season number as its ordinal,
-  under the same fold and year vetoes. The Office's seasons 1 and 2 are both dated 2005;
+  under the same fold and year vetoes, and taken only when it holds as many episodes as TMDB's. The Office's seasons 1
+  and 2 are both dated 2005; Money Heist's first is TMDB's 15 episode broadcast and JustWatch's 13 episode recut, so
+  its episodes, and Netflix's after them, would pair with the wrong rows;
 - on a show the ids settled, the season is JustWatch's own `SAME_AS` to TMDB's, not the `address` pointer `mergeHandles`
   adds, which `plugin:direct` does not read. The Traitors: UK joins TMDB's The Traitors through that claim, on a title
   the title pass would refuse.
