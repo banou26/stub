@@ -45,6 +45,7 @@ import type { Plugin, PluginContext, PluginOutput, PluginRow } from './contract'
 
 import { isRoutableUri } from '../../../utils/uri'
 import { heldMergeOrder } from '../../../sources/merge-order'
+import { STREAMING_ORIGINS } from '../../../sources/justwatch/id'
 import { tieredConsensus } from '../../store/consensus'
 import { readAnomalies } from './anomalies'
 import { attachmentsOf, listingIndexOf, listingVerdict, preferredRunOf } from './containment'
@@ -53,7 +54,7 @@ import { readComponents } from './guards'
 import { ownShift } from './range'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const AGGREGATE_VERSION = 10
+export const AGGREGATE_VERSION = 11
 
 /** The id every minted cluster carries, so an id is readable as one at a glance in a trace. */
 const ID_PREFIX = 'cl:'
@@ -1036,20 +1037,29 @@ export const aggregatePlugin: Plugin = {
 
       // THE VIEW. One row per cluster, written by the policy of 6.3 and 6.4 and read by a lookup.
       const inside = new Set(component.members)
-      const related: RelatedRow[] = containment
-        .filter(link => inside.has(link.fromUri) && !inside.has(link.toUri))
-        .map(link => {
-          const target = byUri.get(link.toUri)
-          return {
-            uri: link.toUri,
-            origin: target?.origin ?? link.toUri.slice(0, link.toUri.indexOf(':')),
-            id: target?.id ?? link.toUri.slice(link.toUri.indexOf(':') + 1),
-            url: (target?.owned ? asText(target.raw.url) : null) ?? claimedUrls.get(link.toUri) ?? null,
-            relation: link.kind,
-            via: link.reason,
-            by: link.by,
-          }
-        })
+      const relatedTo = (uri: string, relation: RelatedRow['relation'], via: string, by: string): RelatedRow => {
+        const target = byUri.get(uri)
+        return {
+          uri,
+          origin: target?.origin ?? uri.slice(0, uri.indexOf(':')),
+          id: target?.id ?? uri.slice(uri.indexOf(':') + 1),
+          url: (target?.owned ? asText(target.raw.url) : null) ?? claimedUrls.get(uri) ?? null,
+          relation,
+          via,
+          by,
+        }
+      }
+      const contained = containment.filter(link => inside.has(link.fromUri) && !inside.has(link.toUri))
+      const related = contained.map(link => relatedTo(link.toUri, link.kind, link.reason, link.by))
+      // A streaming service none of whose seasons joined still links its show, when a show this is part of is that show
+      // too: Money Heist's catalogues cut its first season at 15 and 13 episodes, so no Netflix season pairs with TMDB's,
+      // while JustWatch's show is Netflix's (2026-11-01). One hop, then the target's own cluster (3.5).
+      const named = new Set([...members, ...related].map(row => row.origin))
+      const shows = contained.flatMap(link => link.kind === 'PART_OF' ? clusterFacts.get(clusterOf(link.toUri) ?? '')?.members ?? [] : [])
+      for (const uri of sortedUnique(shows)) {
+        const { origin } = byUri.get(uri)!
+        if (STREAMING_ORIGINS.has(origin) && !named.has(origin)) related.push(relatedTo(uri, 'PART_OF', 'show', 'plugin:aggregate'))
+      }
       const clusterAnomalies = sortedUnique(
         component.members.flatMap(uri => (anomaliesByUri.get(uri) ?? []).map(anomaly => `${anomaly.rule}\u0000${anomaly.detail}`))
       ).map(entry => ({ rule: entry.slice(0, entry.indexOf('\u0000')), detail: entry.slice(entry.indexOf('\u0000') + 1) }))

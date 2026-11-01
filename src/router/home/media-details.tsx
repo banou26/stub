@@ -32,7 +32,7 @@ import { canPlay } from '../../sources/playable'
 import { useHiddenIcons } from '../../sources/hidden-icons'
 import { viewerCountry } from '../../sources/country'
 import { detectBackend } from '../../utils/fkn-backend'
-import { PACKAGE_ORIGIN_MAP } from '../../sources/justwatch/id'
+import { STREAMING_ORIGINS } from '../../sources/justwatch/id'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
 import { currentEpisode, playTarget, watchedEpisode, type Tracked } from '../title/facts'
@@ -299,8 +299,6 @@ export const MediaPlay = ({ media }: { media: DetailsMedia | null | undefined })
     )
     : null
 }
-
-const STREAMING_ORIGINS = new Set(Object.values(PACKAGE_ORIGIN_MAP))
 
 type Origin = GetMediaOriginsSubscription['originPage']['nodes'][number]
 type Offer = { relation: string, node: { origin: string, url?: string | null } }

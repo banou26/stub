@@ -1,0 +1,298 @@
+[
+ {
+  "uri": "tvmaze:27436-s1",
+  "origin": "tvmaze",
+  "id": "27436-s1",
+  "url": "https://www.tvmaze.com/shows/27436/la-casa-de-papel",
+  "scope": "RUN",
+  "handles": [
+   {
+    "node": {
+     "uri": "imdb:tt6468322",
+     "origin": "imdb",
+     "id": "tt6468322",
+     "url": "https://www.imdb.com/title/tt6468322",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "SAME_AS"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "La Casa de Papel",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2017-05-02",
+  "episodeCount": 15
+ },
+ {
+  "uri": "simkl:701594",
+  "origin": "simkl",
+  "id": "701594",
+  "url": "https://simkl.com/tv/701594",
+  "scope": "CONTAINER",
+  "handles": [
+   {
+    "node": {
+     "uri": "imdb:tt6468322",
+     "origin": "imdb",
+     "id": "tt6468322",
+     "url": "https://www.imdb.com/title/tt6468322",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "SAME_AS"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Money Heist",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2017-05-02T01:00:00Z",
+  "episodeCount": 41
+ },
+ {
+  "uri": "omdb:tt6468322",
+  "origin": "omdb",
+  "id": "tt6468322",
+  "url": "https://www.imdb.com/title/tt6468322",
+  "scope": "CONTAINER",
+  "handles": [
+   {
+    "node": {
+     "uri": "imdb:tt6468322",
+     "origin": "imdb",
+     "id": "tt6468322",
+     "url": "https://www.imdb.com/title/tt6468322",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "SAME_AS"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Money Heist",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2017-05-02"
+ },
+ {
+  "uri": "jw:56768",
+  "origin": "jw",
+  "id": "56768",
+  "url": "https://www.justwatch.com/us/tv-show/money-heist",
+  "scope": "CONTAINER",
+  "handles": [
+   {
+    "node": {
+     "uri": "nf:80192098",
+     "origin": "nf",
+     "id": "80192098",
+     "url": "https://www.netflix.com/title/80192098",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Money Heist",
+    "score": 0.2
+   }
+  ],
+  "score": 0.2,
+  "startDate": "2017-05-02"
+ },
+ {
+  "uri": "watchmode:0379893",
+  "origin": "watchmode",
+  "id": "0379893",
+  "url": "https://www.watchmode.com/title/0379893",
+  "scope": "CONTAINER",
+  "handles": [
+   {
+    "node": {
+     "uri": "nf:80205354",
+     "origin": "nf",
+     "id": "80205354",
+     "url": "https://www.netflix.com/title/80205354",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "PART_OF"
+   },
+   {
+    "node": {
+     "uri": "nf:80192098",
+     "origin": "nf",
+     "id": "80192098",
+     "url": "https://www.netflix.com/title/80192098",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "PART_OF"
+   },
+   {
+    "node": {
+     "uri": "nf:80205342",
+     "origin": "nf",
+     "id": "80205342",
+     "url": "https://www.netflix.com/title/80205342",
+     "scope": "CONTAINER",
+     "titles": []
+    },
+    "relation": "PART_OF"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [],
+  "score": 0.25
+ },
+ {
+  "uri": "tmdb:71446-s1",
+  "origin": "tmdb",
+  "id": "71446-s1",
+  "url": "https://www.themoviedb.org/tv/71446",
+  "scope": "RUN",
+  "handles": [],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Money Heist",
+    "score": 0.3
+   }
+  ],
+  "score": 0.3,
+  "startDate": "2017-05-02",
+  "episodeCount": 15
+ },
+ {
+  "uri": "nf:80192098-1",
+  "origin": "nf",
+  "id": "80192098-1",
+  "url": "https://www.netflix.com/title/80192098",
+  "scope": "RUN",
+  "handles": [
+   {
+    "node": {
+     "uri": "imdb:tt6468322",
+     "origin": "imdb",
+     "id": "tt6468322",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "omdb:tt6468322",
+     "origin": "omdb",
+     "id": "tt6468322",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "simkl:701594",
+     "origin": "simkl",
+     "id": "701594",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "tmdb:71446",
+     "origin": "tmdb",
+     "id": "71446",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "tvdb:327417",
+     "origin": "tvdb",
+     "id": "327417",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "tvmaze:27436",
+     "origin": "tvmaze",
+     "id": "27436",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   },
+   {
+    "node": {
+     "uri": "watchmode:0379893",
+     "origin": "watchmode",
+     "id": "0379893",
+     "scope": "RUN",
+     "titles": []
+    },
+    "relation": "SAME_AS",
+    "provenance": "address"
+   }
+  ],
+  "categories": [
+   "SERIES"
+  ],
+  "titles": [
+   {
+    "language": "en",
+    "title": "Money Heist",
+    "score": 0.2
+   }
+  ],
+  "score": 0.2,
+  "episodeCount": 13
+ }
+]
