@@ -53,7 +53,7 @@ export const installedPlugins = async (): Promise<Pick<InstalledPackage, 'uri' |
 
 let temporaryInstalls = false
 
-/** Whether FKN can hold a source for one tab alone. Asked whenever a link adds one, so a sign out knows without asking. */
+/** Whether FKN can hold a source for one tab alone. Asked before a link adds one, so a sign out knows without asking. */
 export const supportsTemporary = async (): Promise<boolean> => {
   temporaryInstalls = await packages.supportsTemporary().catch(() => false)
   return temporaryInstalls
@@ -171,10 +171,7 @@ const followValues = () => {
 const fromLinks = new Set<string>()
 
 /** Keeps `uri` through a sign out while it stays on the list in this page: for this tab alone where FKN can, else on this device. */
-export const addedByLink = (uri: string): void => {
-  fromLinks.add(uri)
-  void supportsTemporary()
-}
+export const addedByLink = (uri: string): void => { fromLinks.add(uri) }
 
 const cancelReconnect = (uri: string) => {
   const timer = retryTimers.get(uri)

@@ -40,7 +40,7 @@ const address = { href: 'https://anime.fkn.app/' }
 vi.stubGlobal('location', address)
 
 // imported with nothing added, so loading it connects nothing
-const { addedByLink, checkSources, disablePlugin, enabledPluginUris, enablePlugin, installPlugin, makeTemporary, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
+const { addedByLink, checkSources, disablePlugin, enabledPluginUris, enablePlugin, installPlugin, makeTemporary, onPluginsChange, pluginStatuses, supportsTemporary } = await import('../../src/plugins')
 
 const URIS = ['npm:@banou/one', 'npm:@banou/two']
 
@@ -326,6 +326,8 @@ test('where FKN can, a sign out holds for this tab alone what a link added and w
   try {
     account.browser.account.signIn('alice')
     await checkSources()
+    // asked before any link adds a source
+    await supportsTemporary()
     addedByLink(linked)
     await makeTemporary(made)
     await checkSources()
