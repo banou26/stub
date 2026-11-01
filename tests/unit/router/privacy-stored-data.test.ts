@@ -112,9 +112,9 @@ describe('what stub keeps per viewer', () => {
     expect(added.lasts).toContain("this browser's copy of it when you sign out")
   })
 
-  test('says a link can add a source, and that one the address names stays through a sign out', () => {
+  test('says a link can add a source, and that one stays through a sign out on its page', () => {
     expect(byId('added-sources').what).toContain('or that a link you opened named')
-    expect(byId('added-sources').lasts).toContain("except the sources the page's address names when you sign out, which stay as this browser's own")
+    expect(byId('added-sources').lasts).toContain("except the sources a link added in the page you sign out on, which stay as this browser's own")
   })
 
   test('says what is entered for a source is kept on the FKN account, encrypted in this browser, and what joins it', () => {
@@ -153,8 +153,8 @@ describe('what stub keeps per viewer', () => {
     expect(kept.lasts).toContain("this browser's copy of it when you sign out")
   })
 
-  test('says the sources added while signed out join the next FKN account signed in here', () => {
-    expect(byId('added-sources').what).toContain('Sources added while signed out join the list of the next FKN account signed in on this browser.')
+  test('says the sources added while signed out, or kept at a sign out, join the next FKN account signed in here', () => {
+    expect(byId('added-sources').what).toContain('Sources added while signed out, or kept at a sign out, join the list of the next FKN account signed in on this browser.')
   })
 
   // with the extension stub offers no Crunchyroll sign out, so a sign out is not the only way it goes

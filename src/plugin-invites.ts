@@ -1,8 +1,8 @@
 import { comparablePluginUri } from './utils/plugin-links'
-import { disablePlugin, enabledPluginUris, enablePlugin, installedPluginUris, installPlugin } from './plugins'
+import { addedByLink, disablePlugin, enabledPluginUris, enablePlugin, installedPluginUris, installPlugin } from './plugins'
 
 export type AddedInvite = {
-  /** The source's id on the list, or the link's address when it never reached the list. */
+  /** The source's id on the list, or the link's address when it could not be added. */
   uri: string
   failed?: true
 }
@@ -37,13 +37,23 @@ const add = async (uri: string, installed: string[]) => {
       await installPlugin(uri)
       return
     }
+    const listed = enabledPluginUris()
     // null only comes back from a broker too old to honour noConfirm, which still confirms
-    const id = await enablePlugin(uri, { noConfirm: true })
-    if (id) added.set(id, { uri: id })
+    const source = await enablePlugin(uri, { noConfirm: true })
+    // FKN may hold it under an id other than the link's, a bare https-pkg host for one
+    if (!source || listed.includes(source.uri)) return
+    addedByLink(source.uri)
+    try {
+      await source.connected
+    } catch (error) {
+      // nothing asked the viewer for it, so one that cannot connect is not kept
+      void disablePlugin(source.uri)
+      throw error
+    }
+    added.set(source.uri, { uri: source.uri })
   } catch (error) {
     console.warn(`Source '${uri}' could not be added:`, error)
-    const id = listedAs(uri) ?? uri
-    added.set(id, { uri: id, failed: true })
+    added.set(uri, { uri, failed: true })
   } finally {
     held.delete(uri)
     notify()

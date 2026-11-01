@@ -252,7 +252,7 @@ const PartyWidget = () => {
   // a party that just ended is worth a look, so the menu opens on its own to say why
   useEffect(() => { if (state.status === 'ended' || state.status === 'failed') setOpen(true) }, [state.status])
 
-  // the host's sources ride along, so a follower without one is offered it the way any link offers a source
+  // the host's sources ride along, so a follower without one gets it the way any link adds a source
   const link = state.status === 'active' ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href) : undefined
   const copy = async () => {
     if (!link) return

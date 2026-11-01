@@ -14,10 +14,12 @@ const plugins = vi.hoisted(() => {
       plugins.enabled = plugins.enabled.filter(enabled => enabled !== uri)
       for (const listener of plugins.listeners) listener()
     }),
-    enablePlugin: vi.fn(async (uri: string): Promise<string | null> => {
+    enablePlugin: vi.fn(async (uri: string): Promise<{ uri: string, connected: Promise<void> } | null> => {
+      // a broker too old for noConfirm confirms, and the viewer says no
+      if (uri === DECLINED) return null
       plugins.enabled = [...plugins.enabled, uri]
       for (const listener of plugins.listeners) listener()
-      return uri
+      return { uri, connected: Promise.resolve() }
     }),
   }
 })
@@ -27,6 +29,7 @@ vi.mock('../../src/plugins', () => ({
   installPlugin: vi.fn(),
   installedPluginUris: () => plugins.list,
   disablePlugin: plugins.disablePlugin,
+  addedByLink: () => {},
   onPluginsChange: (listener: () => void) => {
     plugins.listeners.add(listener)
     return () => { plugins.listeners.delete(listener) }
@@ -34,7 +37,8 @@ vi.mock('../../src/plugins', () => ({
 }))
 
 const LINK = 'https:stub.plugins.banou.dev'
-const address = { href: `https://anime.fkn.app/title/1?plugins=${LINK}` }
+const DECLINED = vi.hoisted(() => 'npm:@banou/declined')
+const address = { href: `https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}` }
 const entries: string[] = []
 const moved = (url: unknown) => { address.href = new URL(String(url), address.href).href }
 vi.stubGlobal('location', address)
@@ -55,9 +59,10 @@ await import('../../src/plugin-url')
 const { addedInvites, closeInvites, removeInvite } = await import('../../src/plugin-invites')
 
 test('a link adds its source as the page loads, and a Back that reaches the mirror of a source removed since adds nothing', async () => {
-  expect(address.href, 'FKN has not answered, and a reload now must not lose the link').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}`)
+  expect(address.href, 'FKN has not answered, and a reload now must not lose the link').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}`)
   plugins.answerList([])
   await vi.waitFor(() => expect(addedInvites()).toEqual([{ uri: LINK }]))
+  expect(address.href, 'a source the viewer said no to leaves the url').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}`)
 
   history.pushState(null, '', '/settings')
   expect(address.href, 'stub mirrors the list on every address').toBe(`https://anime.fkn.app/settings?plugins=${LINK}`)

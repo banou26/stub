@@ -7,7 +7,7 @@ import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type SourceAccess } from
 import { loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud, unlockTracker } from './tracking/fkn-cloud-live'
-import { comparablePluginUri, readPluginUris } from './utils/plugin-links'
+import { comparablePluginUri } from './utils/plugin-links'
 
 const RECONNECT_DELAY_MS = 3_000
 
@@ -143,6 +143,12 @@ const followValues = () => {
   if (moved) notify()
 }
 
+// what a link installed on this device in this page
+const fromLinks = new Set<string>()
+
+/** Keeps `uri` on this device when the account's list leaves at a sign out, while it stays on the list in this page. */
+export const addedByLink = (uri: string): void => { fromLinks.add(uri) }
+
 const cancelReconnect = (uri: string) => {
   const timer = retryTimers.get(uri)
   if (timer !== undefined) { clearTimeout(timer); retryTimers.delete(uri) }
@@ -152,6 +158,7 @@ const cancelReconnect = (uri: string) => {
 const disconnect = (uri: string) => {
   cancelReconnect(uri)
   connected.delete(uri)
+  fromLinks.delete(uri)
   statuses.delete(uri)
   handed.delete(uri)
   savePluginValues(uri, {})
@@ -196,7 +203,7 @@ const sourceList = sourceListSync({
   onList: follow,
   onValues: followValues,
   unlock: unlockTracker,
-  named: () => readPluginUris(location.href),
+  keep: () => [...fromLinks],
 })
 
 /** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
@@ -212,22 +219,20 @@ const install = async (uri: string, options?: InstallOptions): Promise<string | 
 }
 
 /**
- * Installs a package and adds it to the list, resolving with its id once FKN has installed it, or null
- * when the viewer declines FKN's confirm. Rejects only when FKN refuses the install. The connection is
- * started and not waited for: its state, a failure included, is the list's to show.
+ * Installs a package and adds it to the list, resolving with its id once FKN has installed it and the
+ * connection it started, which rejects when the source cannot connect; null when the viewer declines
+ * FKN's confirm. Rejects only when FKN refuses the install.
  */
-export const installPlugin = async (uri: string): Promise<string | null> => {
-  const installed = await install(uri)
-  if (installed) connectPlugin(installed).catch(() => {})
-  return installed
+export const enablePlugin = async (uri: string, options?: InstallOptions): Promise<{ uri: string, connected: Promise<void> } | null> => {
+  const installed = await install(uri, options)
+  if (!installed) return null
+  const connected = connectPlugin(installed)
+  connected.catch(() => {})
+  return { uri: installed, connected }
 }
 
-/** As `installPlugin`, but settles once the source has connected, and rejects when it cannot. */
-export const enablePlugin = async (uri: string, options?: InstallOptions): Promise<string | null> => {
-  const installed = await install(uri, options)
-  if (installed) await connectPlugin(installed)
-  return installed
-}
+/** As `enablePlugin`, resolving with the id alone: the connection's state, a failure included, is the list's to show. */
+export const installPlugin = async (uri: string): Promise<string | null> => (await enablePlugin(uri))?.uri ?? null
 
 export const disablePlugin = async (uri: string): Promise<void> => {
   void sourceList.remove(uri)
@@ -253,7 +258,8 @@ export const addPlugins = async (): Promise<void> => {
     { multiple: true, title: 'Add stub sources' },
   )
   for (const result of picked) {
-    await enablePlugin(result.uri).catch(() => {})
+    const added = await enablePlugin(result.uri).catch(() => null)
+    await added?.connected.catch(() => {})
   }
 }
 

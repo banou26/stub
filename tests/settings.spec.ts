@@ -660,7 +660,7 @@ for (const [width, height] of [[1280, 800], [390, 844]] as const) {
     expect(await overflowX(page)).toBeLessThanOrEqual(0)
   })
 
-  test(`at ${width}x${height} a linked source that fails to boot says so in one line, and can be removed`, async ({ page }) => {
+  test(`at ${width}x${height} a linked source that fails to boot says so in one line, and is not kept`, async ({ page }) => {
     const DEAD = 'https:dead.spec.test'
     await page.setViewportSize({ width, height })
     const notice = await linkedNotice(page, DEAD)
@@ -669,11 +669,12 @@ for (const [width, height] of [[1280, 800], [390, 844]] as const) {
     expect(await lineCount(error), 'one line').toBe(1)
     await expect(notice, 'FKN\'s own message stays out of it').not.toContainText('failed to boot')
     expect(await pastNotice(notice), 'nothing runs past it').toEqual([])
-
-    await notice.getByRole('button', { name: `Remove ${DEAD}` }).click()
-    await expect(notice).toHaveCount(0)
+    await expect(notice.getByRole('button', { name: `Remove ${DEAD}` })).toHaveCount(0)
     await expect(panel(page).locator(`[data-plugin="${DEAD}"]`)).toHaveCount(0)
-    expect(page.url()).toBe(`${origin}/settings`)
+    expect(page.url(), 'and no site link carries it on').toBe(`${origin}/settings`)
+
+    await notice.getByRole('button', { name: 'OK' }).click()
+    await expect(notice).toHaveCount(0)
   })
 }
 
@@ -735,9 +736,9 @@ test('several sources on one link share one notice', async ({ page }) => {
 
 // HOR-1065: plugin-url.ts reads the sources a link names once, as it loads, so a short link opened after it loses them
 test('a short link opens its address and adds the source it names', async ({ page }) => {
-  const address = '/title/ag:(anilist:1,mal:1)?plugins=https:dead.spec.test'
+  const address = `/title/ag:(anilist:1,mal:1)?plugins=${ANIME}`
   await page.goto(`${origin}${SHORT_PATH}${shortenPath(address)}`)
-  await expect(page.getByRole('status').getByText('Could not add https:dead.spec.test', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').getByText('Source enabled: Spec Anime', { exact: true })).toBeVisible()
   expect(page.url()).toBe(`${origin}${address}`)
 })
 

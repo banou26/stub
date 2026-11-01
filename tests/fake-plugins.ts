@@ -131,15 +131,20 @@ export const installPlugin = async (uri: string): Promise<string | null> => {
   return uri
 }
 
-// as src/plugins.ts does, it settles once the source connects: a failed one throws, one still connecting never settles
-export const enablePlugin = async (uri: string): Promise<string | null> => {
+// as src/plugins.ts does, `connected` settles once the source connects: a failed one rejects, one still connecting never settles
+export const enablePlugin = async (uri: string): Promise<{ uri: string, connected: Promise<void> } | null> => {
   const installed = await installPlugin(uri)
+  if (!installed) return null
   const { state } = SPEC_PLUGINS[uri]!
-  // what FKN threw on 2026-10-16 for a source installed with its entry file blocked
-  if (state === 'error') throw new Error(`packages.connect: '${uri}' failed to boot: Failed to load /index.js`)
-  if (state === 'connecting') await new Promise(() => {})
-  return installed
+  const connected = state === 'error'
+    // what FKN threw on 2026-10-16 for a source installed with its entry file blocked
+    ? Promise.reject(new Error(`packages.connect: '${uri}' failed to boot: Failed to load /index.js`))
+    : new Promise<void>(resolve => { if (state === 'connected') resolve() })
+  connected.catch(() => {})
+  return { uri: installed, connected }
 }
+
+export const addedByLink = (_uri: string): void => {}
 
 export const disablePlugin = async (uri: string): Promise<void> => {
   saveDevice(loadDevice().filter(enabled => enabled !== uri))

@@ -7,8 +7,11 @@ import { act } from 'preact/test-utils'
 const plugins = vi.hoisted(() => ({
   statuses: [] as object[],
   listeners: new Set<() => void>(),
-  enablePlugin: vi.fn(async (uri: string, _options?: unknown): Promise<string | null> => uri),
-  disablePlugin: vi.fn(async (_uri: string) => {}),
+  enablePlugin: vi.fn(async (uri: string, _options?: unknown): Promise<{ uri: string, connected: Promise<void> } | null> => ({ uri, connected: Promise.resolve() })),
+  disablePlugin: vi.fn(async (uri: string) => {
+    plugins.statuses = plugins.statuses.filter(status => (status as { uri: string }).uri !== uri)
+    for (const listener of plugins.listeners) listener()
+  }),
 }))
 vi.mock('../../../src/plugins', () => ({
   pluginStatuses: () => plugins.statuses,
@@ -21,6 +24,7 @@ vi.mock('../../../src/plugins', () => ({
   installPlugin: vi.fn(),
   installedPluginUris: async () => [],
   disablePlugin: plugins.disablePlugin,
+  addedByLink: () => {},
 }))
 vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -103,11 +107,13 @@ test('an install FKN refused says so in one line, with nothing to remove', async
   expect(buttons(host)).toEqual(['OK'])
 })
 
-test('a source that installed and failed to connect is on the list, so it can be removed', async () => {
-  plugins.enablePlugin.mockRejectedValueOnce(new Error('failed to boot'))
+test('a source that installed and failed to connect is removed again, so it says so with nothing to remove', async () => {
+  const connected = Promise.reject(new Error('failed to boot'))
+  connected.catch(() => {})
+  plugins.enablePlugin.mockResolvedValueOnce({ uri: NYAA, connected })
   plugins.statuses = [{ uri: NYAA, state: 'error' }]
   const host = await drawn([NYAA])
 
   expect(host.querySelector('.failed')!.textContent).toBe(`Could not add ${NYAA}`)
-  expect(buttons(host)).toEqual([`Remove ${NYAA}`, 'OK'])
+  expect(buttons(host)).toEqual(['OK'])
 })

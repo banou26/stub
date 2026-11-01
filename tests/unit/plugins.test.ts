@@ -31,11 +31,12 @@ vi.stubGlobal('localStorage', {
   setItem: (key: string, value: string) => { stored.set(key, value) },
   removeItem: (key: string) => { stored.delete(key) },
 })
+// every address mirrors every enabled source, so it says nothing of where one came from
 const address = { href: 'https://anime.fkn.app/' }
 vi.stubGlobal('location', address)
 
 // imported with nothing added, so loading it connects nothing
-const { checkSources, disablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
+const { addedByLink, checkSources, disablePlugin, enablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
 
 const URIS = ['npm:@banou/one', 'npm:@banou/two']
 
@@ -64,6 +65,22 @@ test('adding settles once FKN has installed the package, and the list shows the 
   expect(settled).toBe(added)
   expect(fkn.connect).toHaveBeenCalledWith(added, expect.anything())
   expect(pluginStatuses().find(plugin => plugin.uri === added)?.state).toBe('connecting')
+})
+
+// a link removes a source it added that cannot connect, so it needs the id and the failure both
+test('enabling hands back the id FKN installed and the connection, which rejects when the source cannot connect', async () => {
+  const broken = 'npm:@banou/broken'
+  fkn.connect.mockImplementationOnce(async () => { throw new Error('failed to boot') })
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  try {
+    const added = await enablePlugin(`${broken}@1.0.0`, { noConfirm: true })
+    expect(fkn.install).toHaveBeenLastCalledWith(`${broken}@1.0.0`, { noConfirm: true })
+    expect(added?.uri).toBe(`${broken}@1.0.0`)
+    await expect(added!.connected).rejects.toThrow('failed to boot')
+  } finally {
+    void disablePlugin(`${broken}@1.0.0`)
+    warn.mockRestore()
+  }
 })
 
 test("the account's list installs what this site lacks without FKN's confirm, and drops what the account no longer lists", async () => {
@@ -98,25 +115,45 @@ test("the account's list installs what this site lacks without FKN's confirm, an
   }
 })
 
-test('a sign out keeps connected what the page\'s address names, and uninstalls the rest', async () => {
-  const named = 'npm:@banou/named'
+test('a sign out keeps connected what a link added, though the address names every source, and uninstalls the rest', async () => {
+  const linked = 'npm:@banou/linked'
   const other = 'npm:@banou/other'
   stored.clear()
-  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([named, other]), updatedAt: new Date(0).toISOString() })
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([linked, other]), updatedAt: new Date(0).toISOString() })
   account.browser.account.signIn('alice')
   await checkSources()
+  addedByLink(linked)
   fkn.uninstall.mockClear()
 
-  address.href = `https://anime.fkn.app/title/1?plugins=${named}`
+  address.href = `https://anime.fkn.app/title/1?plugins=${linked}&plugins=${other}`
   account.browser.account.signOut()
   await checkSources()
   address.href = 'https://anime.fkn.app/'
 
   expect(fkn.uninstall.mock.calls).toEqual([[other]])
-  expect(pluginStatuses().map(plugin => plugin.uri)).toEqual([named])
+  expect(pluginStatuses().map(plugin => plugin.uri)).toEqual([linked])
   expect(pluginStatuses()[0]!.state, 'its connection is left alone').toBe('connecting')
-  expect(stored.get(ENABLED_PLUGINS_KEY)).toBe(JSON.stringify([named]))
+  expect(stored.get(ENABLED_PLUGINS_KEY)).toBe(JSON.stringify([linked]))
   expect(stored.has(ACCOUNT_PLUGINS_KEY)).toBe(false)
+})
+
+test('a source a link added, removed since and added back in Settings, goes at a sign out', async () => {
+  const again = 'npm:@banou/again'
+  stored.clear()
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([again]), updatedAt: new Date(0).toISOString() })
+  account.browser.account.signIn('alice')
+  await checkSources()
+  addedByLink(again)
+  void disablePlugin(again)
+  await checkSources()
+  await installPlugin(again)
+  await checkSources()
+  fkn.uninstall.mockClear()
+
+  account.browser.account.signOut()
+  await checkSources()
+  expect(fkn.uninstall.mock.calls).toEqual([[again]])
+  expect(pluginStatuses()).toEqual([])
 })
 
 test("a source of the account's list FKN does not install is shown failed, and never connected", async () => {

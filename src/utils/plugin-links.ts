@@ -34,8 +34,7 @@ export const comparablePluginUri = (uri: string): string =>
 export const readPluginUris = (url: string, base?: string): string[] => {
   const parsed = parse(url, base)
   if (!parsed) return []
-  // walked in the order the url writes them, rather than one name's values and then the other's, so a
-  // link naming several sources adds them in the order it names them
+  // walked in the order the url writes them, rather than one name's values and then the other's
   return dedupe(
     [...parsed.searchParams]
       .filter(([name]) => name === PLUGIN_PARAM || name === LEGACY_PLUGIN_PARAM)

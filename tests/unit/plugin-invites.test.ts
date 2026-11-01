@@ -3,12 +3,15 @@
 // quiet, so nothing happens until FKN's list has answered.
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+type Enabled = { uri: string, connected: Promise<void> } | null
+
 const plugins = vi.hoisted(() => ({
   enabled: [] as string[],
-  enablePlugin: vi.fn(async (uri: string, _options?: unknown): Promise<string | null> => uri),
+  enablePlugin: vi.fn(async (uri: string, _options?: unknown): Promise<Enabled> => ({ uri, connected: Promise.resolve() })),
   installPlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
   installedPluginUris: vi.fn(async (): Promise<string[]> => []),
   disablePlugin: vi.fn(async (_uri: string) => {}),
+  addedByLink: vi.fn((_uri: string) => {}),
 }))
 vi.mock('../../src/plugins', () => ({
   enabledPluginUris: () => plugins.enabled,
@@ -16,7 +19,14 @@ vi.mock('../../src/plugins', () => ({
   installPlugin: plugins.installPlugin,
   installedPluginUris: plugins.installedPluginUris,
   disablePlugin: plugins.disablePlugin,
+  addedByLink: plugins.addedByLink,
 }))
+
+const failing = (uri: string): Enabled => {
+  const connected = Promise.reject(new Error('failed to boot'))
+  connected.catch(() => {})
+  return { uri, connected }
+}
 vi.spyOn(console, 'warn').mockImplementation(() => {})
 
 const { addedInvites, addInvites, closeInvites, onInvitesChange, pendingInviteUris, removeInvite } = await import('../../src/plugin-invites')
@@ -28,6 +38,7 @@ afterEach(() => {
   plugins.enablePlugin.mockClear()
   plugins.installPlugin.mockClear()
   plugins.disablePlugin.mockClear()
+  plugins.addedByLink.mockClear()
 })
 
 test('a source neither stub nor FKN has is installed with no prompt and said', async () => {
@@ -38,7 +49,7 @@ test('a source neither stub nor FKN has is installed with no prompt and said', a
 })
 
 test('the notice carries the id FKN hands back, not the version the link pinned', async () => {
-  plugins.enablePlugin.mockResolvedValueOnce('npm:@banou/one')
+  plugins.enablePlugin.mockResolvedValueOnce({ uri: 'npm:@banou/one', connected: Promise.resolve() })
   await addInvites(['npm:@banou/one@1.2.0'])
 
   expect(addedInvites()).toEqual([{ uri: 'npm:@banou/one' }])
@@ -117,14 +128,33 @@ test('a listed package FKN will not add says so like any other', async () => {
   expect(addedInvites()).toEqual([{ uri: 'npm:@banou/nine@0.0.1', failed: true }])
 })
 
-test('a source FKN installed that fails to connect stays on the list, and its failure carries the id Remove needs', async () => {
-  plugins.enablePlugin.mockImplementationOnce(async () => {
-    plugins.enabled = ['npm:@banou/ten']
-    throw new Error('failed to boot')
-  })
+test('a source FKN installed that fails to connect is removed again, and says so', async () => {
+  plugins.enablePlugin.mockResolvedValueOnce(failing('npm:@banou/ten'))
   await addInvites(['npm:@banou/ten@1.0.0'])
 
-  expect(addedInvites()).toEqual([{ uri: 'npm:@banou/ten', failed: true }])
+  expect(plugins.disablePlugin.mock.calls).toEqual([['npm:@banou/ten']])
+  expect(addedInvites()).toEqual([{ uri: 'npm:@banou/ten@1.0.0', failed: true }])
+})
+
+// FKN turns a bare https-pkg host into the package it indexes, which may be on the list already
+test('a link naming a listed source by another address says nothing and removes nothing, though it fails to connect', async () => {
+  plugins.enabled = ['https-pkg:plugins.example/stub']
+  plugins.installedPluginUris.mockResolvedValueOnce(['https-pkg:plugins.example/stub'])
+  plugins.enablePlugin.mockResolvedValueOnce(failing('https-pkg:plugins.example/stub'))
+  await addInvites(['https-pkg:plugins.example'])
+
+  expect(addedInvites()).toEqual([])
+  expect(plugins.disablePlugin).not.toHaveBeenCalled()
+  expect(plugins.addedByLink).not.toHaveBeenCalled()
+})
+
+test('what a link installs is kept through a sign out, and what the list or FKN already held is not', async () => {
+  plugins.enabled = ['npm:@banou/one']
+  plugins.installedPluginUris.mockResolvedValueOnce(['npm:@banou/four'])
+  plugins.enablePlugin.mockResolvedValueOnce({ uri: 'npm:@banou/five', connected: Promise.resolve() })
+  await addInvites(['npm:@banou/one', 'npm:@banou/four', 'npm:@banou/five@1.0.0'])
+
+  expect(plugins.addedByLink.mock.calls).toEqual([['npm:@banou/five']])
 })
 
 test("the account's list bringing a source while FKN's list is awaited leaves nothing to add", async () => {
@@ -140,13 +170,13 @@ test("the account's list bringing a source while FKN's list is awaited leaves no
 })
 
 test('a source stays on the url until FKN has answered for it, then the list carries it', async () => {
-  let answer!: (uri: string) => void
+  let answer!: (enabled: Enabled) => void
   plugins.enablePlugin.mockReturnValueOnce(new Promise(resolve => { answer = resolve }))
   const adding = addInvites(['npm:@banou/six'])
   expect(pendingInviteUris()).toEqual(['npm:@banou/six'])
 
   await vi.waitFor(() => expect(plugins.enablePlugin).toHaveBeenCalled())
-  answer('npm:@banou/six')
+  answer({ uri: 'npm:@banou/six', connected: Promise.resolve() })
   await adding
   expect(pendingInviteUris()).toEqual([])
 })
