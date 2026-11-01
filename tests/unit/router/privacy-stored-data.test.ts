@@ -116,7 +116,7 @@ describe('what stub keeps per viewer', () => {
   test('says a link can add a source, and that a temporary one, or one a link added in the page signed out on, is not kept here', () => {
     expect(byId('added-sources').what).toContain('or that a link you opened named')
     expect(byId('added-sources').what).toContain('A source you make temporary is not kept on this device, and neither are the sources a link added in the page you sign out on: FKN holds them for that tab alone.')
-    expect(byId('added-sources').lasts).toContain('A temporary source lasts until its tab closes, at most')
+    expect(byId('added-sources').lasts).toContain('A temporary source lasts as long as its tab, and a copy your browser makes of that tab, such as a duplicated tab, takes it along')
   })
 
   test('says what is entered for a temporary source stays in its tab and never reaches the account', () => {

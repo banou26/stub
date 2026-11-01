@@ -33,7 +33,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Added sources',
     what: "The source packages you added from npm or that a link you opened named, installed for stub through FKN. Signed in to FKN, the list is your account's, so every stub site you sign in on gets it. Sources added while signed out join the list of the next FKN account signed in on this browser. A source you make temporary is not kept on this device, and neither are the sources a link added in the page you sign out on: FKN holds them for that tab alone.",
     where: `${LOCAL}, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
-    lasts: `Until you remove them. ${ACCOUNT_COPY}. A temporary source lasts until its tab closes, at most`,
+    lasts: `Until you remove them. ${ACCOUNT_COPY}. A temporary source lasts as long as its tab, and a copy your browser makes of that tab, such as a duplicated tab, takes it along`,
     keys: { store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] },
   },
   {
