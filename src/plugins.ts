@@ -4,7 +4,7 @@ import { packages } from '@fkn/lib'
 
 import { configureRemoteSource, registerRemoteSource, unregisterRemoteSource } from './worker'
 import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type SourceAccess } from './plugin-api'
-import { loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud, unlockTracker } from './tracking/fkn-cloud-live'
 import { comparablePluginUri } from './utils/plugin-links'
@@ -242,6 +242,11 @@ const sourceList = sourceListSync({
 
 /** Brings the list in line with the FKN account's: at start, and whenever the page asks again. */
 export const checkSources = () => sourceList.check()
+
+// another tab of this site changed the list, so this one follows at once and its address stops naming what left
+globalThis.addEventListener?.('storage', ({ key }) => {
+  if (key === ENABLED_PLUGINS_KEY || key === ACCOUNT_PLUGINS_KEY) void checkSources()
+})
 
 // install through FKN first and only persist to the enabled list once it took: FKN refuses to connect a package this app has not installed, so a mistyped address written straight to the list is retried forever
 // key everything on the id FKN hands back, never the caller's string: FKN canonicalizes a version away ('npm:x@1.2.3' installs as 'npm:x')

@@ -35,6 +35,9 @@ vi.stubGlobal('localStorage', {
   setItem: (key: string, value: string) => { stored.set(key, value) },
   removeItem: (key: string) => { stored.delete(key) },
 })
+// what another tab of the site writes reaches this page as a storage event
+const storageEvents = new Set<(event: { key: string | null }) => void>()
+vi.stubGlobal('addEventListener', (type: string, listener: (event: { key: string | null }) => void) => { if (type === 'storage') storageEvents.add(listener) })
 // every address mirrors every enabled source, so it says nothing of where one came from
 const address = { href: 'https://anime.fkn.app/' }
 vi.stubGlobal('location', address)
@@ -406,4 +409,19 @@ test('a Remove while Make temporary moves the source leaves FKN holding nothing,
   } finally {
     undo()
   }
+})
+
+test('a change another tab of the site made to the list is followed at once', async () => {
+  const [one, two] = URIS as [string, string]
+  await checkSources()
+  fkn.uninstall.mockClear()
+
+  stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([one]))
+  for (const listener of storageEvents) listener({ key: 'stub-settings' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect(fkn.uninstall, 'another key says nothing of the list').not.toHaveBeenCalled()
+
+  for (const listener of storageEvents) listener({ key: ENABLED_PLUGINS_KEY })
+  await vi.waitFor(() => expect(fkn.uninstall).toHaveBeenCalledWith(two))
+  expect(fkn.uninstall).not.toHaveBeenCalledWith(one)
 })
