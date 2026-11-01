@@ -74,13 +74,15 @@ export const followSkipOffer = (onChange: (up: boolean) => void) => {
   let offer: { end: number, at: number } | undefined
   let last = 0
   const stop = () => clearTimeout(timer)
-  const hear = (chapters: MediaChapter[], { paused, time, rate, at }: PlaybackState) => {
+  // `timed` is a moment timed on from the last report: it opens an offer as playing on would, but only a report closes
+  // one or says where the player is, since the player may have stalled short of that moment
+  const check = (chapters: MediaChapter[], { paused, time, rate, at }: PlaybackState, timed: boolean) => {
     stop()
     const kinds = classifyChapters(chapters)
     const skippable = chapters.filter((_, index) => kinds[index])
     const part = skippable.find(({ start, end }) => start - LEAD_S <= time && time < end)
-    if (part?.end !== offer?.end || time < last - SEEK_BACK_S) offer = part && { end: part.end, at }
-    last = time
+    if (part ? part.end !== offer?.end || !timed && time < last - SEEK_BACK_S : !timed) offer = part && { end: part.end, at }
+    if (!timed) last = time
     const playing = !paused && rate > 0
     const left = part && offer ? Math.min(offer.at + OFFER_MS - at, playing ? (part.end - time) / rate * 1000 : Infinity) : 0
     onChange(left > 0)
@@ -89,7 +91,7 @@ export const followSkipOffer = (onChange: (up: boolean) => void) => {
     if (wait === undefined) return
     // whole milliseconds, so a step always lands past the line it waits for
     const step = Math.ceil(wait)
-    timer = setTimeout(() => hear(chapters, { paused, rate, time: playing ? time + step / 1000 * rate : time, at: at + step }), step)
+    timer = setTimeout(() => check(chapters, { paused, rate, time: playing ? time + step / 1000 * rate : time, at: at + step }, true), step)
   }
-  return { hear, stop }
+  return { hear: (chapters: MediaChapter[], state: PlaybackState) => check(chapters, state, false), stop }
 }

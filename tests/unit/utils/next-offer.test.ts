@@ -223,6 +223,13 @@ describe('media-player\'s skip offer, followed from its reports', () => {
     expect(after(60_000), 'and nothing plays up to the next one').toBe(false)
   })
 
+  test('paused, nothing is played on to the part after', () => {
+    const chapters = [...marked(1300, 1390, 1390), ...marked(1390, 1480, 2800, 'Opening').slice(1)]
+    expect(hear(1389.5, { paused: true, chapters })).toBe(true)
+    expect(after(6_000)).toBe(false)
+    expect(after(60_000)).toBe(false)
+  })
+
   test('it goes with the chapter at the rate played', () => {
     expect(hear(1500, { rate: 2 })).toBe(false)
     expect(hear(1389, { rate: 2 })).toBe(true)
@@ -243,6 +250,30 @@ describe('media-player\'s skip offer, followed from its reports', () => {
     expect(hear(1380)).toBe(true)
     expect(hear(1395)).toBe(false)
     expect(hear(1389.5)).toBe(true)
+  })
+
+  test('a report behind the time played on from the last, a stall, opens no new offer', () => {
+    expect(hear(1383)).toBe(true)
+    expect(after(6_000)).toBe(false)
+    expect(hear(1387), 'two seconds short of 1389').toBe(false)
+    expect(after(3_000)).toBe(false)
+  })
+
+  test('a stall in an ending\'s last seconds keeps its one offer, which still closes on its clock', () => {
+    expect(hear(1388)).toBe(true)
+    expect(after(2_000), 'where the ending would have ended had it played').toBe(false)
+    after(1_000)
+    expect(hear(1388), 'still in it, 3 s into its offer').toBe(true)
+    expect(after(5_000)).toBe(false)
+    expect(hear(1388), 'still in it, past its offer').toBe(false)
+    expect(after(60_000)).toBe(false)
+  })
+
+  test('a seek from one offer straight into another opens the second', () => {
+    const chapters = [...marked(100, 190, 1300, 'Opening'), ...marked(1300, 1390, 1420).slice(1)]
+    expect(hear(150, { chapters })).toBe(true)
+    expect(after(6_000)).toBe(false)
+    expect(hear(1387, { chapters })).toBe(true)
   })
 
   test('an opening counts as an ending does, ahead of the playhead too', () => {
