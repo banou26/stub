@@ -11,7 +11,7 @@ import { build } from 'vite-plus'
 import { builtInSources } from '../src/sources/built-in'
 import { PLUGIN_VALUES_KEY } from '../src/plugin-list'
 import { shortenPath, SHORT_PATH } from '../src/utils/share-link'
-import { CONFIGURED_SOURCE, SPEC_CONFIGURED_KEY } from './fake-plugins'
+import { CONFIGURED_SOURCE, SPEC_CONFIGURED_KEY, SPEC_NO_TEMPORARY_KEY } from './fake-plugins'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 
 const ALL = builtInSources.length
@@ -688,12 +688,38 @@ test('Tab reaches the notice before the header, and a keyboard answers it', asyn
   const notice = await linkedNotice(page, ANIME)
   await expect(notice).toBeVisible()
   await page.keyboard.press('Tab')
+  await expect(notice.getByRole('button', { name: 'Make Spec Anime temporary' })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(notice.getByRole('button', { name: 'Remove Spec Anime' })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(notice.getByRole('button', { name: 'OK' })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(notice).toHaveCount(0)
   await expect(panel(page).locator(`[data-plugin="${ANIME}"] .pill`), 'OK keeps it').toHaveText('Connected')
+})
+
+test('Make temporary keeps a link\'s source on this tab\'s address alone, and a reload keeps it so with nothing to say', async ({ page }) => {
+  const notice = await linkedNotice(page, ANIME)
+  await notice.getByRole('button', { name: 'Make Spec Anime temporary' }).click()
+  await expect(notice.getByText('Temporary', { exact: true })).toBeVisible()
+  await expect(notice.getByRole('button', { name: 'Make Spec Anime temporary' })).toHaveCount(0)
+  const meta = panel(page).locator(`[data-plugin="${ANIME}"] .meta`)
+  await expect(meta).toHaveText(`${ANIME} · Temporary`)
+  expect(await page.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBe('[]')
+  await expect(page).toHaveURL(`${origin}/settings?plugins=${ANIME}`)
+
+  await page.reload()
+  await expect(meta).toHaveText(`${ANIME} · Temporary`)
+  await page.waitForTimeout(800)
+  await expect(page.getByRole('button', { name: 'OK' })).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBe('[]')
+})
+
+test('where FKN cannot hold a source for one tab, the notice offers no Make temporary', async ({ page }) => {
+  await page.addInitScript(key => localStorage.setItem(key, ''), SPEC_NO_TEMPORARY_KEY)
+  const notice = await linkedNotice(page, ANIME)
+  await expect(notice.getByRole('button', { name: 'Remove Spec Anime' })).toBeVisible()
+  await expect(notice.getByRole('button', { name: 'Make Spec Anime temporary' })).toHaveCount(0)
 })
 
 test('it stays until answered, and a source Remove took stays off the url, through a reload and a Back', async ({ page }) => {

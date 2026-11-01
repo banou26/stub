@@ -6,7 +6,8 @@ import { loadDevice, loadEnabled, loadPluginValues, saveDevice, savePluginValues
 // What tests/settings.spec.ts builds the app with in place of src/plugins.ts. FKN never answers there,
 // so a real install or connection would wait forever: here each address in SPEC_PLUGINS is installed at
 // once and stays in the state written beside it, any other added address reads as connecting, and an
-// install of an address not in the table is refused the way FKN refuses one.
+// install of an address not in the table is refused the way FKN refuses one. FKN holds a temporary source
+// for this tab in sessionStorage, as its own broker does, so a reload finds it there.
 
 /** An added source that plays its own releases, with no sign in or extension. */
 export const FREE_RELEASES = 'npm:@spec/free-releases'
@@ -113,15 +114,44 @@ export const onPluginsChange = (listener: () => void): (() => void) => {
   return () => { listeners.delete(listener) }
 }
 
-export const pluginStatuses = (): PluginStatus[] =>
-  loadEnabled().map(uri => ({ uri, ...SPEC_PLUGINS[uri] ?? { state: 'connecting' as const } }))
+const SPEC_TEMPORARY_KEY = 'spec.temporary'
+const heldForTab = (): string[] => JSON.parse(sessionStorage.getItem(SPEC_TEMPORARY_KEY) ?? '[]')
+const holdForTab = (uris: string[]) => sessionStorage.setItem(SPEC_TEMPORARY_KEY, JSON.stringify(uris))
+// what this page shows of them, as src/plugins.ts keeps it
+const temporary = new Set<string>()
 
-export const enabledPluginUris = (): string[] => loadEnabled()
+export const enabledPluginUris = (): string[] => [...new Set([...loadEnabled(), ...temporary])]
+
+export const pluginStatuses = (): PluginStatus[] => enabledPluginUris().map(uri => ({
+  uri,
+  ...SPEC_PLUGINS[uri] ?? { state: 'connecting' as const },
+  ...temporary.has(uri) ? { temporary: true as const } : {},
+}))
 
 /** The localStorage key a spec sets to the packages FKN holds for this app, whichever of its sites installed them. */
 export const SPEC_HELD_KEY = 'spec.held'
 
-export const installedPluginUris = async (): Promise<string[]> => JSON.parse(localStorage.getItem(SPEC_HELD_KEY) ?? '[]')
+export const installedPlugins = async (): Promise<{ uri: string, temporary?: true }[]> => [
+  ...(JSON.parse(localStorage.getItem(SPEC_HELD_KEY) ?? '[]') as string[]).map(uri => ({ uri })),
+  ...heldForTab().map(uri => ({ uri, temporary: true as const })),
+]
+
+/** The localStorage key a spec sets to have FKN answer that it cannot hold a source for one tab. */
+export const SPEC_NO_TEMPORARY_KEY = 'spec.no-temporary'
+
+export const supportsTemporary = async (): Promise<boolean> => localStorage.getItem(SPEC_NO_TEMPORARY_KEY) === null
+
+export const makeTemporary = async (uri: string): Promise<void> => {
+  temporary.add(uri)
+  saveDevice(loadDevice().filter(enabled => enabled !== uri))
+  holdForTab([...new Set([...heldForTab(), uri])])
+  notify()
+}
+
+export const showTemporary = (uri: string): void => {
+  temporary.add(uri)
+  notify()
+}
 
 export const installPlugin = async (uri: string): Promise<string | null> => {
   await new Promise(resolve => setTimeout(resolve, 500))
@@ -147,6 +177,8 @@ export const enablePlugin = async (uri: string): Promise<{ uri: string, connecte
 export const addedByLink = (_uri: string): void => {}
 
 export const disablePlugin = async (uri: string): Promise<void> => {
+  temporary.delete(uri)
+  holdForTab(heldForTab().filter(held => held !== uri))
   saveDevice(loadDevice().filter(enabled => enabled !== uri))
   savePluginValues(uri, {})
   notify()

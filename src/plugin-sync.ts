@@ -47,9 +47,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * list is this device's own, as before. Once one can, what this device added outside it is merged into
  * it and cleared here, and the account's list is the one shown, kept in this browser so the next load
  * shows it at once. At sign out it leaves the browser, but for the sources `keep` names, which stay as this
- * device's own. A step writes the account's file back only with this device's own additions and the
- * removals made here, never this browser's copy. A removal from the account's list is kept out of every
- * write until one lands.
+ * device's own; each page's `keep` is told, though another tab of the site applied the sign out first. A step
+ * writes the account's file back only with this device's own additions and the removals made here, never this
+ * browser's copy. A removal from the account's list is kept out of every write until one lands.
  *
  * Every storage call of a step acts for the account the step began with. A step that heard of an
  * account change, or that saw the list shown here change under it, keeps nothing but the clearing of
@@ -78,12 +78,13 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
   onValues: () => void
   /** Asks FKN for the key the account's files are sealed with. Raises its card, so a click only. */
   unlock: () => Promise<unknown>
-  /** The sources that stay as this device's own when the account's list leaves at a sign out. */
-  keep: () => string[]
+  /** Told at a sign out, with the account's list as this page last had it: those of them that stay as this device's own. */
+  keep: (account: string[]) => string[]
 }) => {
   const account = accountGeneration()
   // every tab of a site shares its storage, so the storage already holds a change another tab applied
   let applied = loadEnabled(storage)
+  let shownAccount = loadAccount(storage)
   const drops = new Set<string>()
   // in memory, as a removal is, so a save never outlives the page into another account's file
   let saves: SavedValues = {}
@@ -105,8 +106,10 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
   }
 
   const keepAtSignOut = () => {
-    const kept = keep()
-    const staying = loadAccount(storage)?.filter(uri => kept.includes(uri)) ?? []
+    const leaving = loadAccount(storage) ?? shownAccount
+    if (!leaving) return
+    const kept = keep(leaving)
+    const staying = leaving.filter(uri => kept.includes(uri))
     if (staying.length) saveDevice([...new Set([...loadDevice(storage), ...staying])], storage)
   }
 
@@ -140,6 +143,7 @@ export const sourceListSync = ({ cloud, onAccountChange, lock, storage, onList, 
     if (!current()) return
     if (!list) keepAtSignOut()
     saveAccount(list, storage)
+    shownAccount = list
     if (!list) saves = {}
     else if (values) saves = listedValues(unheld(values.theirs, mergeSaved(ownAsSaved(values.own), saves)), list)
     if (values || !list) saveAccountValues(values && mergeSaved(values.next, saves), storage)

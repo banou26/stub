@@ -1,18 +1,22 @@
 // Adding and removing a source: the list in this browser and everything listening to it move at once,
 // while FKN's connection and uninstall may never answer. And the FKN account's list, brought onto this
-// site's shelf when it arrives.
+// site's shelf when it arrives. And a source FKN holds for this tab alone, which no list stub keeps names.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
 import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../src/plugin-list'
 import { SOURCES_PATH } from '../../src/plugin-sync'
 
+type Held = { uri: string, version?: string | null, temporary?: true }
+
 const fkn = vi.hoisted(() => ({
   // FKN never answers here, which is what a page with no broker sees
   uninstall: vi.fn((_uri: string) => new Promise<void>(() => {})),
-  connect: vi.fn(() => new Promise(() => {})),
-  install: vi.fn(async (uri: string): Promise<{ uri: string } | null> => ({ uri })),
+  connect: vi.fn((_uri?: string): Promise<unknown> => new Promise(() => {})),
+  install: vi.fn(async (uri: string, _options?: object): Promise<Held | null> => ({ uri })),
+  list: vi.fn(async (): Promise<Held[]> => { throw new Error('no broker') }),
+  supportsTemporary: vi.fn(async () => false),
 }))
-vi.mock('@fkn/lib', () => ({ packages: { uninstall: fkn.uninstall, connect: fkn.connect, install: fkn.install, pick: vi.fn() } }))
+vi.mock('@fkn/lib', () => ({ packages: { ...fkn, pick: vi.fn() } }))
 vi.mock('../../src/worker', () => ({ registerRemoteSource: vi.fn(), unregisterRemoteSource: vi.fn() }))
 
 // FKN's storage faked at @fkn/lib's surface, signed out until a test signs in
@@ -36,7 +40,7 @@ const address = { href: 'https://anime.fkn.app/' }
 vi.stubGlobal('location', address)
 
 // imported with nothing added, so loading it connects nothing
-const { addedByLink, checkSources, disablePlugin, enablePlugin, installPlugin, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
+const { addedByLink, checkSources, disablePlugin, enabledPluginUris, enablePlugin, installPlugin, makeTemporary, onPluginsChange, pluginStatuses } = await import('../../src/plugins')
 
 const URIS = ['npm:@banou/one', 'npm:@banou/two']
 
@@ -45,6 +49,28 @@ beforeEach(() => {
   stored.set(ENABLED_PLUGINS_KEY, JSON.stringify(URIS))
   fkn.uninstall.mockClear()
 })
+
+/** FKN answering every uninstall and install, temporary ones included, each logged in order. Undone with `undo`. */
+const answering = () => {
+  const log: unknown[][] = []
+  fkn.supportsTemporary.mockImplementation(async () => true)
+  fkn.uninstall.mockImplementation(async uri => { log.push(['uninstall', uri]) })
+  fkn.install.mockImplementation(async (uri, options) => {
+    log.push(['install', uri, options])
+    return (options as { temporary?: true } | undefined)?.temporary ? { uri, temporary: true } : { uri }
+  })
+  const undo = () => {
+    fkn.supportsTemporary.mockImplementation(async () => false)
+    fkn.uninstall.mockImplementation(() => new Promise<void>(() => {}))
+    fkn.install.mockImplementation(async uri => ({ uri }))
+  }
+  return { log, undo }
+}
+
+const listOf = (name: string): unknown => {
+  const file = account.world.storageOf(name).get(SOURCES_PATH)
+  return file && JSON.parse(file.text)
+}
 
 test('whoever shows the list is told at once, not once FKN answers', async () => {
   const told = vi.fn(() => pluginStatuses().map(plugin => plugin.uri))
@@ -115,7 +141,7 @@ test("the account's list installs what this site lacks without FKN's confirm, an
   }
 })
 
-test('a sign out keeps connected what a link added, though the address names every source, and uninstalls the rest', async () => {
+test('where FKN cannot hold a source for one tab, a sign out keeps connected on this device what a link added, and uninstalls the rest', async () => {
   const linked = 'npm:@banou/linked'
   const other = 'npm:@banou/other'
   stored.clear()
@@ -221,6 +247,140 @@ test('a connection after the source failed, or after it closed, reads as a retry
     void disablePlugin(closing)
     vi.useRealTimers()
     warn.mockRestore()
+    fkn.connect.mockImplementation(() => new Promise(() => {}))
+    vi.mocked(worker.registerRemoteSource).mockReset()
+  }
+})
+
+test('Make temporary uninstalls the source and installs it again for this tab alone, at its version, off every list stub keeps', async () => {
+  const [one, two] = URIS as [string, string]
+  stored.clear()
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([one, two]), updatedAt: new Date(0).toISOString() })
+  const { log, undo } = answering()
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    log.length = 0
+    fkn.list.mockResolvedValueOnce([{ uri: one, version: '1.2.0' }, { uri: two, version: '0.1.0' }])
+
+    await makeTemporary(one)
+    await checkSources()
+    expect(log).toEqual([['uninstall', one], ['install', one, { temporary: true, noConfirm: true, version: '1.2.0' }]])
+    expect(listOf('alice'), 'the account no longer keeps it').toEqual([two])
+    expect(JSON.parse(stored.get(ACCOUNT_PLUGINS_KEY)!)).toEqual([two])
+    expect(JSON.parse(stored.get(ENABLED_PLUGINS_KEY) ?? '[]'), 'nor does this device').toEqual([])
+    expect(pluginStatuses().map(({ uri, temporary }) => ({ uri, temporary }))).toEqual([{ uri: two }, { uri: one, temporary: true }])
+    expect(enabledPluginUris(), 'the address still carries it').toContain(one)
+    await vi.waitFor(() => expect(fkn.connect).toHaveBeenLastCalledWith(one, expect.anything()))
+
+    log.length = 0
+    await disablePlugin(one)
+    expect(log, 'Remove takes it from FKN too').toEqual([['uninstall', one]])
+    expect(enabledPluginUris()).toEqual([two])
+  } finally {
+    undo()
+    account.browser.account.signOut()
+    await checkSources()
+  }
+})
+
+test('a source made temporary that the account\'s list brings back is kept again, and goes when the list drops it', async () => {
+  const [one, two] = URIS as [string, string]
+  stored.clear()
+  const holds = (list: string[]) => account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify(list), updatedAt: new Date(0).toISOString() })
+  holds([two])
+  const { log, undo } = answering()
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([one]))
+    await makeTemporary(one)
+    await checkSources()
+    log.length = 0
+
+    // added again on another device
+    holds([two, one])
+    await checkSources()
+    expect(log).toEqual([['install', one, { noConfirm: true }]])
+    expect(pluginStatuses().find(plugin => plugin.uri === one)).not.toHaveProperty('temporary')
+
+    log.length = 0
+    holds([two])
+    await checkSources()
+    expect(log).toEqual([['uninstall', one]])
+    expect(enabledPluginUris()).toEqual([two])
+  } finally {
+    undo()
+    account.browser.account.signOut()
+    await checkSources()
+  }
+})
+
+test('where FKN can, a sign out holds for this tab alone what a link added and what was made temporary, and uninstalls the rest', async () => {
+  const linked = 'npm:@banou/linked'
+  const other = 'npm:@banou/other'
+  const made = 'npm:@banou/made'
+  stored.clear()
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([linked, other, made]), updatedAt: new Date(0).toISOString() })
+  const { log, undo } = answering()
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    addedByLink(linked)
+    await makeTemporary(made)
+    await checkSources()
+    log.length = 0
+
+    account.browser.account.signOut()
+    await checkSources()
+    await vi.waitFor(() => expect(log.filter(([verb]) => verb === 'install')).toHaveLength(2))
+    expect(log.filter(([, uri]) => uri === linked)).toEqual([['uninstall', linked], ['install', linked, { temporary: true, noConfirm: true }]])
+    // FKN ends at a sign out what it held for the tab signed in
+    expect(log.filter(([, uri]) => uri === made)).toEqual([['uninstall', made], ['install', made, { temporary: true, noConfirm: true }]])
+    expect(log.filter(([, uri]) => uri === other)).toEqual([['uninstall', other]])
+    expect(pluginStatuses().map(({ uri, temporary }) => ({ uri, temporary }))).toEqual([{ uri: made, temporary: true }, { uri: linked, temporary: true }])
+    expect(JSON.parse(stored.get(ENABLED_PLUGINS_KEY) ?? '[]'), 'nothing of them on this device').toEqual([])
+    expect(stored.has(ACCOUNT_PLUGINS_KEY)).toBe(false)
+
+    account.browser.account.signIn('bob')
+    await checkSources()
+    expect(listOf('bob'), 'the next account to sign in gets nothing of them').toBeUndefined()
+  } finally {
+    void disablePlugin(linked)
+    void disablePlugin(made)
+    undo()
+    account.browser.account.signOut()
+    await checkSources()
+  }
+})
+
+// a frame's close may reach this page after FKN installed the package again and it connected
+test('the close of a connection the source has left tears down nothing of the one it is on', async () => {
+  const worker = await import('../../src/worker')
+  const [one] = URIS as [string]
+  stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([one]))
+  const closes: (() => void)[] = []
+  fkn.connect.mockImplementation(async () => ({ port: {}, closed: new Promise<void>(resolve => { closes.push(resolve) }) }))
+  vi.mocked(worker.registerRemoteSource).mockResolvedValue({ ok: { sources: [], rejected: [], settings: [] } })
+  const { undo } = answering()
+  try {
+    await installPlugin(one)
+    await vi.waitFor(() => expect(pluginStatuses()[0]?.state).toBe('connected'))
+    await makeTemporary(one)
+    await vi.waitFor(() => expect(closes).toHaveLength(2))
+    await vi.waitFor(() => expect(pluginStatuses()[0]).toMatchObject({ state: 'connected', temporary: true }))
+    vi.mocked(worker.unregisterRemoteSource).mockClear()
+    fkn.connect.mockClear()
+
+    closes[0]!()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(worker.unregisterRemoteSource).not.toHaveBeenCalled()
+    expect(pluginStatuses()[0]).toMatchObject({ state: 'connected', temporary: true })
+    await new Promise(resolve => setTimeout(resolve, 3_100))
+    expect(fkn.connect, 'and no second connection').not.toHaveBeenCalled()
+  } finally {
+    void disablePlugin(one)
+    undo()
     fkn.connect.mockImplementation(() => new Promise(() => {}))
     vi.mocked(worker.registerRemoteSource).mockReset()
   }

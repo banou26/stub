@@ -3,8 +3,8 @@
 import { expect, test, vi } from 'vite-plus/test'
 
 const plugins = vi.hoisted(() => {
-  let answerList!: (uris: string[]) => void
-  const list = new Promise<string[]>(resolve => { answerList = resolve })
+  let answerList!: (held: { uri: string }[]) => void
+  const list = new Promise<{ uri: string }[]>(resolve => { answerList = resolve })
   return {
     list,
     answerList,
@@ -27,7 +27,8 @@ vi.mock('../../src/plugins', () => ({
   enabledPluginUris: () => plugins.enabled,
   enablePlugin: plugins.enablePlugin,
   installPlugin: vi.fn(),
-  installedPluginUris: () => plugins.list,
+  installedPlugins: () => plugins.list,
+  supportsTemporary: async () => false,
   disablePlugin: plugins.disablePlugin,
   addedByLink: () => {},
   onPluginsChange: (listener: () => void) => {

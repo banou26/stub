@@ -426,8 +426,10 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
   const intl = useIntl()
   const sources = plugin.sources ?? []
   const name = pluginName(intl, plugin)
+  const temporary = plugin.temporary ? intl.formatMessage({ id: 'Temporary', defaultMessage: 'Temporary' }) : undefined
   // a package may register a family of sources, and some of them and not others
   const counts = [
+    temporary,
     sources.length > 1 ? intl.formatMessage({ id: '{count, plural, one {{count} source} other {{count} sources}}', defaultMessage: '{count, plural, one {{count} source} other {{count} sources}}' }, { count: sources.length }) : undefined,
     plugin.rejected?.length ? intl.formatMessage({ id: '{count, plural, one {{count} unavailable} other {{count} unavailable}}', defaultMessage: '{count, plural, one {{count} unavailable} other {{count} unavailable}}' }, { count: plugin.rejected.length }) : undefined,
   ].filter(Boolean).map(part => ` · ${part}`).join('')
@@ -443,7 +445,7 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
               {counts}
             </span>
           )
-          : undefined}
+          : temporary && <span className="meta">{temporary}</span>}
       </div>
       <span className="pill" data-state={plugin.state}><span className="dot" aria-hidden="true"/>{intl.formatMessage(STATE_LABEL[plugin.state])}</span>
       <button type="button" className="secondary small" aria-label={intl.formatMessage({ id: 'Remove {name}', defaultMessage: 'Remove {name}' }, { name })} onClick={onRemove}>

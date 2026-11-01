@@ -12,6 +12,12 @@ const plugins = vi.hoisted(() => ({
     plugins.statuses = plugins.statuses.filter(status => (status as { uri: string }).uri !== uri)
     for (const listener of plugins.listeners) listener()
   }),
+  supportsTemporary: vi.fn(async () => false),
+  // as src/plugins.ts does, the source shows as temporary from the click
+  makeTemporary: vi.fn(async (uri: string) => {
+    plugins.statuses = plugins.statuses.map(status => (status as { uri: string }).uri === uri ? { ...status, temporary: true } : status)
+    for (const listener of plugins.listeners) listener()
+  }),
 }))
 vi.mock('../../../src/plugins', () => ({
   pluginStatuses: () => plugins.statuses,
@@ -22,9 +28,12 @@ vi.mock('../../../src/plugins', () => ({
   enabledPluginUris: () => [],
   enablePlugin: plugins.enablePlugin,
   installPlugin: vi.fn(),
-  installedPluginUris: async () => [],
+  installedPlugins: async () => [],
   disablePlugin: plugins.disablePlugin,
   addedByLink: () => {},
+  supportsTemporary: plugins.supportsTemporary,
+  makeTemporary: plugins.makeTemporary,
+  showTemporary: () => {},
 }))
 vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -38,6 +47,7 @@ afterEach(() => {
   closeInvites()
   plugins.statuses = []
   plugins.disablePlugin.mockClear()
+  plugins.makeTemporary.mockClear()
 })
 
 const drawn = async (uris: string[]) => {
@@ -128,4 +138,27 @@ test('a source that left the list since, in Settings or anywhere else, is no lon
 
   await act(() => plugins.disablePlugin(two))
   expect(host.querySelector('.notice'), 'nothing left to say').toBeNull()
+})
+
+test('where FKN can hold a source for one tab, Make temporary sits before Remove, and the row then says Temporary', async () => {
+  plugins.supportsTemporary.mockResolvedValueOnce(true)
+  plugins.statuses = [{ uri: NYAA, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
+  const host = await drawn([NYAA])
+  expect(buttons(host)).toEqual(['Make Nyaa temporary', 'Remove Nyaa', 'OK'])
+  expect(host.querySelector('li button')!.textContent).toBe('Make temporary')
+
+  press(host, 'Make Nyaa temporary')
+  expect(plugins.makeTemporary.mock.calls).toEqual([[NYAA]])
+  expect(plugins.disablePlugin).not.toHaveBeenCalled()
+  expect(buttons(host)).toEqual(['Remove Nyaa', 'OK'])
+  expect(host.querySelector('.actions')!.textContent).toBe('TemporaryRemove')
+})
+
+test('where FKN cannot hold a source for one tab, there is no Make temporary', async () => {
+  plugins.supportsTemporary.mockResolvedValueOnce(false)
+  plugins.statuses = [{ uri: NYAA, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
+  const host = await drawn([NYAA])
+
+  expect(buttons(host)).toEqual(['Remove Nyaa', 'OK'])
+  expect(host.textContent).not.toContain('emporary')
 })

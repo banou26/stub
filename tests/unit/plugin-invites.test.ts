@@ -1,26 +1,35 @@
 // A `?plugins=` link adds what the list lacks with no prompt, and says so. A package FKN already holds for this
 // app, installed on another of its sites, is added with nothing to say, which is what keeps stub's own site links
-// quiet, so nothing happens until FKN's list has answered.
+// quiet, so nothing happens until FKN's list has answered. One FKN holds for this tab alone is shown as it is.
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 type Enabled = { uri: string, connected: Promise<void> } | null
+type Held = { uri: string, temporary?: true }
 
 const plugins = vi.hoisted(() => ({
   enabled: [] as string[],
   enablePlugin: vi.fn(async (uri: string, _options?: unknown): Promise<Enabled> => ({ uri, connected: Promise.resolve() })),
   installPlugin: vi.fn(async (uri: string): Promise<string | null> => uri),
-  installedPluginUris: vi.fn(async (): Promise<string[]> => []),
+  installedPlugins: vi.fn(async (): Promise<Held[]> => []),
   disablePlugin: vi.fn(async (_uri: string) => {}),
   addedByLink: vi.fn((_uri: string) => {}),
+  supportsTemporary: vi.fn(async () => false),
+  makeTemporary: vi.fn(async (_uri: string) => {}),
+  showTemporary: vi.fn((_uri: string) => {}),
 }))
 vi.mock('../../src/plugins', () => ({
   enabledPluginUris: () => plugins.enabled,
   enablePlugin: plugins.enablePlugin,
   installPlugin: plugins.installPlugin,
-  installedPluginUris: plugins.installedPluginUris,
+  installedPlugins: plugins.installedPlugins,
   disablePlugin: plugins.disablePlugin,
   addedByLink: plugins.addedByLink,
+  supportsTemporary: plugins.supportsTemporary,
+  makeTemporary: plugins.makeTemporary,
+  showTemporary: plugins.showTemporary,
 }))
+
+const held = (...uris: string[]): Held[] => uris.map(uri => ({ uri }))
 
 const failing = (uri: string): Enabled => {
   const connected = Promise.reject(new Error('failed to boot'))
@@ -29,7 +38,7 @@ const failing = (uri: string): Enabled => {
 }
 vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-const { addedInvites, addInvites, closeInvites, onInvitesChange, pendingInviteUris, removeInvite } = await import('../../src/plugin-invites')
+const { addedInvites, addInvites, closeInvites, makeInviteTemporary, onInvitesChange, pendingInviteUris, removeInvite } = await import('../../src/plugin-invites')
 
 afterEach(() => {
   vi.useRealTimers()
@@ -39,6 +48,8 @@ afterEach(() => {
   plugins.installPlugin.mockClear()
   plugins.disablePlugin.mockClear()
   plugins.addedByLink.mockClear()
+  plugins.makeTemporary.mockClear()
+  plugins.showTemporary.mockClear()
 })
 
 test('a source neither stub nor FKN has is installed with no prompt and said', async () => {
@@ -64,17 +75,17 @@ test('several sources on one link share one list, and one that fails costs the o
 
 test('a source already on the list adds nothing and says nothing, whatever version the link names', async () => {
   plugins.enabled = ['npm:@banou/one']
-  plugins.installedPluginUris.mockClear()
+  plugins.installedPlugins.mockClear()
   await addInvites(['npm:@banou/one@1.2.0'])
 
-  expect(plugins.installedPluginUris, 'every page load carries the mirror, so FKN is not asked for it').not.toHaveBeenCalled()
+  expect(plugins.installedPlugins, 'every page load carries the mirror, so FKN is not asked for it').not.toHaveBeenCalled()
   expect(plugins.enablePlugin).not.toHaveBeenCalled()
   expect(plugins.installPlugin).not.toHaveBeenCalled()
   expect(addedInvites()).toEqual([])
 })
 
 test("a package FKN holds for this app from another of its sites joins the list with nothing to say", async () => {
-  plugins.installedPluginUris.mockResolvedValueOnce(['https:stub.plugins.banou.dev', 'npm:@banou/four'])
+  plugins.installedPlugins.mockResolvedValueOnce(held('https:stub.plugins.banou.dev', 'npm:@banou/four'))
   await addInvites(['https:stub.plugins.banou.dev/', 'npm:@banou/four@2.0.0', 'npm:@banou/five'])
 
   expect(plugins.installPlugin.mock.calls.map(([uri]) => uri)).toEqual(['https:stub.plugins.banou.dev/', 'npm:@banou/four@2.0.0'])
@@ -84,7 +95,7 @@ test("a package FKN holds for this app from another of its sites joins the list 
 // a site's first list may wait 3 s on FKN's own api: a mirror of the sources must not read as a new link meanwhile
 test("stub's own site link is told from a new link however long FKN's list takes", async () => {
   vi.useFakeTimers()
-  plugins.installedPluginUris.mockReturnValueOnce(new Promise(resolve => { setTimeout(() => resolve(['https:stub.plugins.banou.dev']), 3_000) }))
+  plugins.installedPlugins.mockReturnValueOnce(new Promise(resolve => { setTimeout(() => resolve(held('https:stub.plugins.banou.dev')), 3_000) }))
   void addInvites(['https:stub.plugins.banou.dev'])
 
   await vi.advanceTimersByTimeAsync(2_900)
@@ -100,7 +111,7 @@ test("stub's own site link is told from a new link however long FKN's list takes
 
 // FKN confirms a version other than the one it holds, and the viewer can say no there
 test("a no to FKN's confirm says nothing, and the link leaves the url", async () => {
-  plugins.installedPluginUris.mockResolvedValueOnce(['npm:@banou/eight'])
+  plugins.installedPlugins.mockResolvedValueOnce(held('npm:@banou/eight'))
   plugins.installPlugin.mockResolvedValueOnce(null)
   const changed = vi.fn()
   const unsubscribe = onInvitesChange(changed)
@@ -121,7 +132,7 @@ test('a broker too old for noConfirm still confirms, and a no there says nothing
 })
 
 test('a listed package FKN will not add says so like any other', async () => {
-  plugins.installedPluginUris.mockResolvedValueOnce(['npm:@banou/nine'])
+  plugins.installedPlugins.mockResolvedValueOnce(held('npm:@banou/nine'))
   plugins.installPlugin.mockRejectedValueOnce(new Error('invalid'))
   await addInvites(['npm:@banou/nine@0.0.1'])
 
@@ -139,7 +150,7 @@ test('a source FKN installed that fails to connect is removed again, and says so
 // FKN turns a bare https-pkg host into the package it indexes, which may be on the list already
 test('a link naming a listed source by another address says nothing and removes nothing, though it fails to connect', async () => {
   plugins.enabled = ['https-pkg:plugins.example/stub']
-  plugins.installedPluginUris.mockResolvedValueOnce(['https-pkg:plugins.example/stub'])
+  plugins.installedPlugins.mockResolvedValueOnce(held('https-pkg:plugins.example/stub'))
   plugins.enablePlugin.mockResolvedValueOnce(failing('https-pkg:plugins.example/stub'))
   await addInvites(['https-pkg:plugins.example'])
 
@@ -150,7 +161,7 @@ test('a link naming a listed source by another address says nothing and removes 
 
 test('what a link installs is kept through a sign out, and what the list or FKN already held is not', async () => {
   plugins.enabled = ['npm:@banou/one']
-  plugins.installedPluginUris.mockResolvedValueOnce(['npm:@banou/four'])
+  plugins.installedPlugins.mockResolvedValueOnce(held('npm:@banou/four'))
   plugins.enablePlugin.mockResolvedValueOnce({ uri: 'npm:@banou/five', connected: Promise.resolve() })
   await addInvites(['npm:@banou/one', 'npm:@banou/four', 'npm:@banou/five@1.0.0'])
 
@@ -158,8 +169,8 @@ test('what a link installs is kept through a sign out, and what the list or FKN 
 })
 
 test("the account's list bringing a source while FKN's list is awaited leaves nothing to add", async () => {
-  let answer!: (uris: string[]) => void
-  plugins.installedPluginUris.mockReturnValueOnce(new Promise(resolve => { answer = resolve }))
+  let answer!: (uris: Held[]) => void
+  plugins.installedPlugins.mockReturnValueOnce(new Promise(resolve => { answer = resolve }))
   const adding = addInvites(['npm:@banou/ten'])
 
   plugins.enabled = ['npm:@banou/ten']
@@ -189,6 +200,39 @@ test('Remove takes that one source off the list and off the notice', async () =>
   expect(addedInvites()).toEqual([{ uri: 'npm:@banou/three' }])
 })
 
+// install() without `temporary` keeps what FKN holds for the tab, so a reload would undo Make temporary
+test('a reload whose address names a source made temporary shows it as it is, installing nothing and saying nothing', async () => {
+  plugins.installedPlugins.mockResolvedValueOnce([{ uri: 'npm:@banou/seven', temporary: true }])
+  plugins.supportsTemporary.mockResolvedValueOnce(true)
+  await addInvites(['npm:@banou/seven'])
+
+  expect(plugins.showTemporary.mock.calls).toEqual([['npm:@banou/seven']])
+  expect(plugins.installPlugin).not.toHaveBeenCalled()
+  expect(plugins.enablePlugin).not.toHaveBeenCalled()
+  expect(plugins.addedByLink).not.toHaveBeenCalled()
+  expect(addedInvites()).toEqual([])
+  expect(pendingInviteUris()).toEqual([])
+})
+
+test('Make temporary is offered where FKN can hold a source for one tab, and not where it cannot', async () => {
+  plugins.supportsTemporary.mockResolvedValueOnce(true)
+  await addInvites(['npm:@banou/two'])
+  plugins.supportsTemporary.mockResolvedValueOnce(false)
+  await addInvites(['npm:@banou/three'])
+
+  expect(addedInvites()).toEqual([{ uri: 'npm:@banou/two', offersTemporary: true }, { uri: 'npm:@banou/three' }])
+})
+
+test('Make temporary hands that one source to FKN for this tab, and its row stays', async () => {
+  plugins.supportsTemporary.mockResolvedValueOnce(true)
+  await addInvites(['npm:@banou/two', 'npm:@banou/three'])
+  makeInviteTemporary('npm:@banou/two')
+
+  expect(plugins.makeTemporary.mock.calls).toEqual([['npm:@banou/two']])
+  expect(plugins.disablePlugin).not.toHaveBeenCalled()
+  expect(addedInvites().map(({ uri }) => uri)).toEqual(['npm:@banou/two', 'npm:@banou/three'])
+})
+
 test('OK closes the notice and keeps every source', async () => {
   await addInvites(['npm:@banou/two', 'npm:@banou/three'])
   closeInvites()
@@ -199,7 +243,7 @@ test('OK closes the notice and keeps every source', async () => {
 
 // last: the link stays held for the rest of this page
 test('a list that fails adds nothing and says nothing, and the link stays on the url', async () => {
-  plugins.installedPluginUris.mockRejectedValueOnce(new Error('unavailable'))
+  plugins.installedPlugins.mockRejectedValueOnce(new Error('unavailable'))
   await addInvites(['npm:@banou/six'])
 
   expect(plugins.enablePlugin).not.toHaveBeenCalled()

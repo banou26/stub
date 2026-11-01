@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { layer } from '../layers'
-import { addedInvites, closeInvites, onInvitesChange, removeInvite, type AddedInvite } from '../plugin-invites'
+import { addedInvites, closeInvites, makeInviteTemporary, onInvitesChange, removeInvite, type AddedInvite } from '../plugin-invites'
 import { pluginName, usePluginStatuses } from '../utils/use-plugin-statuses'
 
 // under the bar, clear of FKN's own notice and the party chat, which both take the bottom right corner
@@ -40,16 +40,30 @@ const style = css`
     list-style: none;
   }
 
+  /* the actions drop under the name when both do not fit beside it */
   li {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 1.2rem;
+    gap: 0.8rem 1.2rem;
   }
 
-  li span {
+  li > span {
+    flex: 1 1 16rem;
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-left: auto;
+  }
+
+  .temporary {
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .failed {
@@ -76,7 +90,7 @@ const style = css`
   }
 `
 
-/** The sources a link just added, each with Remove while it is on the list, until the viewer answers. */
+/** The sources a link just added, each with Make temporary where FKN can and Remove while it is on the list, until the viewer answers. */
 const PluginNotice = () => {
   const intl = useIntl()
   const statuses = usePluginStatuses()
@@ -96,7 +110,7 @@ const PluginNotice = () => {
       {invites.length > 0 && (
         <div className="notice">
           <ul>
-            {invites.map(({ uri, failed }) => {
+            {invites.map(({ uri, failed, offersTemporary }) => {
               const status = statuses.find(plugin => plugin.uri === uri)
               const name = pluginName(intl, status ?? { uri })
               return (
@@ -105,9 +119,18 @@ const PluginNotice = () => {
                     ? <span className="failed">{intl.formatMessage({ id: 'Could not add {name}', defaultMessage: 'Could not add {name}' }, { name })}</span>
                     : <span>{intl.formatMessage({ id: 'Source enabled: {name}', defaultMessage: 'Source enabled: {name}' }, { name })}</span>}
                   {status && (
-                    <button type="button" aria-label={intl.formatMessage({ id: 'Remove {name}', defaultMessage: 'Remove {name}' }, { name })} onClick={() => removeInvite(uri)}>
-                      {intl.formatMessage({ id: 'Remove', defaultMessage: 'Remove' })}
-                    </button>
+                    <div className="actions">
+                      {status.temporary
+                        ? <span className="temporary">{intl.formatMessage({ id: 'Temporary', defaultMessage: 'Temporary' })}</span>
+                        : offersTemporary && (
+                          <button type="button" aria-label={intl.formatMessage({ id: 'Make {name} temporary', defaultMessage: 'Make {name} temporary' }, { name })} onClick={() => makeInviteTemporary(uri)}>
+                            {intl.formatMessage({ id: 'Make temporary', defaultMessage: 'Make temporary' })}
+                          </button>
+                        )}
+                      <button type="button" aria-label={intl.formatMessage({ id: 'Remove {name}', defaultMessage: 'Remove {name}' }, { name })} onClick={() => removeInvite(uri)}>
+                        {intl.formatMessage({ id: 'Remove', defaultMessage: 'Remove' })}
+                      </button>
+                    </div>
                   )}
                 </li>
               )

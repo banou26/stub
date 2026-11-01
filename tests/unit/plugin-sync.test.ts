@@ -27,7 +27,7 @@ const memoryStorage = () => {
 }
 
 /** A tab of one of stub's sites in `browser`: the site's storage and lock, which its tabs share, and the tab's own @fkn/lib realm. */
-const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, wrap = (lib: FknStorage) => lib, keep: () => string[] = () => []) => {
+const tab = (browser: Browser, shared = { ...memoryStorage(), lock: mutex() }, wrap = (lib: FknStorage) => lib, keep: (account: string[]) => string[] = () => []) => {
   const realm = browser.realm()
   const changes: { before: string[], after: string[] }[] = []
   const sync = sourceListSync({
@@ -450,6 +450,28 @@ describe('the added sources on the FKN account', () => {
     expect(one.shown()).toEqual([A])
     expect(shared.items.has(ACCOUNT_PLUGINS_KEY)).toBe(false)
     expect(two.changes.at(-1)).toEqual({ before: [A, B], after: [A] })
+  })
+
+  // each tab holds its own link's sources for itself alone, so each needs to hear the sign out
+  test('a sign out another tab of the site applied first still tells this tab\'s `keep`, with the account\'s list it had', async () => {
+    const world = fknWorld()
+    holds(world, 'alice', [A, B])
+    const browser = world.browser({ account: 'alice' })
+    const shared = { ...memoryStorage(), lock: mutex() }
+    const told: string[][] = []
+    const one = tab(browser, shared, undefined, () => [A])
+    const two = tab(browser, shared, undefined, account => { told.push(account); return [B] })
+    await one.sync.check()
+    await two.sync.check()
+
+    browser.account.signOut()
+    await one.sync.check()
+    await two.sync.check()
+    expect(told).toEqual([[A, B]])
+    expect(two.shown()).toEqual([A, B])
+
+    await two.sync.check()
+    expect(told, 'once').toHaveLength(1)
   })
 
   test('a source that leaves the account\'s list while signed in goes, though `keep` names it', async () => {
