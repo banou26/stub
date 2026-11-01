@@ -16,8 +16,8 @@ import AccountWidget, { menuStyle } from './account-widget'
 import PartyWidget from './party-widget'
 import { layer } from '../layers'
 import { site, siteLinks } from '../site'
-import { loadDevice } from '../plugin-list'
-import { writePluginUris } from '../utils/plugin-links'
+import { loadAccount } from '../plugin-list'
+import { readPluginUris, writePluginUris } from '../utils/plugin-links'
 
 const PLACEHOLDERS = defineMessages({
   anime: { id: 'Search anime…', defaultMessage: 'Search anime…' },
@@ -390,17 +390,23 @@ const currentSiteStyle = css`
   }
 `
 
-// a site link carries only this device's own sources: an FKN account's list reaches the next site through
-// the account
+// a site link carries the sources this tab's address does but the FKN account's, which reach the next site through
+// the account: this device's own, and those FKN holds for this tab alone, which no list stub keeps names
+const carried = () => {
+  const account = loadAccount() ?? []
+  return readPluginUris(globalThis.location?.href ?? '').filter(uri => !account.includes(uri))
+}
+
 const SiteLinks = ({ className }: { className?: string }) => {
   const intl = useIntl()
+  const sources = carried()
   return (
     <>
       {siteLinks.map(link => (
         <a
           key={link.site}
           className={className}
-          href={writePluginUris(link.href, loadDevice(), link.href)}
+          href={writePluginUris(link.href, sources, link.href)}
           aria-current={link.site === site ? 'page' : undefined}
         >
           {intl.formatMessage(SITE_NAMES[link.site])}
