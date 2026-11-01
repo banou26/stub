@@ -1030,6 +1030,9 @@ test('a theme still plays when the player\'s chunk is gone, as after a deploy', 
 })
 
 test('a playing theme takes its keys only from inside the player, so Space and the arrows still scroll the page and press its buttons', async ({ page }) => {
+  // three waits of up to 30 s (the home page's cards, the modal's title, Play) and 30 for the keys: on a fifth of a CPU
+  // the default 30 for the whole test ran out before the keys (2026-11-02)
+  test.setTimeout(120_000)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('https://v.animethemes.moe/**', route => route.fulfill({ path: join(ROOT, 'tests', 'fixtures', 'themes', 'theme.webm'), contentType: 'video/webm' }))
   await openModal(page)
@@ -1360,6 +1363,9 @@ const cardLines = (cards: Locator) => cards.evaluateAll(cards => {
 // the same as the 3: service cards please? but make them a bit smaller, not the same size as they are on the 3")
 // 769 px is the narrowest window with the facts beside the description, 768 the widest with them under it
 test('a film\'s preview draws every place to watch it atop its description as cards naming the site each opens, never fewer than two to a line, and with none in stub holds no Play', async ({ page }) => {
+  // four loads, each given the 30 s its wait for the cards allows: JustWatch alone holds each 5 s (tests/fake-fetch.ts),
+  // so the four took 24.5 s here, and on half a CPU ran out of the default 30 for the whole test at 768 px (2026-11-02)
+  test.setTimeout(120_000)
   for (const [width, height, counts] of [[1440, 900, [4, 3]], [769, 1024, [2, 2, 2, 1]], [768, 1024, [4, 3]], [390, 844, [2, 2, 2, 1]]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/media/${FILM}`)
