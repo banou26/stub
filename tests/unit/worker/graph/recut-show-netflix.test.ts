@@ -10,7 +10,7 @@ import { resolveMedia } from '../../../../src/worker/graph/read'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import ANSWERS from '../../../fixtures/justwatch/money-heist-answers.json'
-import { answer } from './plugins/fixtures'
+import { answer, episode, media, rowsOf, sameAs, title } from './plugins/fixtures'
 
 const RUN = 'tmdb:71446-s1'
 const PAGE = `ag:(${RUN})`
@@ -24,14 +24,39 @@ const pass = async () => {
   expect(report.runs.filter(run => run.failed).map(run => `${run.id}: ${run.failed}`)).toEqual([])
 }
 
-const handlesOf = async () => {
-  const page = await resolveMedia(PAGE) as unknown as Page
-  return page.handles.map(({ relation, node }) => `${relation} ${node.uri} ${node.url ?? ''}`.trim())
+const handlesOf = async (page = PAGE) => {
+  const view = await resolveMedia(page) as unknown as Page
+  return view.handles.map(({ relation, node }) => `${relation} ${node.uri} ${node.url ?? ''}`.trim())
 }
+
+// A catalogue season that folds a cour: Crunchyroll's 23 rows hold the cour's 11, which HIDIVE also lists as a season
+const FOLD = 'cr:G24H1N3MP-G609CX3J4'
+const COUR = 'anilist:108465'
+const COUR_DAYS = Array.from({ length: 11 }, (_, index) => new Date(Date.UTC(2021, 0, 10 + index * 7)).toISOString().slice(0, 10))
+const foldAnswers = () => Promise.all([
+  media(COUR, {
+    type: 'TV', episodeCount: 11, startDate: COUR_DAYS[0], titles: [title('en', 'Mushoku Tensei')],
+    handles: [
+      sameAs(media('anizip:14758')),
+      sameAs(media('hidive:mushoku-tensei')),
+      { relation: 'PART_OF', node: media(FOLD) },
+    ],
+  }),
+  media('anizip:14758', {
+    type: 'TV', episodeCount: 11, titles: [title('en', 'Mushoku Tensei')],
+    episodes: COUR_DAYS.map((day, index) => episode(`anizip:14758-${index + 1}`, 'anizip:14758', { episodeNumber: index + 1, releaseDate: day })),
+  }),
+  media('hidive:mushoku-tensei', { type: 'TV', episodeCount: 11, titles: [title('en', 'Mushoku Tensei')] }),
+  media(FOLD, {
+    type: 'TV', episodeCount: 23, titles: [title('en', 'Mushoku Tensei Season 1')],
+    episodes: Array.from({ length: 23 }, (_, index) =>
+      episode(`cr:G609CX3J4-${index + 1}`, FOLD, { episodeNumber: index + 1, releaseDate: COUR_DAYS[index] })),
+  }),
+].map(row => answer('media', row)))
 
 beforeAll(async () => {
   await enableGraph(true)
-  await ingestAnswers(await Promise.all(ANSWERS.map(row => answer('media', row))))
+  await ingestAnswers([...await Promise.all(ANSWERS.map(row => answer('media', row))), ...await foldAnswers()])
   await pass()
 }, 300_000)
 
@@ -57,4 +82,14 @@ test('a run whose Netflix season paired keeps that season alone, with no second 
   await pass()
   const handles = await handlesOf()
   expect(handles.filter(handle => handle.includes(' nf:'))).toEqual([`SAME_AS ${NETFLIX_SEASON.uri} https://www.netflix.com/title/80192098`])
+})
+
+test('a season that includes a run links no streaming service of that run, which is a part of it and not its show', async () => {
+  const includes = await rowsOf(
+    `MATCH (:Media {uri: $from})-[l:LINK {kind: 'INCLUDES', status: 'active'}]->(:Media {uri: $to}) RETURN l.reason AS reason`,
+    { from: FOLD, to: COUR }
+  )
+  expect(includes).toHaveLength(1)
+  expect((await handlesOf(`ag:(${COUR})`)).filter(handle => handle.includes(' hidive:'))).toEqual(['SAME_AS hidive:mushoku-tensei'])
+  expect(await handlesOf(`ag:(${FOLD})`)).toEqual([`SAME_AS ${FOLD}`, `INCLUDES ${COUR}`])
 })
