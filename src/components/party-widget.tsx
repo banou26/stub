@@ -21,8 +21,7 @@ import { layer } from '../layers'
 import PartyGrants, { CONTROL_LABEL, StatusIcon } from './party-grants'
 import PartyTracks from './party-tracks'
 import { switchStyle } from './switch-style'
-import { loadEnabled } from '../plugin-list'
-import { withoutPluginUris, writePluginUris } from '../utils/plugin-links'
+import { readPluginUris, withoutPluginUris, writePluginUris } from '../utils/plugin-links'
 
 const buttonStyle = css`
   display: flex;
@@ -252,8 +251,9 @@ const PartyWidget = () => {
   // a party that just ended is worth a look, so the menu opens on its own to say why
   useEffect(() => { if (state.status === 'ended' || state.status === 'failed') setOpen(true) }, [state.status])
 
-  // the host's sources ride along, so a follower without one gets it the way any link adds a source
-  const link = state.status === 'active' ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href) : undefined
+  // the host's sources ride along as this page's address names them, those FKN holds for this tab alone too, so a
+  // follower without one gets it the way any link adds a source
+  const link = state.status === 'active' ? writePluginUris(partyLink(location.origin, state.invite), readPluginUris(location.href), location.href) : undefined
   const copy = async () => {
     if (!link) return
     try { await navigator.clipboard.writeText(link); setCopied(true) } catch {}

@@ -22,8 +22,9 @@ vi.mock('../../../src/party', async () => ({
   partyLink: (await import('../../../src/party/invite')).partyLink,
 }))
 
-const added = vi.hoisted(() => ({ sources: [] as string[] }))
-vi.mock('../../../src/plugin-list', () => ({ loadEnabled: () => added.sources }))
+// the sources this page's address names, those FKN holds for this tab alone among them, which no list stub keeps names
+const added = { sources: [] as string[] }
+const query = () => added.sources.length ? `?${added.sources.map(uri => `plugins=${uri}`).join('&')}` : ''
 
 const { default: Party } = await import('../../../src/router/party')
 
@@ -34,7 +35,7 @@ const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)))
 
 /** The party page at `hash`, over a store `start` moved. */
 const page = async (hash: string, start: (store: PartyStore) => Promise<unknown> | void = () => {}) => {
-  Object.assign(globalThis, { location: { origin: 'https://stub.test', href: `https://stub.test/party${hash}`, hash } })
+  Object.assign(globalThis, { location: { origin: 'https://stub.test', href: `https://stub.test/party${query()}${hash}`, hash } })
   await start(current.store)
   const location = memoryLocation({ path: '/party' })
   const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Party/></Router>))

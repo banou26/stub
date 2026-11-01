@@ -22,8 +22,8 @@ vi.mock('../../../src/party', async () => ({
   party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }),
   partyLink: (await import('../../../src/party/invite')).partyLink,
 }))
-const added = vi.hoisted(() => ({ sources: [] as string[] }))
-vi.mock('../../../src/plugin-list', () => ({ loadEnabled: () => added.sources }))
+// the sources the page's address names, those FKN holds for this tab alone among them, which no list stub keeps names
+const added = { sources: [] as string[] }
 
 // the invite link reads the page's address
 Object.assign(globalThis, { location: { origin: 'https://stub.test', href: 'https://stub.test/watch/a/b' } })
@@ -164,6 +164,7 @@ describe('the host\'s count of where followers stand', () => {
 // HOR-845: a follower without one of the host's sources had no player and was never offered it
 describe('the invite link', () => {
   const invite = async () => {
+    globalThis.location.href = `https://stub.test/watch/a/b${added.sources.length ? `?${added.sources.map(uri => `plugins=${uri}`).join('&')}` : ''}`
     const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host'] })
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.create()

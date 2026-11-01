@@ -12,8 +12,7 @@ import { inviteFromHash } from '../../party/invite'
 import { displayName } from '../../party/protocol'
 import { useParty, usePartyMessages } from '../../party/use-party'
 import { getRoutePath, Route } from '../path'
-import { loadEnabled } from '../../plugin-list'
-import { writePluginUris } from '../../utils/plugin-links'
+import { readPluginUris, writePluginUris } from '../../utils/plugin-links'
 
 const style = css`
   padding: calc(var(--stub-header-height) + 3rem) 3rem 4rem;
@@ -187,7 +186,7 @@ const Party = () => {
 
   // only the host's sources are the party's: a guest's own would offer a friend sources the host does not play
   const link = !active ? undefined
-    : state.role === 'host' ? writePluginUris(partyLink(location.origin, state.invite), loadEnabled(), location.href)
+    : state.role === 'host' ? writePluginUris(partyLink(location.origin, state.invite), readPluginUris(location.href), location.href)
     : partyLink(location.origin, state.invite)
   const copy = async () => {
     if (!link) return
