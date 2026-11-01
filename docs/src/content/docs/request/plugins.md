@@ -589,7 +589,9 @@ configure?: (values: Record<string, string>) => Promise<void>
   goes on, and drops what the plugin rejected with unread, since it could quote a value.
 
 Signed out, the values stay in this browser, per site, under `'stub-plugin-values'`, not encrypted, and go when
-the source does. Stub never logs them and never puts one in a url.
+the source does. Stub never logs them and never puts one in a url. A source FKN holds for one tab alone keeps its
+values in that tab only, under `'stub-tab-plugin-values'` in its sessionStorage, signed in or not, and they never
+reach the account.
 
 Signed in, they follow the account as the source list does, and through the same step (`src/plugin-sync.ts`). They
 are stub's, not FKN's: `sources/v1/values.json`, sealed in the browser like the list, needing no FKN change.

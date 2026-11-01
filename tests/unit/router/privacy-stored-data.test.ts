@@ -8,7 +8,7 @@ import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
-import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY, TAB_VALUES_KEY } from '../../../src/plugin-list'
 import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { COUNTRY_KEY } from '../../../src/sources/country'
@@ -34,6 +34,7 @@ describe('what stub keeps per viewer', () => {
   test('names each key under the constant its owner writes, so the two cannot drift', () => {
     expect(byId('added-sources').keys).toEqual({ store: 'local', names: [ENABLED_PLUGINS_KEY, ACCOUNT_PLUGINS_KEY] })
     expect(byId('source-settings').keys).toEqual({ store: 'local', names: [PLUGIN_VALUES_KEY, ACCOUNT_VALUES_KEY] })
+    expect(byId('tab-source-settings').keys).toEqual({ store: 'session', names: [TAB_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
       names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],
@@ -116,6 +117,13 @@ describe('what stub keeps per viewer', () => {
     expect(byId('added-sources').what).toContain('or that a link you opened named')
     expect(byId('added-sources').what).toContain('A source you make temporary is not kept on this device, and neither are the sources a link added in the page you sign out on: FKN holds them for that tab alone.')
     expect(byId('added-sources').lasts).toContain('A temporary source lasts until its tab closes, at most')
+  })
+
+  test('says what is entered for a temporary source stays in its tab and never reaches the account', () => {
+    const tab = byId('tab-source-settings')
+    expect(tab.where).toBe('This tab, in its storage for stub')
+    expect(tab.what).toContain('It never reaches your FKN account.')
+    expect(tab.lasts).toBe('Until you remove the source or close the tab. A copy your browser makes of the tab takes it along')
   })
 
   test('says what is entered for a source is kept on the FKN account, encrypted in this browser, and what joins it', () => {

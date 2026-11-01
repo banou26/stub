@@ -3,8 +3,8 @@
 // site's shelf when it arrives. And a source FKN holds for this tab alone, which no list stub keeps names.
 import { beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY } from '../../src/plugin-list'
-import { SOURCES_PATH } from '../../src/plugin-sync'
+import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, loadPluginValues, PLUGIN_VALUES_KEY, TAB_VALUES_KEY } from '../../src/plugin-list'
+import { SOURCES_PATH, VALUES_PATH } from '../../src/plugin-sync'
 
 type Held = { uri: string, version?: string | null, temporary?: true }
 
@@ -17,7 +17,7 @@ const fkn = vi.hoisted(() => ({
   supportsTemporary: vi.fn(async () => false),
 }))
 vi.mock('@fkn/lib', () => ({ packages: { ...fkn, pick: vi.fn() } }))
-vi.mock('../../src/worker', () => ({ registerRemoteSource: vi.fn(), unregisterRemoteSource: vi.fn() }))
+vi.mock('../../src/worker', () => ({ configureRemoteSource: vi.fn(async () => {}), registerRemoteSource: vi.fn(), unregisterRemoteSource: vi.fn() }))
 
 // FKN's storage faked at @fkn/lib's surface, signed out until a test signs in
 const account = await vi.hoisted(async () => {
@@ -29,12 +29,15 @@ const account = await vi.hoisted(async () => {
 })
 vi.mock('../../src/tracking/fkn-cloud-live', () => ({ trackerCloud: account.cloud, onTrackerAccountChange: account.browser.onChange, unlockTracker: account.browser.account.unlock }))
 
-const stored = new Map<string, string>()
-vi.stubGlobal('localStorage', {
-  getItem: (key: string) => stored.get(key) ?? null,
-  setItem: (key: string, value: string) => { stored.set(key, value) },
-  removeItem: (key: string) => { stored.delete(key) },
+const storage = (held: Map<string, string>) => ({
+  getItem: (key: string) => held.get(key) ?? null,
+  setItem: (key: string, value: string) => { held.set(key, value) },
+  removeItem: (key: string) => { held.delete(key) },
 })
+const stored = new Map<string, string>()
+vi.stubGlobal('localStorage', storage(stored))
+const session = new Map<string, string>()
+vi.stubGlobal('sessionStorage', storage(session))
 // what another tab of the site writes reaches this page as a storage event
 const storageEvents = new Set<(event: { key: string | null }) => void>()
 vi.stubGlobal('addEventListener', (type: string, listener: (event: { key: string | null }) => void) => { if (type === 'storage') storageEvents.add(listener) })
@@ -43,12 +46,13 @@ const address = { href: 'https://anime.fkn.app/' }
 vi.stubGlobal('location', address)
 
 // imported with nothing added, so loading it connects nothing
-const { addedByLink, checkSources, disablePlugin, enabledPluginUris, enablePlugin, installPlugin, makeTemporary, onPluginsChange, pluginStatuses, supportsTemporary } = await import('../../src/plugins')
+const { addedByLink, checkSources, configurePlugin, disablePlugin, enabledPluginUris, enablePlugin, installPlugin, makeTemporary, onPluginsChange, pluginStatuses, supportsTemporary } = await import('../../src/plugins')
 
 const URIS = ['npm:@banou/one', 'npm:@banou/two']
 
 beforeEach(() => {
   stored.clear()
+  session.clear()
   stored.set(ENABLED_PLUGINS_KEY, JSON.stringify(URIS))
   fkn.uninstall.mockClear()
 })
@@ -388,6 +392,54 @@ test('the close of a connection the source has left tears down nothing of the on
     undo()
     fkn.connect.mockImplementation(() => new Promise(() => {}))
     vi.mocked(worker.registerRemoteSource).mockReset()
+  }
+})
+
+test('signed in, what is entered for a temporary source stays with it in this tab, and reaches neither the account nor the device', async () => {
+  const worker = await import('../../src/worker')
+  const [one, two] = URIS as [string, string]
+  stored.clear()
+  account.world.storageOf('alice').set(SOURCES_PATH, { text: JSON.stringify([one, two]), updatedAt: new Date(0).toISOString() })
+  const { undo } = answering()
+  try {
+    account.browser.account.signIn('alice')
+    await checkSources()
+    await makeTemporary(one)
+    await checkSources()
+    vi.mocked(worker.configureRemoteSource).mockClear()
+
+    await configurePlugin(one, { key: 'abc' })
+    await checkSources()
+    expect(loadPluginValues(one)).toEqual({ key: 'abc' })
+    expect(vi.mocked(worker.configureRemoteSource).mock.calls, 'the source keeps what it was handed').toEqual([[one, { key: 'abc' }]])
+    expect(JSON.parse(account.world.storageOf('alice').get(VALUES_PATH)?.text ?? '{}')).not.toHaveProperty(one)
+    expect(stored.has(PLUGIN_VALUES_KEY)).toBe(false)
+
+    await disablePlugin(one)
+    expect(session.has(TAB_VALUES_KEY), 'and they go when the source does').toBe(false)
+  } finally {
+    undo()
+    account.browser.account.signOut()
+    await checkSources()
+  }
+})
+
+test('signed out, Make temporary moves what was entered for the source off the device and into this tab', async () => {
+  const [one] = URIS as [string]
+  stored.set(ENABLED_PLUGINS_KEY, JSON.stringify([one]))
+  stored.set(PLUGIN_VALUES_KEY, JSON.stringify({ [one]: { key: 'abc' } }))
+  const { undo } = answering()
+  try {
+    await makeTemporary(one)
+    expect(stored.has(PLUGIN_VALUES_KEY)).toBe(false)
+    expect(loadPluginValues(one)).toEqual({ key: 'abc' })
+
+    await configurePlugin(one, { key: null, address: 'https://example.test' })
+    expect(loadPluginValues(one)).toEqual({ address: 'https://example.test' })
+    expect(stored.has(PLUGIN_VALUES_KEY), 'nothing of it is kept on the device').toBe(false)
+  } finally {
+    void disablePlugin(one)
+    undo()
   }
 })
 

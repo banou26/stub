@@ -14,6 +14,8 @@ export const ACCOUNT_PLUGINS_KEY = 'stub-account-plugins'
 export const PLUGIN_VALUES_KEY = 'stub-plugin-values'
 /** The localStorage key holding the FKN account's values as last read, while this browser uses them. */
 export const ACCOUNT_VALUES_KEY = 'stub-account-plugin-values'
+/** The sessionStorage key holding what the viewer entered for each source FKN holds for this tab alone, by package id. */
+export const TAB_VALUES_KEY = 'stub-tab-plugin-values'
 
 export type ListStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -28,6 +30,10 @@ export type PluginEdits = Record<string, string | null>
 
 const defaultStorage = (): ListStorage | undefined => {
   try { return globalThis.localStorage } catch { return undefined }
+}
+
+const defaultSession = (): ListStorage | undefined => {
+  try { return globalThis.sessionStorage } catch { return undefined }
 }
 
 /** A list as kept in JSON, its package ids only. Throws on text that is not JSON. */
@@ -132,9 +138,31 @@ export const saveAccountValues = (values: SavedValues | undefined, storage = def
 export const editedValues = (values: PluginValues | undefined, edits: PluginEdits): PluginValues =>
   Object.fromEntries(Object.entries({ ...values, ...edits }).flatMap(([field, value]) => value === null ? [] : [[field, value]]))
 
-/** What a source is handed: this browser's own values under the account's, a field the account cleared gone from both. */
-export const loadPluginValues = (uri: string, storage = defaultStorage()): PluginValues =>
-  editedValues(loadOwnValues(storage)[uri], Object.fromEntries(Object.entries(loadAccountValues(storage)[uri] ?? {}).map(([field, [value]]) => [field, value])))
+const loadTabValues = (session: ListStorage | undefined): Record<string, PluginValues> => {
+  try {
+    return JSON.parse(session?.getItem(TAB_VALUES_KEY) ?? '{}') ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/** Keeps what the viewer entered for a source FKN holds for this tab alone in this tab only, or with undefined removes it. */
+export const saveTabValues = (uri: string, values: PluginValues | undefined, session = defaultSession()) => {
+  const { [uri]: _, ...others } = loadTabValues(session)
+  const all = values ? { ...others, [uri]: values } : others
+  try {
+    if (Object.keys(all).length) session?.setItem(TAB_VALUES_KEY, JSON.stringify(all))
+    else session?.removeItem(TAB_VALUES_KEY)
+  } catch {}
+}
+
+/**
+ * What a source is handed: this tab's own values for one FKN holds for this tab alone, else this browser's own under
+ * the account's, a field the account cleared gone from both.
+ */
+export const loadPluginValues = (uri: string, storage = defaultStorage(), session = defaultSession()): PluginValues =>
+  loadTabValues(session)[uri]
+    ?? editedValues(loadOwnValues(storage)[uri], Object.fromEntries(Object.entries(loadAccountValues(storage)[uri] ?? {}).map(([field, [value]]) => [field, value])))
 
 /** Keeps what the viewer entered for a source as this browser's own, or with no values removes it. */
 export const savePluginValues = (uri: string, values: PluginValues, storage = defaultStorage()) => {

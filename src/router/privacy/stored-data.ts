@@ -4,7 +4,7 @@
 import { CARRIED_LANGUAGE_KEY } from '../../i18n/languages'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../party/store'
 import { UPDATE_RELOADS_KEY } from '../../update/gate'
-import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY } from '../../plugin-list'
+import { ACCOUNT_PLUGINS_KEY, ACCOUNT_VALUES_KEY, ENABLED_PLUGINS_KEY, PLUGIN_VALUES_KEY, TAB_VALUES_KEY } from '../../plugin-list'
 import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
 import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
@@ -43,6 +43,14 @@ export const STORED: readonly StoredItem[] = [
     where: `${LOCAL}, not encrypted, and your FKN account's storage while you are signed in, encrypted in this browser before it is stored`,
     lasts: `Until you change it or remove the source, on any site or device. ${ACCOUNT_COPY}`,
     keys: { store: 'local', names: [PLUGIN_VALUES_KEY, ACCOUNT_VALUES_KEY] },
+  },
+  {
+    id: 'tab-source-settings',
+    title: 'Temporary source settings',
+    what: 'What you enter in Settings for a temporary source, which stub hands to that source alone. It never reaches your FKN account.',
+    where: SESSION,
+    lasts: 'Until you remove the source or close the tab. A copy your browser makes of the tab takes it along',
+    keys: { store: 'session', names: [TAB_VALUES_KEY] },
   },
   {
     id: 'settings',

@@ -4,7 +4,7 @@ import { packages } from '@fkn/lib'
 
 import { configureRemoteSource, registerRemoteSource, unregisterRemoteSource } from './worker'
 import { STUB_SOURCE_PROTOCOL, type PluginSettingField, type SourceAccess } from './plugin-api'
-import { ACCOUNT_PLUGINS_KEY, ENABLED_PLUGINS_KEY, loadEnabled, loadPluginValues, savePluginValues, type PluginEdits } from './plugin-list'
+import { ACCOUNT_PLUGINS_KEY, editedValues, ENABLED_PLUGINS_KEY, loadEnabled, loadPluginValues, savePluginValues, saveTabValues, type PluginEdits } from './plugin-list'
 import { sourceListSync } from './plugin-sync'
 import { onTrackerAccountChange, trackerCloud, unlockTracker } from './tracking/fkn-cloud-live'
 import { comparablePluginUri } from './utils/plugin-links'
@@ -138,7 +138,7 @@ const connectPlugin = async (uri: string, attempt = 1): Promise<void> => {
     console.warn(`Plugin '${uri}' failed to connect:`, error)
     // the slot stays claimed while FKN is asked, so nothing reconnects meanwhile
     if (await unheld(uri)) {
-      temporary.delete(uri)
+      dropTemporary(uri)
       await sourceList.forget(uri)
     }
     if (!shown().includes(uri)) {
@@ -178,13 +178,19 @@ const cancelReconnect = (uri: string) => {
   if (timer !== undefined) { clearTimeout(timer); retryTimers.delete(uri) }
 }
 
+// no longer held for this tab alone, so what was entered for it in this tab goes
+const dropTemporary = (uri: string) => {
+  temporary.delete(uri)
+  saveTabValues(uri, undefined)
+}
+
 // the source left this site, by any way a source leaves it, so what the viewer entered for it goes too
 const disconnect = (uri: string) => {
   cancelReconnect(uri)
   connected.delete(uri)
   live.delete(uri)
   fromLinks.delete(uri)
-  temporary.delete(uri)
+  dropTemporary(uri)
   statuses.delete(uri)
   handed.delete(uri)
   savePluginValues(uri, {})
@@ -204,7 +210,7 @@ const follow = (before: string[], after: string[]) => {
   for (const uri of after) {
     if (before.includes(uri)) continue
     // a list that keeps it keeps it in FKN too, which an install without `temporary` does
-    temporary.delete(uri)
+    dropTemporary(uri)
     packages.install(uri, { noConfirm: true })
       .then(installed => {
         if (!installed) throw new Error(`FKN did not install '${uri}'`)
@@ -312,6 +318,8 @@ const holdForTab = async (uri: string) => {
 export const makeTemporary = async (uri: string): Promise<void> => {
   // shown throughout, or the address would drop it while FKN moves it
   temporary.add(uri)
+  saveTabValues(uri, loadPluginValues(uri))
+  savePluginValues(uri, {})
   void sourceList.remove(uri)
   await holdForTab(uri)
 }
@@ -331,9 +339,10 @@ export const disablePlugin = async (uri: string): Promise<void> => {
   await packages.uninstall(uri).catch(() => {})
 }
 
-/** Applies what the viewer changed for a source, on the account while one is in use here, and hands the source its values at once. */
+/** Applies what the viewer changed for a source, on the account while one is in use here, in this tab alone for one FKN holds so, and hands the source its values at once. */
 export const configurePlugin = async (uri: string, edits: PluginEdits): Promise<void> => {
-  void sourceList.save(uri, edits)
+  if (temporary.has(uri)) saveTabValues(uri, editedValues(loadPluginValues(uri), edits))
+  else void sourceList.save(uri, edits)
   const values = loadPluginValues(uri)
   handed.set(uri, JSON.stringify(values))
   notify()
