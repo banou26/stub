@@ -358,12 +358,34 @@ const popularFilter = ({ categories, formats, season, seasonYear, status, tags, 
   return objectTypes && codes.every(Boolean) ? { objectTypes, genres: [codes[0]!] } : undefined
 }
 
+const DAY_MS = 86_400_000
+
+/**
+ * The seasons with JustWatch's copies of the first season's date taken off. JustWatch dates some later seasons with the
+ * first one's premiere or the day before it, year included: 15 of the 3545 later seasons of the 800 most popular US
+ * shows, every one aired ten months or more later or not yet (2026-11-02). Severance's second is dated 2022-02-17 and
+ * aired from 2025-01-16, and a source pairing by date took its own season 1 for it. Such a season is left undated, so it
+ * is placed by its other evidence or not at all. Strike's and Babylon Berlin's second seasons aired two and four weeks
+ * after their first, and keep their dates.
+ */
+const withoutCopiedDates = (seasons: JWSeason[]): JWSeason[] => {
+  const first = seasons.filter(season => season.content.seasonNumber > 0).sort((a, b) => a.content.seasonNumber - b.content.seasonNumber)[0]
+  if (!first) return seasons
+  const day = Date.parse(first.content.originalReleaseDate ?? '')
+  return seasons.map(season =>
+    season.content.seasonNumber > first.content.seasonNumber && Math.abs(Date.parse(season.content.originalReleaseDate ?? '') - day) <= DAY_MS
+      ? { ...season, content: { ...season.content, originalReleaseDate: null, originalReleaseYear: null } }
+      : season)
+}
+
 const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
-  deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, () =>
-    jwFetch<JWNodeResponse>(details ? NODE_DETAILS_QUERY : NODE_QUERY, {
+  deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, async () => {
+    const response = await jwFetch<JWNodeResponse>(details ? NODE_DETAILS_QUERY : NODE_QUERY, {
       nodeId, language: LANGUAGE, country: COUNTRY, ...offerCountries()
     }, ctx)
-  )
+    const node = response.data?.node
+    return node?.seasons ? { ...response, data: { ...response.data, node: { ...node, seasons: withoutCopiedDates(node.seasons) } } } : response
+  })
 
 interface JWOffer {
   monetizationType: string
@@ -749,9 +771,9 @@ const normalizeMedia = async (
   if (opts.seasonNumber != null && season?.objectId == null) return null
   const id = opts.seasonNumber == null ? String(node.objectId) : jwId(node.objectId, season!.objectId)
   const { shortDescription } = node.content
-  const seasonYear = season?.content?.originalReleaseYear ?? node.content.originalReleaseYear
-  // the SEASON's day when a season is pinned, and no fallback to the show's: the show's day is its
-  // first season's premiere, so a later season taking it would publish another run's date as its own
+  // the SEASON's day and year when a season is pinned, and no fallback to the show's: the show's date is its first
+  // season's premiere, so a later season taking it would publish another run's date as its own
+  const seasonYear = season ? season.content.originalReleaseYear : node.content.originalReleaseYear
   const seasonDay = season ? season.content.originalReleaseDate : node.content.originalReleaseDate
 
   // the season's own title when JustWatch gives it one naming more than a position, else the show's.
@@ -819,10 +841,10 @@ const normalizeMedia = async (
     // the search query carries totalEpisodeCount but not the episodes themselves, so an expanded
     // season still reports how long it is - which is also what season matching elsewhere keys on
     episodeCount: released.length || filteredSeasons.reduce((total, season) => total + (season.totalEpisodeCount ?? 0), 0) || undefined,
-    // the SEASON's own date, and its own year when it names no day. Only the YEAR falls back to the
-    // show's: a season media publishing the show's DATE publishes the franchise's FIRST season's as
-    // its own start date, which every date comparison downstream then reads as this season's - the
-    // same show-vs-season confusion the uri scoping in ./id.ts exists to prevent, in the date field.
+    // the SEASON's own date, and its own year when it names no day. A season media publishing the show's
+    // date publishes the franchise's FIRST season's as its own start date, which every date comparison
+    // downstream then reads as this season's: the same show-vs-season confusion the uri scoping in ./id.ts
+    // exists to prevent, in the date field.
     startDate: dayOrYear(seasonDay, seasonYear),
     // a show's runtime is an episode's, which the episodes already carry
     duration: node.objectType === 'MOVIE' ? node.content.runtime ?? undefined : undefined,

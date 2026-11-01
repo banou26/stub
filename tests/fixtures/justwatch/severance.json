@@ -1,0 +1,659 @@
+{
+  "ts320458": {
+    "id": "ts320458",
+    "objectId": 320458,
+    "objectType": "SHOW",
+    "content": {
+      "title": "Severance",
+      "fullPath": "/us/tv-show/severance",
+      "originalReleaseYear": 2022,
+      "originalReleaseDate": "2022-02-17",
+      "shortDescription": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives. When a mysterious colleague appears outside of work, it begins a journey to discover the truth about their jobs.",
+      "posterUrl": "/poster/324479701/s718/severance.jpg",
+      "externalIds": {
+        "imdbId": "tt11280740"
+      },
+      "genres": [
+        {
+          "shortName": "drm",
+          "translation": "Drama"
+        },
+        {
+          "shortName": "trl",
+          "translation": "Mystery & Thriller"
+        },
+        {
+          "shortName": "scf",
+          "translation": "Science-Fiction"
+        }
+      ],
+      "productionCountries": [
+        "US"
+      ]
+    },
+    "offers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://tv.apple.com/us/episode/good-news-about-hell/umc.cmc.s80mx1ic96pu6ewupz8pfasf?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVSEVR0560101&showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "deeplinkURL": "https://tv.apple.com/us/episode/good-news-about-hell/umc.cmc.s80mx1ic96pu6ewupz8pfasf?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVSEVR0560101&showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "package": {
+          "id": "cGF8MzUw",
+          "packageId": 350,
+          "clearName": "Apple TV",
+          "technicalName": "appletvplus",
+          "shortName": "atp",
+          "icon": "/icon/338367329/s100/appletvplus.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [
+          "de",
+          "en",
+          "es",
+          "fr",
+          "it",
+          "ja",
+          "pt",
+          "ru",
+          "tr"
+        ],
+        "subtitleLanguages": [
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "he",
+          "hi",
+          "hu",
+          "id",
+          "it",
+          "ja",
+          "ko",
+          "lt",
+          "lv",
+          "ms",
+          "nl",
+          "no",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "ta",
+          "te",
+          "th",
+          "tr",
+          "uk",
+          "vi"
+        ]
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://watch.amazon.com/detail?gti=amzn1.dv.gti.92c7e5ed-9cf4-4e34-93a8-3beb40f7b279",
+        "deeplinkURL": "https://watch.amazon.com/watch?gti=amzn1.dv.gti.92c7e5ed-9cf4-4e34-93a8-3beb40f7b279",
+        "package": {
+          "id": "cGF8MjI0Mw==",
+          "packageId": 2243,
+          "clearName": "Apple TV Amazon Channel",
+          "technicalName": "amazonappletvplus",
+          "shortName": "avl",
+          "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION",
+          ""
+        ],
+        "audioTechnology": [
+          "_5_POINT_1",
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [
+          "de",
+          "en",
+          "es",
+          "fr",
+          "it",
+          "ja",
+          "pt",
+          "ru",
+          "tr"
+        ],
+        "subtitleLanguages": [
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "he",
+          "hi",
+          "hu",
+          "id",
+          "it",
+          "ja",
+          "ko",
+          "lt",
+          "lv",
+          "ms",
+          "nl",
+          "nn",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "ta",
+          "te",
+          "th",
+          "tr",
+          "uk",
+          "vi",
+          "zh"
+        ]
+      },
+      {
+        "monetizationType": "BUY",
+        "presentationType": "DVD",
+        "standardWebURL": "https://www.amazon.com/dp/B0DK99V19R?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "deeplinkURL": "https://www.amazon.com/dp/B0DK99V19R?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "package": {
+          "id": "cGF8NTA=",
+          "packageId": 50,
+          "clearName": "Amazon DVD / Blu-ray",
+          "technicalName": "amazondvdbr",
+          "shortName": "adb",
+          "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+        },
+        "videoTechnology": [],
+        "audioTechnology": [],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      }
+    ],
+    "extraOffers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://tv.apple.com/jp/episode/%E3%83%AF%E3%83%BC%E3%82%AF%E3%83%A9%E3%82%A4%E3%83%95%E3%83%8F%E3%83%A9%E3%83%B3%E3%82%B9/umc.cmc.s80mx1ic96pu6ewupz8pfasf?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVSEVR0560101&showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "deeplinkURL": "https://tv.apple.com/jp/episode/%E3%83%AF%E3%83%BC%E3%82%AF%E3%83%A9%E3%82%A4%E3%83%95%E3%83%8F%E3%83%A9%E3%83%B3%E3%82%B9/umc.cmc.s80mx1ic96pu6ewupz8pfasf?at=1000l3V2&ct=app_tvplus&itscg=30200&itsct=justwatch_tv&playableId=tvs.sbd.4000%3AVSEVR0560101&showId=umc.cmc.1srk2goyh2q2zdxcx605w8vtx",
+        "package": {
+          "id": "cGF8MzUw",
+          "packageId": 350,
+          "clearName": "Apple TV",
+          "technicalName": "appletvplus",
+          "shortName": "atp",
+          "icon": "/icon/338367329/s100/appletvplus.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [
+          "de",
+          "en",
+          "es",
+          "fr",
+          "it",
+          "ja",
+          "pt",
+          "ru",
+          "tr"
+        ],
+        "subtitleLanguages": [
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "he",
+          "hi",
+          "hu",
+          "id",
+          "it",
+          "ja",
+          "ko",
+          "lt",
+          "lv",
+          "ms",
+          "nl",
+          "no",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "ta",
+          "te",
+          "th",
+          "tr",
+          "uk",
+          "vi"
+        ]
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://watch.amazon.co.jp/detail?gti=amzn1.dv.gti.92c7e5ed-9cf4-4e34-93a8-3beb40f7b279",
+        "deeplinkURL": "https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.92c7e5ed-9cf4-4e34-93a8-3beb40f7b279",
+        "package": {
+          "id": "cGF8MjI0Mw==",
+          "packageId": 2243,
+          "clearName": "Apple TV Amazon Channel",
+          "technicalName": "amazonappletvplus",
+          "shortName": "avl",
+          "icon": "/icon/338254390/s100/amazonappletvplus.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION",
+          ""
+        ],
+        "audioTechnology": [
+          "_5_POINT_1",
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [
+          "de",
+          "en",
+          "es",
+          "fr",
+          "it",
+          "ja",
+          "pt",
+          "ru",
+          "tr"
+        ],
+        "subtitleLanguages": [
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "he",
+          "hi",
+          "hu",
+          "id",
+          "it",
+          "ja",
+          "ko",
+          "lt",
+          "lv",
+          "ms",
+          "nl",
+          "nn",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "ta",
+          "te",
+          "th",
+          "tr",
+          "uk",
+          "vi",
+          "zh"
+        ]
+      }
+    ],
+    "totalSeasonCount": 2,
+    "seasons": [
+      {
+        "id": "tss329115",
+        "objectId": 329115,
+        "totalEpisodeCount": 9,
+        "content": {
+          "title": "Season 1",
+          "seasonNumber": 1,
+          "fullPath": "/us/tv-show/severance/season-1",
+          "posterUrl": "/poster/264516782/{profile}/season-1.{format}",
+          "originalReleaseYear": 2022,
+          "originalReleaseDate": "2022-02-17",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse6207382",
+            "objectId": 6207382,
+            "content": {
+              "title": "Defiant Jazz",
+              "episodeNumber": 1,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Mark is promoted to lead a team who've had their memories surgically divided between their work and personal lives.",
+              "originalReleaseDate": "2022-02-17",
+              "runtime": 57
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209585",
+            "objectId": 6209585,
+            "content": {
+              "title": "Half Loop",
+              "episodeNumber": 2,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "The team train new hire Helly on macrodata refinement. Mark takes a day off to meet with a mysterious former colleague.",
+              "originalReleaseDate": "2022-02-17",
+              "runtime": 53
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209586",
+            "objectId": 6209586,
+            "content": {
+              "title": "In Perpetuity",
+              "episodeNumber": 3,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Mark takes the team on a field trip, but Helly continues to rebel. A deteriorating Petey struggles to tell Mark about Lumon’s misdeeds.",
+              "originalReleaseDate": "2022-02-24",
+              "runtime": 56
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209587",
+            "objectId": 6209587,
+            "content": {
+              "title": "The You You Are",
+              "episodeNumber": 4,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Irving finds an intriguing book at work. Helly aggressively pursues a meeting with her Outie. Mark attends a funeral with Ms. Selvig.",
+              "originalReleaseDate": "2022-03-03",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209588",
+            "objectId": 6209588,
+            "content": {
+              "title": "The Grim Barbarity of Optics and Design",
+              "episodeNumber": 5,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Irving and Dylan confront Burt about his lies. Mark and Helly discover a strange new department.",
+              "originalReleaseDate": "2022-03-10",
+              "runtime": 43
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209589",
+            "objectId": 6209589,
+            "content": {
+              "title": "Hide and Seek",
+              "episodeNumber": 6,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "The team angers Cobel by forming an alliance.",
+              "originalReleaseDate": "2022-03-17",
+              "runtime": 40
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209590",
+            "objectId": 6209590,
+            "content": {
+              "title": "Defiant Jazz",
+              "episodeNumber": 7,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Mark and the team encounter new security measures from Cobel.",
+              "originalReleaseDate": "2022-03-24",
+              "runtime": 49
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209591",
+            "objectId": 6209591,
+            "content": {
+              "title": "What's for Dinner?",
+              "episodeNumber": 8,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "The team prepares a plan. Mark attends Devon and Ricken’s party.",
+              "originalReleaseDate": "2022-03-31",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse6209592",
+            "objectId": 6209592,
+            "content": {
+              "title": "The We We Are",
+              "episodeNumber": 9,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "The team discovers troubling revelations.",
+              "originalReleaseDate": "2022-04-07",
+              "runtime": 40
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      },
+      {
+        "id": "tss350405",
+        "objectId": 350405,
+        "totalEpisodeCount": 10,
+        "content": {
+          "title": "Season 2",
+          "seasonNumber": 2,
+          "fullPath": "/us/tv-show/severance/season-2",
+          "posterUrl": "/poster/322814469/{profile}/season-2.{format}",
+          "originalReleaseYear": 2022,
+          "originalReleaseDate": "2022-02-17",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse8556888",
+            "objectId": 8556888,
+            "content": {
+              "title": "Hello, Ms. Cobel",
+              "episodeNumber": 1,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Mark returns to work under different circumstances. Secrets from the Outie world come to light.",
+              "originalReleaseDate": "2025-01-16",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556889",
+            "objectId": 8556889,
+            "content": {
+              "title": "Goodbye, Mrs. Selvig",
+              "episodeNumber": 2,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Mark contemplates the meaning of a message.",
+              "originalReleaseDate": "2025-01-23",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556890",
+            "objectId": 8556890,
+            "content": {
+              "title": "Who Is Alive?",
+              "episodeNumber": 3,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Mark, Helly, Irving, and Dylan search for answers.",
+              "originalReleaseDate": "2025-01-30",
+              "runtime": 53
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556891",
+            "objectId": 8556891,
+            "content": {
+              "title": "Woe's Hollow",
+              "episodeNumber": 4,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "The team participates in a group activity.",
+              "originalReleaseDate": "2025-02-06",
+              "runtime": 50
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556892",
+            "objectId": 8556892,
+            "content": {
+              "title": "Trojan's Horse",
+              "episodeNumber": 5,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Tensions emerge after the team suffers a loss.",
+              "originalReleaseDate": "2025-02-13",
+              "runtime": 46
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556894",
+            "objectId": 8556894,
+            "content": {
+              "title": "Attila",
+              "episodeNumber": 6,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Bonds are tested. Mark continues on his path of discovery.",
+              "originalReleaseDate": "2025-02-20",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556895",
+            "objectId": 8556895,
+            "content": {
+              "title": "Chikhai Bardo",
+              "episodeNumber": 7,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "An old romance intersects with a deadly present threat.",
+              "originalReleaseDate": "2025-02-27",
+              "runtime": 50
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556896",
+            "objectId": 8556896,
+            "content": {
+              "title": "Sweet Vitriol",
+              "episodeNumber": 8,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Discoveries are made.",
+              "originalReleaseDate": "2025-03-06",
+              "runtime": 37
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556897",
+            "objectId": 8556897,
+            "content": {
+              "title": "The After Hours",
+              "episodeNumber": 9,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Mark and Devon team with an ally. Helly investigates further.",
+              "originalReleaseDate": "2025-03-13",
+              "runtime": 44
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse8556898",
+            "objectId": 8556898,
+            "content": {
+              "title": "Cold Harbor",
+              "episodeNumber": 10,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Mark forms a shaky alliance in an all-or-nothing play, while the team makes a dangerous last stand.",
+              "originalReleaseDate": "2025-03-20",
+              "runtime": 75
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      }
+    ]
+  }
+}
