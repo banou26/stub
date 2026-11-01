@@ -58,7 +58,7 @@ const shellStyle = css`
 const RouterRoot = () => (
   <Router hrefs={pluginHref}>
     <div css={shellStyle}>
-      {/* first, so the first Tab reaches it: it stays until answered, and paints where it is fixed */}
+      {/* first in stub's page, so Tab reaches it before the header: it stays until answered, and paints where it is fixed */}
       <PluginNotice/>
       <Header/>
       <div className="content">

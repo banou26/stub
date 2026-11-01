@@ -117,3 +117,15 @@ test('a source that installed and failed to connect is removed again, so it says
   expect(host.querySelector('.failed')!.textContent).toBe(`Could not add ${NYAA}`)
   expect(buttons(host)).toEqual(['OK'])
 })
+
+test('a source that left the list since, in Settings or anywhere else, is no longer said enabled', async () => {
+  const [one, two] = ['npm:@banou/one', 'npm:@banou/two']
+  plugins.statuses = [{ uri: one, state: 'connected' }, { uri: two, state: 'connected' }]
+  const host = await drawn([one, two])
+
+  await act(() => plugins.disablePlugin(one))
+  expect([...host.querySelectorAll('li span')].map(line => line.textContent)).toEqual(['Source enabled: @banou/two'])
+
+  await act(() => plugins.disablePlugin(two))
+  expect(host.querySelector('.notice'), 'nothing left to say').toBeNull()
+})

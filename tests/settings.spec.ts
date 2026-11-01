@@ -658,6 +658,12 @@ for (const [width, height] of [[1280, 800], [390, 844]] as const) {
     expect(box.y, 'under the bar').toBeGreaterThanOrEqual((await page.locator('header').first().boundingBox())!.height)
     expect(await pastNotice(notice), 'nothing runs past it').toEqual([])
     expect(await overflowX(page)).toBeLessThanOrEqual(0)
+
+    // FKN's docked bar moves the header down by the inset it publishes
+    await page.evaluate(() => document.documentElement.style.setProperty('--fkn-inset-top', '48px'))
+    const header = (await page.locator('header').first().boundingBox())!
+    expect(header.y).toBe(48)
+    expect((await notice.boundingBox())!.y, 'under the docked bar').toBeGreaterThanOrEqual(header.y + header.height)
   })
 
   test(`at ${width}x${height} a linked source that fails to boot says so in one line, and is not kept`, async ({ page }) => {
@@ -678,7 +684,7 @@ for (const [width, height] of [[1280, 800], [390, 844]] as const) {
   })
 }
 
-test('the first Tab reaches the notice, and a keyboard answers it', async ({ page }) => {
+test('Tab reaches the notice before the header, and a keyboard answers it', async ({ page }) => {
   const notice = await linkedNotice(page, ANIME)
   await expect(notice).toBeVisible()
   await page.keyboard.press('Tab')
@@ -722,6 +728,21 @@ test('a source already on the list shows nothing', async ({ page }) => {
   await expect(panel(page).locator(`[data-plugin="${ANIME}"] .pill`)).toHaveText('Connected')
   await page.waitForTimeout(800)
   await expect(page.getByRole('button', { name: 'OK' })).toHaveCount(0)
+})
+
+test('at 844x390 a link naming twelve sources keeps OK on screen, the rows scrolling above it', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  const missing = Array.from({ length: 9 }, (_, index) => `npm:@spec/missing-${index}`)
+  const twelve = [ANIME, 'npm:@spec/source-family', 'npm:@spec/stage-player', ...missing]
+  await page.goto(`${origin}/settings?${twelve.map(uri => `plugins=${uri}`).join('&')}`)
+  const ok = page.getByRole('button', { name: 'OK', exact: true })
+  const notice = page.getByRole('status').filter({ has: ok })
+  await expect(notice.locator('li')).toHaveCount(12)
+  expect(await notice.locator('ul').evaluate(list => list.scrollHeight > list.clientHeight), 'the rows do not fit').toBe(true)
+  const box = (await ok.boundingBox())!
+  expect(box.y + box.height, 'OK is on screen').toBeLessThanOrEqual(390)
+  await ok.click()
+  await expect(notice).toHaveCount(0)
 })
 
 test('several sources on one link share one notice', async ({ page }) => {

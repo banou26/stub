@@ -8,8 +8,9 @@ import { pluginName, usePluginStatuses } from '../utils/use-plugin-statuses'
 
 // under the bar, clear of FKN's own notice and the party chat, which both take the bottom right corner
 const style = css`
+  --notice-top: calc(var(--fkn-inset-top, 0px) + var(--stub-header-height) + 1.6rem);
   position: fixed;
-  top: calc(var(--stub-header-height) + 1.6rem);
+  top: var(--notice-top);
   right: 1.6rem;
   z-index: ${layer.pluginNotice};
   width: min(36rem, calc(100vw - 3.2rem));
@@ -18,6 +19,7 @@ const style = css`
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+    max-height: calc(100dvh - var(--notice-top) - 1.6rem);
     padding: 1.4rem 1.6rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.8rem;
@@ -26,12 +28,15 @@ const style = css`
     font-size: 1.4rem;
   }
 
+  /* the rows scroll and OK stays in view, since the notice stays until answered; the padding keeps focus rings unclipped */
   ul {
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
-    margin: 0;
-    padding: 0;
+    min-height: 0;
+    margin: -0.4rem;
+    padding: 0.4rem;
+    overflow-y: auto;
     list-style: none;
   }
 
@@ -75,13 +80,15 @@ const style = css`
 const PluginNotice = () => {
   const intl = useIntl()
   const statuses = usePluginStatuses()
-  const [invites, setInvites] = useState<AddedInvite[]>(addedInvites)
+  const [added, setAdded] = useState<AddedInvite[]>(addedInvites)
 
   // read on subscribe as well as on notify: the url is read at import time, before this mounts
   useEffect(() => {
-    setInvites(addedInvites())
-    return onInvitesChange(() => setInvites(addedInvites()))
+    setAdded(addedInvites())
+    return onInvitesChange(() => setAdded(addedInvites()))
   }, [])
+  // one that left the list since, in Settings or anywhere else, is no longer enabled
+  const invites = added.filter(({ uri, failed }) => failed || statuses.some(plugin => plugin.uri === uri))
 
   // the live region is always there, or a screen reader has nothing to hear the notice arrive in
   return (
