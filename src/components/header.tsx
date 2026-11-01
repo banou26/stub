@@ -314,7 +314,9 @@ const style = css`
   /* below this the row has no room for a field beside the wordmark and the actions, so the field
      waits behind a button and opens over the whole row */
   @media (max-width: 479px) {
-    gap: 0.4rem;
+    /* not 0.4rem: with the wordmark wider than any font draws it (tests/sites.spec.ts's WIDER_FONT), that left it
+       10.8 px from the search button at 360 (measured 2026-11-01) */
+    gap: 0.2rem;
     padding: 0 0.8rem;
 
     .logo,
