@@ -80,6 +80,8 @@ interface AppleEpisode {
   description?: string
   seasonNumber?: number
   episodeNumber?: number
+  /** its place in the show's flat list of episodes, counted from 0 */
+  episodeIndex?: number
   url?: string
   releaseDate?: number
   images?: AppleImages
@@ -103,6 +105,8 @@ interface AppleContentResponse { data?: AppleContentData }
 interface AppleEpisodesResponse {
   data?: {
     episodes?: AppleEpisode[]
+    /** the length of the show's flat list */
+    totalEpisodeCount?: number
     /** each episode's playable ids, by episode id */
     episodesPlayables?: Record<string, { playableId: string }[]>
     playables?: Record<string, ApplePlayable>
@@ -184,23 +188,59 @@ const normalizeEpisode = (episode: AppleEpisode, mediaUri: string, playable?: Ap
   })
 
 /**
+ * How many episodes a request past the window asks for. Over 302 seasons of 175 shows, measured
+ * 2026-11-02, every season but one (29 episodes) ended inside its first such page.
+ */
+const PAGE = 20
+
+/**
+ * Everything one season's requests answer, its own episodes and its neighbours'. The window is asked
+ * first, and while it ends inside the season the rest is asked by place, from the episode after it on.
+ */
+const readSeason = async (
+  showId: string,
+  season: AppleSeason,
+  playables: Map<string, ApplePlayable>,
+  ctx: ExtractorServerContext
+): Promise<AppleEpisode[]> => {
+  const read = async (query: string) => {
+    const { data } = await api<AppleEpisodesResponse>(`/shows/${showId}/episodes?${query}`, ctx)
+    for (const [episodeId, [first] = []] of Object.entries(data?.episodesPlayables ?? {})) {
+      const playable = first && data?.playables?.[first.playableId]
+      if (playable) playables.set(episodeId, playable)
+    }
+    return data
+  }
+  const window = await read(`selectedSeasonId=${season.id}`)
+  const episodes = [...window?.episodes ?? []]
+  const total = window?.totalEpisodeCount ?? 0
+  const endsInside = () => episodes.at(-1)?.seasonNumber === season.seasonNumber
+  for (let at = (episodes.at(-1)?.episodeIndex ?? total) + 1; at < total && endsInside(); at += PAGE) {
+    episodes.push(...(await read(`nextToken=${at}:${PAGE}`))?.episodes ?? [])
+  }
+  return episodes
+}
+
+/**
  * One season's episodes, and the filter is not a tidy-up.
  *
- * `selectedSeasonId` does not select a season, it positions a WINDOW in the show's flat episode list,
- * so a per-season request routinely answers with the tail of the previous season attached. Season 2 of
- * `Severance` answers with eleven episodes running 1x5 through 2x6:
+ * `selectedSeasonId` does not select a season, it positions a WINDOW in the show's flat episode list:
+ * up to five episodes before the season's first and six from it. So a per-season request routinely
+ * answers with the tail of the previous season attached, and a season past six episodes comes back
+ * cut. Season 2 of `Severance` answers with eleven episodes running 1x5 through 2x6:
  *
  *   curl -s 'https://uts-api.itunes.apple.com/uts/v3/shows/umc.cmc.1srk2goyh2q2zdxcx605w8vtx/episodes?selectedSeasonId=umc.cmc.uhm560ns0yg3a5fy454bb967&caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0'
  *
  * Measured 2026-08-29 over 150 seasons of 83 shows reachable from UTS search, one request per season:
  * 335 of the 1228 episodes returned (27.280%) belong to a season other than the one requested, and 67
- * of the 150 requests (44.667%) return at least one. So this source flattening every season's request
- * together, as it did, produced a list that was both duplicated and cross-season; the dedupe by id is
- * for the same reason, since a window can return an episode a neighbouring window already returned.
+ * of the 150 requests (44.667%) return at least one. The dedupe by id is for the same reason, since a
+ * window can return an episode a neighbouring window already returned.
  *
- * There is no way to ask for the rest: `nextToken` is answered with `400 If nextToken is specified,
- * nextToken should be specified and non-negative` whatever value it is given, so a long season comes
- * back partial and that is the ceiling, not a bug to work around here.
+ * The rest of a season is asked by place: `nextToken=<episodeIndex>:<count>` answers that slice of the
+ * flat list, `totalEpisodeCount` long, while a bare number is a 400. The windows alone cannot complete
+ * a season: Ted Lasso's season 2 has 12 episodes, its own window holds 2x1 to 2x6, season 3's holds 2x8
+ * to 2x12, and 2x7 is in none (measured 2026-11-02). A failed request fails its whole season, so no
+ * count is ever declared off a list known to be cut.
  */
 const fetchEpisodes = async (
   showId: string,
@@ -210,24 +250,10 @@ const fetchEpisodes = async (
   seasonNumber?: number
 ): Promise<GQLEpisode[]> => {
   const wanted = Object.values(seasons ?? {})
-    .filter(season => seasonNumber == null || season.seasonNumber === seasonNumber)
-    .map(season => season.id)
-    .filter(Boolean)
+    .filter(season => season.id && (seasonNumber == null || season.seasonNumber === seasonNumber))
   if (!wanted.length) return []
   const playables = new Map<string, ApplePlayable>()
-  const perSeason = await Promise.all(
-    wanted.map(seasonId =>
-      api<AppleEpisodesResponse>(`/shows/${showId}/episodes?selectedSeasonId=${seasonId}`, ctx)
-        .then(res => {
-          for (const [episodeId, [first] = []] of Object.entries(res.data?.episodesPlayables ?? {})) {
-            const playable = first && res.data?.playables?.[first.playableId]
-            if (playable) playables.set(episodeId, playable)
-          }
-          return res.data?.episodes ?? []
-        })
-        .catch(() => [])
-    )
-  )
+  const perSeason = await Promise.all(wanted.map(season => readSeason(showId, season, playables, ctx).catch(() => [])))
   const byId = new Map<string, AppleEpisode>()
   for (const episode of perSeason.flat()) {
     if (seasonNumber != null && episode.seasonNumber !== seasonNumber) continue
@@ -311,7 +337,7 @@ const buildMedia = async (
   if (season?.seasonNumber == null) return normalizeMedia(content)
   const media = normalizeMedia(content, season)
   media.episodes = await fetchEpisodes(content.id, data.seasons, media.uri, ctx, season.seasonNumber)
-  media.episodeCount = media.episodes.length
+  media.episodeCount = media.episodes.length || undefined
   return media
 }
 

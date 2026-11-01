@@ -1,0 +1,461 @@
+{
+  "/shows/umc.cmc.vtoh0mn0xn7t3c643xqonfzy": {
+    "data": {
+      "content": {
+        "id": "umc.cmc.vtoh0mn0xn7t3c643xqonfzy",
+        "type": "Show",
+        "title": "Ted Lasso",
+        "releaseDate": 1597363200000
+      },
+      "seasons": {
+        "umc.cmc.1zpr41pbvs0v8u24i4m1dt1vk": {
+          "id": "umc.cmc.1zpr41pbvs0v8u24i4m1dt1vk",
+          "seasonNumber": 1,
+          "releaseDate": 1597363200000
+        },
+        "umc.cmc.4591779r7f26op440qa0sbvdg": {
+          "id": "umc.cmc.4591779r7f26op440qa0sbvdg",
+          "seasonNumber": 2,
+          "releaseDate": 1626998400000
+        },
+        "umc.cmc.315i577lny8xhz5w4islk8sjd": {
+          "id": "umc.cmc.315i577lny8xhz5w4islk8sjd",
+          "seasonNumber": 3,
+          "releaseDate": 1678838400000
+        },
+        "umc.cmc.4wswygrgwdu3rsohdxgt1twoq": {
+          "id": "umc.cmc.4wswygrgwdu3rsohdxgt1twoq",
+          "seasonNumber": 4,
+          "releaseDate": 1785888000000
+        }
+      }
+    }
+  },
+  "/shows/umc.cmc.vtoh0mn0xn7t3c643xqonfzy/episodes?selectedSeasonId=umc.cmc.1zpr41pbvs0v8u24i4m1dt1vk": {
+    "data": {
+      "episodes": [
+        {
+          "id": "umc.cmc.zb0yksqtym68hasbq8mj4jwp",
+          "title": "Pilot",
+          "seasonNumber": 1,
+          "episodeNumber": 1,
+          "episodeIndex": 0
+        },
+        {
+          "id": "umc.cmc.45cu44369hb2qfuwr3fihnr8e",
+          "title": "Biscuits",
+          "seasonNumber": 1,
+          "episodeNumber": 2,
+          "episodeIndex": 1
+        },
+        {
+          "id": "umc.cmc.e2jl6wwe6j3g6kxim23lx0u6",
+          "title": "Trent Crimm: The Independent",
+          "seasonNumber": 1,
+          "episodeNumber": 3,
+          "episodeIndex": 2
+        },
+        {
+          "id": "umc.cmc.1yrp6wxccxrfldde8sni6pold",
+          "title": "For the Children",
+          "seasonNumber": 1,
+          "episodeNumber": 4,
+          "episodeIndex": 3
+        },
+        {
+          "id": "umc.cmc.21roantvdf68j0twf412rnfmx",
+          "title": "Tan Lines",
+          "seasonNumber": 1,
+          "episodeNumber": 5,
+          "episodeIndex": 4
+        },
+        {
+          "id": "umc.cmc.670xfbs4addfycxkk3vvojea7",
+          "title": "Two Aces",
+          "seasonNumber": 1,
+          "episodeNumber": 6,
+          "episodeIndex": 5
+        }
+      ],
+      "totalEpisodeCount": 44
+    }
+  },
+  "/shows/umc.cmc.vtoh0mn0xn7t3c643xqonfzy/episodes?selectedSeasonId=umc.cmc.4591779r7f26op440qa0sbvdg": {
+    "data": {
+      "episodes": [
+        {
+          "id": "umc.cmc.670xfbs4addfycxkk3vvojea7",
+          "title": "Two Aces",
+          "seasonNumber": 1,
+          "episodeNumber": 6,
+          "episodeIndex": 5
+        },
+        {
+          "id": "umc.cmc.1zzkhptbom1da61ga7ars15my",
+          "title": "Make Rebecca Great Again",
+          "seasonNumber": 1,
+          "episodeNumber": 7,
+          "episodeIndex": 6
+        },
+        {
+          "id": "umc.cmc.eaaizh8wdtnjuohaebw843ft",
+          "title": "The Diamond Dogs",
+          "seasonNumber": 1,
+          "episodeNumber": 8,
+          "episodeIndex": 7
+        },
+        {
+          "id": "umc.cmc.61c45xlv6z4jxdem2rifm5ame",
+          "title": "All Apologies",
+          "seasonNumber": 1,
+          "episodeNumber": 9,
+          "episodeIndex": 8
+        },
+        {
+          "id": "umc.cmc.58hq6ewsq55y7i28rz2l9mqwv",
+          "title": "The Hope That Kills You",
+          "seasonNumber": 1,
+          "episodeNumber": 10,
+          "episodeIndex": 9
+        },
+        {
+          "id": "umc.cmc.1gqcupca2zx0ouyqougers5qi",
+          "title": "Goodbye Earl",
+          "seasonNumber": 2,
+          "episodeNumber": 1,
+          "episodeIndex": 10
+        },
+        {
+          "id": "umc.cmc.70ekl5mxt5cdf3wi6i3swkawi",
+          "title": "Lavender",
+          "seasonNumber": 2,
+          "episodeNumber": 2,
+          "episodeIndex": 11
+        },
+        {
+          "id": "umc.cmc.1j779d3ecflj7qwsq7zvaar7g",
+          "title": "Do the Right-est Thing",
+          "seasonNumber": 2,
+          "episodeNumber": 3,
+          "episodeIndex": 12
+        },
+        {
+          "id": "umc.cmc.5ykhzyymeswtteise1wq5gzmx",
+          "title": "Carol of the Bells",
+          "seasonNumber": 2,
+          "episodeNumber": 4,
+          "episodeIndex": 13
+        },
+        {
+          "id": "umc.cmc.2wrxmrfpkz6yqc38lokscruw4",
+          "title": "Rainbow",
+          "seasonNumber": 2,
+          "episodeNumber": 5,
+          "episodeIndex": 14
+        },
+        {
+          "id": "umc.cmc.3x0zaq4r31lvrgi7eqv0uf5uq",
+          "title": "The Signal",
+          "seasonNumber": 2,
+          "episodeNumber": 6,
+          "episodeIndex": 15
+        }
+      ],
+      "totalEpisodeCount": 44
+    }
+  },
+  "/shows/umc.cmc.vtoh0mn0xn7t3c643xqonfzy/episodes?nextToken=6:20": {
+    "data": {
+      "episodes": [
+        {
+          "id": "umc.cmc.1zzkhptbom1da61ga7ars15my",
+          "title": "Make Rebecca Great Again",
+          "seasonNumber": 1,
+          "episodeNumber": 7,
+          "episodeIndex": 6
+        },
+        {
+          "id": "umc.cmc.eaaizh8wdtnjuohaebw843ft",
+          "title": "The Diamond Dogs",
+          "seasonNumber": 1,
+          "episodeNumber": 8,
+          "episodeIndex": 7
+        },
+        {
+          "id": "umc.cmc.61c45xlv6z4jxdem2rifm5ame",
+          "title": "All Apologies",
+          "seasonNumber": 1,
+          "episodeNumber": 9,
+          "episodeIndex": 8
+        },
+        {
+          "id": "umc.cmc.58hq6ewsq55y7i28rz2l9mqwv",
+          "title": "The Hope That Kills You",
+          "seasonNumber": 1,
+          "episodeNumber": 10,
+          "episodeIndex": 9
+        },
+        {
+          "id": "umc.cmc.1gqcupca2zx0ouyqougers5qi",
+          "title": "Goodbye Earl",
+          "seasonNumber": 2,
+          "episodeNumber": 1,
+          "episodeIndex": 10
+        },
+        {
+          "id": "umc.cmc.70ekl5mxt5cdf3wi6i3swkawi",
+          "title": "Lavender",
+          "seasonNumber": 2,
+          "episodeNumber": 2,
+          "episodeIndex": 11
+        },
+        {
+          "id": "umc.cmc.1j779d3ecflj7qwsq7zvaar7g",
+          "title": "Do the Right-est Thing",
+          "seasonNumber": 2,
+          "episodeNumber": 3,
+          "episodeIndex": 12
+        },
+        {
+          "id": "umc.cmc.5ykhzyymeswtteise1wq5gzmx",
+          "title": "Carol of the Bells",
+          "seasonNumber": 2,
+          "episodeNumber": 4,
+          "episodeIndex": 13
+        },
+        {
+          "id": "umc.cmc.2wrxmrfpkz6yqc38lokscruw4",
+          "title": "Rainbow",
+          "seasonNumber": 2,
+          "episodeNumber": 5,
+          "episodeIndex": 14
+        },
+        {
+          "id": "umc.cmc.3x0zaq4r31lvrgi7eqv0uf5uq",
+          "title": "The Signal",
+          "seasonNumber": 2,
+          "episodeNumber": 6,
+          "episodeIndex": 15
+        },
+        {
+          "id": "umc.cmc.170ys0kklxulxhtc281z9mte6",
+          "title": "Headspace",
+          "seasonNumber": 2,
+          "episodeNumber": 7,
+          "episodeIndex": 16
+        },
+        {
+          "id": "umc.cmc.5p9mpya33bwuw2n8lsi5baphw",
+          "title": "Man City",
+          "seasonNumber": 2,
+          "episodeNumber": 8,
+          "episodeIndex": 17
+        },
+        {
+          "id": "umc.cmc.6g4rq6bas4pnogac0ybkq3cw5",
+          "title": "Beard After Hours",
+          "seasonNumber": 2,
+          "episodeNumber": 9,
+          "episodeIndex": 18
+        },
+        {
+          "id": "umc.cmc.1kf9bosjgr4mdducvd9k76ou3",
+          "title": "No Weddings and a Funeral",
+          "seasonNumber": 2,
+          "episodeNumber": 10,
+          "episodeIndex": 19
+        },
+        {
+          "id": "umc.cmc.1i174y67wt4vy3nydwg5i6mtk",
+          "title": "Midnight Train to Royston",
+          "seasonNumber": 2,
+          "episodeNumber": 11,
+          "episodeIndex": 20
+        },
+        {
+          "id": "umc.cmc.5500bhb3m7hpo8q50gkfzgq88",
+          "title": "Inverting the Pyramid of Success",
+          "seasonNumber": 2,
+          "episodeNumber": 12,
+          "episodeIndex": 21
+        },
+        {
+          "id": "umc.cmc.181psnr7jo5pal41i3ejyjcx6",
+          "title": "Smells Like Mean Spirit",
+          "seasonNumber": 3,
+          "episodeNumber": 1,
+          "episodeIndex": 22
+        },
+        {
+          "id": "umc.cmc.1cynnv9975xzh8baidtjxgexl",
+          "title": "(I Don’t Want to Go to) Chelsea",
+          "seasonNumber": 3,
+          "episodeNumber": 2,
+          "episodeIndex": 23
+        },
+        {
+          "id": "umc.cmc.6cd557flwxo5j2sxwv7u42kra",
+          "title": "4-5-1",
+          "seasonNumber": 3,
+          "episodeNumber": 3,
+          "episodeIndex": 24
+        },
+        {
+          "id": "umc.cmc.6llavc2jd7yevjwb283i6obni",
+          "title": "Big Week",
+          "seasonNumber": 3,
+          "episodeNumber": 4,
+          "episodeIndex": 25
+        }
+      ],
+      "totalEpisodeCount": 44
+    }
+  },
+  "/shows/umc.cmc.vtoh0mn0xn7t3c643xqonfzy/episodes?nextToken=16:20": {
+    "data": {
+      "episodes": [
+        {
+          "id": "umc.cmc.170ys0kklxulxhtc281z9mte6",
+          "title": "Headspace",
+          "seasonNumber": 2,
+          "episodeNumber": 7,
+          "episodeIndex": 16
+        },
+        {
+          "id": "umc.cmc.5p9mpya33bwuw2n8lsi5baphw",
+          "title": "Man City",
+          "seasonNumber": 2,
+          "episodeNumber": 8,
+          "episodeIndex": 17
+        },
+        {
+          "id": "umc.cmc.6g4rq6bas4pnogac0ybkq3cw5",
+          "title": "Beard After Hours",
+          "seasonNumber": 2,
+          "episodeNumber": 9,
+          "episodeIndex": 18
+        },
+        {
+          "id": "umc.cmc.1kf9bosjgr4mdducvd9k76ou3",
+          "title": "No Weddings and a Funeral",
+          "seasonNumber": 2,
+          "episodeNumber": 10,
+          "episodeIndex": 19
+        },
+        {
+          "id": "umc.cmc.1i174y67wt4vy3nydwg5i6mtk",
+          "title": "Midnight Train to Royston",
+          "seasonNumber": 2,
+          "episodeNumber": 11,
+          "episodeIndex": 20
+        },
+        {
+          "id": "umc.cmc.5500bhb3m7hpo8q50gkfzgq88",
+          "title": "Inverting the Pyramid of Success",
+          "seasonNumber": 2,
+          "episodeNumber": 12,
+          "episodeIndex": 21
+        },
+        {
+          "id": "umc.cmc.181psnr7jo5pal41i3ejyjcx6",
+          "title": "Smells Like Mean Spirit",
+          "seasonNumber": 3,
+          "episodeNumber": 1,
+          "episodeIndex": 22
+        },
+        {
+          "id": "umc.cmc.1cynnv9975xzh8baidtjxgexl",
+          "title": "(I Don’t Want to Go to) Chelsea",
+          "seasonNumber": 3,
+          "episodeNumber": 2,
+          "episodeIndex": 23
+        },
+        {
+          "id": "umc.cmc.6cd557flwxo5j2sxwv7u42kra",
+          "title": "4-5-1",
+          "seasonNumber": 3,
+          "episodeNumber": 3,
+          "episodeIndex": 24
+        },
+        {
+          "id": "umc.cmc.6llavc2jd7yevjwb283i6obni",
+          "title": "Big Week",
+          "seasonNumber": 3,
+          "episodeNumber": 4,
+          "episodeIndex": 25
+        },
+        {
+          "id": "umc.cmc.34iw7fd7qm1lndvyr2gzbomdm",
+          "title": "Signs",
+          "seasonNumber": 3,
+          "episodeNumber": 5,
+          "episodeIndex": 26
+        },
+        {
+          "id": "umc.cmc.57xpohci7whqbdun23droo7bs",
+          "title": "Sunflowers",
+          "seasonNumber": 3,
+          "episodeNumber": 6,
+          "episodeIndex": 27
+        },
+        {
+          "id": "umc.cmc.75h6p6ksbmjbk3x3oyd3fevz5",
+          "title": "The Strings That Bind Us",
+          "seasonNumber": 3,
+          "episodeNumber": 7,
+          "episodeIndex": 28
+        },
+        {
+          "id": "umc.cmc.5z7k8pxtsdda3xprjzyvh8jpv",
+          "title": "We’ll Never Have Paris",
+          "seasonNumber": 3,
+          "episodeNumber": 8,
+          "episodeIndex": 29
+        },
+        {
+          "id": "umc.cmc.53sf8wanc8evqg17ymnc7azvk",
+          "title": "La Locker Room Aux Folles",
+          "seasonNumber": 3,
+          "episodeNumber": 9,
+          "episodeIndex": 30
+        },
+        {
+          "id": "umc.cmc.46ad02tyw2ijf5an0n6uc5mw9",
+          "title": "International Break",
+          "seasonNumber": 3,
+          "episodeNumber": 10,
+          "episodeIndex": 31
+        },
+        {
+          "id": "umc.cmc.3u1a8tgmz5h71dfr3200j06p6",
+          "title": "Mom City",
+          "seasonNumber": 3,
+          "episodeNumber": 11,
+          "episodeIndex": 32
+        },
+        {
+          "id": "umc.cmc.e8dna900qn4eti6wgl6teiqd",
+          "title": "So Long, Farewell",
+          "seasonNumber": 3,
+          "episodeNumber": 12,
+          "episodeIndex": 33
+        },
+        {
+          "id": "umc.cmc.7hog8d1yo3kydywk16dqr3ce9",
+          "title": "Home",
+          "seasonNumber": 4,
+          "episodeNumber": 1,
+          "episodeIndex": 34
+        },
+        {
+          "id": "umc.cmc.5iel62yra1w1nh1p2ad1i76ww",
+          "title": "Curiouser and Curiouser!",
+          "seasonNumber": 4,
+          "episodeNumber": 2,
+          "episodeIndex": 35
+        }
+      ],
+      "totalEpisodeCount": 44
+    }
+  }
+}

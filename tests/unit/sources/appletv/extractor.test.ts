@@ -24,6 +24,7 @@ import NAPOLEON_DIRECTORS_CUT from '../../../fixtures/appletv/napoleon-directors
 import SEARCH_WOLFS from '../../../fixtures/appletv/search-wolfs.json'
 import SEARCH_HOUSE from '../../../fixtures/appletv/search-house.json'
 import SEARCH_THE from '../../../fixtures/appletv/search-the.json'
+import TED_LASSO from '../../../fixtures/appletv/ted-lasso-episodes.json'
 
 const ATV = 'https://uts-api.itunes.apple.com/uts/v3'
 const PARAMS = 'caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0'
@@ -361,6 +362,31 @@ test('a search cancelled while its reads are out stops them and answers nothing 
 
   expect(readTitles(asked, SEARCH_TEHRAN)).toEqual(['Tehran'])
   expect(urls(nodes.get(`appletv:${TEHRAN.data.content.id}`)?.covers)).toEqual([TEHRAN_POSTER])
+})
+
+// Recorded 2026-11-02, trimmed to the fields read. A season's window holds at most six of its own
+// episodes: Ted Lasso's season 1 window ends at 1x6 of 10, and 2x7 of season 2 is in no window at all.
+const tedLasso = (drop?: string) => Object.fromEntries(Object.entries(TED_LASSO)
+  .filter(([path]) => path !== drop)
+  .map(([path, answer]) => [url(path), answer]))
+const TED = 'umc.cmc.vtoh0mn0xn7t3c643xqonfzy'
+const numbers = (media: { episodes: { seasonNumber: number, episodeNumber: number }[] }) =>
+  media.episodes.map(episode => `${episode.seasonNumber}x${episode.episodeNumber}`)
+
+test.each([
+  [1, Array.from({ length: 10 }, (_, index) => `1x${index + 1}`)],
+  [2, Array.from({ length: 12 }, (_, index) => `2x${index + 1}`)],
+])('season %i reads the rest of the season past its window, and declares the whole count', async (season, episodes) => {
+  const media = await resolveMedia(`appletv:${TED}-s${season}`, tedLasso())
+
+  expect(numbers(media)).toEqual(episodes)
+  expect(media.episodeCount).toBe(episodes.length)
+})
+
+test('a season whose rest cannot be read declares no count rather than its window\'s', async () => {
+  const media = await resolveMedia(`appletv:${TED}-s1`, tedLasso(`/shows/${TED}/episodes?nextToken=6:20`))
+
+  expect(media.episodeCount).toBeUndefined()
 })
 
 // Each episode also names the show's lettered art as `showPosterArt`.
