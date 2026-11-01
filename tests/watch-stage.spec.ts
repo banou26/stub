@@ -237,9 +237,34 @@ test('Next episode comes after the player\'s Skip Ending has gone, for a file it
   }
 })
 
+// Every frame from the call on, how far Next's row reaches into the player's Skip Ending while both are drawn, the
+// offer fading out included until it is all but gone: stub times the offer from its report, a frame or so before the
+// player's own clock starts.
+const watchOverlap = async (page: Page) => {
+  await page.evaluate(() => {
+    const overlaps: number[] = []
+    Object.assign(window, { overlaps })
+    const tick = () => {
+      const row = document.querySelector('.stage .up-next')?.parentElement
+      const frame = document.querySelector<HTMLIFrameElement>('.stage iframe')
+      const offer = frame?.contentDocument?.querySelector('button.skip-chapter')
+      if (row && frame && offer && getComputedStyle(row).visibility === 'visible' && Number(getComputedStyle(offer).opacity) > 0.05) {
+        const [next, inner, { top, left }] = [row.getBoundingClientRect(), offer.getBoundingClientRect(), frame.getBoundingClientRect()]
+        const down = Math.min(next.bottom, inner.bottom + top) - Math.max(next.top, inner.top + top)
+        const across = Math.min(next.right, inner.right + left) - Math.max(next.left, inner.left + left)
+        if (down > 0 && across > 0) overlaps.push(Math.round(down))
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+  return () => page.evaluate(() => (window as unknown as { overlaps: number[] }).overlaps)
+}
+
 // Both up, the player's real Skip Ending in its frame and Next on the page, by a seek into the last of an ending with a
-// scene after it. Paused, so the offer runs its 6 s and goes, and Next comes down with it.
-const seekIntoTheEndingsLastSecond = async (page: Page, fullscreen: boolean) => {
+// scene after it. Paused, so the offer runs its 6 s and goes, and Next comes down once it has faded out. With `waits`,
+// on a player too short for both, Next is hidden until then instead.
+const seekIntoTheEndingsLastSecond = async (page: Page, fullscreen: boolean, waits: boolean) => {
   await serve(page)
   await page.addInitScript(() => { Object.assign(window, { stageSceneAfterEnding: true }) })
   await page.goto(`${ORIGIN}${stageWatchPath(1)}`)
@@ -255,32 +280,37 @@ const seekIntoTheEndingsLastSecond = async (page: Page, fullscreen: boolean) => 
   const skip = embed.locator('button.skip-chapter')
   await expect(async () => {
     await player.evaluate(() => { (window as unknown as { seek: (time: number) => void }).seek(89.5) })
-    await expect(next).toBeVisible({ timeout: 1_000 })
+    await expect(next).toBeAttached({ timeout: 1_000 })
     await expect(skip).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 15_000 })
+  const overlaps = await watchOverlap(page)
   const clear = async () => {
     const [row, offer] = await Promise.all([next.boundingBox(), skip.boundingBox()])
     return offer!.y - (row!.y + row!.height)
   }
-  await expect.poll(clear, { message: 'Next stands above Skip Ending' }).toBeGreaterThanOrEqual(4)
+  if (waits) await expect(next, 'Next waits for Skip Ending to go').toBeHidden()
+  else await expect.poll(clear, { message: 'Next stands above Skip Ending' }).toBeGreaterThanOrEqual(4)
   await expect(skip).toBeHidden({ timeout: 8_000 })
+  await expect(next).toBeVisible()
   const offTheBottom = async () => {
     const [row, stage] = await Promise.all([next.boundingBox(), page.locator('.stage iframe').boundingBox()])
     return stage!.y + stage!.height - (row!.y + row!.height)
   }
   await expect.poll(offTheBottom, { message: 'and comes back down as it goes', timeout: 1_000 }).toBeCloseTo(80, 0)
+  expect(await overlaps(), 'never on a Skip Ending still drawn').toEqual([])
 }
 
-for (const [where, options, fullscreen] of [
-  ['at 390 px by touch', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false],
-  ['at desktop width', { viewport: VIEWPORT }, false],
-  ['in fullscreen', { viewport: VIEWPORT }, true],
+for (const [where, options, fullscreen, waits] of [
+  ['at 390 px by touch', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, false, false],
+  ['at 360 px by touch, where Next waits', { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true }, false, true],
+  ['at desktop width', { viewport: VIEWPORT }, false, false],
+  ['in fullscreen', { viewport: VIEWPORT }, true, false],
 ] as const) {
   test(`Next episode stands clear of the player's Skip Ending ${where}, in Chromium`, async ({ browser }) => {
     test.setTimeout(90_000)
     const page = await browser.newPage(options)
     try {
-      await seekIntoTheEndingsLastSecond(page, fullscreen)
+      await seekIntoTheEndingsLastSecond(page, fullscreen, waits)
     } finally {
       await page.close()
     }

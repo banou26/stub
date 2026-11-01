@@ -26,19 +26,27 @@ const style = css`
   bottom: 8rem;
   display: flex;
   gap: 0.8rem;
-  transition: bottom 0.18s ease;
+  /* down only once the player's skip offer has faded out, which takes it 0.18 s from a clock a frame or so behind stub's */
+  transition: bottom 0.18s ease 0.2s, visibility 0s 0.2s;
 
   /* above the player's skip offer, which is sized in px wherever the page's rem goes: it tops out at 112 px, 134 px for a finger */
   &.above-skip {
     bottom: 120px;
+    transition-delay: 0s;
 
     @media (pointer: coarse) {
       bottom: 142px;
     }
+
+    /* a phone's player under 384 px wide is too short to hold Next between that offer and the player's title */
+    @media (pointer: coarse) and (max-width: 383px) {
+      bottom: 8rem;
+      visibility: hidden;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    transition: none;
+    transition-duration: 0s;
   }
 
   button {
@@ -92,7 +100,7 @@ const offeredOn = (link: PlaybackLink, chapters: MediaChapter[], duration: numbe
  * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`, and a player that left its
  * Skip Ending out for one gets it back. A seek back or a pause before the moment withdraws the button, and a report
  * that the player is no longer at its end (a seek back, a play) withdraws the countdown. It stands above the player's
- * skip offer while one is up.
+ * skip offer while one is up, or on a phone's player too short for both, waits for it to go.
  * The `stage` it is drawn on stays fullscreen; a player fullscreened above it is let out first.
  * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
  * `episode` carries into the next, whose player may be the same link.
