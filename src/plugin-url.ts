@@ -1,4 +1,5 @@
 import { readPluginUris, writePluginUris } from './utils/plugin-links'
+import { loadEnabled } from './plugin-list'
 import { enabledPluginUris, onPluginsChange } from './plugins'
 import { addInvites, onInvitesChange, pendingInviteUris } from './plugin-invites'
 
@@ -11,9 +12,11 @@ const sync = () => {
 }
 
 // wouter applies this to the rendered attribute only and navigates with the raw path, so it does not
-// stack with the History patch below
+// stack with the History patch below. That attribute is what a link opened in another tab carries, so it
+// names only what a list stub keeps: not a source FKN holds for this tab alone, which that tab would keep,
+// nor one still waiting on FKN, which may turn out to be one.
 export const pluginHref = (href: string): string => {
-  const next = writePluginUris(href, desired(), location.href)
+  const next = writePluginUris(href, loadEnabled(), location.href)
   return next.startsWith(location.origin) ? next.slice(location.origin.length) : next
 }
 

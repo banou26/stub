@@ -9,6 +9,8 @@ const plugins = vi.hoisted(() => {
     list,
     answerList,
     enabled: [] as string[],
+    // the sources a list stub keeps names, without those FKN holds for this tab alone
+    kept: [] as string[],
     listeners: new Set<() => void>(),
     disablePlugin: vi.fn(async (uri: string) => {
       plugins.enabled = plugins.enabled.filter(enabled => enabled !== uri)
@@ -37,9 +39,11 @@ vi.mock('../../src/plugins', () => ({
   },
 }))
 
+vi.mock('../../src/plugin-list', () => ({ loadEnabled: () => plugins.kept }))
+
 const LINK = 'https:stub.plugins.banou.dev'
 const DECLINED = vi.hoisted(() => 'npm:@banou/declined')
-const address = { href: `https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}` }
+const address = { origin: 'https://anime.fkn.app', href: `https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}` }
 const entries: string[] = []
 const moved = (url: unknown) => { address.href = new URL(String(url), address.href).href }
 vi.stubGlobal('location', address)
@@ -56,11 +60,12 @@ const back = () => {
   for (const listener of popstate) listener()
 }
 
-await import('../../src/plugin-url')
+const { pluginHref } = await import('../../src/plugin-url')
 const { addedInvites, closeInvites, removeInvite } = await import('../../src/plugin-invites')
 
 test('a link adds its source as the page loads, and a Back that reaches the mirror of a source removed since adds nothing', async () => {
   expect(address.href, 'FKN has not answered, and a reload now must not lose the link').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}`)
+  expect(pluginHref('/settings'), 'nor name it to a tab a link opens, since FKN may hold it for this tab alone').toBe('/settings')
   plugins.answerList([])
   await vi.waitFor(() => expect(addedInvites()).toEqual([{ uri: LINK }]))
   expect(address.href, 'a source the viewer said no to leaves the url').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}`)
@@ -82,4 +87,19 @@ test('a link adds its source as the page loads, and a Back that reaches the mirr
   expect(plugins.enablePlugin, 'it stays removed').not.toHaveBeenCalled()
   expect(addedInvites()).toEqual([])
   closeInvites()
+})
+
+// a tab the link opens has none of them, and would keep them as a link's
+test('a link opened in another tab names the kept sources, and none FKN holds for this tab alone, which a click in this tab carries', () => {
+  const TEMPORARY = 'npm:@banou/temporary'
+  plugins.enabled = [LINK, TEMPORARY]
+  plugins.kept = [LINK]
+  try {
+    expect(pluginHref('/title/2')).toBe(`/title/2?plugins=${LINK}`)
+    history.pushState(null, '', '/title/2')
+    expect(address.href).toBe(`https://anime.fkn.app/title/2?plugins=${LINK}&plugins=${TEMPORARY}`)
+  } finally {
+    plugins.enabled = []
+    plugins.kept = []
+  }
 })

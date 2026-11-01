@@ -16,7 +16,7 @@ import AccountWidget, { menuStyle } from './account-widget'
 import PartyWidget from './party-widget'
 import { layer } from '../layers'
 import { site, siteLinks } from '../site'
-import { loadAccount } from '../plugin-list'
+import { loadAccount, loadDevice } from '../plugin-list'
 import { readPluginUris, writePluginUris } from '../utils/plugin-links'
 
 const PLACEHOLDERS = defineMessages({
@@ -390,16 +390,19 @@ const currentSiteStyle = css`
   }
 `
 
-// a site link carries the sources this tab's address does but the FKN account's, which reach the next site through
-// the account: this device's own, and those FKN holds for this tab alone, which no list stub keeps names
-const carried = () => {
+// A site link carries this device's own sources: the FKN account's reach the next site through the account. A
+// click that stays in this tab also carries those FKN holds for this tab alone, which only this tab's address names
+// and a tab the link opens would keep.
+const inThisTab = (event: MouseEvent) => {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
   const account = loadAccount() ?? []
-  return readPluginUris(globalThis.location?.href ?? '').filter(uri => !account.includes(uri))
+  const anchor = event.currentTarget as HTMLAnchorElement
+  anchor.href = writePluginUris(anchor.href, readPluginUris(location.href).filter(uri => !account.includes(uri)), anchor.href)
 }
 
 const SiteLinks = ({ className }: { className?: string }) => {
   const intl = useIntl()
-  const sources = carried()
+  const sources = loadDevice()
   return (
     <>
       {siteLinks.map(link => (
@@ -407,6 +410,7 @@ const SiteLinks = ({ className }: { className?: string }) => {
           key={link.site}
           className={className}
           href={writePluginUris(link.href, sources, link.href)}
+          onClick={inThisTab}
           aria-current={link.site === site ? 'page' : undefined}
         >
           {intl.formatMessage(SITE_NAMES[link.site])}

@@ -416,14 +416,20 @@ test('a site link carries this device\'s own sources to the next site, never the
     .toHaveAttribute('href', `${at('movies.localhost')}?plugins=https:stub.plugins.banou.dev`)
 })
 
-test('a site link carries a source FKN holds for this tab alone, which no list stub keeps names', async ({ page }) => {
+// a tab a link opens has none of it, and would keep it as a link's source
+test('a click in this tab carries a source FKN holds for this tab alone to the next page and site, and a link\'s href names none of it', async ({ page }) => {
   const SOURCE = 'npm:@spec/anime-source'
   await page.addInitScript(source => sessionStorage.setItem('spec.temporary', JSON.stringify([source])), SOURCE)
   await page.goto(at('anime.localhost', `/?plugins=${SOURCE}`))
   // a page of the app's own, so the header draws again once FKN's list has answered
   await page.locator('footer').getByRole('link', { name: 'Legal', exact: true }).click()
   await expect(page).toHaveURL(at('anime.localhost', `/legal?plugins=${SOURCE}`))
-  await expect(siteLinks(page).getByText('Movies', { exact: true })).toHaveAttribute('href', `${at('movies.localhost')}?plugins=${SOURCE}`)
+  await expect(page.locator('footer').getByRole('link', { name: 'Legal', exact: true })).toHaveAttribute('href', '/legal')
+  const movies = siteLinks(page).getByText('Movies', { exact: true })
+  await expect(movies).toHaveAttribute('href', at('movies.localhost'))
+
+  await movies.click()
+  await expect(page).toHaveURL(at('movies.localhost', `/?plugins=${SOURCE}`))
   expect(await page.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBeNull()
 })
 
