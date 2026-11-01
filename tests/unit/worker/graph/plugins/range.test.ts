@@ -441,9 +441,12 @@ const solo2Answers = async () => {
     })),
     await answer('media', media('jw:359486-444272', {
       score: 0.2, type: 'TV', status: 'FINISHED', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
-      episodes: SOLO2_JW.map((day, index) => episode(`jw:904${index + 13}`, 'jw:359486-444272', {
-        episodeNumber: index + 13, releaseDate: day, titles: named(index),
-      })),
+      episodes: [
+        ...SOLO2_JW.map((day, index) => episode(`jw:904${index + 13}`, 'jw:359486-444272', {
+          episodeNumber: index + 13, releaseDate: day, titles: named(index),
+        })),
+        episode('amazon:amzn1.dv.gti.90769015', 'jw:359486-444272', { episodeNumber: 13 }),
+      ],
     })),
     await answer('media', media('cr:GDKHZEJ0K-GY09CX813', {
       score: 0.5, type: 'TV', status: 'FINISHED', episodeCount: 13, titles: [title('en', 'Solo Leveling Season 2')],
@@ -1151,11 +1154,14 @@ test('a sequel Crunchyroll numbers on from the last season draws one row per epi
 // episode, on the season's last. JustWatch counts on the same way, with three wrong days.
 // Mutation: drop the `ownShift` filter in `decideCandidate` and rows 1, 5 and 11 each hold two
 // JustWatch rows; return no pairs from `placeAtShift` and the page is 16 rows, its three unpaired.
+// The Prime Video offer JustWatch hangs beside its 13 keeps that number rather than follow the episode to row 1:
+// Prime Video's season page (2026-11-01) names gti 90769015 its episode 13, "On to the Next Target", the run's last.
 test('a list as long as the run holds to its own order, so a wrong date moves no row', async () => {
   const rows = await rowsDrawn('anilist:176496')
   expect(rows.map(row => row.number)).toEqual(oneToN(13))
   expect(onRows(rows, 'cr')).toEqual(oneToN(13).map(number => [`cr:GY09CX813-${number + 12}`]))
   expect(onRows(rows, 'jw')).toEqual(oneToN(13).map(number => [`jw:904${number + 12}`]))
+  expect(onRows(rows, 'amazon')).toEqual(oneToN(13).map(number => (number === 13 ? ['amazon:amzn1.dv.gti.90769015'] : [])))
 
   // a row the numbering placed says so, rather than claiming a date it does not have
   const pairs = await pairsFrom('jw:359486-444272')
