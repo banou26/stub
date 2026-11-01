@@ -11,6 +11,7 @@ import { build } from 'vite-plus'
 import { builtInSources } from '../src/sources/built-in'
 import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
+import { drawMontserrat } from './montserrat'
 import { workerFakes } from './worker-fakes'
 
 // One build served under four names, as Pages serves stub.fkn.app, anime.fkn.app, movies.fkn.app and
@@ -76,6 +77,7 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await page.route(url => url.port !== port, route => route.abort())
+  await drawMontserrat(page)
 })
 
 const at = (host: string, path = '/') => `http://${host}:${port}${path}`
@@ -454,8 +456,8 @@ test('from 1200 px the site links sit beside the wordmark, and a desktop keeps t
   }
 })
 
-// A wider font than the rig's. The header's words are wider in Montserrat, and on GitHub's runner system-ui is DejaVu
-// Sans: at 1024 and 360 px, this spacing widens them past either (measured 2026-10-30).
+// A wider font than any a viewer gets: the rig draws Montserrat (tests/montserrat.ts), and this spacing widens its words
+// past a fallback's, DejaVu Sans being the widest measured (the wordmark about 49 px at 360 against 46, 2026-11-01).
 const WIDER_FONT = 'header { letter-spacing: 0.06em } header .logo { letter-spacing: 0.12em !important }'
 
 test('the header keeps its floors in a wider font, on every site', async ({ page }) => {
@@ -788,8 +790,6 @@ test('below 480 px the search waits behind a button, and opens focused over the 
     const start = (await page.locator('header .start').boundingBox())!
     const button = (await searchButton(page).boundingBox())!
     const actions = (await page.locator('header .actions').boundingBox())!
-    // the rig blocks Google Fonts, so the wordmark falls back to a font 2.7 px narrower than the live Montserrat
-    // (41.7 against 44.4 px at 360, measured 2026-10-30): the gap here has to cover that difference
     expect(button.x - (start.x + start.width), `${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
     expect(button.x + button.width, `${width}: the button ends before the actions`).toBeLessThanOrEqual(actions.x)
     await searchButton(page).click()

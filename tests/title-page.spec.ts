@@ -20,6 +20,7 @@ import { mediaSeasonNow } from '../src/sources/season'
 import { SITE_STATUS_KEY } from '../src/tracking/site-status'
 import { ACCOUNT_RELEASES, FREE_RELEASES, SPEC_ACCOUNT_KEY } from './fake-plugins'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
+import { drawMontserrat } from './montserrat'
 import { workerFakes } from './worker-fakes'
 
 // The title page as anime.fkn.app serves it, built and served the way tests/settings.spec.ts does: every
@@ -83,6 +84,7 @@ test.afterAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
+  await drawMontserrat(page)
 })
 
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
