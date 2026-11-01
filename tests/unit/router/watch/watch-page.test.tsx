@@ -2007,6 +2007,20 @@ test('Next episode stays down over a file\'s ending once the player has said it 
   expect(aboveSkip(host)).toBe(false)
 })
 
+test('a player left before its skip offer came takes that offer with it, and Next stays down over the next player', async () => {
+  relay.files[skipEventsUrl('GX2')] = { credits: SCENE_AFTER }
+  bridge.duration = 1420
+  const { host, rerender } = await atTheEnd()
+  await report({ paused: false, time: 1290 })
+  params = { ...params, sourceUri: 'nyaa:a' }
+  rerender()
+  await settle()
+  await report(played, ended)
+  expect(nextShown(host)).toBe('E3 - Title 3')
+  await wait(10_000)
+  expect(aboveSkip(host), 'the first player\'s offer would have come 9 s on').toBe(false)
+})
+
 // HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,
 // else aniskip's ending. The second episode as a torrent of 1395 s whose file's chapters are `chapters`, on a show
 // MyAnimeList knows as 5, its third episode as given.
