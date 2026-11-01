@@ -214,6 +214,18 @@ test('a reload whose address names a source made temporary shows it as it is, in
   expect(pendingInviteUris()).toEqual([])
 })
 
+// a page Back or Forward loads again is stub's own mirror of the list as it was then
+test('without install, only what FKN holds is shown: a source it no longer holds is neither installed nor said', async () => {
+  plugins.installedPlugins.mockResolvedValueOnce([{ uri: 'npm:@banou/seven', temporary: true }, { uri: 'npm:@banou/four' }])
+  await addInvites(['npm:@banou/seven', 'npm:@banou/four', 'npm:@banou/gone'], { install: false })
+
+  expect(plugins.showTemporary.mock.calls).toEqual([['npm:@banou/seven']])
+  expect(plugins.installPlugin.mock.calls.map(([uri]) => uri)).toEqual(['npm:@banou/four'])
+  expect(plugins.enablePlugin).not.toHaveBeenCalled()
+  expect(addedInvites()).toEqual([])
+  expect(pendingInviteUris(), 'and the url drops it').toEqual([])
+})
+
 test('Make temporary is offered where FKN can hold a source for one tab, and not where it cannot', async () => {
   plugins.supportsTemporary.mockResolvedValueOnce(true)
   await addInvites(['npm:@banou/two'])

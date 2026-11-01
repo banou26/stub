@@ -29,7 +29,7 @@ export const pendingInviteUris = (): string[] => [...held]
 const listedAs = (uri: string) =>
   enabledPluginUris().find(enabled => comparablePluginUri(enabled) === comparablePluginUri(uri))
 
-const add = async (uri: string, installed: Awaited<ReturnType<typeof installedPlugins>>, offersTemporary: boolean) => {
+const add = async (uri: string, installed: Awaited<ReturnType<typeof installedPlugins>>, offersTemporary: boolean, install: boolean) => {
   try {
     if (listedAs(uri)) return
     const holding = installed.find(record => comparablePluginUri(record.uri) === comparablePluginUri(uri))
@@ -45,6 +45,7 @@ const add = async (uri: string, installed: Awaited<ReturnType<typeof installedPl
       await installPlugin(uri)
       return
     }
+    if (!install) return
     const listed = enabledPluginUris()
     // null only comes back from a broker too old to honour noConfirm, which still confirms
     const source = await enablePlugin(uri, { noConfirm: true })
@@ -72,9 +73,9 @@ const add = async (uri: string, installed: Awaited<ReturnType<typeof installedPl
  * Adds the sources a link names that are not on the list, and says so through `addedInvites`. Only FKN's list
  * tells a link from stub's own mirror of another site's sources, and a site's first one may take seconds, so
  * it is waited for: with no broker an install would not answer either. A list that fails adds nothing and
- * leaves the link on the url for the next load.
+ * leaves the link on the url for the next load. With `install` false only what FKN already holds is shown.
  */
-export const addInvites = async (uris: string[]): Promise<void> => {
+export const addInvites = async (uris: string[], { install = true } = {}): Promise<void> => {
   const fresh = uris.filter(uri => !listedAs(uri))
   if (!fresh.length) return
   for (const uri of fresh) held.add(uri)
@@ -82,7 +83,7 @@ export const addInvites = async (uris: string[]): Promise<void> => {
   if (!installed) return
   // FKN answered, so this does at once
   const offersTemporary = await supportsTemporary()
-  await Promise.all(fresh.map(uri => add(uri, installed, offersTemporary)))
+  await Promise.all(fresh.map(uri => add(uri, installed, offersTemporary, install)))
 }
 
 /** Keeps that one source for this tab alone, its row staying with Remove. */

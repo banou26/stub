@@ -37,10 +37,12 @@ if (!(INSTALLED in globalThis)) {
   patch('pushState')
   patch('replaceState')
   // a link is read once, as the page loads: an entry Back or Forward reaches is stub's own mirror of the list
-  // as it was then, and a source removed since must not come back through it
+  // as it was then, and a source removed since must not come back through it, nor through a page Back or
+  // Forward loads again
   addEventListener('popstate', sync)
   onPluginsChange(sync)
   onInvitesChange(sync)
-  void addInvites(readPluginUris(location.href))
+  const navigation = globalThis.performance?.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
+  void addInvites(readPluginUris(location.href), { install: navigation?.type !== 'back_forward' })
   sync()
 }
