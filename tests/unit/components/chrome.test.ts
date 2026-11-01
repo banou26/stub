@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, describe, test } from 'vitest'
+import { expect, describe, test } from 'vite-plus/test'
 
 // These invariants are CSS and one HTML attribute, so there is nothing to import and call. They are
 // read off the source instead, the way tests/unit/sources/index.test.ts reads the schema, and every
