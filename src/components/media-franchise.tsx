@@ -49,6 +49,7 @@ const triggerStyle = css`
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
   padding: 0.5rem 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 0.5rem;
@@ -57,8 +58,10 @@ const triggerStyle = css`
   font-family: inherit;
   font-size: 1.3rem;
   font-weight: 600;
-  /* not normal, which a fallback font makes taller than the 2.8rem the Relations heading holds for this button */
+  /* one line, at a set height: a fallback font's normal line height, or a second line, makes it taller than the 2.8rem
+     the Relations heading holds for it, and the label takes two lines in English at 360 px (measured 2026-11-01) */
   line-height: 1.6rem;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s ease;
 
@@ -68,7 +71,9 @@ const triggerStyle = css`
     background: rgba(255, 255, 255, 0.06);
   }
 
-  svg { width: 1.5rem; height: 1.5rem; }
+  svg { flex-shrink: 0; width: 1.5rem; height: 1.5rem; }
+
+  span { overflow: hidden; text-overflow: ellipsis; }
 `
 
 const overlayStyle = css`
@@ -468,7 +473,7 @@ const MediaFranchise = (
     <>
       <button type="button" css={triggerStyle} ref={refs.setReference} {...getReferenceProps()} data-franchise-open>
         <Network/>
-        {intl.formatMessage({ id: 'See detailed relation graph', defaultMessage: 'See detailed relation graph' })}
+        <span>{intl.formatMessage({ id: 'See detailed relation graph', defaultMessage: 'See detailed relation graph' })}</span>
       </button>
       {
         open
