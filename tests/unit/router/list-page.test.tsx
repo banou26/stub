@@ -100,6 +100,20 @@ test('an item shows how far, its score and format, and a mark naming each tracke
   expect(item.querySelector('.differs')?.getAttribute('title')).toBe('AniList Episode 5, MyAnimeList Episode 4')
 })
 
+test('a film draws no progress over its count, no bar and no +, and a one-episode special keeps all three', () => {
+  const one = (uri: string, title: string, type: string) => {
+    const base = row(uri, title, 'WATCHING', 0, [answer('stub', 'Stub', { progress: 0, episodeCount: 1 })])
+    return { ...base, episodeCount: 1, type, summary: { ...base.summary, episodeCount: 1 } }
+  }
+  const host = show(undefined, [one('anilist:1', 'A film', 'MOVIE'), one('anilist:2', 'A special', 'SPECIAL')])
+  const drawn = (title: string) => {
+    const item = [...host.querySelectorAll('.item')].find(item => item.querySelector('.title')?.textContent === title)!
+    return [...item.querySelectorAll('.facts > *, .bar')].map(part => part.className || part.textContent)
+  }
+  expect(drawn('A film')).toEqual(['score', 'Movie'])
+  expect(drawn('A special')).toEqual(['progress', 'score', 'Special', 'more', 'bar'])
+})
+
 test('the mark says none of a tracker that holds no value of a field the others differ on, a line per field', () => {
   const host = show(undefined, [row('anilist:154587', 'Frieren', 'WATCHING', 5, [
     answer('anilist', 'AniList', { progress: 5, score: 80 }),

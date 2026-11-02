@@ -2,7 +2,7 @@
 // that set it. Import free, with the store, the clock and the id minting injected, so the merge rules
 // can be pinned under vitest.
 
-import type { FuzzyDate, ListEntryInput, ListStatus } from '../generated/schema/types.generated'
+import type { FuzzyDate, ListEntryInput, ListStatus, MediaType } from '../generated/schema/types.generated'
 import type { Said } from '../i18n/said'
 
 import { forPage } from '../i18n/said'
@@ -38,11 +38,13 @@ export type EntryValues = {
   title: string | null
   cover: string | null
   episodeCount: number | null
+  type: MediaType | null
 }
 
 /** The fields that make an entry listed. The rest describe the media and list nothing on their own. */
 export const LIST_FIELDS = ['status', 'progress', 'score', 'startedAt', 'completedAt', 'rewatchCount'] as const
-const FIELDS = [...LIST_FIELDS, 'title', 'cover', 'episodeCount'] as const
+const SNAPSHOT_FIELDS = ['title', 'cover', 'episodeCount', 'type'] as const
+const FIELDS = [...LIST_FIELDS, ...SNAPSHOT_FIELDS] as const
 
 type Field = keyof EntryValues
 export type Stamped<T> = { value: T, stamp: Stamp }
@@ -153,7 +155,7 @@ const isCount = (value: unknown) => value == null || (Number.isInteger(value) &&
  */
 export const patchFrom = (
   input: ListEntryInput,
-  snapshot: { title?: string | null, cover?: string | null, episodeCount?: number | null } = {}
+  snapshot: { [K in typeof SNAPSHOT_FIELDS[number]]?: EntryValues[K] } = {}
 ): { patch: Patch } | { error: Said } => {
   if (!isCount(input.progress)) return { error: NOT_A_PROGRESS }
   if (!isCount(input.rewatchCount)) return { error: NOT_A_REWATCH_COUNT }
@@ -162,7 +164,7 @@ export const patchFrom = (
   for (const field of LIST_FIELDS) {
     if (field in input && input[field] !== undefined) (patch as Record<string, unknown>)[field] = input[field] ?? null
   }
-  for (const field of ['title', 'cover', 'episodeCount'] as const) {
+  for (const field of SNAPSHOT_FIELDS) {
     if (snapshot[field] != null) (patch as Record<string, unknown>)[field] = snapshot[field]
   }
   return { patch }

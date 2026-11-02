@@ -189,4 +189,13 @@ describe("the stub tracker's whole list", () => {
     await save(target, 'ag:(anilist:1)', { status: 'WATCHING', progress: 1 })
     expect(itemsOf(await list.next())).toMatchObject([{ entry: { progress: 1 } }])
   })
+
+  test('holds the format the page showed, which a later save that names none keeps', async () => {
+    const { target } = stubServer()
+    await save(target, 'ag:(anilist:1)', { status: 'PLANNING' }, { title: 'A film', episodeCount: 1, type: 'MOVIE' })
+    await save(target, 'ag:(anilist:2)', { status: 'PLANNING' }, { title: 'A show', episodeCount: 12 })
+    await save(target, 'ag:(anilist:1)', { status: 'COMPLETED' })
+    const items: { entry: { title: string }, type: string | null }[] = itemsOf(await lists(target).next())
+    expect(Object.fromEntries(items.map(({ entry, type }) => [entry.title, type]))).toEqual({ 'A film': 'MOVIE', 'A show': null })
+  })
 })

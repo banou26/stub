@@ -187,6 +187,7 @@ input SaveListEntryInput {
   title: String
   cover: String
   episodeCount: Int
+  type: MediaType
 }
 
 input DeleteListEntryInput {

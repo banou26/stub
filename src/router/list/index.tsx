@@ -11,6 +11,7 @@ import { defineMessages, useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
 
+import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
 import { formatLabel } from '../search/params'
 import DisplayModeToggle from '../../components/display-mode-toggle'
@@ -300,6 +301,7 @@ const Item = ({ row }: { row: Row }) => {
 
   const progress = pending ?? own
   const total = row.episodeCount
+  const film = isMovieMedia(row)
   const to = getRoutePath(Route.MEDIA, { uri: row.uri })
   const title = row.summary.title ?? row.uri
   const score = row.summary.score
@@ -326,15 +328,19 @@ const Item = ({ row }: { row: Row }) => {
       </Link>
       <Link to={to} className="title">{title}</Link>
       <div className="facts">
-        <span className="progress">
-          <span>{progress}</span>
-          {total != null ? <span>{intl.formatMessage({ id: '/ {total}', defaultMessage: '/ {total}' }, { total })}</span> : undefined}
-        </span>
+        {
+          film ? undefined : (
+            <span className="progress">
+              <span>{progress}</span>
+              {total != null ? <span>{intl.formatMessage({ id: '/ {total}', defaultMessage: '/ {total}' }, { total })}</span> : undefined}
+            </span>
+          )
+        }
         {score != null ? <span className="score"><Star size={12} aria-hidden="true"/>{intl.formatNumber(score / 10, { maximumFractionDigits: 1 })}</span> : undefined}
         {row.type ? <span>{formatLabel(row.type)}</span> : undefined}
         {row.disagreements.length ? <span className="differs" role="img" title={differences(intl, row)} aria-label={differences(intl, row)}/> : undefined}
         {
-          offersOneMore(row, progress)
+          !film && offersOneMore(row, progress)
             ? (
               <button
                 type="button"
@@ -349,7 +355,7 @@ const Item = ({ row }: { row: Row }) => {
             : undefined
         }
       </div>
-      {total ? <div className="bar"><span style={{ width: `${Math.min(100, (progress / total) * 100)}%` }}/></div> : undefined}
+      {total && !film ? <div className="bar"><span style={{ width: `${Math.min(100, (progress / total) * 100)}%` }}/></div> : undefined}
       {missed.map(({ name, outcome, error }) => (
         <div key={name} className="missed">
           {

@@ -1,4 +1,4 @@
-import type { ListStatus } from '../generated/graphql'
+import type { ListStatus, MediaType } from '../generated/graphql'
 import type { Fields, TrackerOutcome } from '../tracking/compact'
 
 import { useRef } from 'preact/hooks'
@@ -74,7 +74,7 @@ export const SAVE_LIST_ENTRY = gql(`
  * naming none.
  */
 export const useSaveEntry = (
-  { uri, title, cover, episodeCount }: { uri: string, title?: string | null, cover?: string | null, episodeCount?: number | null },
+  { uri, title, cover, episodeCount, type }: { uri: string, title?: string | null, cover?: string | null, episodeCount?: number | null, type?: MediaType | null },
 ) => {
   const [, save] = useMutation(SAVE_LIST_ENTRY)
   return async (trackers: string[], entry: Fields): Promise<TrackerOutcome[]> => {
@@ -86,6 +86,7 @@ export const useSaveEntry = (
         title: title ?? null,
         cover: cover ?? null,
         episodeCount: episodeCount ?? null,
+        type: type ?? null,
       },
     })
     return result.data?.saveListEntry ?? [{

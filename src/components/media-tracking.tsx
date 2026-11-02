@@ -7,7 +7,7 @@ import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
 import { forPage } from '../i18n/said'
-import { TrackerState } from '../generated/graphql'
+import { MediaType, TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
 import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
 import { viewerPrefs, watchCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
@@ -143,7 +143,7 @@ const WorkTracking = (
   const shown = useRef<Tracking>(undefined)
   shown.current = heldOf(askedOn(shown.current, asked!), latest)
   const ready = Boolean(uri && namesSameWork(work, address))
-  const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount })
+  const onSaveFields = useSaveEntry({ uri: uri!, title, cover, episodeCount, type: movie ? MediaType.Movie : undefined })
   const [, remove] = useMutation(DELETE_LIST_ENTRY)
   const [{ data: storage }] = useSubscription({ query: STUB_TRACKER_STORAGE, pause: !notice })
   const [, addHeld] = useMutation(ADD_HELD_STUB_ENTRIES)

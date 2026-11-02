@@ -16,7 +16,7 @@ const answer = (id: string, name: string, state: string, entry?: object) =>
   ({ _id: `answer:${id}`, state, candidates: [], error: null, episodeCount: 12, tracker: { id, name, canWrite: true }, entry: entry ?? null })
 const listedAt = (progress: number) => answer('anilist', 'AniList', 'LISTED', { status: 'WATCHING', progress, episodeCount: 12 })
 let tracking: CompactTracking | undefined
-const sent: { trackers: string[], entry: Record<string, unknown>, title?: string, cover?: string, episodeCount?: number }[] = []
+const sent: { trackers: string[], entry: Record<string, unknown>, title?: string, cover?: string, episodeCount?: number, type?: string | null }[] = []
 let outcome: { outcome: string, error?: string } = { outcome: 'SAVED' }
 
 vi.mock('urql', () => ({
@@ -122,8 +122,8 @@ test('85% played saves the episode to each checked tracker, each with its own fi
   expect(sent).toEqual([])
   await link.report(playing(850))
   expect(sent).toEqual([
-    { uri: 'ag:(anilist:1)', trackers: ['anilist'], entry: { progress: 5 }, title: 'A show', cover: 'https://img.test/a.jpg', episodeCount: 12 },
-    { uri: 'ag:(anilist:1)', trackers: ['stub'], entry: { progress: 5, status: 'WATCHING' }, title: 'A show', cover: 'https://img.test/a.jpg', episodeCount: 12 },
+    { uri: 'ag:(anilist:1)', trackers: ['anilist'], entry: { progress: 5 }, title: 'A show', cover: 'https://img.test/a.jpg', episodeCount: 12, type: null },
+    { uri: 'ag:(anilist:1)', trackers: ['stub'], entry: { progress: 5, status: 'WATCHING' }, title: 'A show', cover: 'https://img.test/a.jpg', episodeCount: 12, type: null },
   ])
   // the trackers have not answered with the new count yet, and the viewer seeks back and over the mark again
   await link.report(paused(100), playing(100), playing(900), playing(990))
@@ -331,4 +331,5 @@ test('a movie watched is Completed', async () => {
   const { link } = page({ movie: true, link: fakeLink(6000) })
   await link.report(playing(5200))
   expect(sent.map(({ entry }) => entry)).toEqual([{ status: 'COMPLETED', progress: 1 }])
+  expect(sent.map(({ type }) => type), 'kept beside the entry, so the list draws it as a film').toEqual(['MOVIE'])
 })

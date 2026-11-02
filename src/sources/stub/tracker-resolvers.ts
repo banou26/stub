@@ -1,7 +1,7 @@
 // The stub tracker's resolvers over a journal it is handed, so a test can serve them over a journal
 // kept in memory. ./tracker.ts hands them this device's.
 
-import type { ListEntry, ListItem, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
+import type { ListEntry, ListItem, MediaType, Resolvers, Tracker, TrackerAnswer, Tracking, WriteOutcome } from '../../generated/schema/types.generated'
 import type { SessionScope } from '../../tracking/account-link'
 import type { Found, Journal, JournalEntry } from '../../tracking/journal'
 
@@ -96,7 +96,7 @@ const listItemsOf = (journal: Journal): ListItem[] => {
     if (!('entries' in found)) continue
     for (const one of found.entries) seen.add(one.id)
     const listed = answerFor(uri, found).entry
-    if (listed) items.push({ entry: listed, episodeCount: found.values.episodeCount ?? null, mediaStatus: null, type: null, nextAiringEpisode: null })
+    if (listed) items.push({ entry: listed, episodeCount: found.values.episodeCount ?? null, mediaStatus: null, type: found.values.type ?? null, nextAiringEpisode: null })
   }
   return items
 }
@@ -149,7 +149,7 @@ export const stubTrackerResolvers = (open: () => Promise<Journal>, where: () => 
   Mutation: {
     saveListEntry: async (
       _parent: unknown,
-      { input }: { input: { uri: string, entry: Parameters<typeof patchFrom>[0], title?: string | null, cover?: string | null, episodeCount?: number | null } },
+      { input }: { input: { uri: string, entry: Parameters<typeof patchFrom>[0], title?: string | null, cover?: string | null, episodeCount?: number | null, type?: MediaType | null } },
       ctx: StubTrackerContext
     ): Promise<WriteOutcome[]> => {
       try {
