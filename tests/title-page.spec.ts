@@ -142,6 +142,18 @@ test('More details opens the page, and Back returns to the modal', async ({ page
   await expect(modal(page).locator('h2.title')).toHaveText(title)
 })
 
+test('the tab names the work the preview and the page show, and reads Stub again back home', async ({ page }) => {
+  const title = await openModal(page)
+  await expect(page).toHaveTitle(`${title} - Stub`)
+  await modal(page).getByRole('link', { name: 'More details' }).click()
+  await expect(heading(page)).toHaveText(title)
+  await expect(page).toHaveTitle(`${title} - Stub`)
+  await page.locator('header a.logo').click()
+  await expect(page).toHaveURL(`${origin}/`)
+  await expect(page.locator('a[href^="/media/"]').first()).toBeVisible()
+  await expect(page).toHaveTitle('Stub')
+})
+
 /**
  * Presses Back from inside the page in the very moment it first draws each text of `drawn` in its selector on an address
  * holding `path`, before that drawing's effects have run, and resolves to the address once the frame after the Back has

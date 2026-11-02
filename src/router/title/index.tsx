@@ -31,6 +31,7 @@ import { ANIME_CATALOGUES } from '../../site'
 import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
 import { titleLanguage } from '../../utils/title-language'
 import { useCoverUrl } from '../../utils/use-cover-url'
+import { useDocumentTitle } from '../../utils/use-document-title'
 import { castIn, creditLanguages, languageLabel, roleLabel } from './credits'
 import { ratingChips, secondTitle, titleChips, titleFacts } from './facts'
 
@@ -725,6 +726,7 @@ const TitlePage = () => {
   const bannerUrl = useCoverUrl(media?.banners, media)
   const coverUrl = useCoverUrl(media?.covers, media)
   const title = media?.titles.at(0)
+  useDocumentTitle(title?.title)
   const second = secondTitle(media?.titles)
   // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
   const description = media?.descriptions.map(({ description }) => description).sort((a, b) => b.length - a.length).at(0)

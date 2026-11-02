@@ -36,6 +36,7 @@ import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
 import { episodeLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
+import { useDocumentTitle } from '../../utils/use-document-title'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
 import { AggregatedUri, asAggregatedUri, extractAggregatedUriOrigin, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
 import { Episodes, EpisodesPlaceholder, useTrackingSummary } from '../home/media-details'
@@ -551,6 +552,7 @@ const Watch = () => {
   })
 
   const mediaTitle = media?.titles?.at(0)?.title
+  useDocumentTitle(mediaTitle)
   const episodeTitle = episode?.titles?.at(0)?.title
   const episodeNumber = episode?.episodeNumber
   const episodeName = episodeLabel(episodeNumber, episodeTitle)

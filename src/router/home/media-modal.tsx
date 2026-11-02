@@ -34,6 +34,7 @@ import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { useNow } from '../../utils/use-now'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
+import { useDocumentTitle } from '../../utils/use-document-title'
 import { layer } from '../../layers'
 
 const style = css`
@@ -774,6 +775,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const media = data?.media ?? foundMedia
   const current = currentMedia({ data, operation }, uri)
   const title = useMemo(() => media?.titles?.at(0)?.title, [media])
+  useDocumentTitle(title)
   const isMovie = Boolean(data?.media && isMovieMedia(data.media))
   const film = isMovie ? data?.media?.episodes.at(0) : undefined
   const { sources, answered } = useWatchSources(film, media?.uri ?? '', media?.handles)
