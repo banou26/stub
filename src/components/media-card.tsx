@@ -112,8 +112,10 @@ const style = css`
     overflow: hidden;
   }
 
+  /* one row, two pills too wide for it each cut short, where a second row would fall past the card's bottom */
   .chips {
     ${categoriesStyle}
+    flex-wrap: nowrap;
     justify-content: flex-end;
     margin-top: auto;
   }

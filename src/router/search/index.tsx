@@ -185,7 +185,8 @@ const style = css`
 
   a.moment:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
 
-  .chips {
+  /* the filters' own row, not the genre pills a card or row draws below it */
+  & > .chips {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -194,7 +195,7 @@ const style = css`
     min-height: 3rem;
   }
 
-  .chip {
+  & > .chips > .chip {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -209,7 +210,7 @@ const style = css`
     cursor: pointer;
   }
 
-  .chip:hover { border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+  & > .chips > .chip:hover { border-color: rgba(255, 255, 255, 0.4); color: #fff; }
 
   .chip-clear {
     padding: 0.4rem 1.1rem;

@@ -1366,6 +1366,35 @@ test('the score follows a gold star, on a title\'s page, in a series\' preview a
   }
 })
 
+// the rig's catalogue gives no genres, so a card and a row are each given the two widest a film carries
+test('a search\'s cards and rows draw genre pills as a title\'s page does, one row inside a card, a row as tall as its cover', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/`)
+  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  for (const [mode, item, under] of [['card', '.cards > a', '.detail'], ['list', '.rows > a', '.heading']] as const) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
+    await page.goto(`${origin}${season}`)
+    const first = page.locator(item).first()
+    await expect(first.locator('.cover'), mode).toBeVisible({ timeout: 30_000 })
+    const drawn = await first.evaluate((element, under) => {
+      const row = element.querySelector(under)!.appendChild(document.createElement('div'))
+      row.className = 'chips'
+      row.append(...['Action & Adventure', 'Science-Fiction'].map(name => Object.assign(document.createElement('span'), { className: 'chip genre', textContent: name })))
+      const bounds = element.getBoundingClientRect()
+      const padding = parseFloat(getComputedStyle(element).paddingTop) + parseFloat(getComputedStyle(element).paddingBottom)
+      return {
+        inside: [...row.children].every(pill => {
+          const box = pill.getBoundingClientRect()
+          return box.bottom <= bounds.bottom + 0.5 && box.left >= bounds.left - 0.5 && box.right <= bounds.right + 0.5
+        }),
+        look: [...row.children].map(pill => [getComputedStyle(pill).display, getComputedStyle(pill).borderTopWidth].join(' ')),
+        coverHigh: Math.round(bounds.height - padding) === Math.round(element.querySelector('.cover')!.getBoundingClientRect().height),
+      }
+    }, under)
+    expect(drawn, mode).toEqual({ inside: true, look: ['block 0px', 'block 0px'], coverHigh: true })
+  }
+})
+
 test('390 px wide, no pill runs past its row, a long tag cut inside its pill in a preview and whole in a page\'s scrolling row', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   /**
