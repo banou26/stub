@@ -209,7 +209,6 @@ test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a sc
   expect(asked).toEqual([])
 })
 
-// STUB-337 (a picture button in the header's search bar): the same scene search, from the bar on any page
 const barPicture = (page: Page) => page.locator('header').getByRole('button', { name: 'Search by picture' })
 const barField = (page: Page) => page.locator('header').getByRole('textbox', { name: 'Search', exact: true })
 

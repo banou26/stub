@@ -6,8 +6,6 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-// STUB-337 (a picture button in the header's search bar): the search page's scene search, from the bar on every page
-
 vi.mock('lucide-react', () => Object.fromEntries(['Camera', 'ChevronDown', 'ListVideo', 'Search', 'Settings', 'X'].map(name => [name, () => null])))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))

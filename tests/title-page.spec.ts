@@ -1275,7 +1275,6 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
   await expect(chips).toHaveText(RATED_CHIPS.slice(4))
 })
 
-// STUB-339, the owner's mockup: the score after a gold star, then the genres and the tags as pills, the tags dimmer.
 // Spec Late (anilist:900010) has three genres and thirty tags (tests/fake-fetch.ts).
 const LATE = 'ag:(anilist:900010,mal:900010)'
 

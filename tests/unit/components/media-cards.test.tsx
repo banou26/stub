@@ -62,7 +62,6 @@ test('a card names the next airing, the score, the format and the episodes in En
   const card = draw(<MediaCard media={AIRING as never} to="/media/anilist:21"/>)
   expect([card.text('.airing-label'), card.text('.airing-value'), card.text('.meta'), card.text('.chip')])
     .toEqual([['Ep 1180 airing in'], ['2 days, 3 hours'], ['TV Show • 1180 episodes'], ['Action', 'Adventure']])
-  // STUB-339: the genres are pills as a title's page draws them, the score after a gold star
   expect([card.text('.chips > .chip.genre'), card.label('.detail-top > .score > svg'), card.text('.detail-top > .score')]).toEqual([['Action', 'Adventure'], 'Score', ['82%']])
   const finished = draw(<MediaCard media={FINISHED as never} to="/media/anilist:21"/>)
   expect([finished.text('.airing-value'), finished.text('.meta')]).toEqual([['Finished'], ['TV Show • 1 episode']])
