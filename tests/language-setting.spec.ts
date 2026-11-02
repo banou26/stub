@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { catalogues, english, englishIn, LANGUAGE_KEY } from './languages'
+import { drawMontserrat } from './montserrat'
 import { workerFakes } from './worker-fakes'
 
 // HOR-1026 (stub in the viewer's language), step 8: the languages stub offers, as it ships them (src/i18n/offered.json,
@@ -222,6 +223,48 @@ test('the tracking status select holds Add to list and every status, in every of
     return over
   })).map(({ language, text }) => `${language}: ${text}`), { texts, fonts: FALLBACK_FONTS })
   expect(wider).toEqual(['en: Plan to watch, then more'])
+})
+
+test('at 390 px the series graph button beside the Relations heading holds its whole label, in every offered language', async ({ page }) => {
+  await drawMontserrat(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}/title/${LATE}`)
+  const heading = page.locator('[data-relations] > h2')
+  await expect(heading.locator('[data-franchise-open]')).toBeVisible({ timeout: 45_000 })
+  const texts = [['en', 'Relations', 'Relation graph'], ...Object.entries(catalogues()).map(([language, catalogue]) => [language, catalogue['Relations']!, catalogue['Relation graph']!])]
+    .map(([language, words, label]) => ({ language: language!, words: words!, label: label! }))
+  // the control: a label longer than English's is found cut
+  texts.push({ language: 'en', words: 'Relations', label: 'Relation graph, then many more words' })
+  // each language's words swapped into the heading drawn, so one page load measures them all
+  const cut = await heading.evaluate((heading: HTMLElement, { texts, fonts }) => texts.filter(({ language, words, label }) => fonts.some(font => {
+    heading.lang = language
+    heading.style.fontFamily = font
+    heading.querySelector(':scope > span')!.textContent = words
+    const shown = heading.querySelector('[data-franchise-open] span')!
+    shown.textContent = label
+    return shown.scrollWidth > shown.clientWidth
+  })).map(({ language, label }) => `${language}: ${label}`), { texts, fonts: FALLBACK_FONTS })
+  expect(cut).toEqual(['en: Relation graph, then many more words'])
+})
+
+test('at 390 px each format\'s name fits the search page\'s Format filter, in every offered language', async ({ page }) => {
+  await drawMontserrat(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${origin}/search?format=TV`)
+  const value = page.getByRole('combobox', { name: 'Format', exact: true }).locator('.value')
+  await expect(value).toHaveText('TV Show', { timeout: 45_000 })
+  const ids = ['TV Show', 'Movie', 'TV Short', 'Special', 'OVA', 'ONA']
+  const texts = [['en', Object.fromEntries(ids.map(id => [id, id]))] as const, ...Object.entries(catalogues())]
+    .flatMap(([language, catalogue]) => ids.map(id => ({ language, text: catalogue[id]! })))
+  // the control: a name longer than English's is found cut
+  texts.push({ language: 'en', text: 'TV Show, then more words' })
+  const cut = await value.evaluate((value: HTMLElement, { texts, fonts }) => texts.filter(({ language, text }) => fonts.some(font => {
+    value.lang = language
+    value.style.fontFamily = font
+    value.textContent = text
+    return value.scrollWidth > value.clientWidth
+  })).map(({ language, text }) => `${language}: ${text}`), { texts, fonts: FALLBACK_FONTS })
+  expect(cut).toEqual(['en: TV Show, then more words'])
 })
 
 test('the font stack ends in the system\'s own sans-serif, and a native title carries its own lang', async ({ page }) => {
