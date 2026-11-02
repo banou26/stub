@@ -419,6 +419,7 @@ test('similarMedia never answers an unlisted season by its year alone', async ()
 // The media path goes through the same picker. A unique episode count used to pick a season on its
 // own (../season.ts, `pickSeasonByEpisodeCount`), and a unique count is a number, not an identity:
 // with several seasons only the FIRST may be a run whose title names no season, by an exact count.
+// Both seasons here are of 2022, so the year cannot name one either.
 const knowing = (which: typeof node, known: Record<string, unknown>) => ({
   fetch: (context(which) as { fetch: unknown }).fetch,
   findAggregatedMedia: async () => known,
@@ -426,15 +427,19 @@ const knowing = (which: typeof node, known: Record<string, unknown>) => ({
 }) as never
 
 test('the media path picks its season through the shared picker: a season a unique count used to pick is refused', async () => {
-  const uneven = { ...node, seasons: [{ ...season(111, 2), totalEpisodeCount: 13 }, season(222, 3)] }
+  const uneven = {
+    ...node,
+    seasons: [{ ...season(111, 2), totalEpisodeCount: 13 }, season(222, 3)]
+      .map(each => ({ ...each, content: { ...each.content, originalReleaseYear: 2022 } })),
+  }
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const uri = 'ag:(anilist:1,jw:12345)'
 
-  const { value: refused } = await subscribe(undefined, { input: { uri } }, knowing(uneven, { titles: [{ title: 'A Show' }], episodeCount: 12 })).next()
+  const { value: refused } = await subscribe(undefined, { input: { uri } }, knowing(uneven, { titles: [{ title: 'A Show' }], episodeCount: 12, startDate: '2022-01-01' })).next()
   expect(refused?.media, 'the first season is 13, so a run of 12 with no ordinal is not placed by the season that happens to hold 12').toBeNull()
 
   // the control: an agreed ordinal with a count the season does not exceed still places the run
-  const { value: placed } = await subscribe(undefined, { input: { uri } }, knowing(uneven, { titles: [{ title: 'A Show Season 3' }], episodeCount: 12 })).next()
+  const { value: placed } = await subscribe(undefined, { input: { uri } }, knowing(uneven, { titles: [{ title: 'A Show Season 3' }], episodeCount: 12, startDate: '2022-01-01' })).next()
   expect(placed?.media?.uri).toBe('jw:12345-222')
 })
 

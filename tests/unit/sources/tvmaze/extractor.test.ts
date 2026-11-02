@@ -24,6 +24,13 @@ const SHOW = {
   _embedded: { episodes: [episode(1, 1), episode(1, 2), episode(2, 1), episode(2, 2), episode(2, 3), episode(3, 1)] },
 }
 
+// seasons 2 and 3 both premiere in 2023, so a year cannot name either
+const SHARED_YEAR_SHOW = {
+  ...SHOW,
+  id: 52281,
+  _embedded: { episodes: SHOW._embedded.episodes.map(episode => ({ ...episode, airdate: episode.airdate.replace('2022', '2023') })) },
+}
+
 // a show tvmaze lists with NO episodes yet, so no season can be named for it
 const EMPTY_SHOW = { id: 99, name: 'Announced Show', premiered: null, externals: { imdb: null }, _embedded: { episodes: [] } }
 const ANIME_SHOW = { ...SHOW, id: 52280, genres: ['Anime'] }
@@ -59,6 +66,7 @@ const context = (misses: string[], known?: unknown) => ({
   key: () => undefined,
   fetch: async (url: string) => {
     if (url.startsWith(`${API}/shows/52279?embed=episodes`)) return { ok: true, status: 200, json: async () => SHOW }
+    if (url.startsWith(`${API}/shows/52281?embed=episodes`)) return { ok: true, status: 200, json: async () => SHARED_YEAR_SHOW }
     if (url.startsWith(`${API}/shows/99?embed=episodes`)) return { ok: true, status: 200, json: async () => EMPTY_SHOW }
     if (url.startsWith(`${API}/shows/52280?embed=episodes`)) return { ok: true, status: 200, json: async () => ANIME_SHOW }
     if (url.startsWith(`${API}/shows/77?embed=episodes`)) return { ok: true, status: 200, json: async () => DATED_SHOW }
@@ -203,12 +211,13 @@ test('a season links every season of its show, and an anime links none', async (
 // THE MEDIA PATH. A count with no ordinal is tried against the FIRST season only, and with several
 // seasons only an exact count is accepted. The unique-count pick this replaces would have taken
 // season 3 for a run of 1 (the only season holding exactly 1), which is the Mushoku coincidence.
+// TVmaze dates every season, so only a year two seasons share leaves a run to that rule.
 test('the media path takes the first season for a run of its day, and never another season by unique count', async () => {
   const first = await mediaFor(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 2, startDate: '2021-01-11' })
   expect(first.uri).toBe('tvmaze:52279-s1')
 
   expect(
-    await mediaOrNull(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 1 }),
+    await mediaOrNull('ag:(anilist:108465,tvmaze:52281)', { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 1, startDate: '2023-01-01' }),
     'season 3 holds exactly 1 episode, and it is never reached by count'
   ).toBeNull()
 })
@@ -228,13 +237,13 @@ test('a day outside every window refuses, whatever the ordinal would have said',
   expect(await askSeason({ showId: '52279', startDate: '2022-06-15', titles: ['Show Season 2'], episodeCount: 3 })).toBeNull()
 })
 
-// Three real episode titles that are season 2's establish it where the count alone would not (the
-// first season holds 2, not 3, so the first-season rule refuses).
+// Three real episode titles that are season 2's establish it where the year and the count would not
+// (2023 holds two seasons, and the first season holds 2, not 3, so the first-season rule refuses).
 test('episode titles pick the season', async () => {
-  expect(await askSeason({ showId: '52279', episodeCount: 3 }), 'the control: count alone refuses').toBeNull()
+  expect(await askSeason({ showId: '52281', startDate: '2023-01-01', episodeCount: 3 }), 'the control: count alone refuses').toBeNull()
 
-  const media = await askSeason({ showId: '52279', episodeCount: 3, episodeTitles: ['S2E1', 'S2E2', 'S2E3'] })
-  expect(media?.uri).toBe('tvmaze:52279-s2')
+  const media = await askSeason({ showId: '52281', startDate: '2023-01-01', episodeCount: 3, episodeTitles: ['S2E1', 'S2E2', 'S2E3'] })
+  expect(media?.uri).toBe('tvmaze:52281-s2')
 })
 
 // And decisively the other way: titles no season carries refuse the season the ordinal would take.
@@ -259,7 +268,7 @@ test('the one season dated our year answers a year-only date with a count; a cou
   expect(await askSeason({ showId: '52279', startDate: '2023-01-01' }), 'a year with no count cannot show season 3 is not a fold').toBeNull()
 
   expect(await askSeason({ showId: '52279', titles: ['Mushoku Tensei'], episodeCount: 2 }), 'not even the first season, with no year').toBeNull()
-  expect(await askSeason({ showId: '52279', titles: ['Mushoku Tensei'], episodeCount: 1 }), 'never season 3 by count').toBeNull()
+  expect(await askSeason({ showId: '52281', startDate: '2023-01-01', titles: ['Mushoku Tensei'], episodeCount: 1 }), 'never season 3 by count').toBeNull()
 })
 
 // THE EPISODE DATE. tvmaze fetched `airdate` and dropped it, so this source contributed nothing to

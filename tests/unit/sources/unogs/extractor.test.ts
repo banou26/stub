@@ -193,7 +193,9 @@ test('a film is a RUN under its bare id', async () => {
 // The count-only pick welded Mushoku Tensei on the live site after every other route was closed
 // (2026-09-05): Netflix lists the title as seasons of 24, 25 and 11 episodes, anime season 1 has 11
 // and a title naming no season, so the count picked Netflix season 3 for it, and season 3's own page
-// took the same id by its ordinal. A count is a number, not an identity.
+// took the same id by its ordinal. A count is a number, not an identity. Netflix dates only its first
+// season, by the title's year (2021), so a coincidence below is dated 2024: a run with no year is
+// refused before any count is read, and one of 2021 is refused by the year rule.
 const MUSHOKU: Season[] = [{ season: 1, episodes: 24 }, { season: 2, episodes: 25 }, { season: 3, episodes: 11 }]
 const AG = 'ag:(anilist:108465,kitsu:42323)'
 
@@ -204,7 +206,7 @@ const knowing = (table: Record<string, unknown>, titles: string[], episodeCount:
 } as unknown as ExtractorServerContext)
 
 test('a run naming no season is not matched to a Netflix season by episode count alone', async () => {
-  const ctx = knowing(routes('80987039', 'series', MUSHOKU), ['Mushoku Tensei: Jobless Reincarnation'], 11)
+  const ctx = knowing(routes('80987039', 'series', MUSHOKU), ['Mushoku Tensei: Jobless Reincarnation'], 11, '2024-04-07')
   const media = await linkNetflix('80987039', AG, ctx, 'series')
   expect(media?.uri, 'the whole title, never the season that happens to share a number').toBe('nf:80987039')
   expect(media?.scope).toBe('CONTAINER')
@@ -299,7 +301,7 @@ test('similarMedia refuses a fold and a coincidence', async () => {
   expect(fold.answer, 'Netflix season 2 is 25 episodes, both halves of anime season 2 at once').toBeNull()
 
   const coincidence = await askSimilar(ctx, {
-    showId: '80987039', titles: ['Mushoku Tensei: Jobless Reincarnation'], episodeCount: 11
+    showId: '80987039', titles: ['Mushoku Tensei: Jobless Reincarnation'], episodeCount: 11, startDate: '2024-04-07'
   })
   expect(coincidence.answer, 'the one season holding 11 is not the run that holds 11').toBeNull()
 })

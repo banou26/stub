@@ -34,6 +34,9 @@ const NF: SeasonCandidate<number>[] = [
   { season: 3, seasonNumber: 3, episodeCount: 11, episodeTitles: episodeTitles(3, 11) },
 ]
 
+/** The same seasons with no year on any, so a dated run is left to the first-season rule. */
+const UNDATED = NF.map(season => ({ ...season, year: undefined }))
+
 /** Crunchyroll's: every season dated. */
 const CR: SeasonCandidate<number>[] = [
   { season: 1, seasonNumber: 1, premiere: '2021-01-11', episodeCount: 23 },
@@ -44,7 +47,7 @@ const CR: SeasonCandidate<number>[] = [
 const SHOW = 'Mushoku Tensei: Jobless Reincarnation'
 
 test('the coincidence: a run with no ordinal and 11 episodes is not the one season holding 11', () => {
-  expect(pickSimilarSeason({ titles: [SHOW], episodeCount: 11 }, NF)).toBeUndefined()
+  expect(pickSimilarSeason({ titles: [SHOW], episodeCount: 11, startDate: '2021-01-11' }, UNDATED)).toBeUndefined()
 })
 
 test('the fold: a season holding more episodes than the run is never the answer', () => {
@@ -56,8 +59,7 @@ test('control: an agreed ordinal with a count the season does not exceed is that
 })
 
 test('control: no ordinal and a count equal to the first season is the first season', () => {
-  const undated = NF.map(season => ({ ...season, year: undefined }))
-  expect(pickSimilarSeason({ titles: ['Some Show'], episodeCount: 24, startDate: '2021-01-11' }, undated)).toEqual({ season: 1, rule: 'first' })
+  expect(pickSimilarSeason({ titles: ['Some Show'], episodeCount: 24, startDate: '2021-01-11' }, UNDATED)).toEqual({ season: 1, rule: 'first' })
 })
 
 // JustWatch titles every season by its show, so its second season of Wednesday names no season either, and once its

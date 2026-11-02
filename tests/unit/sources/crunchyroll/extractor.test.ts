@@ -302,26 +302,29 @@ test('titles that disagree about the season refuse outright', async () => {
 
 // The coincidence that welded season 1 to Netflix's season 3 on the live site: an 11 episode run and
 // an 11 episode third season. Only the FIRST season is ever tried on a count with no ordinal, and
-// with several seasons only an exact count is accepted.
+// with several seasons only an exact count is accepted. 2026 holds two seasons here, so the year
+// cannot name one either.
 test('a count with no ordinal is tried against the first season only', async () => {
-  const first = await askSeason({ showId: 'G24H1N3MP', titles: ['Mushoku Tensei'], episodeCount: 23, startDate: '2021-01-11T00:00:00Z' }, MUSHOKU)
-  expect(first?.uri).toBe('cr:G24H1N3MP-GSSEASON1')
+  const input = { showId: 'GTWO2026', startDate: '2026-01-01T00:00:00Z', episodeCount: 12 }
 
   expect(
-    await askSeason({ showId: 'G24H1N3MP', titles: ['Mushoku Tensei'], episodeCount: 14 }, MUSHOKU),
-    'season 3 holds exactly 14, and it is never reached by count'
+    await askSeason({ ...input, titles: ['Mushoku Tensei'] }, TWO_IN_2026),
+    'season 4 holds exactly 12, and it is never reached by count'
   ).toBeNull()
+  expect((await askSeason({ ...input, titles: ['Mushoku Tensei Season 4'] }, TWO_IN_2026))?.uri, 'the control: an ordinal names it')
+    .toBe('cr:GTWO2026-GT4')
 })
 
 const season3Titles = Array.from({ length: 14 }, (_, index) => `S3E${index + 1}`)
 
-// The count alone refuses this run (23 !== 14 on the first season), and the titles carry no ordinal.
-// Fourteen episode titles that are season 3's are what establish it.
+// Neither the year (2026 holds two seasons) nor the count (the first season holds 23) names this run,
+// and the titles carry no ordinal. Fourteen episode titles that are season 3's are what establish it.
 test('episode titles pick the season when nothing else does', async () => {
-  expect(await askSeason({ showId: 'G24H1N3MP', episodeCount: 14 }, MUSHOKU), 'the control').toBeNull()
+  const input = { showId: 'GTWO2026', startDate: '2026-01-01T00:00:00Z', episodeCount: 14 }
+  expect(await askSeason(input, TWO_IN_2026), 'the control').toBeNull()
 
-  const media = await askSeason({ showId: 'G24H1N3MP', episodeCount: 14, episodeTitles: season3Titles }, MUSHOKU)
-  expect(media?.uri).toBe('cr:G24H1N3MP-GS00374452')
+  const media = await askSeason({ ...input, episodeTitles: season3Titles }, TWO_IN_2026)
+  expect(media?.uri).toBe('cr:GTWO2026-GT3')
 })
 
 // Decisive the other way too: three real episode titles that no season carries say this is not any
