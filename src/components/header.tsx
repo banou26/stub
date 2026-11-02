@@ -423,8 +423,8 @@ const SiteLinks = ({ className }: { className?: string }) => {
 }
 
 /**
- * The wordmark goes home on a tap. On a host with site links, the arrow before it opens them as a menu, and so do a
- * long press or a right click on the wordmark itself.
+ * The wordmark goes home on a tap. On a host with site links, the arrow before it opens them as a menu, and so does a
+ * long press on the wordmark itself.
  */
 const Wordmark = () => {
   const intl = useIntl()
@@ -483,7 +483,9 @@ const Wordmark = () => {
           },
           onPointerLeave: release,
           onPointerCancel: release,
+          // a mouse keeps the browser's own menu; a Mac's Control click also pressed the wordmark, and its menu takes the release
           onContextMenu: (event: MouseEvent) => {
+            if ((event as PointerEvent).pointerType === 'mouse') return release()
             event.preventDefault()
             openFrom(event.currentTarget as HTMLElement)
           },

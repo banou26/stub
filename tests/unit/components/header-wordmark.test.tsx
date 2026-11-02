@@ -39,9 +39,11 @@ const open = () => {
   const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Header/></Router>))
   hosts.push(host)
   const logo = host.querySelector<HTMLElement>('.logo')!
-  const fire = (type: string) => act(() => {
-    logo.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { button: 0 }))
-  })
+  const fire = (type: string, init: object = {}) => {
+    const event = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { button: 0, ...init })
+    act(() => { logo.dispatchEvent(event) })
+    return event
+  }
   const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
   return { history: location.history!, fire, wait }
 }
@@ -134,6 +136,24 @@ test('a press that leaves the wordmark opens nothing, even released back on it a
   fire('click')
   expect(menu()).toBeNull()
   expect(history).toEqual(['/settings', '/'])
+})
+
+test('a right click with a mouse leaves the browser its own menu, and so does a Mac\'s Control click, whose press opens nothing', () => {
+  const { history, fire, wait } = open()
+  expect(fire('contextmenu', { pointerType: 'mouse' }).defaultPrevented).toBe(false)
+  expect(menu()).toBeNull()
+  fire('pointerdown', { pointerType: 'mouse', ctrlKey: true })
+  expect(fire('contextmenu', { pointerType: 'mouse', ctrlKey: true }).defaultPrevented).toBe(false)
+  wait(600)
+  expect(menu()).toBeNull()
+  expect(history).toEqual(['/settings'])
+})
+
+test('the menu a touch\'s long press asks for is the site menu, never the phone\'s own', () => {
+  const { history, fire } = open()
+  expect(fire('contextmenu', { pointerType: 'touch' }).defaultPrevented).toBe(true)
+  expect(menu()).not.toBeNull()
+  expect(history).toEqual(['/settings'])
 })
 
 // HOR-1026 (stub in the viewer's language): the four sites' English on movies.fkn.app, pinned before it moves into messages

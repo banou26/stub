@@ -636,13 +636,27 @@ test('a long press on the wordmark opens the four sites as a menu, with the view
   await siteMenu(page).getByRole('link', { name: 'Series' }).click({ modifiers: ['Control'] })
   await expect(siteMenu(page), 'a pick closes it').toHaveCount(0)
   await expect(page).toHaveURL(/\/settings/)
-  await page.locator('header .logo').click({ button: 'right' })
-  await expect(siteMenu(page), 'a right click opens it too').toBeVisible()
+  await longPress(page)
   await page.keyboard.press('Escape')
   await expect(siteMenu(page), 'Escape closes it').toHaveCount(0)
-  await page.locator('header .logo').click({ button: 'right' })
+  await longPress(page)
   await page.getByRole('heading', { name: 'Settings' }).click()
   await expect(siteMenu(page), 'and a click outside closes it').toHaveCount(0)
+})
+
+test('on a desktop a right click on the wordmark leaves the browser its own menu, and a left click still goes home', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto(at('movies.localhost', '/settings'))
+  // the page's own listener runs after the wordmark's, so it reads what the wordmark did with the event
+  await page.evaluate(() => document.addEventListener('contextmenu', event => { (window as unknown as { kept: boolean }).kept = !event.defaultPrevented }))
+  await page.locator('header .logo').click({ button: 'right' })
+  await expect.poll(() => page.evaluate(() => (window as unknown as { kept?: boolean }).kept)).toBe(true)
+  await page.waitForTimeout(800)
+  await expect(siteMenu(page)).toHaveCount(0)
+  await page.locator('header .logo').click()
+  await expect(page).toHaveURL(at('movies.localhost'))
+  await expect(row(page, 'Popular movies')).toBeVisible()
+  await expect(siteMenu(page)).toHaveCount(0)
 })
 
 test('a short tap on the wordmark still goes home', async ({ page }) => {
@@ -728,6 +742,21 @@ test.describe('on a touch screen', () => {
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [], timestamp: pressed + 0.05 })
     await expect(page).toHaveURL(at('movies.localhost'))
     await expect(siteMenu(page)).toHaveCount(0)
+  })
+
+  // headless Chrome on Linux fires no contextmenu for this press, held 1.5 s or released, even as a mobile (measured
+  // 2026-11-02), so what that event does is pinned in tests/unit/components/header-wordmark.test.tsx
+  test('a long press opens the site menu, and its release leaves it open where it was', async ({ page }) => {
+    await page.goto(at('movies.localhost', '/settings'))
+    const logo = (await page.locator('header .logo').boundingBox())!
+    const touch = await page.context().newCDPSession(page)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: logo.x + logo.width / 2, y: logo.y + logo.height / 2 }] })
+    await expect(siteMenu(page).getByRole('link')).toHaveText(['Movies', 'Series', 'Anime', 'All'])
+    await page.waitForTimeout(1000)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(500)
+    await expect(siteMenu(page)).toBeVisible()
+    await expect(page).toHaveURL(/\/settings/)
   })
 })
 
