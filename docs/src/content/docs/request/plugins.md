@@ -564,15 +564,17 @@ page does not wait: the source list's links come from the player lookup, which t
 
 ## A check the source's site asks the viewer to pass
 
-One optional field on a source, additive to `stub-source@1` (`src/plugin-api.ts`), for a site that shows a check
+Two optional fields on a source, additive to `stub-source@1` (`src/plugin-api.ts`), for a site that shows a check
 to a browser it has not seen pass one, such as ext.to's Cloudflare check (STUB-314):
 
 ```ts
 check?: () => Promise<{ url: string, passed: string } | null>
+checkDone?: () => Promise<void>
 ```
 
-- **Asked after a search of the source settles**, as `account` is asked: the watch page asks every added source
-  once its media has settled, through the worker, on the connection the source registered over, and waits
+- **Asked after a search of the source settles**, as `account` is asked: the watch page asks each added source
+  once an answer that settled came after its package connected (`ways.settled`, so a source that connects late is
+  asked once its own search has ended), through the worker, on the connection the source registered over, and waits
   `CHECK_WAIT_MS = 3_000` at most (`src/worker/plugin-sources.ts`). A late answer, a rejection, a malformed one
   and **a `url` that is not on the host of `originUrl` or one below it, with its scheme**, are no answer, so a
   plugin can send the viewer's click only to its own site.
@@ -581,9 +583,11 @@ check?: () => Promise<{ url: string, passed: string } | null>
   so the window runs on stub's cloud jar even with the FKN extension installed: inside stub, a plugin's own
   frames share that jar (measured for HOR-1212), so the passed check reaches them. Stub polls
   `exists(passed)`, a read with no card, and closes the window once it matches, which commits the jar.
-- **Then the source is searched again** (`searchAgain` in `src/worker/extractor.ts`): it is asked its question
-  again in every open fan-out that asked it, in place of its last ask (`rejoinFanout`), and asked `check` once
-  that answer ends. A window the viewer closes does the same, since a window commits each change as it comes.
+- **Then the source is told and searched again** (`searchAgain` in `src/worker/extractor.ts`): `checkDone` first,
+  waited for `CHECK_WAIT_MS` at most, so a source that keeps off its site while a check is pending goes back to it;
+  then it is asked its question again in every open fan-out that asked it, in place of its last ask
+  (`rejoinFanout`), and asked `check` once that answer ends. A window the viewer closes does the same, since a
+  window commits each change as it comes.
 - **The answer stays in the page's memory**, and the source never waits on, clicks or retries the check itself.
 
 ## What a plugin asks the viewer for
