@@ -203,8 +203,8 @@ test('a season links every season of its show, and an anime links none', async (
 // THE MEDIA PATH. A count with no ordinal is tried against the FIRST season only, and with several
 // seasons only an exact count is accepted. The unique-count pick this replaces would have taken
 // season 3 for a run of 1 (the only season holding exactly 1), which is the Mushoku coincidence.
-test('the media path takes the first season on an exact count, and never another season by unique count', async () => {
-  const first = await mediaFor(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 2 })
+test('the media path takes the first season for a run of its day, and never another season by unique count', async () => {
+  const first = await mediaFor(LINKED, { titles: [{ title: 'Mushoku Tensei: Jobless Reincarnation' }], episodeCount: 2, startDate: '2021-01-11' })
   expect(first.uri).toBe('tvmaze:52279-s1')
 
   expect(
@@ -254,11 +254,11 @@ test('a fold is refused', async () => {
   expect(await askSeason({ showId: '52279', startDate: '2022-01-01', titles: ['Show Season 2'], episodeCount: 2 })).toBeNull()
 })
 
-test('the one season dated our year answers a year-only date with a count; a count with no ordinal takes the first season only', async () => {
+test('the one season dated our year answers a year-only date with a count; a count alone takes no season', async () => {
   expect((await askSeason({ showId: '52279', startDate: '2023-01-01', episodeCount: 1 }))?.uri).toBe('tvmaze:52279-s3')
   expect(await askSeason({ showId: '52279', startDate: '2023-01-01' }), 'a year with no count cannot show season 3 is not a fold').toBeNull()
 
-  expect((await askSeason({ showId: '52279', titles: ['Mushoku Tensei'], episodeCount: 2 }))?.uri).toBe('tvmaze:52279-s1')
+  expect(await askSeason({ showId: '52279', titles: ['Mushoku Tensei'], episodeCount: 2 }), 'not even the first season, with no year').toBeNull()
   expect(await askSeason({ showId: '52279', titles: ['Mushoku Tensei'], episodeCount: 1 }), 'never season 3 by count').toBeNull()
 })
 

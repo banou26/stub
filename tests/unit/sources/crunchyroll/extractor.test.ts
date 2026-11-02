@@ -268,7 +268,7 @@ test('a season with no episodes listed is never the answer', async () => {
 
   const listed = series('GLISTED', [{ id: 'GL1', seasonNumber: 1, episodes: 5 }])
   expect(
-    (await askSeason({ showId: 'GLISTED', titles: ['Show'], episodeCount: 12 }, listed))?.uri,
+    (await askSeason({ showId: 'GLISTED', titles: ['Show'], episodeCount: 12, startDate: '2026-07-04T00:00:00Z' }, listed))?.uri,
     'the control: a lone season with SOME episodes is a season still listing'
   ).toBe('cr:GLISTED-GL1')
 })
@@ -304,7 +304,7 @@ test('titles that disagree about the season refuse outright', async () => {
 // an 11 episode third season. Only the FIRST season is ever tried on a count with no ordinal, and
 // with several seasons only an exact count is accepted.
 test('a count with no ordinal is tried against the first season only', async () => {
-  const first = await askSeason({ showId: 'G24H1N3MP', titles: ['Mushoku Tensei'], episodeCount: 23 }, MUSHOKU)
+  const first = await askSeason({ showId: 'G24H1N3MP', titles: ['Mushoku Tensei'], episodeCount: 23, startDate: '2021-01-11T00:00:00Z' }, MUSHOKU)
   expect(first?.uri).toBe('cr:G24H1N3MP-GSSEASON1')
 
   expect(

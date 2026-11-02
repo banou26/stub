@@ -1,0 +1,346 @@
+{
+  "https://unogs.com/api/title/detail?netflixid=80232398": [
+    {
+      "netflixid": 80232398,
+      "title": "Bridgerton",
+      "matlabel": "Recommended for ages 16 and up",
+      "matlevel": null,
+      "avgrating": 0,
+      "predrating": null,
+      "synopsis": "The eight close-knit siblings of the Bridgerton family look for love and happiness in London high society. Inspired by Julia Quinn&#39;s bestselling novels.",
+      "vtype": "series",
+      "img": "https://occ-0-4039-1500.1.nflxso.net/dnm/api/v6/evlCitJPPCVCry0BZlEFb5-QjKc/AAAABfme232AOnUDScu4_eDmri-mxzqgCYC_SOa6gKd02k2Sb42DATb8x2zeZP95QdtR7LnSK-G61YQwQ1ztqFC6PEJkEJiFOmMcYHwDyEBjfONlBsJ_BcS4bg0KZho.jpg?r=1d9",
+      "lgimg": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/evlCitJPPCVCry0BZlEFb5-QjKc/AAAABTibLF54laof5Re8BrN454ahUD8Kd9A9O1B6ConWEbtqH4JyjvmPrE_9nCH8vaSLYo8_FCF_dvUqM_UEbS626Re0JId-5-RGWYKk0bZSgAhwZ4nP8uvQ3gGwJLigrw.jpg?r=1d9",
+      "nfid": 80232398,
+      "runtime": 0,
+      "nfdate": "2020-12-26",
+      "curdate": "2026-11-02",
+      "year": 2020,
+      "imdbposter": "https://m.media-amazon.com/images/M/MV5BYjIxMzZhMTMtNDQ1Mi00OTMwLTk2M2ItYzA0YmNjNDFlOTdhXkEyXkFqcGdeQXVyMTkxNjUyNQ@@._V1_SX300.jpg",
+      "imdbgenre": "Drama, Romance",
+      "imdbrated": "N/A",
+      "imdbruntime": "60 min",
+      "imdbawards": "N/A",
+      "imdbcountry": "USA",
+      "imdblanguage": "English",
+      "imdbrating": 0,
+      "imdbid": "tt8740790",
+      "imdbplot": "Wealth, lust, and betrayal set in the backdrop of Regency era England, seen through the eyes of the powerful Bridgerton family.",
+      "imdbmetascore": "N/A",
+      "imdbvotes": 0,
+      "imdblocalimage": null,
+      "top250": 0,
+      "top250tv": 0
+    }
+  ],
+  "https://unogs.com/api/title/episodes?netflixid=80232398": [
+    {
+      "season": 1,
+      "episodes": [
+        {
+          "epid": 80232920,
+          "seasid": 80233012,
+          "epnum": 1,
+          "seasnum": 1,
+          "synopsis": "Daphne debuts on London&#39;s marriage market as a new gossip sheet sets high society atwitter and Simon, the eligible Duke of Hastings, returns to town.",
+          "title": "Diamond of the First Water",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABUD4E7OnE_yR5wHVB-zM48xy4bRlEufnz3q_Ttcc4zhaAUqSmv0csa-ZZz9voj6UFdAwPZrCA8lQmneJORa2I7NtO03pj8MAb25oKVehSn1IQFy9.jpg?r=4c7"
+        },
+        {
+          "epid": 81044586,
+          "seasid": 80233012,
+          "epnum": 2,
+          "seasnum": 1,
+          "synopsis": "Simon’s apparent courtship of Daphne angers her brother Anthony and threatens to ruin the arrangements he made. Marina opens up to a curious Penelope.",
+          "title": "Shock and Delight",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABXztc7ygMuVKtFEYNbxMBF_a_eOTGAnjS2GMh6_7NTCXd-TAoB7G56FwbkpkHU0stD9fja_A64Ht6er-1rcccOriUE10iSvstbNjwPMNA_D46_Fv.jpg?r=3a7"
+        },
+        {
+          "epid": 81044587,
+          "seasid": 80233012,
+          "epnum": 3,
+          "seasnum": 1,
+          "synopsis": "After Daphne catches the eye of a royal suitor, she turns to Simon for relationship advice. Lady Featherington tries to browbeat Marina into marriage.",
+          "title": "Art of the Swoon",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABX9JPSdqWVTaAd6a0L8X3ik6v0ndiv0mAhxO3Z9dS-92dVNmSP8WA3ggVRkrMkVUDW_kt9Jq_FNtU3bHCcTy0u9JkgXny62lUcnthA_vZu5Eh-e7.jpg?r=0ad"
+        },
+        {
+          "epid": 81044684,
+          "seasid": 80233012,
+          "epnum": 4,
+          "seasnum": 1,
+          "synopsis": "Daphne receives a stunning gift from Prince Friedrich but soon courts scandal at a ball. Eloise searches for clues to Lady Whistledown&#39;s identity.",
+          "title": "An Affair of Honor",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABRdSVVZdrikPx05XloaDY-EpnRWF9NIkVtcthsV-0hX9h0qFp9IgS2fdgdwTNeI5NwOjXYEdQfx-4VqcW244BXzv71YOlu35JqPyTntAA8Jpemeb.jpg?r=55c"
+        },
+        {
+          "epid": 81044685,
+          "seasid": 80233012,
+          "epnum": 5,
+          "seasnum": 1,
+          "synopsis": "To fend off rumors about their garden escapade, Simon and Daphne must make a personal appeal to the queen. Marina&#39;s wedlock scheme dismays Penelope.",
+          "title": "The Duke and I",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABfoJiQ5PuTrmGAOlv1VusUZxSR2R4U50HXQmcHivQRCyP_HhobWZdRybG2kGjXaF4rpEvj1_dlrUWdbHKIjrWZsQYvL78EZaf_I2bDPC6R4dtRzU.jpg?r=906"
+        },
+        {
+          "epid": 81044686,
+          "seasid": 80233012,
+          "epnum": 6,
+          "seasnum": 1,
+          "synopsis": "On her honeymoon, Daphne discovers just how uninformed she is about the physical aspects of the marital bed. Colin comes to a decision about Marina.",
+          "title": "Swish",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABeBtC4C4MvIfu5G4i31QVGnymkHFRZpzLBjdWH_oBIbZUcmbztfP_L-mliGlJvawp2dLWnFri9ssnX0HVyS4QBlIbtNCIzmW0FCzZAV3fW59md0Z.jpg?r=fa0"
+        },
+        {
+          "epid": 81044688,
+          "seasid": 80233012,
+          "epnum": 7,
+          "seasnum": 1,
+          "synopsis": "Amid accusations of lies and betrayal, a rift forms between the newlyweds, while a deception of another kind could besmirch the Bridgerton family name.",
+          "title": "Oceans Apart",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABXfIpLVwyPf28E9eH5-0pEHBuv6xnP3bFrmj2saha1NpXmWl4drV-h5LhZvhemoG41KzkbeGJ1_XzH-A8coHd3KXEscth1_CpOTRpXupFzmPJ2yX.jpg?r=85c"
+        },
+        {
+          "epid": 81044689,
+          "seasid": 80233012,
+          "epnum": 8,
+          "seasnum": 1,
+          "synopsis": "The duke and duchess&#39;s season-ending ball signals a turning point for their marriage - and ushers in changes of fortune and fate to those around them.",
+          "title": "After the Rain",
+          "img": "https://occ-0-4039-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABa2GYPmdldGHpxjvIhqvd8u2vQoMFA9ifHKGrp3Z4wLyLzfG2FKw-UwgztqvU8Zj5zdx54wW-VGFzUMGUHrU13blqc-BwQpi88YFvjd49VmK4qLB.jpg?r=af2"
+        }
+      ]
+    },
+    {
+      "season": 2,
+      "episodes": [
+        {
+          "epid": 81306372,
+          "seasid": 81205162,
+          "epnum": 1,
+          "seasnum": 2,
+          "synopsis": "Anthony begins his search for a wife, Eloise braves her society debut, and Lady Danbury helps the queen choose a diamond among the season&#39;s debutantes.",
+          "title": "Capital R Rake",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABbbNW5-fhH6x1YARkgE6WvJUndAezuzkQ5cvzGTSva0DgCmEFHQ36r5niSTmjZgWHzyL2k3KXf469-SU7VUJgmoIQ4cPMAtknNtG3eKtyzPc8E-3.jpg?r=100"
+        },
+        {
+          "epid": 81306373,
+          "seasid": 81205162,
+          "epnum": 2,
+          "seasnum": 2,
+          "synopsis": "Facing heated competition and a prickly foe, Anthony steps up his courtship game. Eloise makes a Lady Whistledown discovery as a family member returns.",
+          "title": "Off to the Races",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABfJcrizZwtzPMl2xT800VVLUHC_42jGysasrQwIZy0OiEUVAOz6Sl_VTJ-iJ-Ex31GQEyPF0pQWBaN8CTISDFKxTM1VkBmQIMmx6QXD8ZSQvwKuM.jpg?r=1ec"
+        },
+        {
+          "epid": 81306374,
+          "seasid": 81205162,
+          "epnum": 3,
+          "seasnum": 2,
+          "synopsis": "The Sharmas arrive at the Bridgerton&#39;s country estate, where Anthony seeks to win Kate&#39;s good opinion amid bad memories and a ruthless game of pall-mall.",
+          "title": "A Bee in Your Bonnet",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABVom2ZfbcuK63FG6EFmegnioq-EIUg1HjC0DSqwmZEzSwMRY5oRdsL4g4IXGttoM1stCLJt_N91SRC3pIFP-S-WIQiYSzBzjMHibBhrF2rK5xX7a.jpg?r=ac6"
+        },
+        {
+          "epid": 81306375,
+          "seasid": 81205162,
+          "epnum": 4,
+          "seasnum": 2,
+          "synopsis": "As guests gather for the Bridgerton&#39;s ball, Anthony and Kate clash during a hunting party, Colin revisits the past, and Lady Featherington sets a trap.",
+          "title": "Victory",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABWCcy3j8Oiap15m7CE3lwLX5hDdz02hhy-FmE6g1Y4pJ3TRqAJq04_7rwEWOu8eE-BYI3j7Veom8YbVG2VQY7v7fLWQfdqru69Ss-dS9Wafm9OO4.jpg?r=8ee"
+        },
+        {
+          "epid": 81306376,
+          "seasid": 81205162,
+          "epnum": 5,
+          "seasnum": 2,
+          "synopsis": "Rattled by Anthony&#39;s hasty nuptial plans, Kate receives advice from Lady Danbury. Eloise spars with a new ally. Emotions run high during a dinner party.",
+          "title": "An Unthinkable Fate",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABfuGtjjsq125jIinJRvC39DS0SR31jv1CralHmI-1AAi0Dxj0KOCjtBzp2Zd_sNFsldqSZAN6YECkgkeLiaJJtRhirazhrpOSlyXQ_niWvYInxWD.jpg?r=8af"
+        },
+        {
+          "epid": 81306377,
+          "seasid": 81205162,
+          "epnum": 6,
+          "seasnum": 2,
+          "synopsis": "Anthony&#39;s duty to his family wars with his desire for Kate. Edwina ponders her future - and impresses the queen. Eloise&#39;s rendezvous stirs suspicion.",
+          "title": "The Choice",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABSW7fXe2nysT8pAi1YiAbOWLrJX2uZE7llXarTDweH3B_oK05tVMoyofHTzZlNHFL8DiFypEFoBgauKDYKmVB_2x8pMUtXue5lAJ3V3Ut8wg60OL.jpg?r=379"
+        },
+        {
+          "epid": 81306378,
+          "seasid": 81205162,
+          "epnum": 7,
+          "seasnum": 2,
+          "synopsis": "Scandalous rumors swirl around the Bridgertons and the Sharmas. The queen’s ire over Lady Whistledown lands Eloise and Penelope in a quandary.",
+          "title": "Harmony",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABfgLhhEfFd8qrIHo9mSbHR-5ilJG8zBZKUNiekCnvAE8q2vAa-IU6jVyX01kiUsGW5C4jOyxNf5khRgLGecwqpiBNHkrAWRGMwJb3ecc1izgoQ26.jpg?r=8af"
+        },
+        {
+          "epid": 81424719,
+          "seasid": 81205162,
+          "epnum": 8,
+          "seasnum": 2,
+          "synopsis": "Anthony lashes out as he awaits news of Kate, while Eloise turns to Theo for help in her Lady Whistledown hunt and Lady Featherington plans a grand ball.",
+          "title": "The Viscount Who Loved Me",
+          "img": "https://occ-0-4012-1432.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABf3qf-sSBhKypeJ_9oJtU3K5X71Na50YnNZ1z2cPCByyc30RN3G-FgWEeGABH6y9GWkSoQSagt9xaBCTYkhd6zTPB42R1x7CniqOEuOyDXlDALz9.jpg?r=ef5"
+        }
+      ]
+    },
+    {
+      "season": 3,
+      "episodes": [
+        {
+          "epid": 81508516,
+          "seasid": 81487890,
+          "epnum": 1,
+          "seasnum": 3,
+          "synopsis": "The debutantes enter the marriage mart as Francesca navigates her first season out. A well-traveled bachelor returns, and Penelope unveils a new look.",
+          "title": "Out of the Shadows",
+          "img": "https://occ-0-1000-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABXqc7PCJmbrvk_VqVxIMlqCFbeuzQA3WCwKX_I4iHpR1sMM-wA2lQMbKC29mHUE6Gul9dSRTYolm0jrACPMW-8HXSy_681mABt1E9vVxKc3rJ7F4KYjIvua8.jpg?r=64d"
+        },
+        {
+          "epid": 81508517,
+          "seasid": 81487890,
+          "epnum": 2,
+          "seasnum": 3,
+          "synopsis": "Penelope begins her private lessons in charming suitors, but the arrangement quickly grows complicated. A dazzling debutante seizes the queen&#39;s attention.",
+          "title": "How Bright the Moon",
+          "img": "https://occ-0-1000-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABXMrLx7xXk5ld2iBwyZFuTvp0_-3SL1mUQgEfxorUKO0tLRzFaETYOIzqSkZogsR4b2ecN5Xr17OENg1xaG11wm1xBjko5xQFtnbFixEFlUke1Urltht2Ucf.jpg?r=3d4"
+        },
+        {
+          "epid": 81508518,
+          "seasid": 81487890,
+          "epnum": 3,
+          "seasnum": 3,
+          "synopsis": "Penelope catches the eye of nature-loving Lord Debling, to the dismay of other admirers. A near-catastrophe on a windy day makes a hero out of Colin.",
+          "title": "Forces of Nature",
+          "img": "https://occ-0-1000-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABQlnMgh1Vus-4_OPLVZiPq7xN4Ly7i3Nboe0dHnkXEy32Ak-ZoEXyvrmFsEQpr0E-tXkBut1UJNCHBJyJqGL4uO8XShwSXeY05nhQgL7bAw1iFNRhGwYUpZP.jpg?r=cd0"
+        },
+        {
+          "epid": 81508519,
+          "seasid": 81487890,
+          "epnum": 4,
+          "seasnum": 3,
+          "synopsis": "When a caller arrives at her home, Penelope faces a difficult choice. For others, opportunities to build a fresh start - and find a love match - abound.",
+          "title": "Old Friends",
+          "img": "https://occ-0-1000-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABdDaPNqnti3YBhMA-VxYo_6VW16c-9bwNopja9PXgifZHhp6f85wgyhZizQxFqvahiIjJhtj4lwOt4teO0GCBA5-6GRRlEesLiM-YkkBfk_8Sme2CFecC41R.jpg?r=754"
+        },
+        {
+          "epid": 81508520,
+          "seasid": 81487890,
+          "epnum": 5,
+          "seasnum": 3,
+          "synopsis": "Lady Whistledown&#39;s surprising engagement announcement reverberates through the Ton, while Penelope grapples with the need to disclose her true identity.",
+          "title": "Tick Tock",
+          "img": "https://occ-0-3947-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABbQA3Hs9QPOoTz9aSH-jIyVyj95VtV3IAGusBFo4RZ75Oh5d__XddOGaBQBplovhX-cYn9EmILPpnURIFW9ObsneftDvZNR8XTag22wc1qAV4OFY5WAGUY6e.jpg?r=b8b"
+        },
+        {
+          "epid": 81508521,
+          "seasid": 81487890,
+          "epnum": 6,
+          "seasnum": 3,
+          "synopsis": "A desperate impostor strives to publicly win the queen&#39;s favor. Penelope races to write an urgent missive - but has the damage already been done?",
+          "title": "Romancing Mister Bridgerton",
+          "img": "https://occ-0-3947-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABcizC2ooBjHRobvZZzSGWeugyFMRfkOVf2gPKTZUgvaakWe53ehtXoi-4TsCyGpg64rnTfoPuAJ4voUKwqSctoQ8Q_U4tFlzfXvZty0PxFgY2H3FaLe44d36.jpg?r=8d1"
+        },
+        {
+          "epid": 81508522,
+          "seasid": 81487890,
+          "epnum": 7,
+          "seasnum": 3,
+          "synopsis": "A shocking column fuels the queen&#39;s search for the real Lady Whistledown. As the wedding looms, Penelope questions her future as a wife - and scribe.",
+          "title": "Joining of Hands",
+          "img": "https://occ-0-3947-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABdKxvnWXoCZuQEaWBXUt6F3QHuAyhvicgfM8R5IgkApdqC5JrwrI-v2xaHg_DOchelbwWbw-lgD6E81pboak1j9Q3znJm9nsIHy3Y1RGOdiva8R0Dx_hv3O1.jpg?r=a83"
+        },
+        {
+          "epid": 81508523,
+          "seasid": 81487890,
+          "epnum": 8,
+          "seasnum": 3,
+          "synopsis": "With a rival threatening to divulge her secret for money, Penelope chooses the best path forward as her relationships and livelihood hang in the balance.",
+          "title": "Into the Light",
+          "img": "https://occ-0-3947-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABV_zH5f6j6OghaGLJIA1VDXTdtbEZpVSCZeoaJVPRRQvfN-SG7C8v2TAps_gDsouIRuysLrWcvkFOcuSHzxa4lWCIKccatanWArs25leQO7_ltQWOBhNXEvD.jpg?r=868"
+        }
+      ]
+    },
+    {
+      "season": 4,
+      "episodes": [
+        {
+          "epid": 81677376,
+          "seasid": 81511877,
+          "epnum": 1,
+          "seasnum": 4,
+          "synopsis": "Despite pressure from the ton, Benedict Bridgerton isn&#39;t one to settle down - until a masked woman at a ball unexpectedly captures his heart.",
+          "title": "The Waltz",
+          "img": "https://occ-0-2773-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABW-2JaS2CXPAYS4b953dKQUy5Br0wbMD08BfbmlWyP3rHmNWAa_WJu1vttfumlQsMrrr_pnnbiOShfG0ifZwbpYgbqKvLPmi5bE.jpg?r=450"
+        },
+        {
+          "epid": 81677377,
+          "seasid": 81511877,
+          "epnum": 2,
+          "seasnum": 4,
+          "synopsis": "To find his mystery woman, Benedict enlists the help of none other than Lady Whistledown. Lady Danbury&#39;s patience with the Queen wears decidedly thin.",
+          "title": "Time Transfixed",
+          "img": "https://occ-0-2773-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABa05jGNsMBO0W_kd_a7SpX0DQ5rlmCJwue69orK9WB_Mdfo52_P-s6SUdSlcEV_erYeV6hxM--RrUNAPvGrUq1Zcu-SKTplD4BY.jpg?r=538"
+        },
+        {
+          "epid": 81677378,
+          "seasid": 81511877,
+          "epnum": 3,
+          "seasnum": 4,
+          "synopsis": "An unexpected detour draws Benedict and Sophie closer together. Back in Mayfair, the help gains the upper hand in a heated \"maid war.\"",
+          "title": "The Field Next to the Other Road",
+          "img": "https://occ-0-2773-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABTUWWwtm-Vd3_NZAD6HZGuWCTVQifWMtyhHsW9UPmx_sRkLlBWflnwNmt8XjLdt_NzJ-HsHdQ0euyz8NPeE7_qIhI3ITPr6WiJ8.jpg?r=781"
+        },
+        {
+          "epid": 81677379,
+          "seasid": 81511877,
+          "epnum": 4,
+          "seasnum": 4,
+          "synopsis": "Eager to focus on her new role, Sophie finds her longing for Benedict is hard to shake. Francesca broaches a sensitive topic. Violet hosts tea for two.",
+          "title": "An Offer From a Gentleman",
+          "img": "https://occ-0-2773-2774.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABYOBd7MUK1h3GATgzo1i0QkKt9NljVazLNWpv0XCvN28r38pPkdVhu5Px6kX3Is94VCd4Q-Oj-lVh_SnWlsk5ju6nVFg-Fkf5_E.jpg?r=f07"
+        },
+        {
+          "epid": 81677380,
+          "seasid": 81511877,
+          "epnum": 5,
+          "seasnum": 4,
+          "synopsis": "A new neighbor shakes up Bridgerton House. Hyacinth and Gregory take their first steps into society. Penelope struggles with the loss of anonymity.",
+          "title": "Yes or No",
+          "img": "https://occ-0-3175-2706.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABS_Oqj2s7nqfyww62yC_JWchTyuDhi9ENMj-A7dBTyQzd5-5UlWaQbBQZJwadWNSrZev5RGJA9b0mWNskhmDb0nhzryOJzgC5S5ULGtrhJ2qTCwOIiR7YiNL.jpg?r=235"
+        },
+        {
+          "epid": 81677381,
+          "seasid": 81511877,
+          "epnum": 6,
+          "seasnum": 4,
+          "synopsis": "Sophie fears the consequences of an impulsive decision. Benedict comes to terms with a new heir. A lavish ball is upended by a shocking announcement.",
+          "title": "The Passing Winter",
+          "img": "https://occ-0-3175-2706.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABR807QRcm4HaZRN8kjA8eDZYwViBT_Nh-t4urACkuaUGz_NVl_Mbb0x7T_NmLsZjOpftgeYEezr3L588BKfAJWeUQp3jJNsTuis.jpg?r=424"
+        },
+        {
+          "epid": 81677382,
+          "seasid": 81511877,
+          "epnum": 7,
+          "seasnum": 4,
+          "synopsis": "The Bridgerton family unites in the wake of a tragedy. Sophie&#39;s plans hit a snag. Benedict faces a heartwrenching choice.",
+          "title": "The Beyond",
+          "img": "https://occ-0-3175-2706.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABU1oaguOqWzyzkd9WJA5Fk5grHUT8XdQ2hVGFsQSbYJQsh0HOXzJAWJy0kSBzErL2q1827YPjvoMhN-qykjGtnX9o7w38W8ErGTilnjp5pFGQyC2u2cPzTrI.jpg?r=700"
+        },
+        {
+          "epid": 81677383,
+          "seasid": 81511877,
+          "epnum": 8,
+          "seasnum": 4,
+          "synopsis": "With Sophie in peril and the entire family&#39;s reputation at stake, the Bridgertons must rely on the ton&#39;s most powerful currency: scandal.",
+          "title": "Dance in the Country",
+          "img": "https://occ-0-3175-2706.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABVDz0Ls1mmxnBKUJHbDRVDe2cT3iXXePZDNdnw-Ca-nTL0Xstc9DgQH4iGTtz4GQ91ptK1K-PBegOvUrhZ5EebUnwCSYz485cgB3B4IEdydJNwIRRric6jsj.jpg?r=064"
+        }
+      ]
+    }
+  ]
+}

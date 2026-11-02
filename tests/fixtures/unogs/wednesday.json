@@ -1,0 +1,192 @@
+{
+  "https://unogs.com/api/title/detail?netflixid=81231974": [
+    {
+      "netflixid": 81231974,
+      "title": "Wednesday",
+      "matlabel": "Coarse Language, Mature Themes, Violence, Fantasy Themes",
+      "matlevel": null,
+      "avgrating": 0,
+      "predrating": null,
+      "synopsis": "Smart, sarcastic and a little dead inside, Wednesday Addams investigates a murder spree while making new friends - and foes - at Nevermore Academy.",
+      "vtype": "series",
+      "img": "https://occ-0-3947-2567.1.nflxso.net/dnm/api/v6/oQyw8Fv9eE41UPapt7zHvdUdzrE/AAAABUOw2WnT5BNxvOkbQbGQH8gHou5eRHa3QH8kr89wP7xFO-xrATQpyvnfHFI1pn6xjUOYXZbaPE245poaAQo6VPBwAz7cmPGWNLykJcZFmw0OoGe-23Mp8abMDY1QJ5iNUCA.jpg?r=a24",
+      "lgimg": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/oQyw8Fv9eE41UPapt7zHvdUdzrE/AAAABbS-96ng5_ZCqa_Wh3ymkfUwoXLJABYfBiaTiXhpCyv9wadIKpLXWdGDQtTFfuWlpdn0NZXUKevyCUG40OHlAIWKHlRvfvXuWflHycI1OvILR4jUcDKj9IBATpyn7w1u-DmHlw.jpg?r=a24",
+      "nfid": 81231974,
+      "runtime": 0,
+      "nfdate": "2022-11-23",
+      "curdate": "2026-11-02",
+      "year": 2022,
+      "imdbposter": "https://m.media-amazon.com/images/M/MV5BM2ZmMjEyZmYtOGM4YS00YTNhLWE3ZDMtNzQxM2RhNjBlODIyXkEyXkFqcGdeQXVyMTUzMTg2ODkz._V1_SX300.jpg",
+      "imdbgenre": "Comedy Crime Family",
+      "imdbrated": "TV-14",
+      "imdbruntime": "0",
+      "imdbawards": "1 nomination",
+      "imdbcountry": "0",
+      "imdblanguage": "English",
+      "imdbrating": 0,
+      "imdbid": "tt13443470",
+      "imdbplot": "Follows Wednesday Addams&#39; years as a student when she attempts to master her emerging psychic ability thwart and solve the mystery that embroiled her parents.",
+      "imdbmetascore": "0",
+      "imdbvotes": 156,
+      "imdblocalimage": null,
+      "top250": null,
+      "top250tv": null
+    }
+  ],
+  "https://unogs.com/api/title/episodes?netflixid=81231974": [
+    {
+      "season": 1,
+      "episodes": [
+        {
+          "epid": 81257204,
+          "seasid": 81231975,
+          "epnum": 1,
+          "seasnum": 1,
+          "synopsis": "When a deliciously wicked prank gets Wednesday expelled, her parents ship her off to Nevermore Academy, the boarding school where they fell in love.",
+          "title": "Wednesday&#39;s Child is Full of Woe",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABSWuuJpb0S2IPnm_X8GIshMErIasAT-Czu4LP7sQJMDbjDuXIdSYEqE8ZRLDFYgnX2UeuoulCqQzxIr8h5zyu8MXc41I5ssvItD1TaVz6Ye_GbQaXUMUnZXJ.jpg?r=952"
+        },
+        {
+          "epid": 81257205,
+          "seasid": 81231975,
+          "epnum": 2,
+          "seasnum": 1,
+          "synopsis": "The sheriff questions Wednesday about the night&#39;s strange happenings. Later, Wednesday faces off against a fierce rival in the cutthroat Poe Cup race.",
+          "title": "Woe is the Loneliest Number",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABeMktT7KmzcNP540iMLjcXnWMAe9i3BW3e5ga3q_O0kK0CR9sMrZZZ8Wfm5XM1g57uSlHijPgFilDs0oWjxBHEMQa7CYpqvyb1Q2XfJrRGUcJ-goLktfgeRs.jpg?r=c99"
+        },
+        {
+          "epid": 81257206,
+          "seasid": 81231975,
+          "epnum": 3,
+          "seasnum": 1,
+          "synopsis": "Wednesday stumbles on a secret society. During Outreach Day, Nevermore&#39;s outcasts mingle with Jericho&#39;s normies in Pilgrim World. Fudge, anyone?",
+          "title": "Friend or Woe",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABc_KkBjb1ykbgOKJhlHZzbTa_sCUsAn8bBcAdLhiCU1000Iivz-FYPuBslRuksznXDt1L9mjdCU17qcy_2Ui2EYNfdwzG52F1zivXEruo3P73iyr1QlMfAru.jpg?r=40b"
+        },
+        {
+          "epid": 81257207,
+          "seasid": 81231975,
+          "epnum": 4,
+          "seasnum": 1,
+          "synopsis": "Wednesday asks Xavier to the Rave&#39;N dance, sparking Tyler&#39;s jealousy - but Thing&#39;s got something up his sleeve. Meanwhile, Eugene stakes out the cave.",
+          "title": "Woe What a Night",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABX3RAw_pwkFZxHsowTZULcoBZACqMNaGOW8ciukzQzlM6dPHS8mYAI5b59G2Ii0QifLwVkaQdJ9Pz4WTFZRv095S9v2chLoDoN99jXuW9o0x9H4ajhbylF_L.jpg?r=0b4"
+        },
+        {
+          "epid": 81257208,
+          "seasid": 81231975,
+          "epnum": 5,
+          "seasnum": 1,
+          "synopsis": "During Parents Weekend, Wednesday digs into her family&#39;s past - and accidentally gets her dad arrested. Enid feels the pressure to \"wolf out.\"",
+          "title": "You Reap What You Woe",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABSi_SpvykYPVMSKvtjkFLt_EsTCCv33H4LWyN8ySADkSX3AOr0SLhdYVtoJZVLXqlPxAMf_HiNydHYcOKEuRmNywZ3Cp7Qs_0PtoVGDekYE17OIAXA1w5CIs.jpg?r=e5d"
+        },
+        {
+          "epid": 81257209,
+          "seasid": 81231975,
+          "epnum": 6,
+          "seasnum": 1,
+          "synopsis": "Wednesday&#39;s friends throw her a surprise birthday party. They mean well... but she&#39;d much rather mark the miserable occasion by solving the murders.",
+          "title": "Quid Pro Woe",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABV_aNSXS_k-gMQeHUKTSqlOxAMOrhKosfL3S0wdqo07-KZKFDm51pMIbq-t-6KDBSOuRQj4G_LluEWWMJn4qUj_-2NYEfrQcCqL6RwUKXBdLltxCcSOywPSs.jpg?r=21c"
+        },
+        {
+          "epid": 81257210,
+          "seasid": 81231975,
+          "epnum": 7,
+          "seasnum": 1,
+          "synopsis": "Kooky Uncle Fester pays a visit and shares his theory about the monster. Wednesday begrudgingly agrees to a date with Tyler at Crackstone&#39;s crypt.",
+          "title": "If You Don&#39;t Woe Me By Now",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABRnsXXRTU-6gX5qnRlHgWQF6A3PqqVKS3lQVbU-uV5cu20wBgqluJKBwFJ4d2Z75HfLKwDlLAS-ShR0Ztf8mM7QvqAopzAu9dPed99zPKjv0iNh39-LyFbIG.jpg?r=288"
+        },
+        {
+          "epid": 81257211,
+          "seasid": 81231975,
+          "epnum": 8,
+          "seasnum": 1,
+          "synopsis": "Wednesday lands in trouble with Principal Weems, but that&#39;s just the start of her problems. To fight an ancient evil, she&#39;ll need all her friends’ help.",
+          "title": "A Murder of Woes",
+          "img": "https://occ-0-3271-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABVdTlHUUhsYfiufoiPbancpnyYH2FAphW6Meuho-dMXNsqeGCDrL9UiFD_hsI9RYaCfKNccaz3-bMuxnIKBk_WihzAhwuZg-LS07AKS33QmkA5EeqTPVCcLj.jpg?r=2e0"
+        }
+      ]
+    },
+    {
+      "season": 2,
+      "episodes": [
+        {
+          "epid": 81662171,
+          "seasid": 81435630,
+          "epnum": 1,
+          "seasnum": 2,
+          "synopsis": "After a productive summer break, Wednesday returns to Nevermore as a grudging campus celebrity - and the target of a dangerous stalker.",
+          "title": "Here We Woe Again",
+          "img": "https://occ-0-3342-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABShXGNSwD-s4zqa0Mee_g5sbVV03qugOYH9f5h3_O7GNensITjtYjGf6v9UqVg7aUyiOHtRRr20uekHXCJ_tutfWVoRZJyCVV_jcovhjKoTU1D_RP2tvDHQC.jpg?r=677"
+        },
+        {
+          "epid": 81662172,
+          "seasid": 81435630,
+          "epnum": 2,
+          "seasnum": 2,
+          "synopsis": "Chaos reigns on campus as Nevermore celebrates its annual Prank Day. Wednesday confronts an old enemy and gains an unwanted ally.",
+          "title": "The Devil You Woe",
+          "img": "https://occ-0-3342-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABR39aDGtEG1ezzkUK_m7sqjhySPu2WagGBs7uHksxYSAOEuGPrjLH70jGsJUvZT9Yh4I61cty9SCh-ZowKy9dFOgTFZ0FM-gC1WymK_HDbP8gXlBXicpge3y.jpg?r=22c"
+        },
+        {
+          "epid": 81662173,
+          "seasid": 81435630,
+          "epnum": 3,
+          "seasnum": 2,
+          "synopsis": "Stripped of both her ability and Goody&#39;s book, Wednesday is forced to do some old-fashioned detective work on a school camping trip. ",
+          "title": "Call of the Woe",
+          "img": "https://occ-0-3342-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABaEZ7g6eK5_HiU-p8_EdjLNIwFxk0ougHUm5vGXf6kjmXW3jUNnQ3BoVRYVsgQLrTjw5hNajTQfd6qFeX8DmERrQVV40nW6zD_VhlnXnnXtNfqPOzRzhBV9L.jpg?r=73b"
+        },
+        {
+          "epid": 81662174,
+          "seasid": 81435630,
+          "epnum": 4,
+          "seasnum": 2,
+          "synopsis": "It&#39;s an Addams family investigation as Fester and Thing commit themselves to Wednesday&#39;s case. Trying to conceal one secret, Bianca stumbles on another.",
+          "title": "If These Woes Could Talk",
+          "img": "https://occ-0-3342-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABZgMFdlnAhM-ipyoWp-UqGQpuKSoePvFszBDJXDgfCM6PrJ3CEI_R6RBEykX6GAG6uy8vSOnhDXB3rmcWa0R_D6Jnr0E9uuEzry_iFFV3-0-a6_AyRLD9mIM.jpg?r=2b8"
+        },
+        {
+          "epid": 81662175,
+          "seasid": 81435630,
+          "epnum": 5,
+          "seasnum": 2,
+          "synopsis": "With Tyler on the loose, Wednesday readies for a risky Día de los Muertos showdown. Slurp&#39;s growing hunger poses problems for Pugsley.",
+          "title": "Hyde and Woe Seek",
+          "img": "https://occ-0-3345-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABVEPZyRA_v7849dchlaO_GWPi_RpvODjUPT0Ew5dS2Vo75Z0WeWPk4BMPdI71DcD2SRf6kuOu5JMlyNJS5au-rGZfbf0-j95nD4y8rHBXrcyRG5lndV8N53r.jpg?r=a42"
+        },
+        {
+          "epid": 81662176,
+          "seasid": 81435630,
+          "epnum": 6,
+          "seasnum": 2,
+          "synopsis": "An encounter with a spirit from Nevermore&#39;s past gives Wednesday and Enid a new perspective on one another - and puts one of their classmates in danger.",
+          "title": "Woe Thyself",
+          "img": "https://occ-0-3345-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABRnGAttT-rLmlhyM2ZDiXybCq0_3nfhd2C7qiRYjxr80WYyhj20OcOnYRDEqruXW8_0CAs7PEmn2TrR1yqy7ZcCTgkDSdDRXoMTd_EILfAv9wnFXbHeO-VTH.jpg?r=069"
+        },
+        {
+          "epid": 81662177,
+          "seasid": 81435630,
+          "epnum": 7,
+          "seasnum": 2,
+          "synopsis": "As the school gala looms, Wednesday digs up dirt on Dort, Enid tries not to wolf out and Morticia engages in a battle of wills with Grandmama.",
+          "title": "Woe Me the Money",
+          "img": "https://occ-0-3345-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABffljb1Z1LWVvY4dLpCGm6pIfHzfxaUZaIC65bz8UoSnybR6Wtfd_Z5pw5GehCfUUvER8sPjysv8B0zNFEZKndf2s0pv7Lv8VzMFcQA2HxU3ybyuBNS7hOh3.jpg?r=d3c"
+        },
+        {
+          "epid": 81662178,
+          "seasid": 81435630,
+          "epnum": 8,
+          "seasnum": 2,
+          "synopsis": "When buried family secrets are unearthed, Wednesday must race against time to prevent a dark prophecy from being realized.",
+          "title": "This Means Woe",
+          "img": "https://occ-0-3345-2567.1.nflxso.net/dnm/api/v6/9pS1daC2n6UGc3dUogvWIPMR_OU/AAAABTEizOWJexOxzTYl0_Q-zZEDjigOC28c-P3QBpJuZD9q2FzsP8bwHsES4_vzEvFkE_6hRAM1bemuKu28xggGJ26CP8UfIvfxZFBhN5sBlnmJW4cOvYyGTJye.jpg?r=3cd"
+        }
+      ]
+    }
+  ]
+}

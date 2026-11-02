@@ -56,7 +56,15 @@ test('control: an agreed ordinal with a count the season does not exceed is that
 })
 
 test('control: no ordinal and a count equal to the first season is the first season', () => {
-  expect(pickSimilarSeason({ titles: ['Some Show'], episodeCount: 24 }, NF)).toEqual({ season: 1, rule: 'first' })
+  const undated = NF.map(season => ({ ...season, year: undefined }))
+  expect(pickSimilarSeason({ titles: ['Some Show'], episodeCount: 24, startDate: '2021-01-11' }, undated)).toEqual({ season: 1, rule: 'first' })
+})
+
+// JustWatch titles every season by its show, so its second season of Wednesday names no season either, and once its
+// copied date is gone nothing tells it from the first: 8 episodes beside Netflix's 8 and 8 (2026-11-02)
+test('a run with no year is never taken for the first season by its length', () => {
+  expect(pickSimilarSeason({ titles: ['Some Show'], episodeCount: 24 }, NF)).toBeUndefined()
+  expect(pickSimilarSeason({ titles: ['Show'], episodeCount: 5 }, [{ season: 1, seasonNumber: 1, episodeCount: 5 }])).toBeUndefined()
 })
 
 // The refusal is load bearing for the YEAR rule, which reads no ordinal: without it a run whose titles
@@ -185,10 +193,10 @@ test('episode titles are decisive: a season sharing none of ours is refused what
 })
 
 test('a lone season shorter than the run is a season still listing; with several, only exactness counts', () => {
-  expect(pickSimilarSeason({ titles: ['Show'], episodeCount: 12 }, [{ season: 1, seasonNumber: 1, episodeCount: 5 }]))
+  expect(pickSimilarSeason({ titles: ['Show'], episodeCount: 12, startDate: '2024-04-07' }, [{ season: 1, seasonNumber: 1, episodeCount: 5 }]))
     .toEqual({ season: 1, rule: 'first' })
   expect(pickSimilarSeason(
-    { titles: ['Show'], episodeCount: 12 },
+    { titles: ['Show'], episodeCount: 12, startDate: '2024-04-07' },
     [{ season: 1, seasonNumber: 1, episodeCount: 5 }, { season: 2, seasonNumber: 2, episodeCount: 12 }]
   )).toBeUndefined()
 })
@@ -403,9 +411,9 @@ test('a season rule 2 measured and refuted is removed, and no later rule may pro
     { season: 'one', seasonNumber: 1, episodeCount: 12, episodeTitles: episodeTitles(8, 12) },
     { season: 'two', seasonNumber: 2, episodeCount: 12, episodeTitles: NUMBERED(1, 12) },
   ]
-  expect(pickSimilarSeason({ titles: ['Show'], episodeCount: 12, episodeTitles: episodeTitles(9, 12) }, refutedFirst)).toBeUndefined()
+  expect(pickSimilarSeason({ titles: ['Show'], episodeCount: 12, startDate: '2024-04-07', episodeTitles: episodeTitles(9, 12) }, refutedFirst)).toBeUndefined()
   expect(
-    pickSimilarSeason({ titles: ['Show'], episodeCount: 12 }, refutedFirst),
+    pickSimilarSeason({ titles: ['Show'], episodeCount: 12, startDate: '2024-04-07' }, refutedFirst),
     'the control: with no episode titles the first season answers on its count'
   ).toEqual({ season: 'one', rule: 'first' })
 })

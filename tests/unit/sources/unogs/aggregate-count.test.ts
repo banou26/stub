@@ -74,6 +74,7 @@ test('control: the same cluster declaring 24 is matched to the Netflix season ho
     titles: [{ language: 'en', title: 'Some Show' }],
     episodeCount: 24,
     episodes: [],
+    startDate: '2021-01-11',
   })
 
   expect(media?.uri).toBe(`nf:${NF_ID}-1`)

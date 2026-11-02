@@ -1,0 +1,428 @@
+{
+  "ts274631": {
+    "id": "ts274631",
+    "objectId": 274631,
+    "objectType": "SHOW",
+    "content": {
+      "title": "Wednesday",
+      "fullPath": "/us/tv-show/wednesday",
+      "originalReleaseYear": 2022,
+      "originalReleaseDate": "2022-11-23",
+      "shortDescription": "Smart, sarcastic and a little dead inside, Wednesday Addams investigates twisted mysteries while making new friends - and foes - at Nevermore Academy.",
+      "posterUrl": "/poster/301078631/s718/wednesday.jpg",
+      "externalIds": {
+        "imdbId": "tt13443470"
+      },
+      "genres": [
+        {
+          "shortName": "cmy",
+          "translation": "Comedy"
+        },
+        {
+          "shortName": "crm",
+          "translation": "Crime"
+        },
+        {
+          "shortName": "fnt",
+          "translation": "Fantasy"
+        },
+        {
+          "shortName": "hrr",
+          "translation": "Horror"
+        },
+        {
+          "shortName": "scf",
+          "translation": "Science-Fiction"
+        }
+      ],
+      "productionCountries": [
+        "US"
+      ]
+    },
+    "offers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://www.netflix.com/title/81231974",
+        "deeplinkURL": "https://www.netflix.com/watch/81257204",
+        "package": {
+          "id": "cGF8OA==",
+          "packageId": 8,
+          "clearName": "Netflix",
+          "technicalName": "netflix",
+          "shortName": "nfx",
+          "icon": "/icon/207360008/s100/netflix.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "HD",
+        "standardWebURL": "https://www.netflix.com/title/81231974",
+        "deeplinkURL": "https://www.netflix.com/watch/81257204",
+        "package": {
+          "id": "cGF8MTc5Ng==",
+          "packageId": 1796,
+          "clearName": "Netflix Standard with Ads",
+          "technicalName": "netflixbasicwithads",
+          "shortName": "nfa",
+          "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      }
+    ],
+    "extraOffers": [
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "_4K",
+        "standardWebURL": "https://www.netflix.com/title/81231974",
+        "deeplinkURL": "https://www.netflix.com/watch/81257204",
+        "package": {
+          "id": "cGF8OA==",
+          "packageId": 8,
+          "clearName": "Netflix",
+          "technicalName": "netflix",
+          "shortName": "nfx",
+          "icon": "/icon/207360008/s100/netflix.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      },
+      {
+        "monetizationType": "FLATRATE",
+        "presentationType": "HD",
+        "standardWebURL": "https://www.netflix.com/title/81231974",
+        "deeplinkURL": "https://www.netflix.com/watch/81257204",
+        "package": {
+          "id": "cGF8MTc5Ng==",
+          "packageId": 1796,
+          "clearName": "Netflix Standard with Ads",
+          "technicalName": "netflixbasicwithads",
+          "shortName": "nfa",
+          "icon": "/icon/330025803/s100/netflixbasicwithads.{format}"
+        },
+        "videoTechnology": [
+          "DOLBY_VISION"
+        ],
+        "audioTechnology": [
+          "DOLBY_ATMOS"
+        ],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      },
+      {
+        "monetizationType": "BUY",
+        "presentationType": "DVD",
+        "standardWebURL": "https://www.amazon.com/dp/B0FXYQJRXH?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "deeplinkURL": "https://www.amazon.com/dp/B0FXYQJRXH?tag=justwatch09-20&linkCode=osi&th=1&psc=1",
+        "package": {
+          "id": "cGF8NTA=",
+          "packageId": 50,
+          "clearName": "Amazon DVD / Blu-ray",
+          "technicalName": "amazondvdbr",
+          "shortName": "adb",
+          "icon": "/icon/338364164/s100/amazondvdbr.{format}"
+        },
+        "videoTechnology": [],
+        "audioTechnology": [],
+        "audioLanguages": [],
+        "subtitleLanguages": []
+      }
+    ],
+    "totalSeasonCount": 2,
+    "seasons": [
+      {
+        "id": "tss293677",
+        "objectId": 293677,
+        "totalEpisodeCount": 8,
+        "content": {
+          "title": "Season 1",
+          "seasonNumber": 1,
+          "fullPath": "/us/tv-show/wednesday/season-1",
+          "posterUrl": "/poster/300790715/{profile}/season-1.{format}",
+          "originalReleaseYear": 2022,
+          "originalReleaseDate": "2022-11-23",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse5481650",
+            "objectId": 5481650,
+            "content": {
+              "title": "Wednesday's Child Is Full of Woe",
+              "episodeNumber": 1,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "When a deliciously wicked prank gets Wednesday expelled, her parents ship her off to Nevermore Academy, the boarding school where they fell in love.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 57
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481632",
+            "objectId": 5481632,
+            "content": {
+              "title": "Woe Is the Loneliest Number",
+              "episodeNumber": 2,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "The sheriff questions Wednesday about the night's strange happenings. Later, Wednesday faces off against a fierce rival in the cutthroat Poe Cup race.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 47
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481672",
+            "objectId": 5481672,
+            "content": {
+              "title": "Friend or Woe",
+              "episodeNumber": 3,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Wednesday stumbles on a secret society. During Outreach Day, Nevermore's outcasts mingle with Jericho's normies in Pilgrim World. Fudge, anyone?",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 45
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481636",
+            "objectId": 5481636,
+            "content": {
+              "title": "Woe What a Night",
+              "episodeNumber": 4,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Wednesday asks Xavier to the Rave'N dance, sparking Tyler's jealousy - but Thing's got something up his sleeve. Meanwhile, Eugene stakes out the cave.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481622",
+            "objectId": 5481622,
+            "content": {
+              "title": "You Reap What You Woe",
+              "episodeNumber": 5,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "During Parents Weekend, Wednesday digs into her family's past - and accidentally gets her dad arrested. Enid feels the pressure to \"wolf out.\"",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 50
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481682",
+            "objectId": 5481682,
+            "content": {
+              "title": "Quid Pro Woe",
+              "episodeNumber": 6,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Wednesday's friends throw her a surprise birthday party. They mean well... but she'd much rather mark the miserable occasion by solving the murders.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481662",
+            "objectId": 5481662,
+            "content": {
+              "title": "If You Don't Woe Me by Now",
+              "episodeNumber": 7,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Kooky Uncle Fester pays a visit and shares his theory about the monster. Wednesday begrudgingly agrees to a date with Tyler at Crackstone's crypt.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 45
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse5481671",
+            "objectId": 5481671,
+            "content": {
+              "title": "A Murder of Woes",
+              "episodeNumber": 8,
+              "seasonNumber": 1,
+              "isReleased": true,
+              "shortDescription": "Wednesday lands in trouble with Principal Weems, but that's just the start of her problems. To fight an ancient evil, she'll need all her friends’ help.",
+              "originalReleaseDate": "2022-11-23",
+              "runtime": 50
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      },
+      {
+        "id": "tss388675",
+        "objectId": 388675,
+        "totalEpisodeCount": 8,
+        "content": {
+          "title": "Season 2",
+          "seasonNumber": 2,
+          "fullPath": "/us/tv-show/wednesday/season-2",
+          "posterUrl": "/poster/335837783/{profile}/season-2.{format}",
+          "originalReleaseYear": 2022,
+          "originalReleaseDate": "2022-11-23",
+          "isReleased": true
+        },
+        "episodes": [
+          {
+            "id": "tse7670813",
+            "objectId": 7670813,
+            "content": {
+              "title": "Here We Woe Again",
+              "episodeNumber": 1,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "After a productive summer break, Wednesday returns to Nevermore as a grudging campus celebrity - and the target of a dangerous stalker.",
+              "originalReleaseDate": "2025-08-06",
+              "runtime": 60
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7670815",
+            "objectId": 7670815,
+            "content": {
+              "title": "The Devil you Woe",
+              "episodeNumber": 2,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Chaos reigns on campus as Nevermore celebrates its annual Prank Day. Wednesday confronts an old enemy and gains an unwanted ally.",
+              "originalReleaseDate": "2025-08-06",
+              "runtime": 61
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse7670814",
+            "objectId": 7670814,
+            "content": {
+              "title": "Call Of The Woe",
+              "episodeNumber": 3,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "Stripped of both her ability and Goody's book, Wednesday is forced to do some old-fashioned detective work on a school camping trip.",
+              "originalReleaseDate": "2025-08-06",
+              "runtime": 59
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9254166",
+            "objectId": 9254166,
+            "content": {
+              "title": "If These Woes Could Talk",
+              "episodeNumber": 4,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "It's an Addams family investigation as Fester and Thing commit themselves to Wednesday's case. Trying to conceal one secret, Bianca stumbles on another.",
+              "originalReleaseDate": "2025-08-06",
+              "runtime": 60
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9254167",
+            "objectId": 9254167,
+            "content": {
+              "title": "Hyde and Woe Seek",
+              "episodeNumber": 5,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "With Tyler on the loose, Wednesday readies for a risky Día de los Muertos showdown. Slurp's growing hunger poses problems for Pugsley.",
+              "originalReleaseDate": "2025-09-03",
+              "runtime": 51
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9254168",
+            "objectId": 9254168,
+            "content": {
+              "title": "Woe Thyself",
+              "episodeNumber": 6,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "An encounter with a spirit from Nevermore's past gives Wednesday and Enid a new perspective on one another - and puts one of their classmates in danger.",
+              "originalReleaseDate": "2025-09-03",
+              "runtime": 69
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9254169",
+            "objectId": 9254169,
+            "content": {
+              "title": "Woe Me the Money",
+              "episodeNumber": 7,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "As the school gala looms, Wednesday digs up dirt on Dort, Enid tries not to wolf out and Morticia engages in a battle of wills with Grandmama.",
+              "originalReleaseDate": "2025-09-03",
+              "runtime": 55
+            },
+            "offers": [],
+            "extraOffers": []
+          },
+          {
+            "id": "tse9254170",
+            "objectId": 9254170,
+            "content": {
+              "title": "This Means Woe",
+              "episodeNumber": 8,
+              "seasonNumber": 2,
+              "isReleased": true,
+              "shortDescription": "When buried family secrets are unearthed, Wednesday must race against time to prevent a dark prophecy from being realized.",
+              "originalReleaseDate": "2025-09-03",
+              "runtime": 48
+            },
+            "offers": [],
+            "extraOffers": []
+          }
+        ]
+      }
+    ]
+  }
+}

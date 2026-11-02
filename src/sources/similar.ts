@@ -333,7 +333,13 @@ export const pickSimilarSeason = <T>(
   // about the source's season list and not about the survivors: taking the lowest-numbered SURVIVOR
   // is the fall-through that put anime season 1 on Netflix season 3 once season 1 was excluded. A
   // first season rule 2 refuted therefore refuses here rather than promoting the season behind it.
-  if (unnumberedWithCount) {
+  //
+  // A run with NO YEAR is never placed here: the year veto is all that keeps a later season as long as
+  // the first out, and a run naming no season is not always a first one. JustWatch titles each season
+  // by its show and leaves undated a season that only copied the first one's date, so Wednesday's
+  // second season, 8 episodes like the first, took Netflix's season 1 (2026-11-02). Its episode titles
+  // place it once they land.
+  if (unnumberedWithCount && evidenceYear != null) {
     const numbered = candidates.filter(candidate => candidate.seasonNumber != null)
     const first =
       candidates.length === 1 ? candidates[0]

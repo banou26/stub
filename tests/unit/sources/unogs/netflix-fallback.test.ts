@@ -630,7 +630,7 @@ test('a truncated season is offered to the season picker with no count at all', 
   const ask = async (payload: unknown) => {
     resetUnogsCaches()
     const { ctx } = rig({ ...unogsRoutes('80987039', status(503)), [NETFLIX_GRAPHQL_URL]: json(payload) })
-    return await askSimilar({ showId: '80987039', episodeCount: 9, titles: ['Mushoku Tensei'] }, ctx)
+    return await askSimilar({ showId: '80987039', episodeCount: 9, titles: ['Mushoku Tensei'], startDate: '2021-01-11' }, ctx)
   }
 
   // NINE episodes, not the recording's ten, and the two arms differ in nothing but `hasNextPage`. Ten

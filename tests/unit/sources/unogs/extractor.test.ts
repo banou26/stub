@@ -228,7 +228,7 @@ test('control: titles agreeing on an ordinal Netflix has, no larger than the run
 })
 
 test('control: a first season keeps its precise link when Netflix season 1 holds exactly its episodes', async () => {
-  const ctx = knowing(routes('80987039', 'series', MUSHOKU), ['Some Show'], 24)
+  const ctx = knowing(routes('80987039', 'series', MUSHOKU), ['Some Show'], 24, '2021-01-11')
   const media = await linkNetflix('80987039', AG, ctx, 'series')
   expect(media?.uri).toBe('nf:80987039-1')
   expect(media?.scope).toBe('RUN')
