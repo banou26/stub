@@ -3,19 +3,21 @@
 
 import type { MessageDescriptor } from 'react-intl'
 
-import type { MediaSeason } from '../../generated/graphql'
+import type { MediaSeason, MediaType } from '../../generated/graphql'
 import type { ReleaseDateOptions } from '../../utils/release-date'
 
 import { defineMessages } from 'react-intl'
 
-import { MediaStatus, MediaType } from '../../generated/graphql'
+import { MediaStatus } from '../../generated/graphql'
 import { intl, NAME_LIST } from '../../i18n'
 import { formatLabel, genreLabel, seasonLabel, statusLabel } from '../search/params'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
+import { isMovieMedia } from '../home/movie'
 
 export type TitleMedia = {
   titles?: readonly { title: string, language?: string | null }[] | null
   type?: MediaType | null
+  categories?: readonly string[] | null
   status?: MediaStatus | null
   episodeCount?: number | null
   startDate?: string | null
@@ -52,9 +54,10 @@ const SOURCES: Readonly<Record<string, MessageDescriptor>> = defineMessages({
   PICTURE_BOOK: { id: 'Picture book#source material', defaultMessage: 'Picture book', description: 'source material' },
 })
 
-/** A count of episodes as the chips write it ("28 Episodes"), or nothing for none. */
-export const episodesLabel = (count: number | null | undefined) =>
-  count ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count }) : undefined
+/** A media's episodes as the chips write them ("28 Episodes"), or nothing for none and for a film. */
+export const episodesLabel = (media: Pick<TitleMedia, 'episodeCount' | 'type' | 'categories'>) =>
+  !media.episodeCount || isMovieMedia(media) ? undefined
+  : intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count: media.episodeCount })
 
 // a value AniList may add later reads as its own words: AUDIO_DRAMA as Audio drama
 const sourceLabel = (source: string | null | undefined) =>
@@ -89,7 +92,7 @@ export const releasedLabel = (media: Pick<TitleMedia, 'startDate' | 'season' | '
 
 /** The chips under the title: episodes, format and status, each left out when no source named it. */
 export const titleChips = (media: TitleMedia): string[] =>
-  [episodesLabel(media.episodeCount), formatLabel(media.type), statusLabel(media.status)]
+  [episodesLabel(media), formatLabel(media.type), statusLabel(media.status)]
     .filter((chip): chip is string => !!chip)
 
 /** The chips after the score: each site's rating, IMDb 8.0 or Rotten Tomatoes 92%. */
@@ -107,11 +110,12 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   const end = airing ? undefined : releaseDateLabel(releaseDay(media.endDate), options)
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)?.title]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
+  const film = isMovieMedia(media)
   return [
     { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: formatLabel(media.type) },
-    { label: intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' }), value: media.episodeCount ? String(media.episodeCount) : undefined },
+    ...film ? [] : [{ label: intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' }), value: media.episodeCount ? String(media.episodeCount) : undefined }],
     {
-      label: media.type === MediaType.Movie ? intl.formatMessage({ id: 'Length', defaultMessage: 'Length' }) : intl.formatMessage({ id: 'Episode length', defaultMessage: 'Episode length' }),
+      label: film ? intl.formatMessage({ id: 'Length', defaultMessage: 'Length' }) : intl.formatMessage({ id: 'Episode length', defaultMessage: 'Episode length' }),
       value: media.duration ? intl.formatNumber(media.duration, { style: 'unit', unit: 'minute', unitDisplay: 'short', useGrouping: false }) : undefined,
     },
     { label: intl.formatMessage({ id: 'Status', defaultMessage: 'Status' }), value: statusLabel(media.status) },

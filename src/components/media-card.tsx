@@ -152,7 +152,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const episode = media.nextAiringEpisode?.episodeNumber
   const format = formatLabel(media.type)
   const season = seasonLabel(media.season, media.seasonYear)
-  const meta = [format, episodesLabel(media.episodeCount)].filter(Boolean).join(' • ')
+  const meta = [format, episodesLabel(media)].filter(Boolean).join(' • ')
 
   return (
     <Link to={to} css={style} style={accentVars(accent)}>

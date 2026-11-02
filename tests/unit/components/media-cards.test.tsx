@@ -82,6 +82,24 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
 })
 
+// STUB-330: a film is one work, so it names no episode count, the one a source gave or a question mark
+const FILM = { ...FINISHED, type: 'MOVIE', categories: ['ANIME', 'MOVIE'] }
+const SPECIAL = { ...FINISHED, type: 'SPECIAL', categories: ['ANIME', 'SERIES'] }
+const card = (media: object) => draw(<MediaCard media={media as never} to="/media/anilist:21"/>).text('.meta')
+const row = (media: object) => draw(<MediaRow media={media as never} to="/media/anilist:21"/>).text('.format > span')
+const previewed = (media: object) => draw(<MediaPreview ref={{ current: null }} media={{ ...media, trailers: [] } as never}/>).text('.episodes')
+
+test('a film\'s card, row and preview name no episode count', () => {
+  expect([card(FILM), row(FILM), previewed(FILM)]).toEqual([['Movie'], ['Movie'], []])
+  expect(previewed({ ...FILM, episodeCount: null }), 'nor a question mark').toEqual([])
+  const shelved = { ...FILM, type: null, categories: ['MOVIE'] }
+  expect([card(shelved), row(shelved), previewed(shelved)], 'a film only its shelf names').toEqual([[], [''], []])
+})
+
+test('a one-episode special keeps its count on its card, row and preview', () => {
+  expect([card(SPECIAL), row(SPECIAL), previewed(SPECIAL)]).toEqual([['Special • 1 episode'], ['Special', '1 episode'], ['1 Episode']])
+})
+
 test('a media is a movie or a series by its format, and neither while no source names one', () => {
   expect(KINDS.map(kindOf)).toEqual(['MOVIE', 'SERIES', 'SERIES', undefined, 'SERIES'])
   expect(['TV', 'TV_SHORT', 'OVA', 'SPECIAL'].map(type => kindOf({ type, categories: ['ANIME', 'SERIES'] })))

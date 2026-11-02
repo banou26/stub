@@ -109,6 +109,7 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
 
   const countdown = formatCountdown(airsIn(media, now) ?? 0, 1)
   const episode = media.nextAiringEpisode?.episodeNumber
+  const episodes = episodesLabel(media)
 
   return (
     <Link to={to} css={style} style={accentVars(accent)}>
@@ -128,7 +129,7 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
       </div>
       <div className="column format">
         <span>{formatLabel(media.type)}</span>
-        {media.episodeCount != null && <span className="secondary">{episodesLabel(media.episodeCount)}</span>}
+        {episodes && <span className="secondary">{episodes}</span>}
       </div>
       <div className="column">
         <span>{statusLabel(media.status)}</span>

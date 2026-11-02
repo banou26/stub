@@ -14,7 +14,7 @@ import { runtimeText } from './movie'
 type FilmEpisode = NonNullable<Parameters<typeof filmRelease>[0]['episode']> & { runtime?: number | null }
 
 /** What the preview's facts read of a media: the details the modal asks for, a film's one episode among them. */
-export type PreviewMedia = Pick<TitleMedia, 'type' | 'status' | 'startDate' | 'season' | 'seasonYear' | 'episodeCount' | 'genres' | 'tags' | 'duration'> & {
+export type PreviewMedia = Pick<TitleMedia, 'type' | 'categories' | 'status' | 'startDate' | 'season' | 'seasonYear' | 'episodeCount' | 'genres' | 'tags' | 'duration'> & {
   averageScore?: number | null
   episodes?: readonly FilmEpisode[] | null
 }
@@ -59,7 +59,7 @@ const scoreText = (score: number | null | undefined) =>
 
 /** The line over a series' title: its format, its release and its episodes, each left out when no source named it. */
 export const seriesLine = (media: PreviewMedia): string =>
-  [formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media.episodeCount)].filter(Boolean).join(' · ')
+  [formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media)].filter(Boolean).join(' · ')
 
 /**
  * The line over a film's title: Movie, its release once it is out as of `now` (by the rule the modal's Play goes by;

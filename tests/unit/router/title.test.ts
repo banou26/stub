@@ -30,7 +30,18 @@ const FRIEREN = {
 
 test('the chips name the episodes, the format and the status', () => {
   expect(titleChips(FRIEREN)).toEqual(['28 Episodes', 'TV Show', 'Finished'])
-  expect(titleChips({ episodeCount: 1, type: MediaType.Movie }), 'one episode is not plural').toEqual(['1 Episode', 'Movie'])
+  expect(titleChips({ episodeCount: 1, type: MediaType.Special }), 'one episode is not plural').toEqual(['1 Episode', 'Special'])
+})
+
+// STUB-330: a film is one work, not one episode
+test('a film names no episode count, by its format or else its shelf', () => {
+  const film = { type: MediaType.Movie, categories: ['ANIME', 'MOVIE'], episodeCount: 1, duration: 120 }
+  expect(titleChips(film)).toEqual(['Movie'])
+  expect(titleFacts(film)).toEqual([{ label: 'Format', value: 'Movie' }, { label: 'Length', value: '120 min' }])
+  expect(titleFacts(film, {}, true).map(({ label }) => label), 'held, no line is kept for it').not.toContain('Episodes')
+  expect(titleChips({ categories: ['MOVIE'], episodeCount: 1 }), 'a film only its shelf names').toEqual([])
+  expect(titleChips({ type: MediaType.Special, categories: ['ANIME', 'MOVIE'], episodeCount: 1 }), 'the format outranks the shelf')
+    .toEqual(['1 Episode', 'Special'])
 })
 
 test('a chip no source named is left out', () => {

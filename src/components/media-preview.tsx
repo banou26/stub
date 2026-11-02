@@ -9,6 +9,7 @@ import { Link } from 'wouter'
 import { useCallback, useMemo, useState } from 'preact/hooks'
 
 import { getRoutePath, Route } from '../router/path'
+import { isMovieMedia } from '../router/home/movie'
 import YoutubeMinimalPlayer from './yt-minimal-player'
 import { useCoverUrl } from '../utils/use-cover-url'
 import TextEllipsis from '../components/text-ellipsis'
@@ -152,13 +153,17 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
             {title}
           </div>
           <div className="top">
-            <span className="episodes">
-              {
-                media.episodeCount != null
-                  ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count: media.episodeCount })
-                  : intl.formatMessage({ id: '? Episodes', defaultMessage: '? Episodes' })
-              }
-            </span>
+            {
+              isMovieMedia(media) ? undefined : (
+                <span className="episodes">
+                  {
+                    media.episodeCount != null
+                      ? intl.formatMessage({ id: '{count, plural, one {{count} Episode} other {{count} Episodes}}', defaultMessage: '{count, plural, one {{count} Episode} other {{count} Episodes}}' }, { count: media.episodeCount })
+                      : intl.formatMessage({ id: '? Episodes', defaultMessage: '? Episodes' })
+                  }
+                </span>
+              )
+            }
             <KindTag media={media}/>
           </div>
           <TextEllipsis className="description">

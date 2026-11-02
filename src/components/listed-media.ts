@@ -1,6 +1,7 @@
 import type { Media } from '../generated/graphql'
 
 import { intl } from '../i18n'
+import { isMovieMedia } from '../router/home/movie'
 
 /**
  * A media as the search page's card and list modes read it.
@@ -10,7 +11,7 @@ import { intl } from '../i18n'
  */
 export type ListedMedia = Pick<Media,
   '_id' | 'uri' | 'titles' | 'covers' | 'genres' | 'shortDescriptions'
-  | 'averageScore' | 'popularity' | 'episodeCount' | 'type' | 'status' | 'season' | 'seasonYear'
+  | 'averageScore' | 'popularity' | 'episodeCount' | 'type' | 'categories' | 'status' | 'season' | 'seasonYear'
   | 'nextAiringEpisode'
 >
 
@@ -22,6 +23,7 @@ export const airsIn = (media: Pick<ListedMedia, 'nextAiringEpisode'>, now: numbe
   return Number.isFinite(at) ? at - now : undefined
 }
 
-/** An episode count as words, or nothing. Singular because a one-episode film read "1 episodes". */
-export const episodesLabel = (count: number | null | undefined): string | undefined =>
-  count == null ? undefined : intl.formatMessage({ id: '{count, plural, one {{count} episode} other {{count} episodes}}', defaultMessage: '{count, plural, one {{count} episode} other {{count} episodes}}' }, { count })
+/** A media's episode count as words, or nothing for none and for a film, which is one work and not one episode. */
+export const episodesLabel = (media: Partial<Pick<ListedMedia, 'episodeCount' | 'type' | 'categories'>>): string | undefined =>
+  media.episodeCount == null || isMovieMedia(media) ? undefined
+  : intl.formatMessage({ id: '{count, plural, one {{count} episode} other {{count} episodes}}', defaultMessage: '{count, plural, one {{count} episode} other {{count} episodes}}' }, { count: media.episodeCount })

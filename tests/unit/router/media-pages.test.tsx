@@ -354,7 +354,8 @@ describe('the title page', () => {
     const late = { ...partial(3), type: 'MOVIE' }
     const { host, answer } = titlePage(late.uri)
     answer(late)
-    expect(pending(host), 'the control: held while a source is out').toEqual(['pending', 'pending', 'pending', 'description', 'pending', ...HELD_FACTS.slice(1), 'relations.placeholder'])
+    // less Format, which it names, and Episodes, which a film has no line for
+    expect(pending(host), 'the control: held while a source is out').toEqual(['pending', 'pending', 'pending', 'description', 'pending', ...HELD_FACTS.slice(2), 'relations.placeholder'])
 
     answer({ ...late, settled: true })
     expect(pending(host)).toEqual([])
@@ -494,6 +495,16 @@ describe('the title page', () => {
     answer(film(3))
     expect(host.querySelector('h1')!.textContent, 'the control: answered').toBe('Spirited Away')
     expect(host.querySelector('[data-episodes]')).toBeNull()
+  })
+
+  // STUB-330
+  test('names no episode count in a film\'s chips or facts', () => {
+    const one = { ...film(3), episodeCount: 1, settled: true }
+    const { host, answer } = titlePage(one.uri)
+    answer(one)
+    expect([...host.querySelectorAll('.chips > .chip')].map(chip => chip.textContent)).toEqual(['Movie', 'Finished'])
+    expect(facts(host).filter(line => line.startsWith('Episodes'))).toEqual([])
+    expect(facts(host)[0], 'the control: its facts drawn').toBe('Format: Movie')
   })
 
   // the sites beside Play and the film's buttons each ask for their origins, and the sites' answer can land first

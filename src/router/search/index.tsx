@@ -67,6 +67,7 @@ export const SEARCH_CARD_FRAGMENT = gql(`
     averageScore
     status
     type
+    categories
     season
     seasonYear
     nextAiringEpisode {

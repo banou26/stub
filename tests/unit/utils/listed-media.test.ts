@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'vite-plus/test'
 
 import { airsIn, episodesLabel } from '../../../src/components/listed-media'
+import { MediaCategory, MediaType } from '../../../src/generated/graphql'
 import { startLanguage } from '../../../src/i18n'
 
 const NOW = Date.parse('2026-09-06T12:00:00Z')
@@ -23,20 +24,30 @@ describe('airsIn', () => {
   })
 })
 
-// A one-episode film read "1 episodes" on both new modes until this existed.
+// A one-episode special read "1 episodes" on both new modes until this existed.
 describe('episodesLabel', () => {
+  const label = (episodeCount: number | null | undefined) => episodesLabel({ episodeCount })
+
   test('singular and plural, and nothing for a count no source published', () => {
-    expect(episodesLabel(1)).toBe('1 episode')
-    expect(episodesLabel(12)).toBe('12 episodes')
-    expect(episodesLabel(0)).toBe('0 episodes')
-    expect(episodesLabel(null)).toBeUndefined()
-    expect(episodesLabel(undefined)).toBeUndefined()
+    expect(label(1)).toBe('1 episode')
+    expect(label(12)).toBe('12 episodes')
+    expect(label(0)).toBe('0 episodes')
+    expect(label(null)).toBeUndefined()
+    expect(label(undefined)).toBeUndefined()
+  })
+
+  // STUB-330
+  test('nothing for a film, by its format or else its shelf', () => {
+    expect(episodesLabel({ type: MediaType.Movie, episodeCount: 1 })).toBeUndefined()
+    expect(episodesLabel({ type: null, categories: [MediaCategory.Movie], episodeCount: 1 })).toBeUndefined()
+    expect(episodesLabel({ type: MediaType.Special, categories: [MediaCategory.Anime, MediaCategory.Movie], episodeCount: 1 }), 'the format outranks the shelf')
+      .toBe('1 episode')
   })
 
   test('in Russian, each of its four forms', async () => {
     try {
       await startLanguage({ language: 'ru', languages: ['ru-RU'] })
-      expect([1, 2, 5, 21, 1180].map(episodesLabel)).toEqual(['1 серия', '2 серии', '5 серий', '21 серия', '1180 серий'])
+      expect([1, 2, 5, 21, 1180].map(label)).toEqual(['1 серия', '2 серии', '5 серий', '21 серия', '1180 серий'])
     } finally {
       await startLanguage({ language: 'en', languages: ['en-US'] })
     }
