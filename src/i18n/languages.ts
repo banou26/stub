@@ -100,14 +100,17 @@ export const uiLanguage = (languages = browserLanguages(), offered = OFFERED) =>
 
 /**
  * The locale dates, numbers and lists are written in: the browser's first language in `shown`'s language and
- * script, as it writes it, so an en-GB browser keeps 26/10/2026 and es-MX keeps 1,234.5; else `shown` itself.
+ * script, as it writes it, so an en-GB browser keeps 26/10/2026 and es-MX keeps 1,234.5; else `shown` itself. Always
+ * in the Gregorian calendar, which a season's year and the year filter are numbers of: Thai's own is the Buddhist one,
+ * whose 2569 is 2026.
  */
 export const formatLocale = (shown = uiLanguage(), languages = browserLanguages()) => {
   const { language, script } = localeOf(shown)?.maximize() ?? {}
-  return languages.find(tag => {
+  const tag = languages.find(tag => {
     const locale = localeOf(tag)?.maximize()
     return !!locale && locale.language === language && locale.script === script
   }) ?? shown
+  return new Intl.DateTimeFormat(tag).resolvedOptions().calendar === 'gregory' ? tag : new Intl.Locale(tag, { calendar: 'gregory' }).toString()
 }
 
 /** The language content is wanted in: the one picked, else the browser's first whatever it is, as it writes it (`fr-CA`), else English. */

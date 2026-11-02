@@ -11,6 +11,7 @@ import { RawIntlProvider, useIntl } from 'react-intl'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { intl, startLanguage, type Catalogue } from '../../../src/i18n'
+import { releaseDateLabel } from '../../../src/utils/release-date'
 
 // plain descriptors, which the linter does not read: each message as stub writes it, its English its id
 const message = (english: string, description?: string) =>
@@ -206,6 +207,16 @@ describe('starting a language', () => {
     expect((await start('es-419', {}, ['es-MX'])).formatNumber(1234.5)).toBe('1,234.5')
     expect((await start('es-419', {}, ['es-AR'])).formatNumber(1234.5)).toBe('1.234,5')
     expect((await start('fr', { [EPISODES.id]: '{count, plural, one {# épisode} other {# épisodes}}' }, ['fr-CA', 'en'])).formatMessage(EPISODES, { count: 1180 })).toBe('1\u00a0180 épisodes')
+  })
+
+  test('a Thai page writes a date in the year its season labels write, Gregorian, not in Thailand\'s Buddhist calendar', async () => {
+    expect(new Intl.DateTimeFormat('th-TH', { year: 'numeric' }).format(new Date(2026, 0, 7)), 'the control: Thai\'s own calendar').toBe('พ.ศ. 2569')
+    for (const languages of [['th-TH'], []]) {
+      const th = await startLanguage({ language: 'th', languages })
+      expect(th.formatMessage(message('Winter {year}'), { year: 2026 })).toBe('ฤดูหนาว 2026')
+      expect(releaseDateLabel('2026-01-07', { locale: th.locale })).toBe('7 ม.ค. 2026')
+      expect(releaseDateLabel('2026', { locale: th.locale })).toBe('2026')
+    }
   })
 
   test('<html> takes the language and, right to left, its direction', async () => {

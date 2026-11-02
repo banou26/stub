@@ -172,6 +172,13 @@ describe('the locale dates and numbers are written in', () => {
     expect(formatLocale('es-419', ['not a tag'])).toBe('es-419')
   })
 
+  test('in the Gregorian calendar, which a tag whose own calendar is another is given', () => {
+    expect(formatLocale('th', ['th-TH'])).toBe('th-TH-u-ca-gregory')
+    expect(formatLocale('th', [])).toBe('th-u-ca-gregory')
+    expect(new Intl.DateTimeFormat(formatLocale('th', ['th-TH']), { year: 'numeric' }).format(date)).toBe('2026')
+    expect(formatLocale('ja', ['ja-JP'])).toBe('ja-JP')
+  })
+
   test('the browser\'s languages are read when none are given', () => {
     vi.stubGlobal('navigator', { languages: ['en-AU'] })
     expect(formatLocale()).toBe('en-AU')
