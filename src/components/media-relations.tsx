@@ -27,6 +27,10 @@ const style = css`
     gap: 1.5rem;
     margin: 0 0 1.5rem;
     font-size: 1.8rem;
+    /* one line as tall as the 2.8rem held for it: a CJK fallback's normal line height made it 29 px, and the word took
+       a second line beside the graph button in French at 360 px (measured 2026-11-02), so only the button gives way */
+    line-height: 2.8rem;
+    white-space: nowrap;
   }
 
   & .grid {

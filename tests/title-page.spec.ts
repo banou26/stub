@@ -1175,22 +1175,28 @@ const everyFrame = async (page: Page, selector: string) => {
 
 // AniList answers anilist:900010 five seconds late, after AniZip's title and 26 episodes for mal:900010, with its
 // description, facts and four relations, and AniZip names that AniList id, so the MAL address reaches AniList through
-// it (tests/fake-fetch.ts). At 360 px the Relations heading has no room for its series graph button's English label
-// on one line.
-for (const [width, late] of [[390, 'ag:(anilist:900010,mal:900010)'], [390, 'ag:(mal:900010)'], [360, 'ag:(anilist:900010,mal:900010)']] as const) {
-  test(`${width} px wide, the description, facts and Relations keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
+// it (tests/fake-fetch.ts). French's heading is the widest beside the series graph button, whose label is cut there at
+// 360 px, and Japanese's is drawn in a fallback font.
+for (const [width, late, language] of [
+  [390, 'ag:(anilist:900010,mal:900010)', 'en'], [390, 'ag:(mal:900010)', 'en'], [360, 'ag:(anilist:900010,mal:900010)', 'en'],
+  [360, 'ag:(anilist:900010,mal:900010)', 'fr'], [390, 'ag:(anilist:900010,mal:900010)', 'ja'],
+] as const) {
+  test(`${width} px wide${language === 'en' ? '' : ` in ${language}`}, the description, facts and Relations keep their place while AniList answers ${late} late, so the episode page buttons stay put`, async ({ page }) => {
+    if (language !== 'en') await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    const say = (id: string) => language === 'en' ? id : catalogues()[language]![id]!
     await page.setViewportSize({ width, height: 844 })
     await page.goto(`${origin}/title/${late}`)
-    const pages = page.locator('[data-episodes]').getByRole('navigation', { name: 'Episodes pages' })
+    const pages = page.locator('[data-episodes] nav')
     await expect(pages).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('[data-relations]'), 'the control: AniList has not answered yet').toHaveCount(0)
     const held = await onPage(pages)
     const tops = await everyFrame(page, '[data-episodes] nav')
     await expect(page.locator('[data-relations] a.relation-card')).toHaveCount(3, { timeout: 30_000 })
     await expect(page.locator('.facts'), 'the control: with its facts').toContainText('Spec Tag 30')
-    await expect(page.getByRole('button', { name: 'Expand' }), 'and its description').toBeVisible()
+    await expect(page.getByRole('button', { name: say('Expand') }), 'and its description').toBeVisible()
     expect(await tops()).toEqual([held])
     expect(await page.locator('[data-franchise-open] svg').evaluate(icon => icon.getBoundingClientRect().width), 'the graph icon keeps its size').toBe(15)
+    expect(await page.locator('[data-relations] > h2').evaluate(heading => Math.round(heading.querySelector('[data-franchise-open]')!.getBoundingClientRect().right - heading.getBoundingClientRect().right)), 'the graph button ends inside its heading').toBeLessThanOrEqual(0)
     // a short value's box runs to the line's end, so the fade there is past its text
     expect(await page.locator('.facts > div').first().evaluate(line => Math.round(line.getBoundingClientRect().right - line.querySelector('dd')!.getBoundingClientRect().right))).toBe(0)
     // a Japanese title, drawn in a fallback font, keeps its line as tall as the rest
