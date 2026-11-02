@@ -303,8 +303,8 @@ status.
 | `pl` | tracker | lista, wpis | ocena | Oglądam | Powtórka | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
 | `ar` | متتبع | قائمة, إدخال | تقييم | أشاهده | أعيد مشاهدته | سأشاهده | مكتمل | متوقف مؤقتًا | متروك | تتبع سريع |
 | `he` | כלי מעקב | רשימה, רשומה | ציון | בצפייה | צפייה חוזרת | מתוכנן | הושלם | מושהה | ננטש | מעקב מהיר |
-| `id` | pelacak | daftar, entri | skor | Sedang ditonton | Ditonton ulang | Akan ditonton | Selesai | Ditunda | Berhenti | Pelacakan cepat |
-| `ms` | penjejak | senarai, entri | skor | Sedang menonton | Ditonton semula | Akan ditonton | Selesai | Ditangguhkan | Digugurkan | Penjejakan pantas |
+| `id` | pelacak | daftar, entri | skor | Menonton | Ditonton ulang | Akan ditonton | Selesai | Ditunda | Berhenti | Pelacakan cepat |
+| `ms` | penjejak | senarai, entri | skor | Menonton | Tonton semula | Akan ditonton | Selesai | Ditangguhkan | Digugurkan | Penjejakan pantas |
 | `vi` | trình theo dõi | danh sách, mục | điểm | Đang xem | Đang xem lại | Dự định xem | Đã xem xong | Tạm dừng | Bỏ dở | Theo dõi nhanh |
 | `th` | ตัวติดตาม | รายการ | คะแนน | กำลังดู | ดูซ้ำ | วางแผนจะดู | ดูจบแล้ว | พักไว้ | เลิกดู | ติดตามด่วน |
 | `hi` | ट्रैकर | लिस्ट, एंट्री | स्कोर | देख रहे हैं | फिर से देख रहे हैं | देखने की योजना | पूरा हुआ | रुका हुआ | छोड़ दिया | क्विक ट्रैकिंग |
