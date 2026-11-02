@@ -137,7 +137,7 @@ flowchart TD
   R4 -->|"one dated ours with no length, or a fold"| N6["return undefined"]
   R4 -->|"zero or two dated ours: the one in-rule fall-through"| R5
   R5 -->|"an exact fit, or alone and shorter"| W5["the verdict, rule first"]
-  R5 -->|"no first, a veto, or a misfit length"| N7["return undefined"]
+  R5 -->|"no year of ours, no first, a veto, or a misfit length"| N7["return undefined"]
   classDef irrev fill:#b03f33,stroke:#e0796f,color:#ffffff
   classDef ratchet fill:#8f5a0e,stroke:#f2b45c,color:#ffffff
   classDef view fill:#4572b5,stroke:#8db0de,color:#ffffff
@@ -285,7 +285,8 @@ flowchart TD
   C3 -->|"longer than our run, or another year"| CN
   C3 -->|"neither fires"| CW["the verdict, rule ordinal"]
   E1{"Rule 4, YEAR: does it apply?<br/><small>unnumberedWithCount && evidenceYear != null &&<br/>candidates.some(candidate =&gt; candidateYear(candidate) != null)</small>"}
-  E1 -->|"no year on our side, or on any season"| F1
+  E1 -->|"no year on our side"| FN
+  E1 -->|"no year on any season"| F1
   E1 -->|"a year on both sides"| E2{"exactly one season dated our year?<br/><small>if (dated.length === 1)</small>"}
   E2 -->|"zero or two: a year cannot split two cours of one year"| F1
   E2 -->|"one"| E3{"does that season state a length?<br/><small>if (countOf(pick) == null ||<br/>foldVetoed(evidence, pick)) return undefined</small>"}
@@ -370,8 +371,15 @@ because a currently airing season lists fewer episodes than the run will have. S
 the same evidence, a run of 12: a lone season of 5 answers `{ season: 1, rule: 'first' }`, and the same
 season of 5 beside a season 2 of 12 refuses.
 
+A run with no year never reaches the rule. The year veto is all that keeps a later season as long as the
+first out, and a run naming no season is not always a first one: JustWatch titles each season by its show,
+and leaves undated a season that only copied the first one's date, so Wednesday's second season (8
+episodes, like the first) took Netflix's season 1 on 2026-11-02. Such a run is placed by its episode titles
+once they land. `a run with no year is never taken for the first season by its length` pins the rule, and
+`tests/unit/sources/unogs/undated-later-season.test.ts` replays the recorded answers.
+
 Rule 5 is terminal in every branch, so the final `return undefined` at `:268` is reached only by a run
-that carried an ordinal Rule 3 could not place, a part marker, or no count.
+that carried an ordinal Rule 3 could not place, a part marker, no count, or no year.
 
 ## The two vetoes, and the count that is not a count
 

@@ -571,7 +571,8 @@ match downstream.
 the first season's premiere, or the day before it, year included: 15 of the 3545 later seasons of the
 800 most popular US shows on 2026-11-02, Severance's second among them (dated 2022-02-17, aired from
 2025-01-16). `withoutCopiedDates` takes that day and year off as the node is read, so no rule reads the
-first season's date as this one's. Two seasons two weeks apart, as Strike's were, keep theirs, and so
+first season's date as this one's, and no picker takes it for the first season by its length either: its
+episode titles place it. Two seasons two weeks apart, as Strike's were, keep theirs, and so
 does a season named by its own year: Tom and Jerry's "Season 1940" and Jeopardy!'s "Season 1984" are
 listed beside a "Season 1" and do start on its day.
 
