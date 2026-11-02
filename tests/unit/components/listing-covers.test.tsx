@@ -8,7 +8,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ Frown: () => null, Meh: () => null, Smile: () => null }))
+vi.mock('lucide-react', () => ({ Star: () => null }))
 
 const { default: MediaTitle } = await import('../../../src/components/media-title')
 const { default: MediaCard } = await import('../../../src/components/media-card')

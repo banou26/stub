@@ -1341,7 +1341,7 @@ test('a title\'s genres and tags are filled pills, the tags dimmer, on its page 
   await expectPills('the preview', side)
 })
 
-test('the score follows a gold star, on a title\'s page and in a series\' preview', async ({ page }) => {
+test('the score follows a gold star, on a title\'s page, in a series\' preview and on a search\'s cards and rows', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const GOLD = 'rgb(245, 197, 24)'
   await page.goto(`${origin}/title/${RATED}`)
@@ -1353,6 +1353,17 @@ test('the score follows a gold star, on a title\'s page and in a series\' previe
   const score = modal(page).locator('.columns > .side > .score')
   await expect(score).toHaveText('82%', { timeout: 30_000 })
   await expect(score.locator('svg.lucide-star')).toHaveCSS('color', GOLD)
+
+  // the season's works, scored by the bundled catalogue
+  await page.goto(`${origin}/`)
+  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  for (const [mode, item] of [['card', '.cards > a .detail-top > .score'], ['list', '.rows > a .column > .score']] as const) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
+    await page.goto(`${origin}${season}`)
+    const scored = page.locator(item).first()
+    await expect(scored, mode).toHaveText(/^\d+%$/, { timeout: 30_000 })
+    await expect(scored.locator('svg.lucide-star'), mode).toHaveCSS('color', GOLD)
+  }
 })
 
 test('390 px wide, no pill runs past its row, a long tag cut inside its pill in a preview and whole in a page\'s scrolling row', async ({ page }) => {
@@ -2330,12 +2341,12 @@ test.describe('in German, Japanese and the pseudo-language', () => {
 const HOME_WORDS = {
   text: [
     '.theater .actions .play', '.category-bar .tab', ':has(> .list-container) > .title', '.detail .airing-label',
-    '.detail .airing-value', '.detail-top .value', '.column.score .secondary', '.column.format .secondary',
+    '.detail .airing-value', '.detail-top > .score', '.column.score .secondary', '.column.format .secondary',
     '.column .airing', '.modal .links > .more', '.episode .title', '.episode .side time', '.actions .buttons .play',
     '.modal .hero .line', '.modal .side .facts dt', '.movie .actions > .play', '.movie .release > .date', '.modal .sources .how',
     '.modal .main > .none', '.modal .side > .chips > .genre',
   ],
-  labels: ['.detail-top > span', '.column.score > span[aria-label]', '.modal .side > .score > [aria-label]'],
+  labels: ['.detail-top > .score > [aria-label]', '.column > .score > [aria-label]', '.modal .side > .score > [aria-label]'],
 }
 // what Intl writes in English, which no message holds: a countdown's units and a relative day
 const INTL_ENGLISH = /\b(days?|hours?|mins?|secs?|today|yesterday|tomorrow|ago)\b/

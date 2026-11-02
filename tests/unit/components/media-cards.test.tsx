@@ -7,8 +7,11 @@ import { memoryLocation } from 'wouter/memory-location'
 
 import { share } from './share'
 
-// lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => ({ Check: () => null, Frown: () => null, Meh: () => null, Share2: () => null, Smile: () => null }))
+// lucide-react is CommonJS and requires react under node; the score's star keeps its label, read here
+vi.mock('lucide-react', async () => {
+  const { h } = await import('preact')
+  return { Check: () => null, Share2: () => null, Star: (props: object) => h('svg', props) }
+})
 
 const { default: CategoryTabs } = await import('../../../src/components/category-tabs')
 const { MediaCategory } = await import('../../../src/generated/graphql')
@@ -58,8 +61,9 @@ const draw = (vnode: preact.JSX.Element) => {
 test('a card names the next airing, the score, the format and the episodes in English', () => {
   const card = draw(<MediaCard media={AIRING as never} to="/media/anilist:21"/>)
   expect([card.text('.airing-label'), card.text('.airing-value'), card.text('.meta'), card.text('.chip')])
-    .toEqual([['Ep 1180 airing in'], ['2 days, 3 hours'], ['TV Show • 1180 episodes'], ['action', 'adventure']])
-  expect([card.label('.detail-top > span'), card.text('.detail-top .value')]).toEqual(['Rated 82 percent', ['82%']])
+    .toEqual([['Ep 1180 airing in'], ['2 days, 3 hours'], ['TV Show • 1180 episodes'], ['Action', 'Adventure']])
+  // STUB-339: the genres are pills as a title's page draws them, the score after a gold star
+  expect([card.text('.chips > .chip.genre'), card.label('.detail-top > .score > svg'), card.text('.detail-top > .score')]).toEqual([['Action', 'Adventure'], 'Score', ['82%']])
   const finished = draw(<MediaCard media={FINISHED as never} to="/media/anilist:21"/>)
   expect([finished.text('.airing-value'), finished.text('.meta')]).toEqual([['Finished'], ['TV Show • 1 episode']])
   const unknown = draw(<MediaCard media={{ ...FINISHED, status: null, type: null, episodeCount: null } as never} to="/media/anilist:21"/>)
@@ -69,7 +73,8 @@ test('a card names the next airing, the score, the format and the episodes in En
 test('a row names the score\'s users grouped, the episodes and the next airing to one unit, in English', () => {
   const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
   expect([row.text('.score .secondary'), row.text('.format > span'), row.text('.airing'), row.text('.chip')])
-    .toEqual([['115,797 users'], ['TV Show', '1180 episodes'], ['Ep 1180 airing in 2 days'], ['action', 'adventure', 'comedy']])
+    .toEqual([['115,797 users'], ['TV Show', '1180 episodes'], ['Ep 1180 airing in 2 days'], ['Action', 'Adventure', 'Comedy']])
+  expect([row.text('.chips > .chip.genre'), row.label('.column > .score > svg'), row.text('.column > .score')]).toEqual([['Action', 'Adventure', 'Comedy'], 'Score', ['82%']])
   // a lone user read "1 users" until the plural was a message
   expect(draw(<MediaRow media={FINISHED as never} to="/media/anilist:21"/>).text('.score .secondary, .format > span, .airing'))
     .toEqual(['1 user', 'TV Show', '1 episode'])
@@ -143,8 +148,8 @@ describe('in German', () => {
 
   test('a card and a row read German, their numbers and countdowns written the German way', () => {
     const card = draw(<MediaCard media={AIRING as never} to="/media/anilist:21"/>)
-    expect([card.text('.airing-label'), card.text('.airing-value'), card.label('.detail-top > span'), card.text('.detail-top .value')])
-      .toEqual([['Bis Folge 1180:'], ['2 Tage, 3 Stunden'], 'Bewertung: 82 Prozent', ['82\u00a0%']])
+    expect([card.text('.airing-label'), card.text('.airing-value'), card.label('.detail-top > .score > svg'), card.text('.detail-top > .score')])
+      .toEqual([['Bis Folge 1180:'], ['2 Tage, 3 Stunden'], 'Bewertung', ['82\u00a0%']])
     const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
     expect([row.text('.score .secondary'), row.text('.airing')]).toEqual([['115.797 Nutzer'], ['Bis Folge 1180: 2 Tage']])
   })

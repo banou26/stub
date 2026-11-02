@@ -11,7 +11,8 @@ import { accentVars } from '../utils/color'
 import { formatCountdown } from '../utils/countdown'
 import { useCoverUrl } from '../utils/use-cover-url'
 import { useNow } from '../utils/use-now'
-import MediaScore from './media-score'
+import MediaCategories, { categoriesStyle } from './media-categories'
+import { StarScore, starScoreStyle } from './media-score'
 import { CARD_BOX } from './media-title'
 
 const style = css`
@@ -77,6 +78,10 @@ const style = css`
     font-size: 1.4rem;
   }
 
+  .detail-top > .score {
+    ${starScoreStyle}
+  }
+
   .airing-label {
     color: rgba(255, 255, 255, 0.5);
     font-size: 1.3rem;
@@ -108,21 +113,9 @@ const style = css`
   }
 
   .chips {
-    display: flex;
-    flex-wrap: wrap;
+    ${categoriesStyle}
     justify-content: flex-end;
-    gap: 0.6rem;
     margin-top: auto;
-  }
-
-  .chip {
-    padding: 0.4rem 1rem;
-    border-radius: 2rem;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 1.2rem;
-    font-weight: 600;
-    white-space: nowrap;
   }
 
   @media (max-width: 768px) {
@@ -176,13 +169,11 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
                 : <div className="airing-value">{statusLabel(media.status) ?? intl.formatMessage({ id: 'Unknown status', defaultMessage: 'Unknown status' })}</div>
             }
           </div>
-          {media.averageScore != null && <MediaScore percent={media.averageScore}/>}
+          {media.averageScore != null && <StarScore percent={media.averageScore}/>}
         </div>
         {meta && <div className="meta">{meta}</div>}
         <div className="description">{media.shortDescriptions?.at(0)?.shortDescription}</div>
-        <div className="chips">
-          {media.genres?.slice(0, 2).map(genre => <span key={genre} className="chip">{genre.toLowerCase()}</span>)}
-        </div>
+        <MediaCategories genres={media.genres?.slice(0, 2)}/>
       </div>
     </Link>
   )

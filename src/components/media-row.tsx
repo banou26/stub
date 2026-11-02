@@ -11,7 +11,8 @@ import { accentVars } from '../utils/color'
 import { formatCountdown } from '../utils/countdown'
 import { useCoverUrl } from '../utils/use-cover-url'
 import { useNow } from '../utils/use-now'
-import MediaScore from './media-score'
+import MediaCategories, { categoriesStyle } from './media-categories'
+import { StarScore, starScoreStyle } from './media-score'
 import { CARD_BOX } from './media-title'
 
 const style = css`
@@ -51,20 +52,8 @@ const style = css`
   }
 
   .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    ${categoriesStyle}
     margin-top: 0.6rem;
-  }
-
-  .chip {
-    padding: 0.3rem 0.9rem;
-    border-radius: 2rem;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 1.15rem;
-    font-weight: 600;
-    white-space: nowrap;
   }
 
   .column {
@@ -72,6 +61,10 @@ const style = css`
     flex-direction: column;
     gap: 0.4rem;
     font-size: 1.4rem;
+  }
+
+  .column > .score {
+    ${starScoreStyle}
   }
 
   .secondary {
@@ -116,12 +109,10 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
       <div className="cover" style={coverUrl ? { backgroundImage: `url(${coverUrl})` } : undefined}/>
       <div className="heading">
         <div className="title">{media.titles?.at(0)?.title}</div>
-        <div className="chips">
-          {media.genres?.slice(0, 5).map(genre => <span key={genre} className="chip">{genre.toLowerCase()}</span>)}
-        </div>
+        <MediaCategories genres={media.genres?.slice(0, 5)}/>
       </div>
       <div className="column score">
-        {media.averageScore != null && <MediaScore percent={media.averageScore} size={17}/>}
+        {media.averageScore != null && <StarScore percent={media.averageScore}/>}
         {
           media.popularity != null
             && <span className="secondary">{intl.formatMessage({ id: '{count, plural, one {# user} other {# users}}', defaultMessage: '{count, plural, one {# user} other {# users}}' }, { count: media.popularity })}</span>
