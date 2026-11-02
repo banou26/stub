@@ -483,9 +483,11 @@ const Wordmark = () => {
           },
           onPointerLeave: release,
           onPointerCancel: release,
-          // a mouse keeps the browser's own menu; a Mac's Control click also pressed the wordmark, and its menu takes the release
+          // only a touch or a pen asks for the site menu: a mouse, and a contextmenu with no pointerType (a MouseEvent
+          // before Chrome 92, Firefox 129 and Safari 18.2), keep the browser's own; a Mac's Control click also pressed
+          // the wordmark, and its menu takes the release
           onContextMenu: (event: MouseEvent) => {
-            if ((event as PointerEvent).pointerType === 'mouse') return release()
+            if (!['touch', 'pen'].includes((event as PointerEvent).pointerType)) return release()
             event.preventDefault()
             openFrom(event.currentTarget as HTMLElement)
           },

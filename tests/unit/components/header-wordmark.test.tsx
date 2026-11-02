@@ -138,20 +138,21 @@ test('a press that leaves the wordmark opens nothing, even released back on it a
   expect(history).toEqual(['/settings', '/'])
 })
 
-test('a right click with a mouse leaves the browser its own menu, and so does a Mac\'s Control click, whose press opens nothing', () => {
+// a contextmenu with no pointerType is the MouseEvent of browsers before Chrome 92, Firefox 129 and Safari 18.2
+test.each([['a mouse', { pointerType: 'mouse' }], ['no pointer type', {}]])('a right click with %s leaves the browser its own menu, and so does a Mac\'s Control click, whose press opens nothing', (_, pointer) => {
   const { history, fire, wait } = open()
-  expect(fire('contextmenu', { pointerType: 'mouse' }).defaultPrevented).toBe(false)
+  expect(fire('contextmenu', pointer).defaultPrevented).toBe(false)
   expect(menu()).toBeNull()
   fire('pointerdown', { pointerType: 'mouse', ctrlKey: true })
-  expect(fire('contextmenu', { pointerType: 'mouse', ctrlKey: true }).defaultPrevented).toBe(false)
+  expect(fire('contextmenu', { ...pointer, ctrlKey: true }).defaultPrevented).toBe(false)
   wait(600)
   expect(menu()).toBeNull()
   expect(history).toEqual(['/settings'])
 })
 
-test('the menu a touch\'s long press asks for is the site menu, never the phone\'s own', () => {
+test.each(['touch', 'pen'])('the menu a %s\'s long press asks for is the site menu, never the device\'s own', pointerType => {
   const { history, fire } = open()
-  expect(fire('contextmenu', { pointerType: 'touch' }).defaultPrevented).toBe(true)
+  expect(fire('contextmenu', { pointerType }).defaultPrevented).toBe(true)
   expect(menu()).not.toBeNull()
   expect(history).toEqual(['/settings'])
 })
