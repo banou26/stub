@@ -77,8 +77,8 @@ vi.mock('urql', async () => {
 vi.mock('wouter', async importOriginal => ({ ...await importOriginal(), useParams: () => params, useLocation: () => ['', navigate], useSearch: () => search }))
 // the worker's answer to which origins play their own releases, held until `held` settles; and each added source's
 // `account`, by origin, asked as the worker asks it, with every origin the page asked about, or with the worker
-// unreachable while `down`
-const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, account: {} as Record<string, () => Promise<unknown>>, asked: [] as string[], down: false }))
+// unreachable while `down`; and each added source's `check`, with every origin the page asked it of
+const lookups = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, account: {} as Record<string, () => Promise<unknown>>, asked: [] as string[], down: false, check: {} as Record<string, () => Promise<unknown>>, checked: [] as string[] }))
 vi.mock('../../../../src/worker', async () => {
   const { askAccount } = await import('../../../../src/worker/plugin-sources')
   return {
@@ -93,7 +93,10 @@ vi.mock('../../../../src/worker', async () => {
       const account = lookups.account[id]
       return account ? askAccount(account) : undefined
     },
-    remoteCheck: async () => undefined,
+    remoteCheck: async (id: string) => {
+      lookups.checked.push(id)
+      return await lookups.check[id]?.() ?? undefined
+    },
     searchAgain: async () => {},
   }
 })
@@ -357,6 +360,8 @@ afterEach(() => {
   lookups.account = {}
   lookups.asked = []
   lookups.down = false
+  lookups.check = {}
+  lookups.checked = []
   said.reset()
   detecting.held = Promise.resolve()
   detecting.installs.mockClear()
@@ -3142,6 +3147,24 @@ test('a ranked source connecting after a settled answer is waited for until an a
   media = { ...single }
   await rerender()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
+})
+
+// ext.to's search goes out once its package connects and meets the check about 2 s later, past the lookups
+test("a source connecting after a settled answer is asked its check once an answer came after it connected, so its prompt shows", async () => {
+  vi.useFakeTimers()
+  const EXTTO_PACKAGE = 'https:extto.spec.test'
+  plugins.statuses = [{ uri: EXTTO_PACKAGE, state: 'connecting' }]
+  const { host, rerender } = live()
+  await settle()
+  lookups.check.extto = async () => null
+  await pluginsChange({ uri: EXTTO_PACKAGE, state: 'connected', sources: [{ origin: 'extto', name: 'ext.to' }] })
+  expect(lookups.checked, 'its search is still out').toEqual([])
+
+  lookups.check.extto = async () => ({ url: 'https://ext.to/browse/?imdb_id=tt1375666', passed: 'table.search-table' })
+  media = { ...single }
+  await rerender()
+  expect(lookups.checked).toEqual(['extto'])
+  expect(host.querySelector('[data-check="extto"]')?.textContent).toMatch(/ext\.toVerify$/)
 })
 
 test('a ranked added source turned off does not hold Play, connecting or connected', async () => {

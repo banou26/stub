@@ -992,7 +992,7 @@ const Watch = () => {
       </div>
 
       <div className="watch-info sources">
-        <SourceChecks sources={addedSources} answered={answered}/>
+        <SourceChecks sources={addedSources.filter(({ origin }) => ways.settled(origin))}/>
         <SourceSelector
           sources={sources}
           onPickRelease={uri =>

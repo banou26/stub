@@ -4,6 +4,7 @@ import { button, mount, unmount, withIntl } from '../../components/dom'
 import type { WindowFrame } from '@fkn/lib'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
+import { render as draw } from 'preact'
 import { act } from 'preact/test-utils'
 
 // the real window helper, with only FKN's window opener and the extension's exposure replaced
@@ -59,8 +60,8 @@ beforeEach(() => {
 })
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
 
-const render = (answered = true) => {
-  const host = mount(withIntl(<SourceChecks sources={[EXTTO, YTS]} answered={answered}/>))
+const render = (sources = [EXTTO, YTS]) => {
+  const host = mount(withIntl(<SourceChecks sources={sources}/>))
   hosts.push(host)
   return host
 }
@@ -74,12 +75,18 @@ test('a check a source reports, once its search settled, raises a prompt naming 
   expect(button(host, 'Verify')).toBeDefined()
 })
 
-test('nothing is asked or shown before the sources answered', async () => {
+// the watch page hands over a source once its search has settled, and again once it settles anew
+test('a source is asked as it is handed over, and again each time it comes back', async () => {
   worker.checks.extto = async () => CHECK
-  const host = render(false)
+  const host = render([])
   await flush()
   expect(worker.asked).toEqual([])
-  expect(host.querySelector('li')).toBeNull()
+  for (const sources of [[EXTTO], [], [EXTTO]]) {
+    act(() => { draw(withIntl(<SourceChecks sources={sources}/>), host) })
+    await flush()
+  }
+  expect(worker.asked).toEqual(['extto', 'extto'])
+  expect(button(host, 'Verify')).toBeDefined()
 })
 
 test("the prompt's button opens the check's page in a window on stub's cloud jar, before anything is awaited", async () => {

@@ -66,11 +66,11 @@ const style = css`
 type Source = { origin: string, name: string, icon?: string | null }
 
 /**
- * A prompt for each of `sources` whose site asks the viewer to pass a check, asked once the page's sources have
- * `answered`: the source's name and one button. The button opens the check in a window, and once that window is done,
- * passed or closed, the source is searched again and asked again.
+ * A prompt for each of `sources` whose site asks the viewer to pass a check: the source's name and one button. Hand it
+ * the sources whose search has settled, since each is asked as it joins. The button opens the check in a window, and
+ * once that window is done, passed or closed, the source is searched again and asked again.
  */
-const SourceChecks = ({ sources, answered }: { sources: readonly Source[], answered: boolean }) => {
+const SourceChecks = ({ sources }: { sources: readonly Source[] }) => {
   const intl = useIntl()
   const [checks, setChecks] = useState<Record<string, SourceCheck>>({})
   const [open, setOpen] = useState<string>()
@@ -84,8 +84,8 @@ const SourceChecks = ({ sources, answered }: { sources: readonly Source[], answe
   })
   const origins = sources.map(({ origin }) => origin).join(',')
   useEffect(() => {
-    if (answered && origins) for (const origin of origins.split(',')) void ask(origin)
-  }, [answered, origins])
+    if (origins) for (const origin of origins.split(',')) void ask(origin)
+  }, [origins])
 
   const pass = (origin: string, check: SourceCheck) => {
     const passing = passSourceCheck(check)
