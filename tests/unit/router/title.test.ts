@@ -33,7 +33,6 @@ test('the chips name the episodes, the format and the status', () => {
   expect(titleChips({ episodeCount: 1, type: MediaType.Special }), 'one episode is not plural').toEqual(['1 Episode', 'Special'])
 })
 
-// STUB-330: a film is one work, not one episode
 test('a film names no episode count, by its format or else its shelf', () => {
   const film = { type: MediaType.Movie, categories: ['ANIME', 'MOVIE'], episodeCount: 1, duration: 120 }
   expect(titleChips(film)).toEqual(['Movie'])

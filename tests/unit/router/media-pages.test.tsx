@@ -497,7 +497,6 @@ describe('the title page', () => {
     expect(host.querySelector('[data-episodes]')).toBeNull()
   })
 
-  // STUB-330
   test('names no episode count in a film\'s chips or facts', () => {
     const one = { ...film(3), episodeCount: 1, settled: true }
     const { host, answer } = titlePage(one.uri)

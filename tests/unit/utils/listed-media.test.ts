@@ -36,7 +36,6 @@ describe('episodesLabel', () => {
     expect(label(undefined)).toBeUndefined()
   })
 
-  // STUB-330
   test('nothing for a film, by its format or else its shelf', () => {
     expect(episodesLabel({ type: MediaType.Movie, episodeCount: 1 })).toBeUndefined()
     expect(episodesLabel({ type: null, categories: [MediaCategory.Movie], episodeCount: 1 })).toBeUndefined()

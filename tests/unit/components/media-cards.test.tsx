@@ -82,7 +82,7 @@ test('a row\'s preview names its episodes, and a count no source gave as a quest
   expect([preview(1180), preview(1), preview(null)]).toEqual([['1180 Episodes'], ['1 Episode'], ['? Episodes']])
 })
 
-// STUB-330: a film is one work, so it names no episode count, the one a source gave or a question mark
+// a film is one work, so it names no episode count, the one a source gave or a question mark
 const FILM = { ...FINISHED, type: 'MOVIE', categories: ['ANIME', 'MOVIE'] }
 const SPECIAL = { ...FINISHED, type: 'SPECIAL', categories: ['ANIME', 'SERIES'] }
 const card = (media: object) => draw(<MediaCard media={media as never} to="/media/anilist:21"/>).text('.meta')
