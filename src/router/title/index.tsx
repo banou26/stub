@@ -10,7 +10,8 @@ import { useLocation, useParams, useSearch } from 'wouter'
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import MediaFranchise from '../../components/media-franchise'
 import MediaRelations, { MediaRecommendations } from '../../components/media-relations'
-import MediaScore from '../../components/media-score'
+import MediaCategories, { categoriesStyle } from '../../components/media-categories'
+import { StarScore, starScoreStyle } from '../../components/media-score'
 import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaTracking from '../../components/media-tracking'
 import { NAME_LIST } from '../../i18n'
@@ -187,6 +188,10 @@ const style = css`
       font-weight: 600;
     }
 
+    & > .chips > .chip > .score {
+      ${starScoreStyle}
+    }
+
     & > .description {
       margin-top: 0.8rem;
       font-size: 1.5rem;
@@ -318,6 +323,10 @@ const style = css`
       overflow-wrap: anywhere;
     }
 
+    dd > .chips {
+      ${categoriesStyle}
+    }
+
     dd > .pending {
       display: inline-block;
       width: 12rem;
@@ -351,6 +360,24 @@ const style = css`
         overflow-x: auto;
         scrollbar-width: none;
         mask-image: linear-gradient(to var(--inline-end, right), #000 calc(100% - 3rem), transparent);
+      }
+
+      /* one row of pills, as tall held as drawn, padded as wide as the fade so the last shows whole at the end, a
+         pill no wider than the line short of that fade */
+      & > .pills {
+        height: 2.8rem;
+      }
+
+      & > .pills > dd {
+        container-type: inline-size;
+      }
+
+      & > .pills > dd > .chips {
+        flex-wrap: nowrap;
+        width: max-content;
+        padding-inline-end: 3rem;
+
+        & > .chip { max-width: calc(100cqi - 3rem); }
       }
     }
   }
@@ -763,7 +790,7 @@ const TitlePage = () => {
               ? (
                 <div className="chips">
                   {chips.map(chip => <span className="chip" key={chip}>{chip}</span>)}
-                  {media?.averageScore != null ? <span className="chip"><MediaScore percent={media.averageScore} size={16}/></span> : undefined}
+                  {media?.averageScore != null ? <span className="chip"><StarScore percent={media.averageScore}/></span> : undefined}
                   {ratings.map(rating => <span className="chip" key={rating}>{rating}</span>)}
                 </div>
               )
@@ -802,9 +829,14 @@ const TitlePage = () => {
           facts.length
             ? (
               <dl className="facts">
-                {facts.map(({ label, value }) => value
-                  ? <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
-                  : <div key={label} className="fact placeholder" aria-hidden="true"><dt>{label}</dt><dd><Placeholder className="pending"/></dd></div>)}
+                {facts.map(({ label, value, pills }) => value
+                  ? (
+                    <div key={label} className={pills && 'pills'}>
+                      <dt>{label}</dt>
+                      <dd>{typeof value === 'string' ? value : <MediaCategories {...pills === 'genre' ? { genres: value } : { tags: value }}/>}</dd>
+                    </div>
+                  )
+                  : <div key={label} className={pills ? 'fact placeholder pills' : 'fact placeholder'} aria-hidden="true"><dt>{label}</dt><dd><Placeholder className="pending"/></dd></div>)}
               </dl>
             )
             : undefined

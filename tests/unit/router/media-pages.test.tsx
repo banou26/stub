@@ -131,8 +131,8 @@ const classes = (elements: Iterable<Element>) => [...elements]
 // every placeholder drawn, by its own classes: the outermost element a reader is told to skip
 const pending = (root: Element) => classes([...root.querySelectorAll('[aria-hidden="true"]')]
   .filter(element => !element.parentElement!.closest('[aria-hidden="true"]')))
-// the lines of facts every anime has, each held until it arrives
-const HELD_FACTS = Array<string>(11).fill('fact.placeholder')
+// the lines of facts every anime has, each held until it arrives, the genres' and the tags' as tall as their pills
+const HELD_FACTS = [...Array<string>(8).fill('fact.placeholder'), 'fact.placeholder.pills', 'fact.placeholder.pills', 'fact.placeholder']
 // each fact's label, and its value or that it is held
 const facts = (root: Element) => [...root.querySelectorAll('.facts > div')]
   .map(line => `${line.querySelector('dt')!.textContent}: ${line.classList.contains('placeholder') ? 'held' : line.querySelector('dd')!.textContent}`)
@@ -165,7 +165,7 @@ describe('the preview', () => {
     const line = () => modal().querySelector('.hero .stack > .line + .title')?.previousElementSibling?.textContent
     answer(frieren)
     expect(line()).toBe(`TV Show · ${releaseDateLabel('2023-09-29')} · 2 Episodes`)
-    expect(facts(modal())).toEqual(['Genres: Fantasy', 'Tags: Travel', `Aired: ${releaseDateLabel('2023-09-29')}`])
+    expect(facts(modal())).toEqual([`Aired: ${releaseDateLabel('2023-09-29')}`])
     const seasonOnly = { ...frieren, startDate: null, settled: true }
     answer(seasonOnly)
     expect(line()).toBe('TV Show · Fall 2023 · 2 Episodes')
@@ -173,7 +173,7 @@ describe('the preview', () => {
     const undated = { ...seasonOnly, season: null, seasonYear: null }
     answer(undated)
     expect(line()).toBe('TV Show · 2 Episodes')
-    expect(facts(modal())).toEqual(['Genres: Fantasy', 'Tags: Travel'])
+    expect(facts(modal())).toEqual([])
   })
 
   // HOR-1059: the owner, "there's spacing between "More details" and the tracking elements. I don't want that."
@@ -181,7 +181,7 @@ describe('the preview', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
     answer(work(1, 'Frieren'))
     expect(classes(modal().querySelector('.content > .columns > .main')!.children)).toEqual(['tracking-compact', 'description'])
-    expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['facts', 'links'])
+    expect(classes(modal().querySelector('.content > .columns > .side')!.children)).toEqual(['chips', 'facts', 'links'])
   })
 
   // the owner, 2026-10-30: "for the movie, I think in the end I actually prefer the same as series, so 1: cinematic"
@@ -410,7 +410,7 @@ describe('the title page', () => {
     answer(credited)
     const texts = (selector: string) => [...host.querySelectorAll(selector)].map(element => element.textContent)
     const attributes = (selector: string, name: string) => [...host.querySelectorAll(selector)].map(element => element.getAttribute(name))
-    expect(texts('.chips > .chip')).toEqual(['2 Episodes', 'TV Show', 'Finished'])
+    expect(texts('.heading > .chips > .chip')).toEqual(['2 Episodes', 'TV Show', 'Finished'])
     expect(texts('[data-relations] h2 > span, [data-episodes] > h2, [data-recommendations] h2 > span, [data-characters] h2 > span, [data-staff] > h2, [data-themes] > h2'))
       .toEqual(['Relations', 'Episodes', 'Recommendations', 'Characters', 'Staff', 'Themes'])
     expect(texts('[data-relations] .relation-card .relation')).toEqual(['Sequel'])

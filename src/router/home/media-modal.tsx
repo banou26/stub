@@ -10,10 +10,12 @@ import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
-import { LucidePause, LucidePlay, LucideStar } from 'lucide-react'
+import { LucidePause, LucidePlay } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
 import Collapsible from '../../components/collapsible'
+import MediaCategories, { categoriesStyle } from '../../components/media-categories'
 import MediaRelations from '../../components/media-relations'
+import { StarScore, starScoreStyle } from '../../components/media-score'
 import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
@@ -27,7 +29,7 @@ import { currentMedia, listedMediaFor, notKept } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay, { FilmSources } from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
-import { filmFacts, filmLine, seriesFacts, seriesLine } from './preview-facts'
+import { filmLine, seriesLine, sideFacts } from './preview-facts'
 import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { useNow } from '../../utils/use-now'
@@ -531,36 +533,13 @@ scrollbar-gutter: stable;
       }
 
       & > .side > .score {
+        ${starScoreStyle}
         align-self: flex-start;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
         font-size: 1.5rem;
-        font-weight: 700;
-        color: #f5c518;
       }
 
       & > .side > .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-
-        & > .chip {
-          display: inline-flex;
-          align-items: center;
-          max-width: 100%;
-          height: 2.8rem;
-          padding: 0 1.1rem;
-          border-radius: 0.6rem;
-          font-size: 1.3rem;
-          font-weight: 600;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        & > .genre { background: rgba(255, 255, 255, 0.12); color: #fff; }
-        & > .tag { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); }
+        ${categoriesStyle}
       }
 
       & > .side > .facts {
@@ -751,38 +730,14 @@ const Line = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
   return <span className="line">{movie ? filmLine(media, new Date(now)) : seriesLine(media)}</span>
 }
 
-const SeriesFacts = ({ media }: { media: DetailsMedia }) => {
-  const facts = seriesFacts(media)
-  return facts.length
-    ? <dl className="facts">{facts.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-    : null
-}
-
-const FilmFacts = ({ media }: { media: DetailsMedia }) => {
+const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
   const intl = useIntl()
-  const { score, genres, tags } = filmFacts(media)
+  const { genres, tags, aired } = sideFacts(media, movie)
   return (
     <>
-      {
-        score
-          ? (
-            <span className="score">
-              <LucideStar size={15} fill="currentColor" role="img" aria-label={intl.formatMessage({ id: 'Score', defaultMessage: 'Score' })}/>
-              {score}
-            </span>
-          )
-          : undefined
-      }
-      {
-        genres.length || tags.length
-          ? (
-            <div className="chips">
-              {genres.map(genre => <span key={genre} className="chip genre">{genre}</span>)}
-              {tags.map(tag => <span key={tag} className="chip tag">{tag}</span>)}
-            </div>
-          )
-          : undefined
-      }
+      {media.averageScore ? <StarScore percent={media.averageScore}/> : undefined}
+      <MediaCategories genres={genres} tags={tags}/>
+      {aired ? <dl className="facts"><div><dt>{intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' })}</dt><dd>{aired}</dd></div></dl> : undefined}
     </>
   )
 }
@@ -992,7 +947,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
             }
           </div>
           <aside ref={side} className="side">
-            {data?.media ? isMovie ? <FilmFacts media={data.media}/> : <SeriesFacts media={data.media}/> : undefined}
+            {data?.media ? <SideFacts media={data.media} movie={isMovie}/> : undefined}
             {links}
           </aside>
         </div>

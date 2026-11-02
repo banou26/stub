@@ -317,7 +317,7 @@ test('a preview\'s description that fits shows whole with no button, at 1440 and
   // taller than the height it collapses to on its own, and under the sixty genres beside it
   await page.setViewportSize({ width: 1440, height: 900 })
   await preview(page, BESIDE, 'Spec Beside')
-  await expect(modal(page).locator('.facts')).toContainText('Spec Genre 60')
+  await expect(modal(page).locator('.columns > .side')).toContainText('Spec Genre 60')
   await expect(toggles(page)).toHaveCount(0)
   const beside = await fold(page)
   expect(beside.drawn, 'all of it').toBeGreaterThanOrEqual(beside.text)
@@ -329,7 +329,7 @@ test('a preview\'s long description collapses to its row with a button, the page
   for (const [width, viewport] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height: viewport })
     await preview(page, OVER, 'Spec Over')
-    await expect(modal(page).locator('.facts')).toContainText('Spec Genre 60')
+    await expect(modal(page).locator('.columns > .side')).toContainText('Spec Genre 60')
     await expect(toggles(page)).toHaveText('Expand')
     const folded = await fold(page)
     expect(folded.drawn, `${width}: it hides what it folds`).toBeLessThan(folded.text)
@@ -1227,7 +1227,8 @@ test('a fact is one line where the facts sit above the lists, at a tablet\'s 800
     await page.setViewportSize({ width, height: 900 })
     await page.goto(`${origin}/title/ag:(anilist:900010,mal:900010)`)
     await expect(line('Tags')).toContainText('Spec Tag 30', { timeout: 30_000 })
-    expect(await height(line('Tags')) === await height(line('Format')), `${width} px`).toBe(oneLine)
+    // its tags one row of pills
+    expect(await height(line('Tags')) === await height(line('Tags').locator('.chip').first()), `${width} px`).toBe(oneLine)
   }
 })
 
@@ -1274,6 +1275,113 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
   await expect(chips).toHaveText(RATED_CHIPS.slice(4))
 })
 
+// STUB-339, the owner's mockup: the score after a gold star, then the genres and the tags as pills, the tags dimmer.
+// Spec Late (anilist:900010) has three genres and thirty tags (tests/fake-fetch.ts).
+const LATE = 'ag:(anilist:900010,mal:900010)'
+
+/** A pill's fill and text as drawn over the opaque colour behind it, the contrast between them, its corner and padding. */
+const pillLook = (pill: Locator) => pill.evaluate(element => {
+  const rgba = (value: string) => {
+    const [r, g, b, a = 1] = value.match(/[\d.]+/g)!.map(Number)
+    return [r!, g!, b!, a]
+  }
+  const over = (top: number[], under: number[]) => under.map((channel, index) => top[index]! * top[3]! + channel * (1 - top[3]!))
+  const layers: number[][] = []
+  for (let at: Element | null = element; at; at = at.parentElement) {
+    layers.unshift(rgba(getComputedStyle(at).backgroundColor))
+    if (layers[0]![3] === 1) break
+  }
+  const fill = layers.reduce((under, layer) => over(layer, under), [0, 0, 0])
+  const style = getComputedStyle(element)
+  const text = over(rgba(style.color), fill)
+  const luminance = (rgb: number[]) => {
+    const [r, g, b] = rgb.map(channel => channel / 255).map(channel => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
+  }
+  const [light, dark] = [luminance(text), luminance(fill)].sort((a, b) => b - a)
+  return {
+    fill: Math.round(luminance(fill) * 1000),
+    text: Math.round(luminance(text) * 1000),
+    contrast: (light! + 0.05) / (dark! + 0.05),
+    radius: parseFloat(style.borderTopLeftRadius),
+    padding: parseFloat(style.paddingInlineStart),
+  }
+})
+
+const expectPills = async (where: string, pills: Locator) => {
+  const [genre, tag] = await Promise.all([pillLook(pills.locator('.genre').first()), pillLook(pills.locator('.tag').first())])
+  for (const [name, look] of [['genre', genre], ['tag', tag]] as const) {
+    expect(look.contrast, `${where}: a ${name}'s text holds AA on its pill`).toBeGreaterThanOrEqual(4.5)
+    expect(look.radius, `${where}: a ${name} is rounded`).toBeGreaterThan(0)
+    expect(look.padding, `${where}: a ${name} is padded`).toBeGreaterThan(0)
+  }
+  expect(genre.fill, `${where}: a genre's fill is lighter than a tag's`).toBeGreaterThan(tag.fill)
+  expect(genre.text, `${where}: a genre's text is brighter than a tag's`).toBeGreaterThan(tag.text)
+}
+
+test('a title\'s genres and tags are filled pills, the tags dimmer, on its page and in a series\' preview', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/title/${LATE}`)
+  const facts = page.locator('.facts')
+  await expect(facts.locator('.chip.tag')).toHaveCount(30, { timeout: 30_000 })
+  await expect(facts.locator('.chip.genre')).toHaveText(['Drama', 'Mystery', 'Psychological'])
+  await expectPills('the page', facts)
+
+  await page.goto(`${origin}/media/${LATE}`)
+  const side = modal(page).locator('.columns > .side')
+  await expect(side.locator('.chip.tag'), 'the first five tags').toHaveCount(5, { timeout: 30_000 })
+  await expectPills('the preview', side)
+})
+
+test('the score follows a gold star, on a title\'s page and in a series\' preview', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const GOLD = 'rgb(245, 197, 24)'
+  await page.goto(`${origin}/title/${RATED}`)
+  const chip = page.locator('.heading > .chips > .chip').filter({ hasText: /^82%$/ })
+  await expect(chip).toBeVisible({ timeout: 30_000 })
+  await expect(chip.locator('svg.lucide-star')).toHaveCSS('color', GOLD)
+
+  await page.goto(`${origin}/media/${RATED}`)
+  const score = modal(page).locator('.columns > .side > .score')
+  await expect(score).toHaveText('82%', { timeout: 30_000 })
+  await expect(score.locator('svg.lucide-star')).toHaveCSS('color', GOLD)
+})
+
+test('390 px wide, no pill runs past its row and a long tag is cut inside its pill, on a title\'s page and in its preview', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  /** Every pill against its row, scrolled to its end, once the last tag reads as long as a source might write one. */
+  const measure = (row: Locator) => row.evaluate(element => {
+    const last = element.querySelector('.tag:last-child')!
+    last.textContent = 'A Tag Named Far Longer Than Any Phone Is Wide, As A Source Might Write One'
+    element.scrollLeft = element.scrollWidth * (getComputedStyle(element).direction === 'rtl' ? -1 : 1)
+    const bounds = element.getBoundingClientRect()
+    return {
+      past: [...element.querySelectorAll('.chip')].filter(pill => {
+        const box = pill.getBoundingClientRect()
+        return box.top < bounds.top - 0.5 || box.bottom > bounds.bottom + 0.5 || (pill === last && (box.left < bounds.left - 0.5 || box.right > bounds.right + 0.5))
+      }).map(pill => pill.textContent),
+      cut: last.scrollWidth > last.clientWidth && getComputedStyle(last).textOverflow === 'ellipsis',
+    }
+  })
+
+  await page.goto(`${origin}/media/${LATE}`)
+  const chips = modal(page).locator('.columns > .side > .chips')
+  await expect(chips.locator('.tag')).toHaveCount(5, { timeout: 30_000 })
+  expect(await measure(chips), 'the preview').toEqual({ past: [], cut: true })
+  expect(await chips.evaluate(row => [...row.children].every(pill => pill.getBoundingClientRect().right <= row.getBoundingClientRect().right + 0.5)), 'the preview: every pill').toBe(true)
+  expect(await overflowX(page)).toBe(0)
+
+  // a fact is one line here, so its pills are one row that scrolls inside its line, the line as tall as a pill
+  await page.goto(`${origin}/title/${LATE}`)
+  const tags = page.locator('.facts > .pills').filter({ has: page.locator('.tag') })
+  await expect(tags.locator('.tag')).toHaveCount(30, { timeout: 30_000 })
+  const row = tags.locator('dd')
+  expect(await row.evaluate(dd => dd.scrollWidth > dd.clientWidth), 'the control: thirty tags are wider than the line').toBe(true)
+  expect(await measure(row), 'the page').toEqual({ past: [], cut: true })
+  expect(await height(tags)).toBe(await height(tags.locator('.tag').first()))
+  expect(await overflowX(page)).toBe(0)
+})
+
 // HOR-1059: no empty band between the title and the tracking; HOR-830 put it atop the description's column
 test('the preview\'s tracking starts its description\'s column level with the facts beside it at 1440 px, under the title at 390 px, and a long note under it moves neither', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -1283,7 +1391,8 @@ test('the preview\'s tracking starts its description\'s column level with the fa
   const controls = tracking.locator('.group.edit')
   await expect(facts).toContainText(/2023/, { timeout: 30_000 })
   await expect(tracking.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
-  const [row, side] = await Promise.all([box(tracking), box(facts)])
+  // the score heads that column
+  const [row, side] = await Promise.all([box(tracking), box(modal(page).locator('.columns > .side'))])
   expect(Math.abs(row.top - side.top), 'level with the facts').toBeLessThan(1)
 
   // a failed save's line longer than the whole row

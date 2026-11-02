@@ -1,9 +1,9 @@
 // The preview's words around its description: the line over its title and the side column. Pure, so they are tested
 // without rendering the modal.
 
-import type { Fact, TitleMedia } from '../title/facts'
+import type { TitleMedia } from '../title/facts'
 
-import { intl, NAME_LIST } from '../../i18n'
+import { intl } from '../../i18n'
 import { site } from '../../site'
 import { releaseDateLabel } from '../../utils/release-date'
 import { formatLabel, genreLabel } from '../search/params'
@@ -15,7 +15,6 @@ type FilmEpisode = NonNullable<Parameters<typeof filmRelease>[0]['episode']> & {
 
 /** What the preview's facts read of a media: the details the modal asks for, a film's one episode among them. */
 export type PreviewMedia = Pick<TitleMedia, 'type' | 'categories' | 'status' | 'startDate' | 'season' | 'seasonYear' | 'episodeCount' | 'genres' | 'tags' | 'duration'> & {
-  averageScore?: number | null
   episodes?: readonly FilmEpisode[] | null
 }
 
@@ -54,9 +53,6 @@ export const categories = (allGenres: readonly string[] = [], allTags: readonly 
   return { genres, tags }
 }
 
-const scoreText = (score: number | null | undefined) =>
-  score ? intl.formatNumber(score, { style: 'unit', unit: 'percent', maximumFractionDigits: 0 }) : undefined
-
 /** The line over a series' title: its format, its release and its episodes, each left out when no source named it. */
 export const seriesLine = (media: PreviewMedia): string =>
   [formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media)].filter(Boolean).join(' · ')
@@ -75,20 +71,11 @@ export const filmLine = (media: PreviewMedia, now = new Date()): string => {
   ].filter(Boolean).join(' · ')
 }
 
-/** A series' side column: its categories, when it aired and its score, each left out when no source gave it. */
-export const seriesFacts = (media: PreviewMedia): Fact[] => {
-  const names = (list: string[]) => list.length ? intl.formatList(list, NAME_LIST) : undefined
+/**
+ * The side column's words: the categories drawn as pills, the genres in the language shown, and for a series when it
+ * aired, left out when no source gave it.
+ */
+export const sideFacts = (media: PreviewMedia, film: boolean): { genres: string[], tags: string[], aired: string | undefined } => {
   const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  return [
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(genres.map(genreLabel)) },
-    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(tags) },
-    { label: intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }), value: releasedLabel(media, { locale: intl.locale }) },
-    { label: intl.formatMessage({ id: 'Score', defaultMessage: 'Score' }), value: scoreText(media.averageScore) },
-  ].flatMap(({ label, value }) => value ? [{ label, value }] : [])
-}
-
-/** A film's side column: its score, and its categories drawn as chips, the genres in the language shown. */
-export const filmFacts = (media: PreviewMedia): { score: string | undefined, genres: string[], tags: string[] } => {
-  const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  return { score: scoreText(media.averageScore), genres: genres.map(genreLabel), tags }
+  return { genres: genres.map(genreLabel), tags, aired: film ? undefined : releasedLabel(media, { locale: intl.locale }) }
 }

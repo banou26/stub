@@ -58,8 +58,8 @@ test('the facts are labelled, in reading order', () => {
     { label: 'Season', value: 'Fall 2023' },
     { label: 'Studios', value: 'Madhouse' },
     { label: 'Source', value: 'Manga' },
-    { label: 'Genres', value: 'Adventure, Drama, Fantasy' },
-    { label: 'Tags', value: 'Elf, Travel' },
+    { label: 'Genres', value: ['Adventure', 'Drama', 'Fantasy'], pills: 'genre' },
+    { label: 'Tags', value: ['Elf', 'Travel'], pills: 'tag' },
     { label: 'Also known as', value: '葬送のフリーレン' },
   ])
 })
@@ -81,8 +81,8 @@ test('held, a fact every anime has stays in its place with no value until a sour
     { label: 'Season' },
     { label: 'Studios' },
     { label: 'Source' },
-    { label: 'Genres', value: 'Drama' },
-    { label: 'Tags' },
+    { label: 'Genres', value: ['Drama'], pills: 'genre' },
+    { label: 'Tags', pills: 'tag' },
     { label: 'Also known as' },
   ])
   expect(titleFacts(FRIEREN, { locale: 'en-US' }, true), 'the control: each given').toEqual(titleFacts(FRIEREN, { locale: 'en-US' }))
@@ -111,7 +111,7 @@ test('each site\'s rating is a chip to draw after the score, and not a fact', ()
   expect(titleChips({ ...FRIEREN, ratings }), 'apart from the chips before the score').toEqual(titleChips(FRIEREN))
   expect(titleFacts({ sourceMaterial: 'MANGA', genres: ['Drama'], ratings })).toEqual([
     { label: 'Source', value: 'Manga' },
-    { label: 'Genres', value: 'Drama' },
+    { label: 'Genres', value: ['Drama'], pills: 'genre' },
   ])
 })
 
@@ -136,10 +136,6 @@ test('a count past a thousand reads as the sources write it, with no grouping', 
 test('names are joined by a comma and a space, however many', () => {
   const named = (studios: string[]) => titleFacts({ studios }).at(0)?.value
   expect([named(['Sunrise']), named(['Sunrise', 'Bones']), named(['Sunrise', 'Bones', 'MAPPA'])]).toEqual(['Sunrise', 'Sunrise, Bones', 'Sunrise, Bones, MAPPA'])
-  expect(titleFacts({ genres: ['Drama', 'Mystery'], tags: ['Elf', 'Travel', 'Magic'] })).toEqual([
-    { label: 'Genres', value: 'Drama, Mystery' },
-    { label: 'Tags', value: 'Elf, Travel, Magic' },
-  ])
 })
 
 test('a percent rounds to a whole number and a score to one place, half up', () => {
@@ -170,8 +166,8 @@ describe('in German', () => {
       { label: 'Saison', value: 'Herbst 2023' },
       { label: 'Studios', value: 'Madhouse' },
       { label: 'Vorlage', value: 'Manga' },
-      { label: 'Genres', value: 'Abenteuer, Drama und Fantasy' },
-      { label: 'Tags', value: 'Elf und Travel' },
+      { label: 'Genres', value: ['Abenteuer', 'Drama', 'Fantasy'], pills: 'genre' },
+      { label: 'Tags', value: ['Elf', 'Travel'], pills: 'tag' },
       { label: 'Andere Titel', value: '葬送のフリーレン' },
     ])
   })

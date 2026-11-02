@@ -232,6 +232,8 @@ for (const language of ['ar', 'he']) {
       }
       const found = Object.fromEntries([
         ...await read(TITLE, ['.second', '[data-themes] .song', '[data-themes] .artists', '.person .name', '.person .detail', 'dl.facts dd']),
+        // Spec Late's tags (tests/fake-fetch.ts)
+        ...await read('/title/ag:(anilist:900010,mal:900010)', ['.facts .chip.tag']),
         ...await read('/settings#sources', ['.card h4']),
         ...await read(WATCH, ['.source .name']),
       ])

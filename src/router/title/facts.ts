@@ -32,8 +32,11 @@ export type TitleMedia = {
   ratings?: readonly { source: string, value: number, scale: number }[] | null
 }
 
-/** A labelled fact; one with no value is held, its line kept for a source still to give it. */
-export type Fact = { label: string, value?: string }
+/**
+ * A labelled fact; one with no value is held, its line kept for a source still to give it. `pills` names a list of
+ * genres or tags, drawn as pills.
+ */
+export type Fact = { label: string, value?: string | readonly string[], pills?: 'genre' | 'tag' }
 
 // AniList's MediaSource values
 const SOURCES: Readonly<Record<string, MessageDescriptor>> = defineMessages({
@@ -111,7 +114,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)?.title]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
   const film = isMovieMedia(media)
-  return [
+  const facts: Fact[] = [
     { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: formatLabel(media.type) },
     ...film ? [] : [{ label: intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' }), value: media.episodeCount ? String(media.episodeCount) : undefined }],
     {
@@ -126,10 +129,11 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     { label: intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' }), value: seasonLabel(media.season, media.seasonYear) },
     { label: intl.formatMessage({ id: 'Studios', defaultMessage: 'Studios' }), value: names(media.studios) },
     { label: intl.formatMessage({ id: 'Source#adapted from', defaultMessage: 'Source', description: 'adapted from' }), value: sourceLabel(media.sourceMaterial) },
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: names(media.genres?.map(genreLabel)) },
-    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: names(media.tags) },
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: media.genres?.length ? media.genres.map(genreLabel) : undefined, pills: 'genre' },
+    { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: media.tags?.length ? media.tags : undefined, pills: 'tag' },
     { label: intl.formatMessage({ id: 'Also known as', defaultMessage: 'Also known as' }), value: names(others) },
-  ].flatMap(({ label, value }): Fact[] => value ? [{ label, value }] : held ? [{ label }] : [])
+  ]
+  return facts.flatMap(({ value, ...fact }) => value ? [{ ...fact, value }] : held ? [fact] : [])
 }
 
 export type PlayLabel = 'Play' | 'Continue' | 'Rewatch'
