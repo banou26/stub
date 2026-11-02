@@ -48,17 +48,29 @@ test('Automatic names the browser\'s language, then every language offered, each
   expect(document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent).toBe('Language')
   expect(options()).toEqual([
     { value: '', text: 'Automatic (Français)', lang: null },
+    { value: 'cs', text: 'Čeština', lang: 'cs' },
     { value: 'de', text: 'Deutsch', lang: 'de' },
     { value: 'en', text: 'English', lang: 'en' },
     { value: 'es-419', text: 'Español latinoamericano', lang: 'es-419' },
     { value: 'fr', text: 'Français', lang: 'fr' },
+    { value: 'id', text: 'Indonesia', lang: 'id' },
     { value: 'it', text: 'Italiano', lang: 'it' },
+    { value: 'hu', text: 'Magyar', lang: 'hu' },
+    { value: 'ms', text: 'Melayu', lang: 'ms' },
+    { value: 'nl', text: 'Nederlands', lang: 'nl' },
     { value: 'pl', text: 'Polski', lang: 'pl' },
     { value: 'pt-BR', text: 'Português (Brasil)', lang: 'pt-BR' },
+    { value: 'ro', text: 'Română', lang: 'ro' },
+    { value: 'sv', text: 'Svenska', lang: 'sv' },
+    { value: 'vi', text: 'Tiếng Việt', lang: 'vi' },
     { value: 'tr', text: 'Türkçe', lang: 'tr' },
+    { value: 'el', text: 'Ελληνικά', lang: 'el' },
     { value: 'ru', text: 'Русский', lang: 'ru' },
+    { value: 'uk', text: 'Українська', lang: 'uk' },
     { value: 'he', text: 'עברית', lang: 'he' },
     { value: 'ar', text: 'العربية', lang: 'ar' },
+    { value: 'hi', text: 'हिन्दी', lang: 'hi' },
+    { value: 'th', text: 'ไทย', lang: 'th' },
     { value: 'ko', text: '한국어', lang: 'ko' },
     { value: 'ja', text: '日本語', lang: 'ja' },
     { value: 'zh-Hans', text: '简体中文', lang: 'zh-Hans' },
@@ -68,7 +80,7 @@ test('Automatic names the browser\'s language, then every language offered, each
 })
 
 test('a browser asking for no offered language reads Automatic (English)', () => {
-  vi.stubGlobal('navigator', { languages: ['th-TH'] })
+  vi.stubGlobal('navigator', { languages: ['da-DK'] })
   expect(render().options()[0]!.text).toBe('Automatic (English)')
 })
 
@@ -96,6 +108,6 @@ describe('in German', () => {
 
   test('Automatic reads in German, the languages still in their own names', () => {
     const texts = render().options().map(option => option.text)
-    expect(texts.slice(0, 3)).toEqual(['Automatisch (Français)', 'Deutsch', 'English'])
+    expect(texts.slice(0, 4)).toEqual(['Automatisch (Français)', 'Čeština', 'Deutsch', 'English'])
   })
 })

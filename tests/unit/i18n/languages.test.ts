@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { automaticLanguage, bestLanguage, CARRIED_LANGUAGE_KEY, contentLanguage, formatLocale, isRightToLeft, LANGUAGE_KEY, OFFERED, PICK_WAIT_MS, pickLanguage, readPickedLanguage, resumeLanguagePick, uiLanguage } from '../../../src/i18n/languages'
 
-// the planned list: wave 1, then the right to left pair, and two whose old tags browsers still send
-const PLANNED = ['en', 'es-419', 'pt-BR', 'fr', 'de', 'it', 'ru', 'ja', 'ko', 'zh-Hans', 'zh-Hant', 'tr', 'pl', 'ar', 'he', 'id', 'fil']
+// the planned list: wave 1, the right to left pair, wave 2, and Filipino, whose old tag browsers still send
+const PLANNED = ['en', 'es-419', 'pt-BR', 'fr', 'de', 'it', 'ru', 'ja', 'ko', 'zh-Hans', 'zh-Hant', 'tr', 'pl', 'ar', 'he', 'id', 'vi', 'th', 'hi', 'uk', 'nl', 'sv', 'cs', 'el', 'ro', 'hu', 'ms', 'fil']
 
 const storageOf = (items: Map<string, string>) => ({
   getItem: (key: string) => items.get(key) ?? null,
@@ -27,14 +27,14 @@ describe('the best match of the browser\'s languages', () => {
     ['zh-CN', 'zh-Hans'], ['zh-SG', 'zh-Hans'], ['zh', 'zh-Hans'],
     ['pt', 'pt-BR'], ['pt-PT', 'pt-BR'], ['pt-BR', 'pt-BR'],
     ['es', 'es-419'], ['es-ES', 'es-419'], ['es-MX', 'es-419'], ['es-AR', 'es-419'],
-    ['iw', 'he'], ['in', 'id'], ['tl', 'fil'],
+    ['iw', 'he'], ['in', 'id'], ['tl', 'fil'], ['mo', 'ro'], ['zsm', 'ms'],
     ['en-GB', 'en'], ['en', 'en'], ['fr-CA', 'fr'], ['de-AT', 'de'], ['ar-EG', 'ar'], ['ja-JP', 'ja'], ['ko-KR', 'ko'],
   ])('%s is served by %s', (wanted, served) => {
     expect(bestLanguage([wanted], PLANNED)).toBe(served)
   })
 
   test('the first language served wins, in the browser\'s order', () => {
-    expect(bestLanguage(['th', 'fr-CA', 'en'], PLANNED)).toBe('fr')
+    expect(bestLanguage(['da', 'fr-CA', 'en'], PLANNED)).toBe('fr')
     expect(bestLanguage(['en', 'fr-CA'], PLANNED)).toBe('en')
   })
 
@@ -47,31 +47,35 @@ describe('the best match of the browser\'s languages', () => {
   })
 
   test('none served, or a tag that is not one, is skipped', () => {
-    expect(bestLanguage(['th', 'vi'], PLANNED)).toBeUndefined()
+    expect(bestLanguage(['da', 'fi'], PLANNED)).toBeUndefined()
     expect(bestLanguage(['*', 'not a tag', 'de'], PLANNED)).toBe('de')
     expect(bestLanguage([], PLANNED)).toBeUndefined()
   })
 })
 
 describe('the language shown', () => {
-  test('wave 1, Arabic and Hebrew are offered, so a browser asking for one of them gets it', () => {
-    expect([...OFFERED].sort()).toEqual(['ar', 'de', 'en', 'es-419', 'fr', 'he', 'it', 'ja', 'ko', 'pl', 'pt-BR', 'ru', 'tr', 'zh-Hans', 'zh-Hant'])
+  test('both waves, Arabic and Hebrew are offered, so a browser asking for one of them gets it', () => {
+    expect([...OFFERED].sort()).toEqual([
+      'ar', 'cs', 'de', 'el', 'en', 'es-419', 'fr', 'he', 'hi', 'hu', 'id', 'it', 'ja', 'ko', 'ms', 'nl', 'pl', 'pt-BR', 'ro', 'ru', 'sv', 'th', 'tr', 'uk', 'vi', 'zh-Hans', 'zh-Hant',
+    ])
     expect(uiLanguage()).toBe('fr')
     expect(['es-MX', 'pt-PT', 'zh-TW', 'zh-CN', 'de-AT', 'ja-JP'].map(tag => uiLanguage([tag]))).toEqual(['es-419', 'pt-BR', 'zh-Hant', 'zh-Hans', 'de', 'ja'])
     expect(['ar-EG', 'ar-SA', 'he-IL', 'iw'].map(tag => uiLanguage([tag]))).toEqual(['ar', 'ar', 'he', 'he'])
+    expect(['id-ID', 'in', 'vi-VN', 'th-TH', 'hi-IN', 'uk-UA', 'nl-BE', 'sv-FI', 'cs-CZ', 'el-CY', 'ro-MD', 'hu-HU', 'ms-MY', 'ms-BN'].map(tag => uiLanguage([tag])))
+      .toEqual(['id', 'id', 'vi', 'th', 'hi', 'uk', 'nl', 'sv', 'cs', 'el', 'ro', 'hu', 'ms', 'ms'])
   })
 
   test('the best match among the offered, else English', () => {
     expect(uiLanguage(['fr-CA', 'en'], PLANNED)).toBe('fr')
-    expect(uiLanguage(['th'], PLANNED)).toBe('en')
-    expect(uiLanguage(['th', 'id'])).toBe('en')
+    expect(uiLanguage(['da'], PLANNED)).toBe('en')
+    expect(uiLanguage(['da', 'fi'])).toBe('en')
   })
 
   test('a language picked wins, and one not offered is not read', () => {
     stored.set(LANGUAGE_KEY, 'en')
     expect(readPickedLanguage()).toBe('en')
     expect(uiLanguage(['fr-CA'], PLANNED)).toBe('en')
-    stored.set(LANGUAGE_KEY, 'th')
+    stored.set(LANGUAGE_KEY, 'da')
     expect(readPickedLanguage()).toBeUndefined()
     expect(uiLanguage()).toBe('fr')
   })
@@ -79,7 +83,7 @@ describe('the language shown', () => {
   test('Automatic is the browser\'s best match whatever is picked', () => {
     stored.set(LANGUAGE_KEY, 'de')
     expect(automaticLanguage()).toBe('fr')
-    expect(automaticLanguage(['th'])).toBe('en')
+    expect(automaticLanguage(['da'])).toBe('en')
   })
 })
 

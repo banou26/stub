@@ -87,7 +87,7 @@ const style = css`
     font-size: 1.6rem;
     background-color: #0f0f0f;
     color: #fff;
-    /* Montserrat draws Latin and Cyrillic; every other script falls to the system's own sans-serif */
+    /* Montserrat draws Latin, Cyrillic and Vietnamese; every other script falls to the system's own sans-serif */
     font-family: Montserrat, system-ui, sans-serif;
   }
 
