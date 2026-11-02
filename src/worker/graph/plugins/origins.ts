@@ -49,23 +49,24 @@ export const RETRANSLATING_ORIGINS = new Set(['nf'])
  * fetched.
  *
  * mal `data.episodes`, anilist `episodes`, anizip `episodeCount`, offline `record.ep`, omdb (a single
- * season or a film), justwatch `totalEpisodeCount`, livechart `episode_count`
- * (`livechart/extractor.ts:117`, it fetches no episode list). A Crunchyroll SEARCH row's
- * `series_metadata.episode_count` is also a published figure while Crunchyroll's own list is a length,
- * and that distinction is per answer rather than per origin: `cr` sits in the list-length table below
- * and a declared `episodeCountKind` is what separates the two (4.6).
+ * season or a film), livechart `episode_count` (`livechart/extractor.ts:117`, it fetches no episode
+ * list). A Crunchyroll SEARCH row's `series_metadata.episode_count` is also a published figure while
+ * Crunchyroll's own list is a length, and that distinction is per answer rather than per origin: `cr`
+ * sits in the list-length table below and a declared `episodeCountKind` is what separates the two (4.6).
  */
-export const DECLARED_COUNT_ORIGINS = new Set(['mal', 'anilist', 'anizip', 'offline', 'omdb', 'jw', 'livechart'])
+export const DECLARED_COUNT_ORIGINS = new Set(['mal', 'anilist', 'anizip', 'offline', 'omdb', 'livechart'])
 
 /**
  * Origins whose `episodeCount` is the length of the list they fetched.
  *
  * crunchyroll (`fuzzy-merge.ts:274`), unogs (`:296`), appletv, tmdb, tvmaze, kitsu (overwritten by its
- * own list at `kitsu/extractor.ts:216`), simkl, trakt, tvdb, paramount. An empty list is `none` and
- * never 0, which is the rule that kept `foldVetoed` from refusing every candidate season (2026-09-09).
+ * own list at `kitsu/extractor.ts:216`), simkl, trakt, tvdb, paramount, and justwatch, whose count is
+ * the episodes out in its own season, and its season can be one part of a run: Lupin's season 1 is
+ * JustWatch's 5 episode Part 1 and TMDB's 10 (2026-11-02). An empty list is `none` and never 0, which
+ * is the rule that kept `foldVetoed` from refusing every candidate season (2026-09-09).
  */
 export const LIST_LENGTH_ORIGINS = new Set([
-  'cr', 'nf', 'appletv', 'tmdb', 'tvmaze', 'kitsu', 'simkl', 'trakt', 'tvdb', 'paramount',
+  'cr', 'nf', 'appletv', 'tmdb', 'tvmaze', 'kitsu', 'simkl', 'trakt', 'tvdb', 'paramount', 'jw',
 ])
 
 /**
