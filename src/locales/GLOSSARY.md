@@ -16,7 +16,7 @@ same change, using the terms below, and runs `npm run i18n:check`.
   Korean and Turkish add no particle or suffix that changes with the name: `{name}에`, `{name} hesabına`.
 - **Short labels.** On a 390 px phone a fact's label wraps past 11rem, and the Relations heading and the graph button
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
-  everything under it. The button is a noun phrase in most languages for that reason.
+  everything under it. The button is a noun phrase in every language for that reason.
 - **Plurals** carry every form the language needs (the check names a missing one): Russian and Polish
   `one, few, many, other`; Japanese, Korean and Chinese `other` alone; Arabic `zero, one, two, few, many, other`;
   Hebrew `one, two, other`. Arabic and Hebrew write one and two in words (`حلقة واحدة`, `حلقتان`, `פרק אחד`,

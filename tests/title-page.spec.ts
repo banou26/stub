@@ -1197,6 +1197,7 @@ for (const [width, late, language] of [
     expect(await tops()).toEqual([held])
     expect(await page.locator('[data-franchise-open] svg').evaluate(icon => icon.getBoundingClientRect().width), 'the graph icon keeps its size').toBe(15)
     expect(await page.locator('[data-relations] > h2').evaluate(heading => Math.round(heading.querySelector('[data-franchise-open]')!.getBoundingClientRect().right - heading.getBoundingClientRect().right)), 'the graph button ends inside its heading').toBeLessThanOrEqual(0)
+    if (language === 'en') expect(await page.locator('[data-franchise-open] span').evaluate(label => label.scrollWidth - label.clientWidth), 'its label whole').toBe(0)
     // a short value's box runs to the line's end, so the fade there is past its text
     expect(await page.locator('.facts > div').first().evaluate(line => Math.round(line.getBoundingClientRect().right - line.querySelector('dd')!.getBoundingClientRect().right))).toBe(0)
     // a Japanese title, drawn in a fallback font, keeps its line as tall as the rest

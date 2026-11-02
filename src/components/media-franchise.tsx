@@ -59,7 +59,7 @@ const triggerStyle = css`
   font-size: 1.3rem;
   font-weight: 600;
   /* one line, at a set height: a fallback font's normal line height, or a second line, makes it taller than the 2.8rem
-     the Relations heading holds for it, and the label takes two lines in English at 360 px (measured 2026-11-01) */
+     the Relations heading holds for it, so a label with no room is cut rather than wrapped */
   line-height: 1.6rem;
   white-space: nowrap;
   cursor: pointer;
@@ -473,7 +473,7 @@ const MediaFranchise = (
     <>
       <button type="button" css={triggerStyle} ref={refs.setReference} {...getReferenceProps()} data-franchise-open>
         <Network/>
-        <span>{intl.formatMessage({ id: 'See detailed relation graph', defaultMessage: 'See detailed relation graph' })}</span>
+        <span>{intl.formatMessage({ id: 'Relation graph', defaultMessage: 'Relation graph' })}</span>
       </button>
       {
         open
