@@ -137,7 +137,7 @@ for (const [locale, language, automatic] of [['uk-UA', 'uk', 'Автоматич
       await expect(select).toHaveValue('', { timeout: 30_000 })
       await expect(page.locator('html')).toHaveAttribute('lang', language)
       await expect(select.locator('option').first()).toHaveText(automatic)
-      await expect(page.locator('header input')).toHaveAttribute('placeholder', catalogue['Search anime, shows, movies…']!)
+      await expect(page.locator('header input:not([type="file"])')).toHaveAttribute('placeholder', catalogue['Search anime, shows, movies…']!)
       expect(await page.evaluate(key => localStorage.getItem(key), LANGUAGE_KEY), 'nothing was picked').toBeNull()
     } finally {
       await context.close()
