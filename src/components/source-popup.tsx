@@ -81,6 +81,8 @@ export type SourcePopupProps = {
   origin: string
   name: string
   uris: string[]
+  /** the release the watch page plays, which the package's picker marks */
+  playing?: string
   onPick: (uri: string) => void
   onClose: () => void
 }
@@ -92,7 +94,7 @@ export type SourcePopupProps = {
  * to `.slot`. The pick comes back as the resolution of the plugin call rather than over a separate
  * channel, so there is one thing to await and one place the interaction can end.
  */
-export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: SourcePopupProps) => {
+export const SourcePopup = ({ pluginUri, origin, name, uris, playing, onPick, onClose }: SourcePopupProps) => {
   const intl = useIntl()
   const slot = useRef<HTMLDivElement>(null)
   const [failed, setFailed] = useState(false)
@@ -112,7 +114,7 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
         setFailed(true)
         return
       }
-      const picked = await selectRemoteRelease(origin, uris)
+      const picked = await selectRemoteRelease(origin, uris, playing)
       if (done) return
       if (picked) onPick(picked)
       else onClose()
@@ -128,7 +130,7 @@ export const SourcePopup = ({ pluginUri, origin, name, uris, onPick, onClose }: 
     }
     // `uris` is rebuilt on every render, so keying the effect on the array itself would tear the frame
     // down and show it again in a loop
-  }, [pluginUri, origin, uris.join(',')])
+  }, [pluginUri, origin, uris.join(','), playing])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }

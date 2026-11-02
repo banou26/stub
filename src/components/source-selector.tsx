@@ -649,6 +649,7 @@ export const SourceSelector = (
             origin={picking.id}
             name={picking.name}
             uris={(picking.releases ?? []).map(release => release.uri)}
+            playing={picking.releases?.find(release => release.active)?.uri}
             onPick={uri => { setPicking(null); onPickRelease?.(uri) }}
             onClose={() => setPicking(null)}
           />

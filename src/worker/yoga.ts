@@ -111,7 +111,7 @@ export const osraResolvers = {
   remoteAccount: (origin: string) => remoteAccount(origin),
   remoteCheck: (origin: string) => remoteCheck(origin),
   searchAgain: (origin: string) => searchAgain(origin),
-  selectRemoteRelease: (origin: string, uris: string[]) => selectRemoteRelease(origin, uris),
+  selectRemoteRelease: (origin: string, uris: string[], playing?: string) => selectRemoteRelease(origin, uris, playing),
   // What only the page sees, for the stub tracker's list: the page starting, coming back online or
   // unlocking the list checks which FKN account is signed in, and the page coming back into view reads
   // the other devices' files (tracking/account-link.ts). An account change the worker hears itself.

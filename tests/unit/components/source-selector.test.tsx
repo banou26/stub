@@ -6,9 +6,11 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-vi.mock('../../../src/worker', () => ({}))
+vi.mock('../../../src/worker', () => ({ selectRemoteRelease: vi.fn(() => new Promise(() => {})) }))
+vi.mock('@fkn/lib', async original => ({ ...await original<object>(), packages: { show: vi.fn(async () => ({ hide: () => {} })), hide: vi.fn(async () => {}) } }))
 
 const { default: SourceSelector } = await import('../../../src/components/source-selector')
+const { selectRemoteRelease } = await import('../../../src/worker')
 const { HIDDEN_ICONS_KEY, setIconShown } = await import('../../../src/sources/hidden-icons')
 const { startLanguage } = await import('../../../src/i18n')
 
@@ -248,5 +250,36 @@ describe('a hidden source icon', () => {
     expect(names(host), 'the control: drawn while shown').toEqual(['Netflix', 'Hulu', 'Nyaa'])
     act(() => setIconShown('nf', false))
     expect(names(host)).toEqual(['Hulu', 'Nyaa'])
+  })
+})
+
+// STUB-351: a source's own picker marks the release the watch page plays
+describe('a source\'s own picker', () => {
+  // the picker listens for Escape on the window, which node does not have
+  beforeEach(() => {
+    vi.stubGlobal('addEventListener', () => {})
+    vi.stubGlobal('removeEventListener', () => {})
+  })
+  afterEach(() => {
+    while (hosts.length) unmount(hosts.pop()!)
+    vi.unstubAllGlobals()
+  })
+
+  const open = async (playing?: string) => {
+    const uris = ['nyaa:a', 'nyaa:b', 'nyaa:c']
+    const nyaa = { ...sources[2]!, picker: { pluginUri: 'https:plugin.spec.test' }, releases: uris.map(uri => ({ ...release(uri), active: uri === playing })) }
+    selector({ sources: [nyaa] }).click('button[title="3 releases on Nyaa"]')
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    expect(selectRemoteRelease).toHaveBeenCalledTimes(1)
+    return vi.mocked(selectRemoteRelease).mock.calls[0]
+  }
+  beforeEach(() => { vi.mocked(selectRemoteRelease).mockClear() })
+
+  test('is handed the release playing', async () => {
+    expect(await open('nyaa:b')).toEqual(['nyaa', ['nyaa:a', 'nyaa:b', 'nyaa:c'], 'nyaa:b'])
+  })
+
+  test('is handed none with none of the source\'s releases playing', async () => {
+    expect(await open()).toEqual(['nyaa', ['nyaa:a', 'nyaa:b', 'nyaa:c'], undefined])
   })
 })

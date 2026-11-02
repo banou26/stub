@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, StubSource, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -685,7 +685,7 @@ export const makeDelegatingResolvers = (origin: string, remote: RemotePluginSour
 
 // the plugin frame renders its own picker, so the app needs both the package to show and the call
 // that drives it; keyed by origin because that is all the source selector knows about a source
-type RemotePicker = { pluginUri: string, select: (uris: string[]) => Promise<string | null> }
+type RemotePicker = { pluginUri: string, select: NonNullable<StubSource['selectRelease']> }
 const pickers = new Map<string, RemotePicker>()
 
 export const remotePicker = (origin: string): { pluginUri: string } | null => {
@@ -693,10 +693,10 @@ export const remotePicker = (origin: string): { pluginUri: string } | null => {
   return picker ? { pluginUri: picker.pluginUri } : null
 }
 
-export const selectRemoteRelease = async (origin: string, uris: string[]): Promise<string | null> => {
+export const selectRemoteRelease = async (origin: string, uris: string[], playing?: string): Promise<string | null> => {
   const picker = pickers.get(origin)
   if (!picker) return null
-  return (await picker.select(uris)) ?? null
+  return (await picker.select(uris, { playing })) ?? null
 }
 
 // A source that plays its own releases, unlike the picker, is only ever announced here: the app MOUNTS

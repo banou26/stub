@@ -31,9 +31,11 @@ export type StubSource = {
   resolvers: Resolvers
   /**
    * Render this source's own picker for the given handle uris. Stub shows the package's frame with
-   * `packages.show` and awaits this call; the resolution IS the pick.
+   * `packages.show` and awaits this call; the resolution IS the pick. `playing` is the release the watch
+   * page plays, one of `uris`, for the picker to mark; undefined with none of them playing. Additive to
+   * stub-source@1: a package that ignores it marks nothing.
    */
-  selectRelease?: (uris: string[]) => Promise<string | null>
+  selectRelease?: (uris: string[], options?: { playing?: string }) => Promise<string | null>
   /**
    * Play a release inside the package's own frame, resolving true once its player is up.
    *
