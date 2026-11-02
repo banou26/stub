@@ -1,5 +1,5 @@
-// Lupin's season 1 at its own address, as the page heard it (2026-11-02): TMDB lists the season's 10 chapters, JustWatch
-// and Netflix each list Part 1's 5. JustWatch's count is the episodes out in its own season, which here is one part.
+// Lupin's season 1 at its own address, as the page heard it (2026-11-02): TMDB lists the season's 10 chapters and
+// JustWatch's Part 1 lists 5. JustWatch's count is the episodes out in its own season, which here is one part.
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
 import { readFileSync } from 'node:fs'
@@ -32,9 +32,11 @@ test('a part JustWatch lists shorter than the season does not count the season: 
     `MATCH (m:Media {uri: 'tmdb:96677-s1'})-[:MEMBER_OF]->(c:Cluster)
      RETURN c.runLength AS runLength, c.runLengthFrom AS from, c.episodes AS episodes`
   )
-  const members = await rowsOf(`MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster) WHERE c.runLength IS NOT NULL RETURN m.uri AS uri ORDER BY uri`)
-  // the control on the data: the three members heard, two of them listing Part 1 alone
-  expect(members.map(row => row.uri)).toEqual(['jw:296046-304226', 'nf:80994082-1', 'tmdb:96677-s1'])
+  const members = await rowsOf(
+    `MATCH (:Media {uri: 'tmdb:96677-s1'})-[:MEMBER_OF]->(:Cluster)<-[:MEMBER_OF]-(m:Media) RETURN m.uri AS uri ORDER BY uri`
+  )
+  // the control on the data: JustWatch's Part 1 is in TMDB's season, so its 5 is in the vote
+  expect(members.map(row => row.uri)).toEqual(['jw:296046-304226', 'tmdb:96677-s1'])
   const rows = (JSON.parse(String(cluster!.episodes)) as { episodeNumber: number | null }[]).map(row => row.episodeNumber)
   expect(rows).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   expect(Number(cluster!.runLength)).toBe(10)
