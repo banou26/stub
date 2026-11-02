@@ -35,6 +35,9 @@ const fakeFrames = (pages: Record<string, PageApi> = { anilist: { graphql: async
   return { frames: { use, reload, watch } as unknown as SessionFrames<PageApi>, use, reload }
 }
 
+/** What @fkn/lib rejects with when the viewer answered Not now to its card for a site (cloud, 0.9.68). */
+const refusal = () => Object.assign(new Error('frame.evaluate: the user did not grant evaluation here'), { name: 'LocatorDeniedError' })
+
 describe('the sessions the worker reaches', () => {
   test('answer not-connected, and attach nothing, until the viewer connected the site here', async () => {
     const { frames, use } = fakeFrames()
@@ -64,6 +67,28 @@ describe('the sessions the worker reaches', () => {
 
     await expect(resolvers.call('anilist', 'whoami', {}), "a method the site's page does not serve").rejects.toThrow('The anilist page serves no whoami')
     expect(whoami).toHaveBeenCalledTimes(1)
+  })
+
+  // STUB-319 (My list said it could not read AniList and MyAnimeList): FKN's card for the site answered Not now
+  test("answer not-connected for a site FKN was not let run stub's page on, as for one never connected", async () => {
+    const { frames, use } = fakeFrames()
+    use.mockRejectedValueOnce(refusal())
+    const connections = pageConnections()
+    connections.connect('anilist')
+
+    expect(await siteSessionResolvers(frames, connections).call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).toEqual({ kind: 'not-connected' })
+  })
+
+  test('reject on any other failure of the page, so the tracker says it failed', async () => {
+    const { frames, use } = fakeFrames()
+    const connections = pageConnections()
+    connections.connect('anilist')
+    const resolvers = siteSessionResolvers(frames, connections)
+
+    use.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).rejects.toThrow('Failed to fetch')
+    use.mockRejectedValueOnce(new Error('https://anilist.co did not answer within 30 s'))
+    await expect(resolvers.call('anilist', 'graphql', { query: 'query { Viewer { id } }' })).rejects.toThrow('did not answer')
   })
 
   test('a connection is kept for the next page, and a site stays apart from another', () => {

@@ -81,13 +81,22 @@ export const createConnections = (
 }
 
 /**
+ * Whether FKN refused to run stub's page on the site, as when the viewer answered Not now to its card for it
+ * ("frame.evaluate: the user did not grant evaluation here", @fkn/lib 0.9.68 on the cloud, 2026-11-02). Matched
+ * by name, as @fkn/lib's own `isLocatorDenied` is. FKN counts a refusal as final, so no timer asks again.
+ */
+const isRefused = (error: unknown) => (error as { name?: unknown } | null)?.name === 'LocatorDeniedError'
+
+/**
  * The main thread's half of the worker's `sessions` channel: a call runs the named method of the page
- * script on the named site's page, and on no other site's.
+ * script on the named site's page, and on no other site's. A site FKN refused to run stub's page on
+ * answers not-connected, as one never connected does.
  */
 export const siteSessionResolvers = (frames: SessionFrames<PageApi>, connections: Connections): SiteSessionResolvers => ({
-  call: async (site, method, arg, options) =>
-    connections.isConnected(site)
-      ? {
+  call: async (site, method, arg, options) => {
+    if (!connections.isConnected(site)) return { kind: 'not-connected' }
+    try {
+      return {
         kind: 'response',
         response: await frames.use(site, api => {
           const run = api[method]
@@ -95,7 +104,11 @@ export const siteSessionResolvers = (frames: SessionFrames<PageApi>, connections
           return run(arg as never)
         }, options),
       }
-      : { kind: 'not-connected' },
+    } catch (error) {
+      if (isRefused(error)) return { kind: 'not-connected' }
+      throw error
+    }
+  },
   watch: (site, listener) => { frames.watch(site, () => { listener() }) },
 })
 

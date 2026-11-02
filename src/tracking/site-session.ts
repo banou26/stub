@@ -23,7 +23,7 @@ export type CallOptions = {
 
 /**
  * One call's result. `not-connected`: the viewer has not signed in to the site through stub on this
- * device, so no frame was attached and nothing was sent.
+ * device, or did not let FKN run stub's page on it, so nothing was sent.
  */
 export type SiteSessionResult<T> =
   | { kind: 'response', response: T }
