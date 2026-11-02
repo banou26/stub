@@ -77,6 +77,14 @@ describe('opening the window', () => {
     expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'persistent', permissions })
   })
 
+  // an added source's check: its plugin's frames read stub's cloud jar, which a window on the browser's own cookies never reaches
+  test("asks for stub's cloud jar when told to, the FKN extension installed or not", () => {
+    attach.mockReturnValue(new Promise(() => {}))
+    extension.exposed = true
+    void signInThroughWindow({ url: LOGIN_URL, domains: DOMAINS, isSignedIn: async () => false, cookies: 'persistent' })
+    expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'persistent' })
+  })
+
   // a site laid out wider than FKN's default window names its own size, and one that does not keeps FKN's
   test('opens the window at the size it is given, and at FKN\'s default otherwise', () => {
     attach.mockReturnValue(new Promise(() => {}))

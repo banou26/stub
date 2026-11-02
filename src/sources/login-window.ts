@@ -37,6 +37,12 @@ export type WindowSignInOptions = {
    * middle of a read the poll then gives up on.
    */
   permissions?: CategoryRequest[]
+  /**
+   * The jar the window runs on. Left out: the browser's own cookies with the FKN extension, stub's cloud jar without it.
+   * 'persistent' is always stub's cloud jar, the one stub's plugins read, so a check a plugin needs passed lands there
+   * even with the extension installed.
+   */
+  cookies?: 'persistent'
   /** The window's inner width and height in CSS pixels, FKN's 500 by 700 when left out. The browser may clamp them. */
   width?: number
   height?: number
@@ -67,6 +73,7 @@ export const signInThroughWindow = async ({
   domains,
   isSignedIn,
   permissions,
+  cookies,
   width,
   height,
   pollMs = 1000,
@@ -78,7 +85,7 @@ export const signInThroughWindow = async ({
     domains,
     // with the extension, the browser's own cookies, on which the lib serves no window: that refusal is
     // `unsupported` below, and the caller's frames then run on the browser's own session for the site
-    cookies: attachCookies(isExtensionExposed() ? 'extension' : 'cloud'),
+    cookies: cookies ?? attachCookies(isExtensionExposed() ? 'extension' : 'cloud'),
     ...permissions ? { permissions } : {},
   })
   let login: WindowFrame
