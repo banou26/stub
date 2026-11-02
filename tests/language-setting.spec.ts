@@ -73,6 +73,10 @@ test.beforeEach(async ({ context }) => {
 
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 
+// a short label is measured in the page's fonts and again with DejaVu Sans as the system's, as GitHub's runner draws
+// system-ui: the widest a viewer gets, and what Greek, which Montserrat lacks, is drawn in there
+const FALLBACK_FONTS = ['', 'Montserrat, \'DejaVu Sans\', sans-serif']
+
 // what the header says: the search field's placeholder, and every label of its field, links and buttons
 const headerWords = (page: Page) => page.locator('header').evaluate(header => [...header.querySelectorAll('input, a, button')]
   .flatMap(element => ['placeholder', 'aria-label', 'title'].map(name => element.getAttribute(name)).filter((value): value is string => !!value)))
@@ -206,16 +210,17 @@ test('the tracking status select holds Add to list and every status, in every of
   // the control: a text longer than English's longest is found
   texts.push({ language: 'en', text: 'Plan to watch, then more' })
   // each text alone in a copy of the select sized to it, beside the select it would be shown in
-  const wider = await select.evaluate((select: HTMLSelectElement, texts) => texts.filter(({ language, text }) => {
+  const wider = await select.evaluate((select: HTMLSelectElement, { texts, fonts }) => texts.filter(({ language, text }) => fonts.some(font => {
     const sized = select.cloneNode(false) as HTMLSelectElement
     sized.style.width = 'auto'
+    sized.style.fontFamily = font
     sized.lang = language
     sized.append(new Option(text))
     select.after(sized)
     const over = sized.getBoundingClientRect().width > select.getBoundingClientRect().width
     sized.remove()
     return over
-  }).map(({ language, text }) => `${language}: ${text}`), texts)
+  })).map(({ language, text }) => `${language}: ${text}`), { texts, fonts: FALLBACK_FONTS })
   expect(wider).toEqual(['en: Plan to watch, then more'])
 })
 

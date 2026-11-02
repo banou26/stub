@@ -285,7 +285,8 @@ Completed, so the two are different words (Russian `Смотрели` and `Пр�
 The status select beside the score is as wide as English `Plan to watch` in Montserrat, 14rem, so `Add to list` and every
 status fit it: `Add to list` is the verb alone where the phrase runs longer (`Ajouter`, `Hinzufügen`, `Добавить`), and a
 status takes a shorter form (`Erneut sehen`, `Beendet`, `В планах`). German keeps `Abgeschlossen` for an airing
-status.
+status. Montserrat has no Greek, so Greek statuses are drawn in the system's font, DejaVu Sans on GitHub's runner, and
+are short first-person phrases (`Το τελείωσα`, `Το παράτησα`), quoted in a sentence (`ως «Το τελείωσα»`).
 
 | | tracker | list, entry | score | Watching | Rewatching | Plan to watch | Completed | Paused | Dropped | Quick tracking |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -312,7 +313,7 @@ status.
 | `nl` | tracker | lijst, item | score | Aan het kijken | Herbekijken | Wil ik zien | Voltooid | Gepauzeerd | Gestopt | Snel bijhouden |
 | `sv` | tracker | lista, post | betyg | Tittar | Tittar om | Planerad | Klar | Pausad | Avbruten | Snabbspårning |
 | `cs` | tracker | seznam, záznam | hodnocení | Sleduji | Znovu sleduji | Plánuji | Dokončeno | Pozastaveno | Zahozeno | Rychlé sledování |
-| `el` | tracker | λίστα, καταχώριση | βαθμολογία | Το βλέπω | Το ξαναβλέπω | Θα το δω | Ολοκληρώθηκε | Σε παύση | Εγκαταλείφθηκε | Γρήγορη καταγραφή |
+| `el` | tracker | λίστα, καταχώριση | βαθμολογία | Το βλέπω | Το ξαναβλέπω | Θα το δω | Το τελείωσα | Σε παύση | Το παράτησα | Γρήγορη καταγραφή |
 | `ro` | tracker | listă, intrare | scor | În curs | Revizionare | De văzut | Terminat | În pauză | Abandonat | Urmărire rapidă |
 | `hu` | tracker | lista, bejegyzés | pontszám | Nézem | Újranézem | Tervezem | Befejezve | Szüneteltetve | Abbahagyva | Gyors követés |
 
