@@ -80,13 +80,18 @@ export type Settling = ReturnType<typeof createSettling>
 /**
  * Ask one provider the fan-out's question with `variables`, handing its results to `onResult`; nothing
  * when it cannot start. With a `settling`, it is one ask out until its answer ends: urql ends every
- * subscription, answered, empty or failed, on a result with `hasNext: false`.
+ * subscription, answered, empty or failed, on a result with `hasNext: false`. `onEnd` runs then too,
+ * or at once when it cannot start.
  */
-export const askEntry = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E, variables: Record<string, unknown>): FanoutSubscription | undefined => {
-  const done = fanout.settling?.ask()
+export const askEntry = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E, variables: Record<string, unknown>, onEnd?: () => void): FanoutSubscription | undefined => {
+  const settled = fanout.settling?.ask()
+  const done = () => {
+    settled?.()
+    onEnd?.()
+  }
   try {
     return entry.client.subscription(fanout.query, variables).subscribe((result) => {
-      if (result?.hasNext === false) done?.()
+      if (result?.hasNext === false) done()
       if (!fanout.onResult) return
       try {
         fanout.onResult(entry, result)
@@ -96,15 +101,15 @@ export const askEntry = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E, var
     })
   } catch (error) {
     console.error(new Error(`Extractor ${entry.name} failed to join the fan-out`, { cause: error }))
-    done?.()
+    done()
     return undefined
   }
 }
 
 // one provider must never be able to take down the fan-out: a provider that cannot start is skipped
-export const joinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) => {
+export const joinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E, onEnd?: () => void) => {
   if (fanout.joined.has(entry)) return
-  const subscription = askEntry(fanout, entry, fanout.root ? stamp(fanout.variables ?? {}, fanout.root) : fanout.variables ?? {})
+  const subscription = askEntry(fanout, entry, fanout.root ? stamp(fanout.variables ?? {}, fanout.root) : fanout.variables ?? {}, onEnd)
   if (!subscription) return
   fanout.joined.set(entry, subscription)
   fanout.subscriptions.push(subscription)
@@ -117,6 +122,22 @@ export const leaveFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E) 
   const index = fanout.subscriptions.indexOf(subscription)
   if (index !== -1) fanout.subscriptions.splice(index, 1)
   Promise.resolve(subscription.unsubscribe()).catch(() => {})
+}
+
+/**
+ * Ask `entry` the fan-out's question again, as when it first joined, in place of its last ask. Resolves once the new
+ * answer ends or ASK_BOUND_MS passed, and at once for an entry the fan-out never asked.
+ */
+export const rejoinFanout = <E extends FanoutEntry>(fanout: Fanout<E>, entry: E): Promise<void> => {
+  if (!fanout.joined.has(entry)) return Promise.resolve()
+  leaveFanout(fanout, entry)
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, ASK_BOUND_MS)
+    joinFanout(fanout, entry, () => {
+      clearTimeout(timer)
+      resolve()
+    })
+  })
 }
 
 /**

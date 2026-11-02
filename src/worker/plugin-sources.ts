@@ -1,6 +1,6 @@
 // nothing here touches the graph or the source barrel, so it stays importable outside a browser
 
-import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount } from '../plugin-api'
+import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount, SourceCheck } from '../plugin-api'
 
 /** A short lowercase token. Origins name things across the store, the UI and the uri grammar. */
 export const PLUGIN_ORIGIN_TOKEN = /^[a-z0-9][a-z0-9-]{0,31}$/
@@ -100,6 +100,30 @@ export const askAccount = (account: () => Promise<unknown>): Promise<SourceAccou
   Promise.race([
     Promise.resolve().then(account).then(state => ACCOUNT_STATES.includes(state) ? state as SourceAccount : undefined, () => undefined),
     new Promise<undefined>(resolve => setTimeout(resolve, ACCOUNT_WAIT_MS)),
+  ])
+
+/** How long a source has to answer `check`, as for `account`. */
+export const CHECK_WAIT_MS = 3_000
+
+/** Whether `url` is on `originUrl`'s host or one below it, with its scheme. */
+const onSite = (url: string, originUrl: string) => {
+  try {
+    const page = new URL(url)
+    const site = new URL(originUrl)
+    return page.protocol === site.protocol && (page.hostname === site.hostname || page.hostname.endsWith(`.${site.hostname}`))
+  } catch {
+    return false
+  }
+}
+
+/** A source's `check` answer, or undefined for none, and for one that is late, rejected, malformed, or off the site of `originUrl`. */
+export const askCheck = (check: () => Promise<unknown>, originUrl: string): Promise<SourceCheck | undefined> =>
+  Promise.race([
+    Promise.resolve().then(check).then(answer => {
+      if (!isObject(answer) || typeof answer.url !== 'string' || typeof answer.passed !== 'string' || !answer.passed) return undefined
+      return onSite(answer.url, originUrl) ? { url: answer.url, passed: answer.passed } : undefined
+    }, () => undefined),
+    new Promise<undefined>(resolve => setTimeout(resolve, CHECK_WAIT_MS)),
   ])
 
 /** How long a plugin has to take its values. The connection has no time limit of its own, and its sources wait for this. */

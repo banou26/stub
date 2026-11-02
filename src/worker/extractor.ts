@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { PluginSettingField, PluginValues, SourceAccount, ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -20,7 +20,7 @@ import { typeDefs } from '../generated/schema/typeDefs.generated'
 import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
-import { askEntry, collectUris, leaveFanout, openFanout, type Fanout, type Settling } from './fanout'
+import { askEntry, collectUris, leaveFanout, openFanout, rejoinFanout, type Fanout, type Settling } from './fanout'
 import { askable, joinOpenFanouts } from './disabled-origins'
 import { answersForOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
@@ -29,7 +29,7 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { handleClaims, normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { askAccount, handValues, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
+import { askAccount, askCheck, handValues, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -720,6 +720,21 @@ export const remoteAccount = async (origin: string): Promise<SourceAccount | und
   return entry ? askAccount(entry.ask) : undefined
 }
 
+// what a source's site asks the viewer to pass, asked on this connection as `account` is
+const checks = new Map<string, { pluginUri: string, originUrl: string, ask: () => Promise<unknown> }>()
+
+/** The source's `check` answer, bounded by CHECK_WAIT_MS; undefined for none, for one off its site, and for a source that serves no `check`. */
+export const remoteCheck = async (origin: string): Promise<SourceCheck | undefined> => {
+  const entry = checks.get(origin)
+  return entry ? askCheck(entry.ask, entry.originUrl) : undefined
+}
+
+/** Asks the source its question again in every open fan-out that asked it, resolving once those answers end. */
+export const searchAgain = async (origin: string): Promise<void> => {
+  const entry = askable(extractors).find(({ extractor }) => extractor.origin === origin)
+  if (entry) await Promise.all([...fanouts].map(fanout => rejoinFanout(fanout, entry)))
+}
+
 type Configure = (values: PluginValues) => Promise<unknown>
 const configurers = new Map<string, Configure>()
 
@@ -766,6 +781,8 @@ export const registerRemoteExtractor = async (
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
       const account = (source as { account?: unknown }).account
       if (meta.access !== 'none' && typeof account === 'function') accounts.set(meta.origin, { pluginUri, ask: account as () => Promise<unknown> })
+      const check = (source as { check?: unknown }).check
+      if (typeof check === 'function') checks.set(meta.origin, { pluginUri, originUrl: meta.originUrl, ask: check as () => Promise<unknown> })
       joinOpenFanouts(fanouts, entry)
       registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly, access: meta.access })
     } catch (error) {
@@ -795,6 +812,9 @@ export const unregisterRemoteExtractor = (pluginUri: string) => {
   }
   for (const [origin, account] of accounts) {
     if (account.pluginUri === pluginUri) accounts.delete(origin)
+  }
+  for (const [origin, check] of checks) {
+    if (check.pluginUri === pluginUri) checks.delete(origin)
   }
   configurers.delete(pluginUri)
   for (let index = extractors.length - 1; index >= 0; index -= 1) {

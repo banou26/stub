@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { Client, fetchExchange } from '@urql/core'
 import { createSchema, createYoga } from 'graphql-yoga'
 
-import { ASK_BOUND_MS, askEntry, collectUris, createSettling, joinFanout, leaveFanout, openFanout, type FanoutEntry } from '../../../src/worker/fanout'
+import { ASK_BOUND_MS, askEntry, collectUris, createSettling, joinFanout, leaveFanout, openFanout, rejoinFanout, type FanoutEntry } from '../../../src/worker/fanout'
 import { closeRoot, openRoot, resetRegistry } from '../../../src/worker/request-context'
 
 type Fake = FanoutEntry & { asked: { query: unknown, variables: any }[], emit: (result: unknown) => void, unsubscribed: number }
@@ -121,6 +121,56 @@ describe('openFanout', () => {
     leaveFanout(fanout, late)
     expect(late.unsubscribed).toBe(1)
     expect(fanout.subscriptions).toHaveLength(1)
+  })
+})
+
+// stub asks a plugin source again once the viewer is done with the window its `check` opened
+describe('rejoinFanout, a source asked its question again', () => {
+  test('asks the entry again as it first was, in place of its last ask, and resolves once that answer ends', async () => {
+    const source = fake('source')
+    const other = fake('other')
+    const settled = vi.fn()
+    const settling = createSettling(settled)
+    const fanout = openFanout({ entries: [source, other], query: 'Q', variables: { input: { uri: 'ag:(jw:92641)' } }, settling })
+    source.emit({ data: { media: null }, hasNext: false })
+    other.emit({ data: { media: null }, hasNext: false })
+    expect(settled).toHaveBeenCalledTimes(1)
+
+    let done = false
+    const again = rejoinFanout(fanout, source).then(() => { done = true })
+    expect(source.asked.map(({ variables }) => variables)).toEqual([{ input: { uri: 'ag:(jw:92641)' } }, { input: { uri: 'ag:(jw:92641)' } }])
+    expect(source.unsubscribed).toBe(1)
+    expect(other.asked).toHaveLength(1)
+    expect(fanout.subscriptions).toHaveLength(2)
+    expect(settling.settled(), 'the page hears the media settle again only once this answer ends').toBe(false)
+    await Promise.resolve()
+    expect(done).toBe(false)
+
+    source.emit({ data: { media: { uri: 'extto:tt1375666' } }, hasNext: false })
+    await again
+    expect(settling.settled()).toBe(true)
+    expect(settled).toHaveBeenCalledTimes(2)
+  })
+
+  test('an entry the fan-out never asked is not asked', async () => {
+    const asked = fake('asked')
+    const never = fake('never')
+    const fanout = openFanout({ entries: [asked], query: 'Q', variables: {} })
+    await rejoinFanout(fanout, never)
+    expect(never.asked).toHaveLength(0)
+    expect(asked.unsubscribed).toBe(0)
+  })
+
+  test('an answer that never ends is waited for no longer than the bound', async () => {
+    vi.useFakeTimers()
+    const source = fake('source')
+    const fanout = openFanout({ entries: [source], query: 'Q', variables: {} })
+    let done = false
+    void rejoinFanout(fanout, source).then(() => { done = true })
+    await vi.advanceTimersByTimeAsync(ASK_BOUND_MS - 1)
+    expect(done).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(done).toBe(true)
   })
 })
 

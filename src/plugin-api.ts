@@ -124,7 +124,19 @@ export type StubSource = {
    * asked, false with no player up or a release the source cannot play. Optional and additive to stub-source@1.
    */
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
+  /**
+   * A check this source's site asks the viewer to pass in person, or null when none is pending. Asked after a search of
+   * this source settles. Stub shows a prompt naming the source; its click opens `url` in an FKN window on stub's cloud
+   * jar, which this source's frames share, and closes it once the CSS selector `passed` exists on the page, then
+   * searches this source again, as it does when the viewer closes the window. A `url` that is not on the host of
+   * `originUrl` or one below it, with its scheme, opens nothing. Optional and additive to stub-source@1. The source never
+   * waits on, clicks or retries the check: the first read that meets it leaves the page and reports it here.
+   */
+  check?: () => Promise<SourceCheck | null>
 }
+
+/** Where a source's site asks the viewer to pass a check, and what is on that page once they have. */
+export type SourceCheck = { url: string, passed: string }
 
 /** What a field of a plugin's settings holds. A `secret` is drawn as a password input. */
 export type PluginSettingKind = 'text' | 'url' | 'secret'
