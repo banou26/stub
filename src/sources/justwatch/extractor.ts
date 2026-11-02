@@ -366,10 +366,10 @@ const DAY_MS = 86_400_000
  * shows, every one aired ten months or more later or not yet (2026-11-02). Severance's second is dated 2022-02-17 and
  * aired from 2025-01-16, and a source pairing by date took its own season 1 for it. Such a season is left undated, so it
  * is placed by its other evidence or not at all. Strike's and Babylon Berlin's second seasons aired two and four weeks
- * after their first, and keep their dates.
+ * after their first, and keep their dates. Both node queries ask the seasons in ascending order.
  */
 const withoutCopiedDates = (seasons: JWSeason[]): JWSeason[] => {
-  const first = seasons.filter(season => season.content.seasonNumber > 0).sort((a, b) => a.content.seasonNumber - b.content.seasonNumber)[0]
+  const first = seasons.find(season => season.content.seasonNumber > 0)
   if (!first) return seasons
   const day = Date.parse(first.content.originalReleaseDate ?? '')
   return seasons.map(season =>

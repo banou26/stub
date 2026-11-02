@@ -38,11 +38,10 @@ const jwMedia = async (uri: string, nodes?: Record<string, unknown>) =>
 const askApple = async (input: object) => (await first((appletv.Subscription as any).similarMedia.subscribe(undefined, { input }, contextFor()))).similarMedia
 const askJustWatch = async (input: object) => (await first((justwatch.Subscription as any).similarMedia.subscribe(undefined, { input }, contextFor()))).similarMedia
 
-// Severance with its second season dated `day` instead
-const secondDated = (day: string) => {
-  const [one, two] = SEVERANCE.ts320458.seasons
-  return { ts320458: { ...SEVERANCE.ts320458, seasons: [one, { ...two, content: { ...two!.content, originalReleaseDate: day } }] } }
-}
+type Season = (typeof SEVERANCE.ts320458.seasons)[number]
+const [ONE, TWO] = SEVERANCE.ts320458.seasons as [Season, Season]
+const severanceWith = (...seasons: Season[]) => ({ ts320458: { ...SEVERANCE.ts320458, seasons } })
+const secondWith = (content: Partial<Season['content']>) => severanceWith(ONE, { ...TWO, content: { ...TWO.content, ...content } })
 
 const SEASON_2_TITLES = SEVERANCE.ts320458.seasons[1]!.episodes.map(episode => episode.content.title)
 
@@ -54,8 +53,15 @@ test("a later season dated with the first season's premiere has no date of its o
 // Seven of the fifteen copies measured are the day before the first season's, as The Diplomat's second season is. A
 // second season can air two weeks after the first, as Strike's did.
 test("a copy dated the day before is one too, and a season two weeks later keeps its date", async () => {
-  expect((await jwMedia('jw:320458-350405', secondDated('2022-02-16'))).startDate).toBeUndefined()
-  expect((await jwMedia('jw:320458-350405', secondDated('2022-03-03'))).startDate).toBe('2022-03-03')
+  expect((await jwMedia('jw:320458-350405', secondWith({ originalReleaseDate: '2022-02-16' }))).startDate).toBeUndefined()
+  expect((await jwMedia('jw:320458-350405', secondWith({ originalReleaseDate: '2022-03-03' }))).startDate).toBe('2022-03-03')
+})
+
+test("specials dated like the first season do not take its place", async () => {
+  const specials = { ...ONE, id: 'tss1', objectId: 1, episodes: [], content: { ...ONE.content, seasonNumber: 0 } }
+  const nodes = severanceWith(specials, ONE, TWO)
+  expect((await jwMedia('jw:320458-329115', nodes)).startDate).toBe('2022-02-17')
+  expect((await jwMedia('jw:320458-350405', nodes)).startDate).toBeUndefined()
 })
 
 test("Apple TV's season 1 is not picked for JustWatch's season 2", async () => {
