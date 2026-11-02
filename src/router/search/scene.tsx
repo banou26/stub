@@ -3,8 +3,8 @@ import type { SearchCardFragment } from '../../generated/graphql'
 import type { MessageDescriptor } from 'react-intl'
 import type { SceneAnswer, SceneError, SceneMatch } from '../../scene/search'
 
-import { ImageIcon, LucidePlay } from 'lucide-react'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { LucidePlay } from 'lucide-react'
+import { useEffect, useState } from 'preact/hooks'
 import { defineMessages, useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link } from 'wouter'
@@ -49,66 +49,6 @@ export const useScene = (code: string | undefined): SceneAnswer | undefined => {
     return () => { current = false }
   }, [code])
   return answered && answered.code === code ? answered.answer : undefined
-}
-
-/**
- * Calls `onPicture` with a file pasted or dropped anywhere on the page while `enabled`. A paste that carries text is
- * left to the field, even with a file beside it: Word and Excel copy a picture of the selection next to its text.
- */
-export const usePictureInput = (onPicture: (file: File) => void, enabled: boolean) => {
-  const latest = useRef(onPicture)
-  latest.current = onPicture
-  useEffect(() => {
-    if (!enabled) return
-    const paste = (event: ClipboardEvent) => {
-      const file = event.clipboardData?.files[0]
-      if (!file || event.clipboardData!.types.includes('text/plain')) return
-      event.preventDefault()
-      latest.current(file)
-    }
-    // a page that refuses the drag lets the browser open the file in its place
-    const dragOver = (event: DragEvent) => {
-      if (event.dataTransfer?.types.includes('Files')) event.preventDefault()
-    }
-    const drop = (event: DragEvent) => {
-      const file = event.dataTransfer?.files[0]
-      if (!file) return
-      event.preventDefault()
-      latest.current(file)
-    }
-    document.addEventListener('paste', paste)
-    document.addEventListener('dragover', dragOver)
-    document.addEventListener('drop', drop)
-    return () => {
-      document.removeEventListener('paste', paste)
-      document.removeEventListener('dragover', dragOver)
-      document.removeEventListener('drop', drop)
-    }
-  }, [enabled])
-}
-
-/** The search field's button that picks a picture to search by. */
-export const PictureButton = ({ onPicture }: { onPicture: (file: File) => void }) => {
-  const label = useIntl().formatMessage({ id: 'Search by picture', defaultMessage: 'Search by picture' })
-  const input = useRef<HTMLInputElement>(null)
-  return (
-    <>
-      <button type="button" className="picture" aria-label={label} title={label} onClick={() => input.current?.click()}>
-        <ImageIcon size={17}/>
-      </button>
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={event => {
-          const file = event.currentTarget.files?.[0]
-          event.currentTarget.value = ''
-          if (file) onPicture(file)
-        }}
-      />
-    </>
-  )
 }
 
 /**

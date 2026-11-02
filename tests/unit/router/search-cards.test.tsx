@@ -23,7 +23,7 @@ vi.mock('urql', async () => {
   }
 })
 // lucide-react is CommonJS and requires react under node; no behaviour here
-vi.mock('lucide-react', () => Object.fromEntries(['Frown', 'ImageIcon', 'LucidePlay', 'Meh', 'Search', 'Smile', 'X'].map(name => [name, () => null])))
+vi.mock('lucide-react', () => Object.fromEntries(['Camera', 'Frown', 'LucidePlay', 'Meh', 'Search', 'Smile', 'X'].map(name => [name, () => null])))
 vi.mock('../../../src/worker', () => ({ searchScene: async () => ({ matches: [] }) }))
 vi.mock('../../../src/components/display-mode-toggle', () => ({ default: () => null }))
 vi.mock('../../../src/components/filter-select', () => ({

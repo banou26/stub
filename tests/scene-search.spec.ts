@@ -10,6 +10,7 @@ import { PNG } from 'pngjs'
 import { build } from 'vite-plus'
 
 import { frame, letterboxed, withPhoneChrome } from './fixtures/scene/frame'
+import { catalogues, LANGUAGE_KEY } from './languages'
 import { workerFakes } from './worker-fakes'
 
 // The scene search on anime.fkn.app, built and served the way tests/sites.spec.ts does: one build under the
@@ -195,7 +196,7 @@ test('the address alone reopens the search on a reload, and a refusal is its one
 test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a scene address', async ({ page }) => {
   const { asked } = await traceMoe(page)
   await page.goto(at('anime.localhost', '/search'))
-  await expect(page.getByRole('button', { name: 'Search by picture' }), 'the control').toBeVisible()
+  await expect(page.locator('.text-field').getByRole('button', { name: 'Search by picture' }), 'the control').toBeVisible()
   await page.goto(at('movies.localhost', `/search?scene=${FRAME_CODE}`))
   await expect(field(page)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Search by picture' })).toHaveCount(0)
@@ -204,4 +205,90 @@ test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a sc
   await page.waitForTimeout(1_000)
   await expect(page).toHaveURL(at('movies.localhost', `/search?scene=${FRAME_CODE}`))
   expect(asked).toEqual([])
+})
+
+// STUB-337 (a picture button in the header's search bar): the same scene search, from the bar on any page
+const barPicture = (page: Page) => page.locator('header').getByRole('button', { name: 'Search by picture' })
+const barField = (page: Page) => page.locator('header').getByRole('textbox', { name: 'Search', exact: true })
+
+test('the header bar\'s picture button follows its field, opens the picker from the keyboard, and finds the picture\'s show', async ({ page }) => {
+  const { asked } = await traceMoe(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(at('anime.localhost', '/settings'))
+  await expect(barField(page)).toBeVisible()
+  await barField(page).focus()
+  await page.keyboard.press('Tab')
+  await expect(barPicture(page)).toBeFocused()
+  for (const key of ['Enter', 'Space']) {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), page.keyboard.press(key)])
+    expect(chooser.isMultiple(), key).toBe(false)
+    if (key === 'Space') await chooser.setFiles({ name: 'shot.png', mimeType: 'image/png', buffer: FRAME })
+  }
+  await expect(page).toHaveURL(sceneUrl)
+  await expect(page.locator('.scene').first()).toContainText('Spec Rated')
+  expect(asked.map(request => request.url())).toEqual([`https://api.trace.moe/search?vector=${FRAME_CODE}`])
+  await page.goBack()
+  await expect(page).toHaveURL(at('anime.localhost', '/settings'))
+})
+
+test('at 390 px the bar\'s picture button opens with its field, which stays open while a key or a click moves on to it', async ({ page }) => {
+  await traceMoe(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const how of ['Tab and Enter', 'a click']) {
+    await page.goto(at('anime.localhost', '/settings'))
+    await page.locator('header .search-toggle').click()
+    await expect(barField(page), how).toBeFocused()
+    if (how === 'Tab and Enter') {
+      await page.keyboard.press('Tab')
+      await expect(barPicture(page)).toBeFocused()
+      await expect(barPicture(page), 'the field still open').toBeVisible()
+    }
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout: 5_000 }),
+      how === 'a click' ? barPicture(page).click() : page.keyboard.press('Enter'),
+    ])
+    await chooser.setFiles({ name: 'shot.png', mimeType: 'image/png', buffer: FRAME })
+    await expect(page, how).toHaveURL(sceneUrl)
+    await expect(page.locator('.scene').first()).toContainText('Spec Rated')
+  }
+})
+
+test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.app, at its end in either direction, and on neither movies nor series', async ({ page }) => {
+  for (const [language, rtl, label] of [['en', false, 'Search by picture'], ['ar', true, catalogues().ar!['Search by picture']!]] as const) {
+    await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 844 })
+      for (const host of ['anime.localhost', 'stub.localhost']) {
+        const where = `${language} on ${host} at ${width}`
+        await page.goto(at(host, '/settings'))
+        await expect(page.locator('html'), where).toHaveAttribute('lang', language)
+        if (width < 480) {
+          await expect(page.locator('header .picture'), `${where}: behind the toggle with its field`).toBeHidden()
+          await page.locator('header .search-toggle').click()
+        }
+        await expect(page.locator('header .picture'), where).toHaveAttribute('aria-label', label)
+        await expect(page.locator('header .picture'), where).toBeVisible()
+        const row = await page.evaluate(() => {
+          const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+          const input = document.querySelector<HTMLInputElement>('header form input:not([type="file"])')!
+          const style = getComputedStyle(input)
+          const field = input.getBoundingClientRect()
+          // where typed text can reach, along the line as it reads
+          const text = { left: field.left + parseFloat(style.paddingLeft), right: field.right - parseFloat(style.paddingRight) }
+          return { form: box('header form').toJSON(), button: box('header .picture').toJSON(), start: box('header .start').toJSON(), text }
+        })
+        const { form, button, start, text } = row
+        expect(button.left >= form.left && button.right <= form.right && button.top >= form.top && button.bottom <= form.bottom, `${where}: inside the field`).toBe(true)
+        expect(rtl ? button.right <= text.left + 0.5 : button.left >= text.right - 0.5, `${where}: at the field's end, clear of its text`).toBe(true)
+        expect(form.left >= 0 && form.right <= width, `${where}: the field in view`).toBe(true)
+        if (width >= 480) expect(rtl ? form.right <= start.left : start.right <= form.left, `${where}: clear of the wordmark`).toBe(true)
+        expect(await page.evaluate(() => document.documentElement.scrollWidth), `${where}: no sideways scroll`).toBeLessThanOrEqual(width)
+      }
+      for (const host of ['movies.localhost', 'series.localhost']) {
+        await page.goto(at(host, '/settings'))
+        await expect(page.locator('header form input:not([type="file"])'), host).toBeAttached()
+        await expect(page.locator('header .picture, header input[type="file"]'), `${host} at ${width}`).toHaveCount(0)
+      }
+    }
+  }
 })

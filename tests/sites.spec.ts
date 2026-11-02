@@ -498,14 +498,14 @@ test('the header keeps its floors in every language, in a wider font, from 1024 
     await page.setViewportSize({ width: 1440, height: 800 })
     await page.goto(at('stub.localhost', '/settings'))
     await expect(page.locator('html')).toHaveAttribute('lang', language)
-    await expect(page.locator('header form input')).toBeVisible()
+    await expect(page.locator('header form input:not([type="file"])')).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
     for (const width of [1024, 1199, 1200, 1359, 1360, 1440]) {
       await page.setViewportSize({ width, height: 800 })
       // the placeholder measured as the language test below measures one
       const row = await page.evaluate(() => {
         const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
-        const input = document.querySelector<HTMLInputElement>('header form input')!
+        const input = document.querySelector<HTMLInputElement>('header form input:not([type="file"])')!
         const style = getComputedStyle(input)
         const pen = document.createElement('canvas').getContext('2d')!
         pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
@@ -912,7 +912,7 @@ const AREA_WORDS = {
     '.chips > button', '.status', '.moment', '[role="listbox"] .option span', '[role="listbox"] .empty',
   ],
   labels: [
-    'header form input', 'header .search-close', 'header .search-toggle', 'header .sites-toggle', 'header .actions > a',
+    'header form input', 'header .picture', 'header .search-close', 'header .search-toggle', 'header .sites-toggle', 'header .actions > a',
     '.text-field input', '.text-field .picture', '.chips > .chip', '.heading-row [role="group"]', '.heading-row [role="group"] button',
     '[role="listbox"] .filter input',
   ],

@@ -94,7 +94,7 @@ test('picking Français in Settings reloads the tab in French, and Automatic bri
   // FKN answers nothing here, and the account's step would hold the reload its whole 8 s bound
   expect(Date.now() - picked, 'the reload waits two seconds for the account at most').toBeLessThan(8_000)
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
-  await expect(page.locator('header input')).toHaveAttribute('placeholder', fr['Search anime, shows, movies…']!)
+  await expect(page.locator('header input:not([type="file"])')).toHaveAttribute('placeholder', fr['Search anime, shows, movies…']!)
   const words = await headerWords(page)
   expect(words).toContain(fr.Settings)
   expect(englishIn(words, code, fr)).toEqual([])
@@ -103,7 +103,7 @@ test('picking Français in Settings reloads the tab in French, and Automatic bri
 
   await Promise.all([page.waitForEvent('load', { timeout: 30_000 }), page.getByRole('combobox', { name: fr.Language }).selectOption('')])
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  await expect(page.locator('header input')).toHaveAttribute('placeholder', 'Search anime, shows, movies…')
+  await expect(page.locator('header input:not([type="file"])')).toHaveAttribute('placeholder', 'Search anime, shows, movies…')
   expect(await page.evaluate(key => localStorage.getItem(key), LANGUAGE_KEY)).toBeNull()
 })
 
@@ -118,7 +118,7 @@ test('a browser asking for French gets stub in French with nothing picked, Autom
     await expect(select).toHaveValue('', { timeout: 30_000 })
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
     await expect(select.locator('option').first()).toHaveText('Automatique (Français)')
-    await expect(page.locator('header input')).toHaveAttribute('placeholder', fr['Search anime, shows, movies…']!)
+    await expect(page.locator('header input:not([type="file"])')).toHaveAttribute('placeholder', fr['Search anime, shows, movies…']!)
   } finally {
     await context.close()
   }

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { getRouterRoutePath, getRoutePath, Route } from '../router/path'
 import { parseSearchFilters, searchPath } from '../router/search/params'
+import { PictureButton, usePictureInput, usePictureSearch } from '../router/search/picture'
 import { askForTop } from '../router/scroll-reset'
 import AccountWidget, { menuStyle } from './account-widget'
 import PartyWidget from './party-widget'
@@ -248,6 +249,37 @@ const style = css`
         color: rgba(255, 255, 255, 0.4);
       }
     }
+
+    /* Over the field's end in place of the glyph, whose room it takes, so the text keeps what it had: with both, the
+       pseudo-language's placeholder ran 8 px past its box at 1440 px and English's 23 px at 769 (measured 2026-11-02). */
+    .picture {
+      position: absolute;
+      inset-inline-end: 0.6rem;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      padding: 0.6rem;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.6);
+
+      &:hover {
+        color: #fff;
+      }
+
+      &:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.8);
+      }
+    }
+
+    &:has(.picture) > svg {
+      display: none;
+    }
+
+    &:has(.picture) input {
+      padding-inline: 1.4rem 4.2rem;
+    }
   }
 
   /* the row's words differ by font and language: with the party button's label gone (party-widget.tsx), this is what
@@ -294,6 +326,10 @@ const style = css`
         padding-block: 0.6rem;
         padding-inline: 3.8rem 1rem;
         font-size: 1.4rem;
+      }
+
+      &:has(.picture) input {
+        padding-inline: 1rem 3.8rem;
       }
     }
   }
@@ -362,9 +398,15 @@ const style = css`
       }
     }
 
-    /* the close button beside it is its end inset */
-    .search input {
+    /* the close button beside it is its end inset, and the picture button sits between them */
+    .search input,
+    .search:has(.picture) input {
       padding-inline-end: 0;
+    }
+
+    .search .picture {
+      position: static;
+      transform: none;
     }
 
     .search-close {
@@ -550,6 +592,11 @@ export const Header = () => {
   const routeQuery = filters.query
   const [query, setQuery] = useState(routeQuery)
   const inputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  // trace.moe knows anime alone, and on the search page the page itself takes a pasted or dropped picture
+  const scenes = site === 'anime' || site === 'stub'
+  const { searchPicture } = usePictureSearch()
+  usePictureInput(searchPicture, scenes && !onSearch, formRef)
   // only a phone's layout reads it: the field is open on the search page and after a tap on its button
   const [searchOpen, setSearchOpen] = useState(onSearch)
 
@@ -595,11 +642,16 @@ export const Header = () => {
         )}
       </div>
       <form
+        ref={formRef}
         className={searchOpen ? 'search open' : 'search'}
         onSubmit={event => {
           event.preventDefault()
           runSearch(query)
           inputRef.current?.blur()
+        }}
+        // an empty field closes once focus leaves it, and stays open while focus moves on to its own buttons
+        onFocusOut={event => {
+          if (!query.trim() && !event.currentTarget.contains(event.relatedTarget as Node | null)) setSearchOpen(false)
         }}
       >
         <Search size={20} />
@@ -619,10 +671,8 @@ export const Header = () => {
             setSearchOpen(false)
             inputRef.current?.blur()
           }}
-          onBlur={() => {
-            if (!query.trim()) setSearchOpen(false)
-          }}
         />
+        {scenes ? <PictureButton onPicture={searchPicture}/> : undefined}
         <button
           type="button"
           className="search-close"

@@ -7,7 +7,7 @@ import { memoryLocation } from 'wouter/memory-location'
 
 // HOR-1064 (a My list page): its link sits beside Settings on the sites that keep anime, the only thing the trackers list
 
-vi.mock('lucide-react', () => ({ ChevronDown: () => null, ListVideo: () => null, Search: () => null, Settings: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ Camera: () => null, ChevronDown: () => null, ListVideo: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
 vi.mock('@fkn/lib/react', () => ({ PoweredByFkn: () => null }))

@@ -13,11 +13,11 @@ import { MediaSort } from '../../generated/graphql'
 import { getRoutePath, Route } from '../path'
 import {
   CATEGORY_OPTIONS, FORMAT_OPTIONS, SEASON_OPTIONS, SITE_GENRES, STATUS_OPTIONS,
-  YEAR_MIN, choiceLabel, genreLabel, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, scenePath, searchFiltersQuery,
+  YEAR_MIN, choiceLabel, genreLabel, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, searchFiltersQuery,
   searchHeading, searchPath, yearMax,
 } from './params'
-import { PictureButton, SCENE_ERRORS, SceneItem, usePictureInput, useScene } from './scene'
-import { pictureCode } from '../../scene/code'
+import { SCENE_ERRORS, SceneItem, useScene } from './scene'
+import { PictureButton, usePictureInput, usePictureSearch } from './picture'
 import MediaTitle from '../../components/media-title'
 import MediaCard from '../../components/media-card'
 import MediaRow from '../../components/media-row'
@@ -317,12 +317,7 @@ const Search = () => {
   const sceneAnswer = useScene(scene)
   const asked = !scene && namesAQuery(filters)
 
-  const [unreadable, setUnreadable] = useState(false)
-  useEffect(() => { setUnreadable(false) }, [search])
-  const searchPicture = (file: File) => {
-    setUnreadable(false)
-    void pictureCode(file).then(code => navigate(scenePath(code), { replace: code === scene }), () => setUnreadable(true))
-  }
+  const { searchPicture, unreadable } = usePictureSearch()
   usePictureInput(searchPicture, !LIVE_ACTION_SITE)
 
   // The url is the state, so a control writes to it and re-renders from it. `replace` keeps the back

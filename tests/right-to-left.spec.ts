@@ -262,7 +262,7 @@ for (const language of ['ar', 'he']) {
     test('text typed in a search field keeps its own order, and an empty field its side', async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 844 })
       await page.goto(at('/search?genre=Action&format=TV'))
-      for (const selector of ['header input', '.text-field input:not([type="file"])']) {
+      for (const selector of ['header input:not([type="file"])', '.text-field input:not([type="file"])']) {
         const field = page.locator(selector).first()
         await expect(field).toBeVisible({ timeout: 45_000 })
         expect(await field.evaluate(element => getComputedStyle(element).unicodeBidi)).toBe('plaintext')
@@ -358,7 +358,7 @@ test('a browser asking for Hebrew or Arabic gets stub in it with nothing picked'
       await page.goto(at('/settings#language'))
       await expect(page.locator('html')).toHaveAttribute('lang', language, { timeout: 45_000 })
       await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
-      await expect(page.locator('header input')).toHaveAttribute('placeholder', catalogues()[language]!['Search anime, shows, movies…']!)
+      await expect(page.locator('header input:not([type="file"])')).toHaveAttribute('placeholder', catalogues()[language]!['Search anime, shows, movies…']!)
     } finally {
       await context.close()
     }
