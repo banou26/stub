@@ -1279,19 +1279,25 @@ test('the ratings are chips after the score, one row at 1024 px as at 1440 px, w
 // Spec Late (anilist:900010) has three genres and thirty tags (tests/fake-fetch.ts).
 const LATE = 'ag:(anilist:900010,mal:900010)'
 
-/** A pill's fill and text as drawn over the opaque colour behind it, the contrast between them, its corner and padding. */
+/**
+ * A pill's fill and its row's as drawn over the opaque colour behind them, its text's contrast on its fill, its corner
+ * and padding.
+ */
 const pillLook = (pill: Locator) => pill.evaluate(element => {
   const rgba = (value: string) => {
     const [r, g, b, a = 1] = value.match(/[\d.]+/g)!.map(Number)
     return [r!, g!, b!, a]
   }
   const over = (top: number[], under: number[]) => under.map((channel, index) => top[index]! * top[3]! + channel * (1 - top[3]!))
-  const layers: number[][] = []
-  for (let at: Element | null = element; at; at = at.parentElement) {
-    layers.unshift(rgba(getComputedStyle(at).backgroundColor))
-    if (layers[0]![3] === 1) break
+  const drawn = (from: Element | null) => {
+    const layers: number[][] = []
+    for (let at = from; at; at = at.parentElement) {
+      layers.unshift(rgba(getComputedStyle(at).backgroundColor))
+      if (layers[0]![3] === 1) break
+    }
+    return layers.reduce((under, layer) => over(layer, under), [0, 0, 0])
   }
-  const fill = layers.reduce((under, layer) => over(layer, under), [0, 0, 0])
+  const fill = drawn(element)
   const style = getComputedStyle(element)
   const text = over(rgba(style.color), fill)
   const luminance = (rgb: number[]) => {
@@ -1301,6 +1307,7 @@ const pillLook = (pill: Locator) => pill.evaluate(element => {
   const [light, dark] = [luminance(text), luminance(fill)].sort((a, b) => b - a)
   return {
     fill: Math.round(luminance(fill) * 1000),
+    row: Math.round(luminance(drawn(element.parentElement)) * 1000),
     text: Math.round(luminance(text) * 1000),
     contrast: (light! + 0.05) / (dark! + 0.05),
     radius: parseFloat(style.borderTopLeftRadius),
@@ -1312,6 +1319,7 @@ const expectPills = async (where: string, pills: Locator) => {
   const [genre, tag] = await Promise.all([pillLook(pills.locator('.genre').first()), pillLook(pills.locator('.tag').first())])
   for (const [name, look] of [['genre', genre], ['tag', tag]] as const) {
     expect(look.contrast, `${where}: a ${name}'s text holds AA on its pill`).toBeGreaterThanOrEqual(4.5)
+    expect(look.fill, `${where}: a ${name} is filled lighter than its row`).toBeGreaterThan(look.row)
     expect(look.radius, `${where}: a ${name} is rounded`).toBeGreaterThan(0)
     expect(look.padding, `${where}: a ${name} is padded`).toBeGreaterThan(0)
   }
