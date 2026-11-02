@@ -396,6 +396,21 @@ test.each([
   expect(media.episodeCount).toBeUndefined()
 })
 
+// The season Apple picks by a day for a run is read before it is placed, and one longer than that run
+// is refused, as the picker refuses any candidate whose count shows a fold. The media path then
+// answers the show, as it does for a season it cannot place.
+const TED_SEARCH = { [url('/search?searchTerm=Ted%20Lasso')]: { data: { canvas: { shelves: [{ items: [{ id: TED, type: 'Show', title: 'Ted Lasso' }] }] } } } }
+const run = (episodeCount: number) => ({ titles: [{ title: 'Ted Lasso' }], startDate: '2020-08-14', episodeCount })
+
+test.each([
+  ['similarMedia', null, (episodeCount: number) => askSeason({ showId: TED, startDate: '2020-08-14', episodeCount }, tedLasso())],
+  ['a search link', null, (episodeCount: number) => resolveMedia('ag:(jw:1-2)', tedLasso(undefined, TED_SEARCH), run(episodeCount))],
+  ['the media path', `appletv:${TED}`, (episodeCount: number) => resolveMedia(`appletv:${TED}`, tedLasso(), run(episodeCount))],
+])('%s places no season that reads longer than the run it was picked for', async (_, refused, place) => {
+  expect((await place(9))?.uri ?? null).toBe(refused)
+  expect((await place(10))?.uri, 'the control: the same season for a run as long as it').toBe(`appletv:${TED}-s1`)
+})
+
 // Each episode also names the show's lettered art as `showPosterArt`.
 test('a recorded season answer gives each of its episodes its own still', async () => {
   const { id } = SEVERANCE.data.content

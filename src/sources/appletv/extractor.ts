@@ -6,7 +6,7 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstTitle, buildHandlesFromUri, waitForMedia, declaredEpisodeCount, searchRelevance, SEARCH_RELEVANCE_THRESHOLD } from '../utils'
 import { seasonScopedId, splitSeasonScopedId } from '../season'
 import { pickGatedCandidate, searchQueries } from '../catalogue-gate'
-import { pickSimilarSeason, type SeasonCandidate } from '../similar'
+import { foldVetoed, pickSimilarSeason, type RunEvidence, type SeasonCandidate } from '../similar'
 import { languageTags, qualityLabels } from '../stream-facts'
 
 const SCORE = 0.2
@@ -294,11 +294,11 @@ const fetchContent = async (id: string, ctx: ExtractorServerContext): Promise<Ap
 }
 
 /**
- * A show's seasons as `pickSimilarSeason` reads them: a number and a premiere, and NOTHING else on
- * purpose. 27.280% of the episodes Apple answers for a season belong to another season (see
- * `fetchEpisodes`), so a count or a title list off that endpoint is not evidence, and a candidate
- * carrying none can only be picked by a day inside the window: a year needs a count on the season to
- * show it is not a fold, so here it only ever vetoes.
+ * A show's seasons as `pickSimilarSeason` reads them: a number and a premiere, and nothing else. A
+ * season's count costs its window and a page for each twenty episodes past it (see `fetchEpisodes`), so
+ * only the picked season is read, and `linkedRun` puts the fold veto to its count then. A candidate
+ * carrying no count can only be picked by a day inside the window: a year needs a count on the season
+ * to show it is not a fold, so here it only ever vetoes.
  */
 const seasonCandidates = (data: AppleContentData): SeasonCandidate<AppleSeason>[] =>
   Object.values(data.seasons ?? {})
@@ -306,7 +306,7 @@ const seasonCandidates = (data: AppleContentData): SeasonCandidate<AppleSeason>[
     .map(season => ({ season, seasonNumber: season.seasonNumber, premiere: season.releaseDate }))
 
 /**
- * Which season this uri names, or nothing.
+ * Which season this uri names, and the evidence it was picked on, or nothing.
  *
  * A pinned season is honoured as before. Otherwise the aggregated media is asked for what it knows
  * about its run and the shared picker decides; there is no lone-season shortcut, since one season
@@ -318,14 +318,21 @@ const pickSeason = async (
   candidates: SeasonCandidate<AppleSeason>[],
   pinned: number | undefined,
   ctx: ExtractorServerContext
-): Promise<AppleSeason | undefined> => {
-  if (pinned != null) return candidates.find(({ season }) => season.seasonNumber === pinned)?.season
+): Promise<{ season: AppleSeason, evidence?: RunEvidence } | undefined> => {
+  if (pinned != null) {
+    const season = candidates.find(({ season }) => season.seasonNumber === pinned)?.season
+    return season && { season }
+  }
   if (!candidates.length) return undefined
-  return waitForMedia(uri, ctx, (media: any) => pickSimilarSeason({
-    titles: (media?.titles ?? []).map((title: { title: string }) => title.title),
-    startDate: media?.startDate,
-    episodeCount: declaredEpisodeCount(media),
-  }, candidates)?.season)
+  return waitForMedia(uri, ctx, (media: any) => {
+    const evidence = {
+      titles: (media?.titles ?? []).map((title: { title: string }) => title.title),
+      startDate: media?.startDate,
+      episodeCount: declaredEpisodeCount(media),
+    }
+    const season = pickSimilarSeason(evidence, candidates)?.season
+    return season && { season, evidence }
+  })
 }
 
 /**
@@ -355,6 +362,16 @@ const buildMedia = async (
 }
 
 /**
+ * A season picked on a run's evidence, as a run, or nothing when it holds more episodes than that run:
+ * the fold veto `pickSimilarSeason` puts to every candidate's count, put here once the count is read.
+ * The Peanuts Classics' season 1 lists 29 episodes on Apple and 14 on JustWatch (2026-11-02).
+ */
+const linkedRun = async (data: AppleContentData, season: AppleSeason, evidence: RunEvidence, ctx: ExtractorServerContext) => {
+  const media = await buildMedia(data, season, ctx)
+  return media && !foldVetoed(evidence, { season, episodeCount: media.episodeCount }) ? media : undefined
+}
+
+/**
  * The one season of `showId` the caller's evidence establishes, as a run, or nothing. Apple offers
  * only dates (see `seasonCandidates`), so a caller with a year-only date, or with titles and a count
  * alone, is refused here however good its evidence would be elsewhere: only a day places a run.
@@ -363,7 +380,7 @@ const seasonForShow = async (input: SimilarMediaInput, ctx: ExtractorServerConte
   const data = await fetchContent(input.showId, ctx)
   if (!data?.content || data.content.type === 'Movie') return undefined
   const verdict = pickSimilarSeason(input, seasonCandidates(data))
-  return verdict ? buildMedia(data, verdict.season, ctx) : undefined
+  return verdict ? linkedRun(data, verdict.season, input, ctx) : undefined
 }
 
 const getMedia = async (
@@ -375,8 +392,10 @@ const getMedia = async (
   const data = await fetchContent(id, ctx)
   if (!data?.content) return undefined
   // a movie carries no seasons, so this answers nothing for one and buildMedia keeps its bare id
-  const season = await pickSeason(uri, seasonCandidates(data), pinned, ctx)
-  return buildMedia(data, season, ctx)
+  const pick = await pickSeason(uri, seasonCandidates(data), pinned, ctx)
+  if (!pick?.evidence) return buildMedia(data, pick?.season, ctx)
+  // a season the veto refuses is not placed, and a show whose season is not placed answers as the show
+  return await linkedRun(data, pick.season, pick.evidence, ctx) ?? buildMedia(data, undefined, ctx)
 }
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<AppleItem[]> => {
@@ -459,10 +478,11 @@ const gateSeasons = (data: AppleContentData | undefined): AppleSeason[] => {
  * The gate, the thresholds and what each axis measured are in ../catalogue-gate.ts.
  *
  * REQUEST COST, worst case, per media: 4 searches (down from 5, since the query list is now capped)
- * and at most 3 detail requests each, so at most 12 detail requests plus one episode request for the
- * winner. The old path had no such ceiling: it spent a detail request AND an episode request per season
- * on every result whose raw title cleared 0.5, and only stopped when one of them produced a media, so a
- * rung returning ten near-miss results paid for all ten.
+ * and at most 3 detail requests each, so at most 12 detail requests plus the winner's season read: its
+ * window and a page for each twenty episodes past it, two pages for the longest season measured (29
+ * episodes, 2026-11-02). The old path had no such ceiling: it spent a detail request AND an episode
+ * request per season on every result whose raw title cleared 0.5, and only stopped when one of them
+ * produced a media, so a rung returning ten near-miss results paid for all ten.
  *
  * In practice this is far below its own ceiling: the title axis runs entirely on the search payload, so
  * a refused candidate costs nothing, an id is fetched at most once per call (the `details` map, which
@@ -514,7 +534,7 @@ const searchAndLinkMedia = async (aggregatedUri: string, ctx: ExtractorServerCon
 
     const data = await detailsOf(match.candidate.id)
     if (!data) continue
-    const media = await buildMedia(data, match.season, ctx)
+    const media = await linkedRun(data, match.season, { episodeCount: declaredEpisodeCount(known) }, ctx)
     if (!media) continue
     media.handles = buildHandlesFromUri(aggregatedUri, origin)
     return media
