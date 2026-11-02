@@ -48,6 +48,7 @@ import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
 import { useFallbackEnding } from './fallback-ending'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import NoSource from './no-source'
+import SourceChecks from './source-checks'
 import { startOf, useResume } from './resume'
 import UpNext from './up-next'
 
@@ -991,6 +992,7 @@ const Watch = () => {
       </div>
 
       <div className="watch-info sources">
+        <SourceChecks sources={addedSources} answered={answered}/>
         <SourceSelector
           sources={sources}
           onPickRelease={uri =>

@@ -93,6 +93,8 @@ vi.mock('../../../../src/worker', async () => {
       const account = lookups.account[id]
       return account ? askAccount(account) : undefined
     },
+    remoteCheck: async () => undefined,
+    searchAgain: async () => {},
   }
 })
 // what the added sources said, in the page's memory, fresh for each test
