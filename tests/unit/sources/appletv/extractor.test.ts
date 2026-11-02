@@ -366,9 +366,10 @@ test('a search cancelled while its reads are out stops them and answers nothing 
 
 // Recorded 2026-11-02, trimmed to the fields read. A season's window holds at most six of its own
 // episodes: Ted Lasso's season 1 window ends at 1x6 of 10, and 2x7 of season 2 is in no window at all.
-const tedLasso = (drop?: string) => Object.fromEntries(Object.entries(TED_LASSO)
-  .filter(([path]) => path !== drop)
-  .map(([path, answer]) => [url(path), answer]))
+const tedLasso = (drop?: string, extra: Record<string, unknown> = {}) => ({
+  ...Object.fromEntries(Object.entries(TED_LASSO).filter(([path]) => path !== drop).map(([path, answer]) => [url(path), answer])),
+  ...extra,
+})
 const TED = 'umc.cmc.vtoh0mn0xn7t3c643xqonfzy'
 const numbers = (media: { episodes: { seasonNumber: number, episodeNumber: number }[] }) =>
   media.episodes.map(episode => `${episode.seasonNumber}x${episode.episodeNumber}`)
@@ -383,9 +384,15 @@ test.each([
   expect(media.episodeCount).toBe(episodes.length)
 })
 
-test('a season whose rest cannot be read declares no count rather than its window\'s', async () => {
-  const media = await resolveMedia(`appletv:${TED}-s1`, tedLasso(`/shows/${TED}/episodes?nextToken=6:20`))
+// A failed page, and a page that does not start where it was asked, as Apple answers past a form it
+// does not take: the window's rows stay on the page and no count is claimed off them.
+test.each([
+  ['fails', tedLasso(`/shows/${TED}/episodes?nextToken=6:20`)],
+  ['answers nothing', tedLasso(undefined, Object.fromEntries([6, 26].map(at => [url(`/shows/${TED}/episodes?nextToken=${at}:20`), { data: { episodes: [] } }])))],
+])('a season whose next page %s keeps its window\'s rows and declares no count', async (_, table) => {
+  const media = await resolveMedia(`appletv:${TED}-s1`, table)
 
+  expect(numbers(media)).toEqual(Array.from({ length: 6 }, (_, index) => `1x${index + 1}`))
   expect(media.episodeCount).toBeUndefined()
 })
 

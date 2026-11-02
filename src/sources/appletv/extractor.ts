@@ -193,16 +193,20 @@ const normalizeEpisode = (episode: AppleEpisode, mediaUri: string, playable?: Ap
  */
 const PAGE = 20
 
+type SeasonRead = { episodes: AppleEpisode[], whole: boolean }
+
 /**
- * Everything one season's requests answer, its own episodes and its neighbours'. The window is asked
- * first, and while it ends inside the season the rest is asked by place, from the episode after it on.
+ * Everything one season's requests answer, its own episodes and its neighbours', and whether the
+ * season was read to its end. The window is asked first, and while it ends inside the season the rest
+ * is asked by place, from the episode after it on. A page that fails, or does not start where it was
+ * asked, leaves the season cut: its rows are kept and `whole` is false.
  */
 const readSeason = async (
   showId: string,
   season: AppleSeason,
   playables: Map<string, ApplePlayable>,
   ctx: ExtractorServerContext
-): Promise<AppleEpisode[]> => {
+): Promise<SeasonRead> => {
   const read = async (query: string) => {
     const { data } = await api<AppleEpisodesResponse>(`/shows/${showId}/episodes?${query}`, ctx)
     for (const [episodeId, [first] = []] of Object.entries(data?.episodesPlayables ?? {})) {
@@ -215,10 +219,16 @@ const readSeason = async (
   const episodes = [...window?.episodes ?? []]
   const total = window?.totalEpisodeCount ?? 0
   const endsInside = () => episodes.at(-1)?.seasonNumber === season.seasonNumber
-  for (let at = (episodes.at(-1)?.episodeIndex ?? total) + 1; at < total && endsInside(); at += PAGE) {
-    episodes.push(...(await read(`nextToken=${at}:${PAGE}`))?.episodes ?? [])
+  try {
+    for (let at = (episodes.at(-1)?.episodeIndex ?? total) + 1; at < total && endsInside(); at += PAGE) {
+      const page = (await read(`nextToken=${at}:${PAGE}`))?.episodes ?? []
+      if (page[0]?.episodeIndex !== at) return { episodes, whole: false }
+      episodes.push(...page)
+    }
+  } catch {
+    return { episodes, whole: false }
   }
-  return episodes
+  return { episodes, whole: true }
 }
 
 /**
@@ -239,8 +249,8 @@ const readSeason = async (
  * The rest of a season is asked by place: `nextToken=<episodeIndex>:<count>` answers that slice of the
  * flat list, `totalEpisodeCount` long, while a bare number is a 400. The windows alone cannot complete
  * a season: Ted Lasso's season 2 has 12 episodes, its own window holds 2x1 to 2x6, season 3's holds 2x8
- * to 2x12, and 2x7 is in none (measured 2026-11-02). A failed request fails its whole season, so no
- * count is ever declared off a list known to be cut.
+ * to 2x12, and 2x7 is in none (measured 2026-11-02). A season whose rest could not be read keeps the
+ * rows it has and is not `whole`, so no count is ever declared off a list known to be cut.
  */
 const fetchEpisodes = async (
   showId: string,
@@ -248,22 +258,24 @@ const fetchEpisodes = async (
   mediaUri: string,
   ctx: ExtractorServerContext,
   seasonNumber?: number
-): Promise<GQLEpisode[]> => {
+): Promise<{ episodes: GQLEpisode[], whole: boolean }> => {
   const wanted = Object.values(seasons ?? {})
     .filter(season => season.id && (seasonNumber == null || season.seasonNumber === seasonNumber))
-  if (!wanted.length) return []
+  if (!wanted.length) return { episodes: [], whole: false }
   const playables = new Map<string, ApplePlayable>()
-  const perSeason = await Promise.all(wanted.map(season => readSeason(showId, season, playables, ctx).catch(() => [])))
+  const reads = await Promise.all(wanted.map(season =>
+    readSeason(showId, season, playables, ctx).catch((): SeasonRead => ({ episodes: [], whole: false }))))
   const byId = new Map<string, AppleEpisode>()
-  for (const episode of perSeason.flat()) {
+  for (const episode of reads.flatMap(read => read.episodes)) {
     if (seasonNumber != null && episode.seasonNumber !== seasonNumber) continue
     if (!byId.has(episode.id)) byId.set(episode.id, episode)
   }
   // `data.seasons` is a record keyed by season id, so Object.values is in whatever order the payload
   // happens to carry (Silo comes back 2, 1, 3), which the flatten used to publish as episode order
-  return [...byId.values()]
+  const episodes = [...byId.values()]
     .sort((a, b) => (a.seasonNumber ?? 0) - (b.seasonNumber ?? 0) || (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0))
     .map(episode => normalizeEpisode(episode, mediaUri, playables.get(episode.id)))
+  return { episodes, whole: reads.every(read => read.whole) }
 }
 
 /**
@@ -336,8 +348,9 @@ const buildMedia = async (
   }
   if (season?.seasonNumber == null) return normalizeMedia(content)
   const media = normalizeMedia(content, season)
-  media.episodes = await fetchEpisodes(content.id, data.seasons, media.uri, ctx, season.seasonNumber)
-  media.episodeCount = media.episodes.length || undefined
+  const { episodes, whole } = await fetchEpisodes(content.id, data.seasons, media.uri, ctx, season.seasonNumber)
+  media.episodes = episodes
+  media.episodeCount = whole && episodes.length ? episodes.length : undefined
   return media
 }
 
@@ -562,7 +575,7 @@ export const resolvers: Resolvers = {
       // parent.id is '<show>-s<season>' now, so the show has to be split back out of it
       const { showId, seasonNumber } = splitSeasonScopedId(parent.id)
       const data = await fetchContent(showId, ctx)
-      return fetchEpisodes(showId, data?.seasons, parent.uri, ctx, seasonNumber)
+      return (await fetchEpisodes(showId, data?.seasons, parent.uri, ctx, seasonNumber)).episodes
     }
   }
 }
