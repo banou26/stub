@@ -18,8 +18,10 @@ same change, using the terms below, and runs `npm run i18n:check`.
   beside it must share one line: the page holds that line's place while sources answer, and a second line moves
   everything under it. The button is a noun phrase in every language for that reason.
 - **Plurals** carry every form the language needs (the check names a missing one): Russian and Polish
-  `one, few, many, other`; Japanese, Korean and Chinese `other` alone; Arabic `zero, one, two, few, many, other`;
-  Hebrew `one, two, other`. Arabic and Hebrew write one and two in words (`حلقة واحدة`, `حلقتان`, `פרק אחד`,
+  `one, few, many, other`, and Ukrainian too; Czech and Romanian `one, few, other`; Japanese, Korean, Chinese,
+  Indonesian, Malay, Vietnamese and Thai `other` alone; Hindi `one, other`, its `one` taking 0 as well; Arabic
+  `zero, one, two, few, many, other`; Hebrew `one, two, other`. Romanian puts `de` before a noun from 20 on
+  (`{count} de episoade`), and Hungarian keeps the noun singular after a number (`{count} rész`). Arabic and Hebrew write one and two in words (`حلقة واحدة`, `حلقتان`, `פרק אחד`,
   `שני פרקים`), so their `one` and `two` branches hold no `{count}`. A count is written as the English writes it:
   `{count}` as given, never `#` or `{count, number}`, which group it (`1.100 Folgen`); the check names either form
   where the English lacks it.
@@ -41,6 +43,15 @@ same change, using the terms below, and runs `npm run i18n:check`.
   `{rate}x`, and the version `الإصدار {version}`, `גרסה {version}`. A format's name leads with the language's own letters
   (`مسلسل TV قصير`, `סדרת TV קצרה`), since a fact's value takes its direction from its first letter.
 
+- **Wave 2.** A value takes no case ending: Hungarian writes it after a colon or in parentheses (`Mentés ide: {name}`,
+  `A mentés nem sikerült ({name})`), since a suffix would follow the value's own vowels. A past verb beside
+  `{member}` would agree with a gender nobody knows in Ukrainian and Czech, so their chat lines are a label and a
+  colon as Russian's are (`{member}: пауза`, `{member}: pauza`); Hindi's `ने` form agrees with the object instead
+  (`{member} ने रोका`). Thai ends a sentence with no full stop and parts clauses with a space, Hindi ends one with
+  `।`, Greek asks with `;`. Ukrainian writes the apostrophe `’` (`об’єднання`), Romanian the comma-below `ș` and `ț`.
+  Indonesian and Malay share words, not a vocabulary: `Masuk` and `Log masuk`, `Subtitel` and `Sari kata`,
+  `Pengaturan` and `Tetapan`.
+
 ## Register and terms
 
 | | register | episode | a show's season | broadcast season | series (a franchise) | source (adapted from) |
@@ -59,6 +70,18 @@ same change, using the terms below, and runs `npm run i18n:check`.
 | `pl` | ty, or impersonal | odcinek | sezon | Sezon | Seria | Pierwowzór |
 | `ar` | imperative in the masculine singular in a sentence, the verbal noun on buttons | حلقة | موسم | الموسم | السلسلة | العمل الأصلي |
 | `he` | imperative in the plural in a sentence, the action noun on buttons | פרק | עונה | עונה | זיכיון | יצירת המקור |
+| `id` | Anda, the verb's base form on buttons | episode | musim | Musim | Waralaba | Karya asli |
+| `ms` | anda, the verb's base form on buttons | episod | musim | Musim | Francais | Karya asal |
+| `vi` | bạn | tập | mùa | Mùa | Loạt tác phẩm | Nguyên tác |
+| `th` | polite, a pronoun (คุณ) only where needed | ตอน | ซีซัน | ฤดูกาล | แฟรนไชส์ | ต้นฉบับ |
+| `hi` | आप, the polite imperative (-ें) on buttons | एपिसोड | सीज़न | सीज़न | फ़्रेंचाइज़ी | मूल रचना |
+| `uk` | ви | серія | сезон | Сезон | Франшиза | Першоджерело |
+| `nl` | je, infinitive on buttons | aflevering | seizoen | Seizoen | Franchise | Bronmateriaal |
+| `sv` | du, imperative on buttons | avsnitt | säsong | Säsong | Franchise | Förlaga |
+| `cs` | vy, infinitive on buttons | díl | řada | Sezóna | Franšíza | Předloha |
+| `el` | εσείς, the action noun on buttons | επεισόδιο | σεζόν | Περίοδος | Σειρά έργων | Πρωτότυπο έργο |
+| `ro` | dumneavoastră, the polite imperative on buttons | episod | sezon | Sezon | Franciză | Opera originală |
+| `hu` | te, the action noun on buttons | rész | évad | Szezon | Franchise | Eredeti mű |
 
 ## Settings
 
@@ -81,6 +104,18 @@ stub only connects to the browser's own session, so its words differ from signin
 | `pl` | źródło | Zaloguj się, Wyloguj się | Połącz, Rozłącz | Kolejność odtwarzania | Kolejność scalania |
 | `ar` | مصدر | تسجيل الدخول, تسجيل الخروج | ربط, إلغاء الربط | ترتيب التشغيل | ترتيب الدمج |
 | `he` | מקור | התחברות, התנתקות | קישור, ביטול קישור | סדר הפעלה | סדר מיזוג |
+| `id` | sumber | Masuk, Keluar | Hubungkan, Putuskan | Urutan putar | Urutan penggabungan |
+| `ms` | sumber | Log masuk, Log keluar | Sambung, Putuskan | Susunan main | Susunan gabungan |
+| `vi` | nguồn | Đăng nhập, Đăng xuất | Kết nối, Ngắt kết nối | Thứ tự phát | Thứ tự hợp nhất |
+| `th` | แหล่งที่มา | ลงชื่อเข้าใช้, ออกจากระบบ | เชื่อมต่อ, ยกเลิกการเชื่อมต่อ | ลำดับการเล่น | ลำดับการรวม |
+| `hi` | सोर्स | साइन इन करें, साइन आउट करें | कनेक्ट करें, डिसकनेक्ट करें | चलाने का क्रम | मर्ज का क्रम |
+| `uk` | джерело | Увійти, Вийти | Під’єднати, Від’єднати | Порядок відтворення | Порядок об’єднання |
+| `nl` | bron | Inloggen, Uitloggen | Koppelen, Ontkoppelen | Afspeelvolgorde | Samenvoegvolgorde |
+| `sv` | källa | Logga in, Logga ut | Anslut, Koppla från | Uppspelningsordning | Sammanslagningsordning |
+| `cs` | zdroj | Přihlásit se, Odhlásit se | Připojit, Odpojit | Pořadí přehrávání | Pořadí slučování |
+| `el` | πηγή | Σύνδεση, Αποσύνδεση | Συσχέτιση, Κατάργηση συσχέτισης | Σειρά αναπαραγωγής | Σειρά συγχώνευσης |
+| `ro` | sursă | Conectați-vă, Deconectați-vă | Asociați, Disociați | Ordinea de redare | Ordinea de îmbinare |
+| `hu` | forrás | Bejelentkezés, Kijelentkezés | Összekapcsolás, Leválasztás | Lejátszási sorrend | Egyesítési sorrend |
 
 ## Watching
 
@@ -100,6 +135,18 @@ stub only connects to the browser's own session, so its words differ from signin
 | `pl` | Kontynuuj | Obejrzyj ponownie | Obejrzano |
 | `ar` | متابعة | إعادة المشاهدة | المشاهَد |
 | `he` | המשך צפייה | צפייה חוזרת | נצפו |
+| `id` | Lanjutkan | Tonton ulang | Ditonton |
+| `ms` | Sambung tonton | Tonton semula | Ditonton |
+| `vi` | Xem tiếp | Xem lại | Đã xem |
+| `th` | ดูต่อ | ดูอีกครั้ง | ดูแล้ว |
+| `hi` | देखना जारी रखें | फिर से देखें | देखा गया |
+| `uk` | Продовжити | Переглянути знову | Переглянуто |
+| `nl` | Verder kijken | Opnieuw kijken | Bekeken |
+| `sv` | Fortsätt titta | Titta igen | Sett |
+| `cs` | Pokračovat | Zhlédnout znovu | Zhlédnuto |
+| `el` | Συνέχιση | Ξαναδείτε το | Είδατε |
+| `ro` | Continuați | Revedeți | Vizionat |
+| `hu` | Folytatás | Újranézés | Megnézve |
 
 ## Watch page and players
 
@@ -125,6 +172,18 @@ noun phrase written in the case the language gives the names around it.
 | `pl` | wydanie | odtwarzacz | okno logowania | wyskakujące okno | Spróbuj ponownie | `Odc. {number} - {title}` | wiele języków |
 | `ar` | إصدار | المشغّل | نافذة تسجيل الدخول | نافذة منبثقة | إعادة المحاولة | `الحلقة {number} - {title}` | لغات متعددة |
 | `he` | גרסה | נגן | חלון ההתחברות | חלון קופץ | ניסיון חוזר | `פרק {number} - {title}` | מספר שפות |
+| `id` | rilis | pemutar | jendela masuk | pop-up | Coba lagi | `E{number} - {title}` | beberapa bahasa |
+| `ms` | keluaran | pemain | tetingkap log masuk | tetingkap timbul | Cuba lagi | `E{number} - {title}` | pelbagai bahasa |
+| `vi` | bản phát hành | trình phát | cửa sổ đăng nhập | cửa sổ bật lên | Thử lại | `Tập {number} - {title}` | nhiều ngôn ngữ |
+| `th` | รีลีส | เครื่องเล่น | หน้าต่างลงชื่อเข้าใช้ | ป๊อปอัป | ลองอีกครั้ง | `ตอนที่ {number} - {title}` | หลายภาษา |
+| `hi` | रिलीज़ | प्लेयर | साइन इन विंडो | पॉप-अप | फिर से कोशिश करें | `एपिसोड {number} - {title}` | कई भाषाएं |
+| `uk` | реліз | плеєр | вікно входу | спливне вікно | Повторити | `Серія {number} - {title}` | кілька мов |
+| `nl` | release | speler | inlogvenster | pop-up | Opnieuw proberen | `Afl. {number} - {title}` | meerdere talen |
+| `sv` | utgåva | spelare | inloggningsfönster | popup-fönster | Försök igen | `Avs. {number} - {title}` | flera språk |
+| `cs` | vydání | přehrávač | přihlašovací okno | vyskakovací okno | Zkusit znovu | `{number}. díl - {title}` | více jazyků |
+| `el` | έκδοση | πρόγραμμα αναπαραγωγής | παράθυρο σύνδεσης | αναδυόμενο παράθυρο | Επανάληψη | `Ε{number} - {title}` | πολλές γλώσσες |
+| `ro` | versiune | player | fereastra de conectare | fereastră pop-up | Reîncercați | `E{number} - {title}` | mai multe limbi |
+| `hu` | kiadás | lejátszó | bejelentkezési ablak | előugró ablak | Újra | `{number}. rész - {title}` | több nyelv |
 
 ## Watch party
 
@@ -155,6 +214,18 @@ header's button, renamed from Watch together to take less room, so a language ke
 | `pl` | Oglądaj razem | sesja | prowadzący | uczestnicy | Synchronizuj | Śledź odtwarzanie |
 | `ar` | مشاهدة جماعية | مجموعة | مضيف | المشاركون | مزامنة | متابعة التشغيل |
 | `he` | צפייה משותפת | קבוצה | מארח | משתתפים | סנכרון | מעקב אחר ההפעלה |
+| `id` | Tonton bersama | grup | host | peserta | Sinkronkan | Ikuti pemutaran |
+| `ms` | Tonton bersama | kumpulan | hos | peserta | Segerakkan | Ikut main balik |
+| `vi` | Xem chung | nhóm | chủ phòng | thành viên | Bắt kịp | Theo dõi phát |
+| `th` | ดูด้วยกัน | ปาร์ตี้ | โฮสต์ | ผู้ร่วมชม | ตามให้ทัน | เล่นตามโฮสต์ |
+| `hi` | साथ देखें | पार्टी | होस्ट | सदस्य | सिंक करें | होस्ट के साथ चलाएं |
+| `uk` | Дивитися разом | кімната | ведучий | учасники | Наздогнати | Стежити за відтворенням |
+| `nl` | Samen kijken | groep | host | deelnemers | Inhalen | Afspelen volgen |
+| `sv` | Titta tillsammans | grupp | värd | deltagare | Kom ikapp | Följ uppspelningen |
+| `cs` | Sledovat společně | skupina | hostitel | účastníci | Dohnat | Sledovat přehrávání |
+| `el` | Κοινή προβολή | ομάδα | οικοδεσπότης | συμμετέχοντες | Συγχρονισμός | Ακολούθηση αναπαραγωγής |
+| `ro` | Vizionare împreună | grup | gazdă | participanți | Recuperați | Urmăriți redarea |
+| `hu` | Közös nézés | csoport | házigazda | résztvevők | Felzárkózás | Lejátszás követése |
 
 ## Header and search
 
@@ -185,6 +256,18 @@ A card's tag names one title, Movie or Series, so its Series is singular where t
 | `pl` | Szukaj | Seriale | Filtruj, Wyczyść filtry | Dowolne | Status emisji |
 | `ar` | بحث | مسلسلات | تصفية, مسح عوامل التصفية | الكل | حالة العرض |
 | `he` | חיפוש | סדרות | סינון, ניקוי המסננים | הכול | סטטוס שידור |
+| `id` | Cari | Serial | Filter, Hapus filter | Semua | Status tayang |
+| `ms` | Cari | Siri | Tapis, Kosongkan penapis | Semua | Status siaran |
+| `vi` | Tìm kiếm | Phim bộ | Lọc, Xóa bộ lọc | Bất kỳ | Tình trạng phát sóng |
+| `th` | ค้นหา | ซีรีส์ | กรอง, ล้างตัวกรอง | ทั้งหมด | สถานะการฉาย |
+| `hi` | खोजें | सीरीज़ | फ़िल्टर करें, फ़िल्टर हटाएं | कोई भी | प्रसारण की स्थिति |
+| `uk` | Пошук | Серіали | Фільтр, Скинути фільтри | Будь-який | Статус виходу |
+| `nl` | Zoeken | Series | Filteren, Filters wissen | Alle | Uitzendstatus |
+| `sv` | Sök | Serier | Filtrera, Rensa filter | Alla | Sändningsstatus |
+| `cs` | Hledat | Seriály | Filtrovat, Vymazat filtry | Libovolné | Stav vysílání |
+| `el` | Αναζήτηση | Σειρές | Φιλτράρισμα, Απαλοιφή φίλτρων | Οποιοδήποτε | Κατάσταση προβολής |
+| `ro` | Căutați | Seriale | Filtrați, Ștergeți filtrele | Oricare | Stare difuzare |
+| `hu` | Keresés | Sorozatok | Szűrés, Szűrők törlése | Bármelyik | Vetítési állapot |
 
 ## Tracking
 
@@ -220,6 +303,18 @@ status.
 | `pl` | tracker | lista, wpis | ocena | Oglądam | Powtórka | Planuję | Obejrzane | Wstrzymane | Porzucone | Szybkie śledzenie |
 | `ar` | متتبع | قائمة, إدخال | تقييم | أشاهده | أعيد مشاهدته | سأشاهده | مكتمل | متوقف مؤقتًا | متروك | تتبع سريع |
 | `he` | כלי מעקב | רשימה, רשומה | ציון | בצפייה | צפייה חוזרת | מתוכנן | הושלם | מושהה | ננטש | מעקב מהיר |
+| `id` | pelacak | daftar, entri | skor | Sedang ditonton | Ditonton ulang | Akan ditonton | Selesai | Ditunda | Berhenti | Pelacakan cepat |
+| `ms` | penjejak | senarai, entri | skor | Sedang menonton | Ditonton semula | Akan ditonton | Selesai | Ditangguhkan | Digugurkan | Penjejakan pantas |
+| `vi` | trình theo dõi | danh sách, mục | điểm | Đang xem | Đang xem lại | Dự định xem | Đã xem xong | Tạm dừng | Bỏ dở | Theo dõi nhanh |
+| `th` | ตัวติดตาม | รายการ | คะแนน | กำลังดู | ดูซ้ำ | วางแผนจะดู | ดูจบแล้ว | พักไว้ | เลิกดู | ติดตามด่วน |
+| `hi` | ट्रैकर | लिस्ट, एंट्री | स्कोर | देख रहे हैं | फिर से देख रहे हैं | देखने की योजना | पूरा हुआ | रुका हुआ | छोड़ दिया | क्विक ट्रैकिंग |
+| `uk` | трекер | список, запис | оцінка | Дивлюся | Переглядаю | У планах | Переглянуто | Відкладено | Покинуто | Швидке відстеження |
+| `nl` | tracker | lijst, item | score | Aan het kijken | Herbekijken | Wil ik zien | Voltooid | Gepauzeerd | Gestopt | Snel bijhouden |
+| `sv` | tracker | lista, post | betyg | Tittar | Tittar om | Planerad | Klar | Pausad | Avbruten | Snabbspårning |
+| `cs` | tracker | seznam, záznam | hodnocení | Sleduji | Znovu sleduji | Plánuji | Dokončeno | Pozastaveno | Zahozeno | Rychlé sledování |
+| `el` | tracker | λίστα, καταχώριση | βαθμολογία | Το βλέπω | Το ξαναβλέπω | Θα το δω | Ολοκληρώθηκε | Σε παύση | Εγκαταλείφθηκε | Γρήγορη καταγραφή |
+| `ro` | tracker | listă, intrare | scor | În curs | Revizionare | De văzut | Terminat | În pauză | Abandonat | Urmărire rapidă |
+| `hu` | tracker | lista, bejegyzés | pontszám | Nézem | Újranézem | Tervezem | Befejezve | Szüneteltetve | Abbahagyva | Gyors követés |
 
 ## Footer, paging and errors
 
@@ -241,3 +336,15 @@ Russian and Polish write it after a colon (`Seiten: {list}`). Japanese, Korean a
 | `zh-Hant` | 法律聲明 | 隱私權 | 頁 | 重新載入 |
 | `tr` | Yasal bilgiler | Gizlilik | sayfa | Yeniden yükle |
 | `pl` | Informacje prawne | Prywatność | strona | Odśwież |
+| `id` | Informasi hukum | Privasi | halaman | Muat ulang |
+| `ms` | Notis undang-undang | Privasi | halaman | Muat semula |
+| `vi` | Pháp lý | Quyền riêng tư | trang | Tải lại |
+| `th` | ข้อกฎหมาย | ความเป็นส่วนตัว | หน้า | โหลดซ้ำ |
+| `hi` | कानूनी जानकारी | निजता | पेज | फिर से लोड करें |
+| `uk` | Правова інформація | Конфіденційність | сторінка | Перезавантажити |
+| `nl` | Juridisch | Privacy | pagina | Opnieuw laden |
+| `sv` | Juridisk information | Integritet | sida | Läs in igen |
+| `cs` | Právní informace | Soukromí | stránka | Načíst znovu |
+| `el` | Νομικά | Απόρρητο | σελίδα | Επαναφόρτωση |
+| `ro` | Informații juridice | Confidențialitate | pagină | Reîncărcați |
+| `hu` | Jogi információk | Adatvédelem | oldal | Újratöltés |
