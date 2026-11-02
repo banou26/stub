@@ -1355,37 +1355,43 @@ test('the score follows a gold star, on a title\'s page and in a series\' previe
   await expect(score.locator('svg.lucide-star')).toHaveCSS('color', GOLD)
 })
 
-test('390 px wide, no pill runs past its row and a long tag is cut inside its pill, on a title\'s page and in its preview', async ({ page }) => {
+test('390 px wide, no pill runs past its row, a long tag cut inside its pill in a preview and whole in a page\'s scrolling row', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  /** Every pill against its row, scrolled to its end, once the last tag reads as long as a source might write one. */
+  /**
+   * Every pill against its row, scrolled to its end, once the last tag reads as long as a source might write one: whether
+   * it is cut, and whether its end shows inside the row there.
+   */
   const measure = (row: Locator) => row.evaluate(element => {
     const last = element.querySelector('.tag:last-child')!
     last.textContent = 'A Tag Named Far Longer Than Any Phone Is Wide, As A Source Might Write One'
     element.scrollLeft = element.scrollWidth * (getComputedStyle(element).direction === 'rtl' ? -1 : 1)
     const bounds = element.getBoundingClientRect()
+    const end = last.getBoundingClientRect()
     return {
       past: [...element.querySelectorAll('.chip')].filter(pill => {
         const box = pill.getBoundingClientRect()
-        return box.top < bounds.top - 0.5 || box.bottom > bounds.bottom + 0.5 || (pill === last && (box.left < bounds.left - 0.5 || box.right > bounds.right + 0.5))
+        return box.top < bounds.top - 0.5 || box.bottom > bounds.bottom + 0.5 || (pill === last && box.right > bounds.right + 0.5)
       }).map(pill => pill.textContent),
       cut: last.scrollWidth > last.clientWidth && getComputedStyle(last).textOverflow === 'ellipsis',
+      wide: end.width > bounds.width,
     }
   })
 
   await page.goto(`${origin}/media/${LATE}`)
   const chips = modal(page).locator('.columns > .side > .chips')
   await expect(chips.locator('.tag')).toHaveCount(5, { timeout: 30_000 })
-  expect(await measure(chips), 'the preview').toEqual({ past: [], cut: true })
+  expect(await measure(chips), 'the preview').toEqual({ past: [], cut: true, wide: false })
   expect(await chips.evaluate(row => [...row.children].every(pill => pill.getBoundingClientRect().right <= row.getBoundingClientRect().right + 0.5)), 'the preview: every pill').toBe(true)
   expect(await overflowX(page)).toBe(0)
 
-  // a fact is one line here, so its pills are one row that scrolls inside its line, the line as tall as a pill
+  // a fact is one line here, so its pills are one row that scrolls inside its line, the line as tall as a pill, and a
+  // tag wider than the line is read whole by scrolling it
   await page.goto(`${origin}/title/${LATE}`)
   const tags = page.locator('.facts > .pills').filter({ has: page.locator('.tag') })
   await expect(tags.locator('.tag')).toHaveCount(30, { timeout: 30_000 })
   const row = tags.locator('dd')
   expect(await row.evaluate(dd => dd.scrollWidth > dd.clientWidth), 'the control: thirty tags are wider than the line').toBe(true)
-  expect(await measure(row), 'the page').toEqual({ past: [], cut: true })
+  expect(await measure(row), 'the page').toEqual({ past: [], cut: false, wide: true })
   expect(await height(tags)).toBe(await height(tags.locator('.tag').first()))
   expect(await overflowX(page)).toBe(0)
 })

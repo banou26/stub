@@ -362,22 +362,16 @@ const style = css`
         mask-image: linear-gradient(to var(--inline-end, right), #000 calc(100% - 3rem), transparent);
       }
 
-      /* one row of pills, as tall held as drawn, padded as wide as the fade so the last shows whole at the end, a
-         pill no wider than the line short of that fade */
+      /* one row of pills, as tall held as drawn, padded as wide as the fade so the last shows whole at the end; a
+         pill is never cut, since the row scrolls to the rest of a long one */
       & > .pills {
         height: 2.8rem;
-      }
-
-      & > .pills > dd {
-        container-type: inline-size;
       }
 
       & > .pills > dd > .chips {
         flex-wrap: nowrap;
         width: max-content;
         padding-inline-end: 3rem;
-
-        & > .chip { max-width: calc(100cqi - 3rem); }
       }
     }
   }
