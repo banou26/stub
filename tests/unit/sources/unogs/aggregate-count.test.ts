@@ -9,7 +9,7 @@
 // is the axis it has. So an empty aggregate list cannot tell the two readings apart here, and the
 // test below hands a NON-EMPTY one instead: the rule is that no list on an aggregated media is ever
 // read as its count, and a list that would be read is the only way to show it is not.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../../src/worker/extractor'
 import { linkNetflix } from '../../../../src/sources/unogs/extractor'
