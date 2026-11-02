@@ -501,7 +501,7 @@ describe('the title page', () => {
     const one = { ...film(3), episodeCount: 1, settled: true }
     const { host, answer } = titlePage(one.uri)
     answer(one)
-    expect([...host.querySelectorAll('.chips > .chip')].map(chip => chip.textContent)).toEqual(['Movie', 'Finished'])
+    expect([...host.querySelectorAll('.heading > .chips > .chip')].map(chip => chip.textContent)).toEqual(['Movie', 'Finished'])
     expect(facts(host).filter(line => line.startsWith('Episodes'))).toEqual([])
     expect(facts(host)[0], 'the control: its facts drawn').toBe('Format: Movie')
   })
