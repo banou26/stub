@@ -29,7 +29,7 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { handleClaims, normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { askAccount, askCheck, handValues, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
+import { askAccount, askCheck, handValues, tellCheckDone, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -721,7 +721,7 @@ export const remoteAccount = async (origin: string): Promise<SourceAccount | und
 }
 
 // what a source's site asks the viewer to pass, asked on this connection as `account` is
-const checks = new Map<string, { pluginUri: string, originUrl: string, ask: () => Promise<unknown> }>()
+const checks = new Map<string, { pluginUri: string, originUrl: string, ask: () => Promise<unknown>, done?: () => Promise<unknown> }>()
 
 /** The source's `check` answer, bounded by CHECK_WAIT_MS; undefined for none, for one off its site, and for a source that serves no `check`. */
 export const remoteCheck = async (origin: string): Promise<SourceCheck | undefined> => {
@@ -729,8 +729,13 @@ export const remoteCheck = async (origin: string): Promise<SourceCheck | undefin
   return entry ? askCheck(entry.ask, entry.originUrl) : undefined
 }
 
-/** Asks the source its question again in every open fan-out that asked it, resolving once those answers end. */
+/**
+ * Tells the source the viewer's window for its check is done, then asks it its question again in every open fan-out
+ * that asked it, resolving once those answers end.
+ */
 export const searchAgain = async (origin: string): Promise<void> => {
+  const done = checks.get(origin)?.done
+  if (done) await tellCheckDone(done)
   const entry = askable(extractors).find(({ extractor }) => extractor.origin === origin)
   if (entry) await Promise.all([...fanouts].map(fanout => rejoinFanout(fanout, entry)))
 }
@@ -781,8 +786,10 @@ export const registerRemoteExtractor = async (
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
       const account = (source as { account?: unknown }).account
       if (meta.access !== 'none' && typeof account === 'function') accounts.set(meta.origin, { pluginUri, ask: account as () => Promise<unknown> })
-      const check = (source as { check?: unknown }).check
-      if (typeof check === 'function') checks.set(meta.origin, { pluginUri, originUrl: meta.originUrl, ask: check as () => Promise<unknown> })
+      const { check, checkDone } = source as { check?: unknown, checkDone?: unknown }
+      if (typeof check === 'function') {
+        checks.set(meta.origin, { pluginUri, originUrl: meta.originUrl, ask: check as () => Promise<unknown>, ...typeof checkDone === 'function' ? { done: checkDone as () => Promise<unknown> } : {} })
+      }
       joinOpenFanouts(fanouts, entry)
       registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly, access: meta.access })
     } catch (error) {

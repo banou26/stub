@@ -126,6 +126,13 @@ export const askCheck = (check: () => Promise<unknown>, originUrl: string): Prom
     new Promise<undefined>(resolve => setTimeout(resolve, CHECK_WAIT_MS)),
   ])
 
+/** Tells a source the viewer's window for its check is done, waiting CHECK_WAIT_MS at most, a rejection included. */
+export const tellCheckDone = (done: () => Promise<unknown>): Promise<void> =>
+  Promise.race([
+    Promise.resolve().then(done).then(() => {}, () => {}),
+    new Promise<void>(resolve => setTimeout(resolve, CHECK_WAIT_MS)),
+  ])
+
 /** How long a plugin has to take its values. The connection has no time limit of its own, and its sources wait for this. */
 export const CONFIGURE_WAIT_MS = 3_000
 
