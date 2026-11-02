@@ -274,10 +274,6 @@ const style = css`
       }
     }
 
-    &:has(.picture) > svg {
-      display: none;
-    }
-
     &:has(.picture) input {
       padding-inline: 1.4rem 4.2rem;
     }
@@ -655,7 +651,7 @@ export const Header = () => {
           if (!query.trim() && !event.currentTarget.contains(event.relatedTarget as Node | null)) setSearchOpen(false)
         }}
       >
-        <Search size={20} />
+        {scenes ? undefined : <Search size={20} />}
         <input
           ref={inputRef}
           type="text"

@@ -270,6 +270,7 @@ test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.ap
         }
         await expect(page.locator('header .picture'), where).toHaveAttribute('aria-label', label)
         await expect(page.locator('header .picture'), where).toBeVisible()
+        await expect(page.locator('header form > svg'), `${where}: in the glyph's place`).toBeHidden()
         const row = await page.evaluate(() => {
           const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
           const input = document.querySelector<HTMLInputElement>('header form input:not([type="file"])')!
@@ -290,6 +291,7 @@ test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.ap
         await page.goto(at(host, '/settings'))
         await expect(page.locator('header form input:not([type="file"])'), host).toBeAttached()
         await expect(page.locator('header .picture, header input[type="file"]'), `${host} at ${width}`).toHaveCount(0)
+        await expect(page.locator('header form > svg'), `${host} at ${width}: the glyph`).toHaveCount(1)
       }
     }
   }
