@@ -22,6 +22,9 @@ export default defineConfig({
   use: {
     // the browser's language is what stub's text follows, so a runner's own never changes what a test reads
     locale: 'en-US',
+    // the Chromium a viewer's Chrome is, not Playwright's headless shell: that other build makes an empty frame, as FKN's
+    // broker frame is in a spec, a Tab stop of its own (Chromium 148, measured 2026-11-02)
+    channel: 'chromium',
     launchOptions: {
       executablePath: detectChromePath(),
       // this is the owner's machine: no run gets to make noise on it, headless or not
