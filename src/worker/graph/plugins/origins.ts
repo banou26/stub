@@ -150,8 +150,8 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
     'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb', 'imdb',
   ]),
   // the four that build no handle from their own payload. Empty rather than absent because each one
-  // DOES emit handles, every one of them rebuilt from the asked uri: `cr:581`, `unogs:1064,1097`,
-  // `appletv:480,493`. tmdb mints none by either route and is here as the read control
+  // DOES emit handles, every one of them rebuilt from the asked uri: `cr:581`, `unogs:1163,1196`,
+  // `appletv:539,552`. tmdb mints none by either route and is here as the read control
   cr: new Set(),
   nf: new Set(),
   appletv: new Set(),
@@ -168,9 +168,9 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
  * nobody read, and the claim keeps `source`. The table above stays complete so this set can grow the
  * day another extractor starts rebuilding.
  *
- * The four, each at the line that rebuilds: `appletv/extractor.ts:480,493` and
- * `unogs/extractor.ts:1064,1097` and `crunchyroll/extractor.ts:581` replace the handle list wholesale,
- * `justwatch/extractor.ts:1069,1133` appends through `mergeHandles`.
+ * The four, each at the line that rebuilds: `appletv/extractor.ts:539,552` and
+ * `unogs/extractor.ts:1163,1196` and `crunchyroll/extractor.ts:581` replace the handle list wholesale,
+ * `justwatch/extractor.ts:1095,1159` appends through `mergeHandles`.
  *
  * IT COSTS NOTHING ON REAL DATA, measured over all 8556 rows of the recorded season (2026-09-12):
  * every claim a non-echoing origin makes is already inside its own set, and the echoing four are
