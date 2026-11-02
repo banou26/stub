@@ -209,6 +209,11 @@ test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a sc
   expect(asked).toEqual([])
 })
 
+// Playwright turns on Chromium's file chooser interception only when something listens for the event, and that
+// command can land after the key press sent next to `waitForEvent`: the page opens its chooser, nothing hears it, and
+// the wait times out (4 of 30 runs under load, 2026-11-02). Listening from the start leaves no such race.
+test.beforeEach(({ page }) => { page.on('filechooser', () => {}) })
+
 const barPicture = (page: Page) => page.locator('header').getByRole('button', { name: 'Search by picture' })
 const barField = (page: Page) => page.locator('header').getByRole('textbox', { name: 'Search', exact: true })
 
