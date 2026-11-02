@@ -336,6 +336,8 @@ Russian and Polish write it after a colon (`Seiten: {list}`). Japanese, Korean a
 | `zh-Hant` | 法律聲明 | 隱私權 | 頁 | 重新載入 |
 | `tr` | Yasal bilgiler | Gizlilik | sayfa | Yeniden yükle |
 | `pl` | Informacje prawne | Prywatność | strona | Odśwież |
+| `ar` | قانوني | الخصوصية | صفحة | إعادة التحميل |
+| `he` | משפטי | פרטיות | עמוד | טעינה מחדש |
 | `id` | Informasi hukum | Privasi | halaman | Muat ulang |
 | `ms` | Notis undang-undang | Privasi | halaman | Muat semula |
 | `vi` | Pháp lý | Quyền riêng tư | trang | Tải lại |
