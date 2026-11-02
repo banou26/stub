@@ -81,11 +81,16 @@ export const createConnections = (
 }
 
 /**
- * Whether FKN refused to run stub's page on the site, as when the viewer answered Not now to its card for it
- * ("frame.evaluate: the user did not grant evaluation here", @fkn/lib 0.9.68 on the cloud, 2026-11-02). Matched
- * by name, as @fkn/lib's own `isLocatorDenied` is. FKN counts a refusal as final, so no timer asks again.
+ * Whether FKN refused to run stub's page on the site: `LocatorDeniedError` when the viewer answered Not now to
+ * the cloud's card ("frame.evaluate: the user did not grant evaluation here", @fkn/lib 0.9.68, 2026-11-02),
+ * `PermissionDeniedError` when they denied or dismissed the extension's Evaluation sheet. Matched by name, as
+ * @fkn/lib's own `isLocatorDenied` and `isPermissionDenied` are. stub reads it as not connected, so no reread
+ * timer asks FKN again.
  */
-const isRefused = (error: unknown) => (error as { name?: unknown } | null)?.name === 'LocatorDeniedError'
+const isRefused = (error: unknown) => {
+  const name = (error as { name?: unknown } | null)?.name
+  return name === 'LocatorDeniedError' || name === 'PermissionDeniedError'
+}
 
 /**
  * The main thread's half of the worker's `sessions` channel: a call runs the named method of the page

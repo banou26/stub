@@ -1,6 +1,6 @@
-// STUB-319 (My list said it could not read AniList and MyAnimeList): the lists the page reads, from the real
-// AniList and MyAnimeList trackers through the main thread's sessions, over fake session frames. The page draws
-// its "Could not read the list" line for a list in ERROR or PAUSED and for no other (tests/unit/router/list-page).
+// The lists My list reads, from the real AniList and MyAnimeList trackers through the main thread's sessions,
+// over fake session frames. The page draws its "Could not read the list" line for a list in ERROR or PAUSED and
+// for no other (tests/unit/router/list-page).
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Tracker } from '../../../src/generated/schema/types.generated'
@@ -32,8 +32,11 @@ const malPage = (): PageApi => {
     [method, async (arg: unknown) => ((await mal.call(method, arg)) as { response: unknown }).response])) as never
 }
 
-/** What @fkn/lib rejects with when the viewer answered Not now to its card for a site (cloud, 0.9.68). */
-const refusal = () => Object.assign(new Error('frame.evaluate: the user did not grant evaluation here'), { name: 'LocatorDeniedError' })
+/**
+ * What @fkn/lib rejects with when the viewer did not let FKN run stub's page on a site: Not now on the cloud's
+ * card (0.9.68), a denied or dismissed Evaluation sheet on the extension.
+ */
+const refusal = (name: 'LocatorDeniedError' | 'PermissionDeniedError') => () => Object.assign(new Error('the user did not grant evaluation here'), { name })
 
 /** The pages a frame reaches, or the error it fails with instead, by site. */
 const setup = ({ connected, fails = {} }: { connected: string[], fails?: Record<string, () => Error> }) => {
@@ -92,8 +95,8 @@ test('connected trackers read their lists whole', async () => {
   expect(await listsOf(app)).toEqual({ anilist: 'LISTED', mal: 'LISTED' })
 })
 
-test("connected trackers whose site FKN was not let run stub's page on read as signed out, not as failed", async () => {
-  const { app } = setup({ connected: ['anilist', 'mal'], fails: { anilist: refusal, mal: refusal } })
+test("connected trackers whose site FKN was not let run stub's page on, on the cloud or the extension, read as signed out, not as failed", async () => {
+  const { app } = setup({ connected: ['anilist', 'mal'], fails: { anilist: refusal('LocatorDeniedError'), mal: refusal('PermissionDeniedError') } })
   expect(await listsOf(app)).toEqual({ anilist: 'SIGNED_OUT', mal: 'SIGNED_OUT' })
 })
 

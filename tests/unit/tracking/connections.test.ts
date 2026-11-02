@@ -35,8 +35,11 @@ const fakeFrames = (pages: Record<string, PageApi> = { anilist: { graphql: async
   return { frames: { use, reload, watch } as unknown as SessionFrames<PageApi>, use, reload }
 }
 
-/** What @fkn/lib rejects with when the viewer answered Not now to its card for a site (cloud, 0.9.68). */
-const refusal = () => Object.assign(new Error('frame.evaluate: the user did not grant evaluation here'), { name: 'LocatorDeniedError' })
+/**
+ * What @fkn/lib rejects with when the viewer did not let FKN run stub's page on a site: Not now on the cloud's
+ * card (0.9.68), a denied or dismissed Evaluation sheet on the extension.
+ */
+const REFUSALS = ['LocatorDeniedError', 'PermissionDeniedError']
 
 describe('the sessions the worker reaches', () => {
   test('answer not-connected, and attach nothing, until the viewer connected the site here', async () => {
@@ -69,10 +72,9 @@ describe('the sessions the worker reaches', () => {
     expect(whoami).toHaveBeenCalledTimes(1)
   })
 
-  // STUB-319 (My list said it could not read AniList and MyAnimeList): FKN's card for the site answered Not now
-  test("answer not-connected for a site FKN was not let run stub's page on, as for one never connected", async () => {
+  test.each(REFUSALS)("answer not-connected for a site FKN was not let run stub's page on (%s), as for one never connected", async name => {
     const { frames, use } = fakeFrames()
-    use.mockRejectedValueOnce(refusal())
+    use.mockRejectedValueOnce(Object.assign(new Error('the user did not grant evaluation here'), { name }))
     const connections = pageConnections()
     connections.connect('anilist')
 
