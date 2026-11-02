@@ -743,21 +743,6 @@ test.describe('on a touch screen', () => {
     await expect(page).toHaveURL(at('movies.localhost'))
     await expect(siteMenu(page)).toHaveCount(0)
   })
-
-  // headless Chrome on Linux fires no contextmenu for this press, held 1.5 s or released, even as a mobile (measured
-  // 2026-11-02), so what that event does is pinned in tests/unit/components/header-wordmark.test.tsx
-  test('a long press opens the site menu, and its release leaves it open where it was', async ({ page }) => {
-    await page.goto(at('movies.localhost', '/settings'))
-    const logo = (await page.locator('header .logo').boundingBox())!
-    const touch = await page.context().newCDPSession(page)
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: logo.x + logo.width / 2, y: logo.y + logo.height / 2 }] })
-    await expect(siteMenu(page).getByRole('link')).toHaveText(['Movies', 'Series', 'Anime', 'All'])
-    await page.waitForTimeout(1000)
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-    await page.waitForTimeout(500)
-    await expect(siteMenu(page)).toBeVisible()
-    await expect(page).toHaveURL(/\/settings/)
-  })
 })
 
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
