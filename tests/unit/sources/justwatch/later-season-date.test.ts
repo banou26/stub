@@ -57,6 +57,12 @@ test("a copy dated the day before is one too, and a season two weeks later keeps
   expect((await jwMedia('jw:320458-350405', secondWith({ originalReleaseDate: '2022-03-03' }))).startDate).toBe('2022-03-03')
 })
 
+// Tom and Jerry's "Season 1940" and Jeopardy!'s "Season 1984" are listed beside a "Season 1" and do start on its day
+// (1940-02-10 and 1984-09-10, 2026-11-02)
+test("a season named by its own year keeps the first season's day", async () => {
+  expect((await jwMedia('jw:320458-350405', secondWith({ seasonNumber: 2022 }))).startDate).toBe('2022-02-17')
+})
+
 test("specials dated like the first season do not take its place", async () => {
   const specials = { ...ONE, id: 'tss1', objectId: 1, episodes: [], content: { ...ONE.content, seasonNumber: 0 } }
   const nodes = severanceWith(specials, ONE, TWO)
