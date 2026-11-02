@@ -263,6 +263,7 @@ const style = css`
       border-radius: 50%;
       background: transparent;
       color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
 
       &:hover {
         color: #fff;

@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { Page, Request } from '@playwright/test'
+import type { Locator, Page, Request } from '@playwright/test'
 
 import { expect as baseExpect, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -113,8 +113,9 @@ const field = (page: Page) => page.getByRole('textbox', { name: 'Search by title
 const sceneUrl = new RegExp(`/search\\?scene=${FRAME_CODE}$`)
 
 /**
- * What a drop or a paste hands the page: the file itself, built in the page from its bytes. Answers whether the page
- * took each event from the browser, which opens a dropped file in the tab when its dragover or its drop is not taken.
+ * What a drop or a paste hands the page: the file itself, built in the page from its bytes, on the focused element as
+ * the browser sends it. Answers whether the page took each event from the browser, which opens a dropped file in the
+ * tab when its dragover or its drop is not taken.
  */
 const handOver = (page: Page, kind: 'drop' | 'paste', bytes: Buffer, name: string) =>
   page.evaluate(({ kind, bytes, name }) => {
@@ -123,8 +124,9 @@ const handOver = (page: Page, kind: 'drop' | 'paste', bytes: Buffer, name: strin
     const events = kind === 'paste'
       ? [new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })]
       : ['dragover', 'drop'].map(type => new DragEvent(type, { dataTransfer: transfer, bubbles: true, cancelable: true }))
+    const target = document.activeElement ?? document
     return events.map(event => {
-      document.dispatchEvent(event)
+      target.dispatchEvent(event)
       return event.defaultPrevented
     })
   }, { kind, bytes: [...bytes], name })
@@ -291,4 +293,36 @@ test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.ap
       }
     }
   }
+})
+
+test('a picture search takes over the field its words were typed in, picked with a click or pasted there', async ({ page }) => {
+  await traceMoe(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const pickWith = async (button: Locator) => {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), button.click()])
+    await chooser.setFiles({ name: 'shot.png', mimeType: 'image/png', buffer: FRAME })
+  }
+  await page.goto(at('anime.localhost', '/search'))
+  for (const button of [page.locator('.text-field .picture'), barPicture(page)]) {
+    expect(await button.evaluate(element => getComputedStyle(element).cursor), 'a pointer over either button').toBe('pointer')
+  }
+  await field(page).fill('spec')
+  await expect(page).toHaveURL(/\/search\?q=spec$/)
+  await pickWith(page.locator('.text-field .picture'))
+  await expect(page).toHaveURL(sceneUrl)
+  await expect.soft(field(page), 'the page\'s field').toHaveValue('')
+
+  await page.goto(at('anime.localhost', '/settings'))
+  await barField(page).fill('spec')
+  await expect(page).toHaveURL(/\/search\?q=spec$/)
+  await pickWith(barPicture(page))
+  await expect(page).toHaveURL(sceneUrl)
+  await expect.soft(barField(page), 'the bar').toHaveValue('')
+
+  await page.goBack()
+  await expect(field(page)).toHaveValue('spec')
+  await field(page).focus()
+  expect(await handOver(page, 'paste', FRAME, 'shot.png')).toEqual([true])
+  await expect(page).toHaveURL(sceneUrl)
+  await expect.soft(field(page), 'pasted in the page\'s field').toHaveValue('')
 })

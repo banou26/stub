@@ -37,6 +37,9 @@ export const usePictureSearch = () => {
     if (unreadableAt !== undefined && unreadableAt !== here) setUnreadableAt(undefined)
   }, [here])
   const searchPicture = (file: File) => {
+    // a focused field keeps its words over a new address, so it lets go for the scene search to show in it
+    const focused = document.activeElement
+    if (focused instanceof HTMLElement && focused.matches('input')) focused.blur()
     setUnreadableAt(undefined)
     void pictureCode(file).then(
       code => navigate(scenePath(code), { replace: onSearch && code === sceneOf(search) }),
