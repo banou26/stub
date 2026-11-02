@@ -124,6 +124,27 @@ test('a browser asking for French gets stub in French with nothing picked, Autom
   }
 })
 
+// wave 2's three tags a browser sends with its region, each a script of its own: Cyrillic, Vietnamese's marks and Thai
+for (const [locale, language, automatic] of [['uk-UA', 'uk', 'Автоматично (Українська)'], ['vi-VN', 'vi', 'Tự động (Tiếng Việt)'], ['th-TH', 'th', 'อัตโนมัติ (ไทย)']] as const) {
+  test(`a browser asking for ${locale} gets stub in ${language} with nothing picked, Automatic naming it`, async ({ browser }) => {
+    const context = await browser.newContext({ locale })
+    await context.route(url => !url.href.startsWith(origin), route => route.abort())
+    try {
+      const page = await context.newPage()
+      await page.goto(`${origin}/settings#language`)
+      const catalogue = catalogues()[language]!
+      const select = page.getByRole('combobox', { name: catalogue.Language })
+      await expect(select).toHaveValue('', { timeout: 30_000 })
+      await expect(page.locator('html')).toHaveAttribute('lang', language)
+      await expect(select.locator('option').first()).toHaveText(automatic)
+      await expect(page.locator('header input')).toHaveAttribute('placeholder', catalogue['Search anime, shows, movies…']!)
+      expect(await page.evaluate(key => localStorage.getItem(key), LANGUAGE_KEY), 'nothing was picked').toBeNull()
+    } finally {
+      await context.close()
+    }
+  })
+}
+
 const WATCH = '/watch/tmdb:93405-s1/tmdb:93405-s1e1/nf:81040344'
 
 /** Each page's sideways scroll at `width`: home, a title, an episode's watch page and the three Settings categories. */
@@ -143,7 +164,8 @@ const pagesOverflow = async (page: Page, width: number) => {
   return overflow
 }
 
-for (const language of ['de', 'ja']) {
+// German and wave 2's longest (Vietnamese, Hungarian, Greek, Hindi) run widest, Japanese draws in a fallback font
+for (const language of ['de', 'ja', 'vi', 'hu', 'el', 'hi']) {
   test(`${language}: home, title, watch and settings scroll no sideways at 390 px`, async ({ page }) => {
     test.setTimeout(240_000)
     await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
