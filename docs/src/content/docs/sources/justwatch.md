@@ -567,6 +567,12 @@ That year is templated into a start date at `:535` as `` `${seasonYear}-01-01` `
 `namesADay` (`src/sources/season.ts`) exists and why a JustWatch date is a veto rather than a
 match downstream.
 
+**A later season dated like the first one has no date at all.** JustWatch gives some later seasons
+the first season's premiere, or the day before it, year included: 15 of the 3545 later seasons of the
+800 most popular US shows on 2026-11-02, Severance's second among them (dated 2022-02-17, aired from
+2025-01-16). `withoutCopiedDates` takes that day and year off as the node is read, so no rule reads the
+first season's date as this one's. Two seasons two weeks apart, as Strike's were, keep theirs.
+
 ## Where the code disagrees with its comments
 
 Three, all found by reading the file rather than the reports. Each is a comment that has drifted, not
