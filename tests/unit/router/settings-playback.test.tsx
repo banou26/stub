@@ -54,13 +54,13 @@ const render = () => {
   return { host, select, pick, options, always, flip }
 }
 
-test('each language select is labelled, offers Automatic naming the viewer\'s language, then its own row, then every offered language by name', () => {
+test('each language select is labelled, offers Automatic naming the offered language serving the viewer\'s, then its own row, then every offered language by name', () => {
   const { host, select, options } = render()
   const label = (setting: string) => document.getElementById(select(setting).getAttribute('aria-labelledby')!)?.textContent
   expect([label('audio-language'), label('subtitle-language')]).toEqual(['Audio language', 'Subtitle language'])
   for (const [setting, first] of [['audio-language', ['original', 'Original']], ['subtitle-language', ['off', 'Off']]] as const) {
     const listed = options(setting)
-    expect(listed.slice(0, 2)).toEqual([['', 'Automatic (Canadian French)'], first])
+    expect(listed.slice(0, 2)).toEqual([['', 'Automatic (French)'], first])
     expect(listed).toHaveLength(OFFERED.length + 2)
     expect(new Set(listed.slice(2).map(([value]) => value))).toEqual(new Set(OFFERED))
     const names = listed.slice(2).map(([, name]) => name!)
@@ -94,6 +94,11 @@ test('Always show subtitles is off until turned on, and writes nothing when off'
   expect(stored.has(ALWAYS_SUBTITLES_KEY)).toBe(false)
 })
 
+test('Always show subtitles shows on once kept on, here or by a player', () => {
+  stored.set(ALWAYS_SUBTITLES_KEY, 'on')
+  expect(render().always().hasAttribute('checked')).toBe(true)
+})
+
 test('a language a player reported that no row is, is listed by its name, or as reported when it names none', () => {
   stored.set(AUDIO_LANGUAGE_KEY, 'English (US)')
   stored.set(SUBTITLE_LANGUAGE_KEY, 'Signs & Songs')
@@ -104,10 +109,12 @@ test('a language a player reported that no row is, is listed by its name, or as 
 
 test('a language a player reported that a row is adds no row of its own', () => {
   stored.set(AUDIO_LANGUAGE_KEY, 'jpn')
-  stored.set(SUBTITLE_LANGUAGE_KEY, 'Français')
-  const { options } = render()
-  expect(options('audio-language')).toHaveLength(OFFERED.length + 2)
-  expect(options('subtitle-language')).toHaveLength(OFFERED.length + 2)
+  for (const reported of ['Français', 'Español (América Latina)']) {
+    stored.set(SUBTITLE_LANGUAGE_KEY, reported)
+    const { options } = render()
+    expect(options('audio-language')).toHaveLength(OFFERED.length + 2)
+    expect(options('subtitle-language'), reported).toHaveLength(OFFERED.length + 2)
+  }
 })
 
 test('an open Playback follows a pick made in a player and one on the FKN account', async () => {
@@ -128,7 +135,7 @@ describe('in French', () => {
     expect([...host.querySelectorAll('h3, label')].map(element => element.textContent)).toEqual([
       'Lecture automatique de l’épisode suivant', 'Langue audio', 'Langue des sous-titres', 'Toujours afficher les sous-titres',
     ])
-    expect(options('audio-language').slice(0, 4)).toEqual([['', 'Automatique (Français canadien)'], ['original', 'Version originale'], ['de', 'Allemand'], ['en', 'Anglais']])
+    expect(options('audio-language').slice(0, 4)).toEqual([['', 'Automatique (Français)'], ['original', 'Version originale'], ['de', 'Allemand'], ['en', 'Anglais']])
     expect(options('subtitle-language')[1]).toEqual(['off', 'Désactivés'])
   })
 })
