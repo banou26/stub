@@ -7,7 +7,7 @@ export type { PlaybackState }
 // Subscription.media, mediaPage and similarMedia subscribe generators are served; the ctx a plugin sees carries exactly one function, `similarMedia`, and the viewer's `languages`
 
 /**
- * BCP 47 tags: the viewer's language, and the audio and subtitle languages last picked in a player (null: off).
+ * BCP 47 tags: the viewer's language, and the audio and subtitle languages picked in Settings or a player (null: off).
  * Additive to stub-source@1: a resolver gets them as `languages` in its context, and `play` with the release.
  */
 export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null }

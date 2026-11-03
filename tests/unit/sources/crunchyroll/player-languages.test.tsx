@@ -22,9 +22,10 @@ const exposed = vi.hoisted(() => new Set<unknown>())
 vi.mock('@banou/media-player/remote', () => ({
   exposePlayer: (media: unknown) => { exposed.add(media); return () => { exposed.delete(media) } },
 }))
-const told = vi.hoisted(() => [] as [string, string | null][])
+const told = vi.hoisted(() => [] as [string, string | boolean | null][])
 vi.mock('../../../../src/embed-languages', () => ({
   tellTrackLanguage: (kind: string, language: string | null) => { told.push([kind, language]) },
+  tellAlwaysSubtitles: (on: boolean) => { told.push(['always-subtitles', on]) },
 }))
 
 const { default: CrunchyrollVideoJSPlayer } = await import('../../../../src/sources/crunchyroll/cr-videojs-player')
@@ -37,11 +38,12 @@ beforeEach(() => {
 })
 afterEach(() => { unmount(host) })
 
-test('tells the page the audio and subtitle languages the viewer picks, subtitles off included', () => {
+test('tells the page the audio and subtitle languages the viewer picks, subtitles off included, and subtitles always shown', () => {
   player.props!.onPreferredAudioLanguageChange!('Japanese')
   player.props!.onPreferredSubtitleLanguageChange!(null)
   player.props!.onPreferredSubtitleLanguageChange!('English')
-  expect(told).toEqual([['audio', 'Japanese'], ['subtitles', null], ['subtitles', 'English']])
+  player.props!.onAlwaysShowSubtitlesChange!(true)
+  expect(told).toEqual([['audio', 'Japanese'], ['subtitles', null], ['subtitles', 'English'], ['always-subtitles', true]])
 })
 
 // held while the player switches to the languages kept, whose restore would undo the page's seek to where the viewer stopped

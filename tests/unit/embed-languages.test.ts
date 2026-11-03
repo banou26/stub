@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { hearTrackLanguages, tellTrackLanguage, trackLanguagesOf, trackLanguagesParams } from '../../src/embed-languages'
+import { hearTrackLanguages, tellAlwaysSubtitles, tellTrackLanguage, trackLanguagesOf, trackLanguagesParams } from '../../src/embed-languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../src/settings-store'
-import { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, readTrackLanguages } from '../../src/utils/track-languages'
+import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, readTrackLanguages } from '../../src/utils/track-languages'
 
 // The watch page and its embed as fake windows, as in embed-relays.test.ts: a message is delivered a
 // task later, carries the sender as `source`, and is dropped when the target origin does not match.
@@ -46,6 +46,7 @@ beforeEach(() => {
     setItem: (key: string, value: string) => { stored.set(key, value) },
     removeItem: (key: string) => { stored.delete(key) },
   })
+  vi.stubGlobal('navigator', { languages: ['en-US'] })
 })
 const stops: (() => void)[] = []
 afterEach(() => {
@@ -55,13 +56,15 @@ afterEach(() => {
 
 test('the page hands the embed the languages kept, the account\'s when signed in, and the embed reads them back', () => {
   expect(trackLanguagesParams()).toEqual({})
-  expect(trackLanguagesOf(new URLSearchParams({ url: 'https://www.crunchyroll.com/watch/GX1' }))).toEqual({ audio: undefined, subtitles: undefined })
+  expect(trackLanguagesOf(new URLSearchParams({ url: 'https://www.crunchyroll.com/watch/GX1' })), 'Automatic, in the embed\'s language')
+    .toEqual({ audio: 'en-US', subtitles: 'en-US', alwaysSubtitles: false })
 
   stored.set(SUBTITLE_LANGUAGE_KEY, 'off')
-  expect(trackLanguagesOf(new URLSearchParams(trackLanguagesParams()))).toEqual({ audio: undefined, subtitles: null })
+  stored.set(ALWAYS_SUBTITLES_KEY, 'on')
+  expect(trackLanguagesOf(new URLSearchParams(trackLanguagesParams()))).toEqual({ audio: 'en-US', subtitles: null, alwaysSubtitles: true })
 
-  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [AUDIO_LANGUAGE_KEY]: 'Japanese', [SUBTITLE_LANGUAGE_KEY]: 'English' }))
-  expect(trackLanguagesOf(new URLSearchParams(trackLanguagesParams()))).toEqual({ audio: 'Japanese', subtitles: 'English' })
+  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [AUDIO_LANGUAGE_KEY]: 'original', [SUBTITLE_LANGUAGE_KEY]: 'English', [ALWAYS_SUBTITLES_KEY]: null }))
+  expect(trackLanguagesOf(new URLSearchParams(trackLanguagesParams()))).toEqual({ audio: undefined, subtitles: 'English', alwaysSubtitles: false })
 })
 
 test('each language the viewer picks in the embed is kept by the page, subtitles off included', async () => {
@@ -69,9 +72,10 @@ test('each language the viewer picks in the embed is kept by the page, subtitles
   stops.push(hearTrackLanguages(iframe, page))
   tellTrackLanguage('audio', 'Japanese', embed)
   tellTrackLanguage('subtitles', null, embed)
-  await vi.waitFor(() => expect(readTrackLanguages()).toEqual({ audio: 'Japanese', subtitles: null }))
+  await vi.waitFor(() => expect(readTrackLanguages()).toEqual({ audio: 'Japanese', subtitles: null, alwaysSubtitles: false }))
   tellTrackLanguage('subtitles', 'Deutsch', embed)
-  await vi.waitFor(() => expect(readTrackLanguages().subtitles).toBe('Deutsch'))
+  tellAlwaysSubtitles(true, embed)
+  await vi.waitFor(() => expect(readTrackLanguages()).toEqual({ audio: 'Japanese', subtitles: 'Deutsch', alwaysSubtitles: true }))
 })
 
 test('signed in, a pick goes to the account\'s settings', async () => {
@@ -97,6 +101,7 @@ test('only the embed the page frames, on this app\'s origin, with a language of 
   send(picked('audio', null), framed.embed)
   send(picked('subtitles', 3), framed.embed)
   send(picked('quality', 'Data Saver'), framed.embed)
+  send({ type: 'stub:embed-language-picked', kind: 'always-subtitles', on: 'yes' }, framed.embed)
   await delivered()
   expect(Object.fromEntries(stored)).toEqual({ [AUDIO_LANGUAGE_KEY]: 'English' })
 

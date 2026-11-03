@@ -19,7 +19,7 @@ import { PLAY_ORDER_KEY } from '../../../src/sources/play-order'
 import { PARTY_NAME_KEY, PARTY_SESSION_KEY } from '../../../src/party/store'
 import { UPDATE_RELOADS_KEY } from '../../../src/update/gate'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
-import { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
+import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
@@ -37,7 +37,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('tab-source-settings').keys).toEqual({ store: 'session', names: [TAB_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
-      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ACCOUNT_SETTINGS_KEY],
+      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
     })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
@@ -87,7 +87,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('player').what).toContain('whether it was muted')
     expect(byId('player').what).toContain('Speed is not kept')
     expect(byId('player').what).not.toContain('language')
-    expect(byId('settings').what).toContain('the audio and subtitle languages you last picked in a player')
+    expect(byId('settings').what).toContain('the audio and subtitle languages you picked in Settings or last picked in a player, and whether subtitles always show')
   })
 
   // HOR-1026 (stub in the viewer's language): the Language setting follows the account as the country does
@@ -144,7 +144,7 @@ describe('what stub keeps per viewer', () => {
     expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
     expect(kept.lasts).toContain("this browser's copy of it when you sign out")
     expect(kept.what).toContain('What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
-    expect(kept.what).toContain('the play order, the merge order, and')
+    expect(kept.what).toContain('the play order, the merge order, the audio and subtitle languages')
   })
 
   test('keeps the volume, the tracking sites and their sign-in states on the device, and names them apart', () => {

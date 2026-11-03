@@ -13,7 +13,7 @@ import { MERGE_ORDER_KEY as MERGE } from '../../src/sources/merge-order'
 import { PLAY_ORDER_KEY as PLAY, readPlayOrder } from '../../src/sources/play-order'
 import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src/utils/autoplay'
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
-import { AUDIO_LANGUAGE_KEY as AUDIO, SUBTITLE_LANGUAGE_KEY as SUBTITLES, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages } from '../../src/utils/track-languages'
+import { ALWAYS_SUBTITLES_KEY as ALWAYS, AUDIO_LANGUAGE_KEY as AUDIO, SUBTITLE_LANGUAGE_KEY as SUBTITLES, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages } from '../../src/utils/track-languages'
 import { COUNTRY_KEY as COUNTRY, readPickedCountry } from '../../src/sources/country'
 import { CARRIED_LANGUAGE_KEY, LANGUAGE_KEY as LANGUAGE, pickLanguage, readPickedLanguage, resumeLanguagePick } from '../../src/i18n/languages'
 import { DISPLAY_MODE_KEY, readDisplayMode } from '../../src/router/search/display'
@@ -419,7 +419,7 @@ describe('the page\'s settings', () => {
     holds(world, 'alice', {
       [OFF]: '["simkl"]', [ICONS]: '["nf"]', [COUNTRY]: 'JP', [AUTOPLAY]: 'off',
       [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}', [PLAY]: '["nyaa","cr"]',
-      [AUDIO]: 'Japanese', [SUBTITLES]: 'off',
+      [AUDIO]: 'Japanese', [SUBTITLES]: 'off', [ALWAYS]: 'on',
     })
     const realm = world.browser({ account: 'alice' }).realm()
     const sync = settingsSync({ settings: pageSettings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
@@ -430,7 +430,7 @@ describe('the page\'s settings', () => {
       layout: readDisplayMode(), prefs: viewerPrefs.read(), order: readPlayOrder(), languages: readTrackLanguages(),
     }).toEqual({
       sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, layout: 'list', prefs: { targets: { anilist: false } }, order: ['nyaa', 'cr'],
-      languages: { audio: 'Japanese', subtitles: null },
+      languages: { audio: 'Japanese', subtitles: null, alwaysSubtitles: true },
     })
   })
 
@@ -443,12 +443,13 @@ describe('the page\'s settings', () => {
     await sync.check()
     keepAudioLanguage('Japanese')
     keepSubtitleLanguage(null)
+    keepAlwaysSubtitles(true)
     await sync.check()
-    expect(fileOf(world, 'alice')).toEqual({ [AUDIO]: 'Japanese', [SUBTITLES]: 'off' })
+    expect(fileOf(world, 'alice')).toEqual({ [AUDIO]: 'Japanese', [SUBTITLES]: 'off', [ALWAYS]: 'on' })
 
     const other = site(world.browser({ account: 'alice' }))
     await other.sync.check()
-    expect([other.settings.getItem(AUDIO), other.settings.getItem(SUBTITLES)]).toEqual(['Japanese', 'off'])
+    expect([other.settings.getItem(AUDIO), other.settings.getItem(SUBTITLES), other.settings.getItem(ALWAYS)]).toEqual(['Japanese', 'off', 'on'])
   })
 
   test('a language picked is on the account before the tab reloads, so the next load and another device show it', async () => {

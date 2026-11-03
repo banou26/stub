@@ -364,8 +364,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
     const prefer = async (tracks: CrunchyrollTracks) => {
       let next = tracks
       for (const kind of ['audio', 'subtitles'] as const) {
-        const selection = next[kind]
-        const id = selection && preferredSelection(selection, languages[kind])
+        const id = preferredSelection(kind, next, languages)
         if (id === undefined) continue
         setSwitching(count => count + 1)
         try {
