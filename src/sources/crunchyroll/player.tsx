@@ -192,9 +192,8 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
   // read at each attach and never rendered: an attach effect keyed on it would run on the iframe being replaced
   const excluded = useRef(triedRelays)
   const [remoteVideo, setRemoteVideo] = useState<RemoteVideoElement | null>(null)
-  // the video the watch page may drive: with languages kept, only once they are switched to
+  // the video the watch page may drive, once the languages it starts in are switched to
   const [exposed, setExposed] = useState<RemoteVideoElement | null>(null)
-  const keeps = languages.audio !== undefined || languages.subtitles !== undefined
   const [reloadKey, setReloadKey] = useState(0)
   const [attachKey, setAttachKey] = useState(0)
   const [popupOpen, setPopupOpen] = useState(false)
@@ -356,11 +355,11 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
     const isCancelled = () => cancelled || !mounted.current || generation !== trackGeneration.current
 
     // A switch puts the reloaded stream back where it was when the switch began, which would undo the page's seek to
-    // where the viewer stopped, so with languages kept the page drives the player only once the first look listing
-    // tracks has switched to them, a look failed, or discovery ended. Switched before the tracks are shown, so a watch
-    // party hears the preferred track as where this player starts.
-    let holding = keeps
-    const expose = () => { if (keeps && !isCancelled()) setExposed(remoteVideo) }
+    // where the viewer stopped, so the page drives the player only once the first look listing tracks has switched to
+    // them, a look failed, or discovery ended. Switched before the tracks are shown, so a watch party hears the
+    // preferred track as where this player starts.
+    let holding = true
+    const expose = () => { if (!isCancelled()) setExposed(remoteVideo) }
     const prefer = async (tracks: CrunchyrollTracks) => {
       let next = tracks
       for (const kind of ['audio', 'subtitles'] as const) {
@@ -643,7 +642,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
           thumbnails={thumbnails}
           chapters={chapters}
           pictureInPicture={pictureInPicture}
-          expose={!keeps || exposed === remoteVideo}
+          expose={exposed === remoteVideo}
         >
           <iframe
             key={`${mode}-${attachKey}`}

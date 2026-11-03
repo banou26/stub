@@ -466,7 +466,7 @@ describe('the tracks served to the watch page', () => {
 
   // handed over by the watch page, and switched to before any list is served, so a party hears the preferred tracks
   // as where this player starts
-  describe('the languages the viewer last picked', () => {
+  describe('the languages the player starts in', () => {
     const picks = () => controls.select.mock.calls.map(([, , kind, id]) => [kind, id])
     const firstServed = () => (served.mock.calls as unknown as [EmbedTracks][]).map(([tracks]) => tracks).find(tracks => tracks.subtitles)!
     const switched: CrunchyrollTracks = {
@@ -482,11 +482,6 @@ describe('the tracks served to the watch page', () => {
       expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', null]])
       expect(firstServed()).toMatchObject({ audio: { selected: 'English#2' }, subtitles: { selected: null } })
       expect(skin.audioTracks!.selection.selectedId).toBe('English#2')
-    })
-
-    test('leave the tracks alone when none was picked', async () => {
-      await playing()
-      expect(picks()).toEqual([])
     })
 
     test('leave the tracks alone when the episode has none in them, or already plays them', async () => {
@@ -544,14 +539,6 @@ describe('the tracks served to the watch page', () => {
         await vi.waitFor(() => expect(lastServed()[0].busy).toBe(true), { timeout: 5_000 })
         done.reject(new Error('Crunchyroll did not apply the audio option'))
         await vi.waitFor(() => expect(lastServed()[0].busy).toBe(false))
-        expect(skin.expose).toBe(true)
-      })
-
-      test('at once when none was picked', async () => {
-        controls.discover.mockReturnValue(new Promise(() => {}))
-        await load()
-        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalled(), { timeout: 5_000 })
-        expect(skin.remote).toBeTruthy()
         expect(skin.expose).toBe(true)
       })
 
@@ -645,6 +632,12 @@ describe('the tracks served to the watch page', () => {
       test('a pick made in a player wins: its audio, and subtitles for that audio', async () => {
         const { picks } = await starts(settings('fr-FR', { [AUDIO_LANGUAGE_KEY]: 'English', [SUBTITLE_LANGUAGE_KEY]: 'Español (América Latina)' }))
         expect(picks).toEqual([['audio', 'en-US'], ['subtitles', 'es-419']])
+      })
+
+      test('a Latin American Spanish viewer: the Latin American dub, past the one from Spain', async () => {
+        const audio = { options: [{ id: 'ja-JP', label: 'Japanese' }, { id: 'es-ES', label: 'Español (España)' }, { id: 'es-419', label: 'Español (América Latina)' }], selectedId: 'ja-JP' }
+        const { picks } = await starts(settings('es-419'), { ...SEVERAL, audio })
+        expect(picks).toEqual([['audio', 'es-419']])
       })
 
       test('subtitles turned off in a player stay off, and the subtitles shown are turned off', async () => {
