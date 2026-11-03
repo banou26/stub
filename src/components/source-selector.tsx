@@ -565,7 +565,7 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
 // a source played in stub is a client side navigation, which keeps the worker and every match it made this session
 const SourceLink = (
   { external, href, ...props }:
-  { external: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, children: ComponentChildren }
+  { external: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true', children: ComponentChildren }
 ) =>
   external || !href
     ? <a {...props} href={href} target="_blank" rel="noreferrer"/>
@@ -632,6 +632,7 @@ export const SourceSelector = (
             <SourceLink
               key={source.id}
               className={`source${card ? ' detailed' : ''}${source.active ? ' active' : ''}`}
+              aria-current={source.active ? 'true' : undefined}
               style={{ '--brand': brandColor(source) }}
               href={source.href}
               external={source.external}
@@ -680,6 +681,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
       <button
         type="button"
         className={`source${card ? ' detailed' : ''}${source.active ? ' active' : ''}`}
+        aria-current={source.active ? 'true' : undefined}
         style={{ '--brand': brandColor(source) }}
         onClick={() => owned ? onOpenPicker() : setOpen(value => !value)}
         title={intl.formatMessage({ id: '{count, plural, one {{count} release on {name}} other {{count} releases on {name}}}', defaultMessage: '{count, plural, one {{count} release on {name}} other {{count} releases on {name}}}' }, { count: releases.length, name: source.name })}
@@ -695,6 +697,7 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
               <SourceLink
                 key={release.uri}
                 className={`release${release.active ? ' active' : ''}`}
+                aria-current={release.active ? 'true' : undefined}
                 href={release.href}
                 external={release.external}
                 title={release.label}

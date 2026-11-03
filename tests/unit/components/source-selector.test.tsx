@@ -283,3 +283,14 @@ describe('a source\'s own picker', () => {
     expect(await open()).toEqual(['nyaa', ['nyaa:a', 'nyaa:b', 'nyaa:c'], undefined])
   })
 })
+
+test('stub\'s own list of a source\'s releases marks the one playing as current, and none when none plays', () => {
+  const current = (host: HTMLElement) => [...host.querySelectorAll('[aria-current]')].map(node => [node.getAttribute('title'), node.getAttribute('aria-current')])
+  const playing = [{ ...sources[0]!, active: true }, { ...sources[2]!, active: true, releases: [release('nyaa:a'), { ...release('nyaa:b'), active: true }] }]
+  expect(current(selector({ sources: playing }).host)).toEqual([['Netflix', 'true'], ['2 releases on Nyaa', 'true'], ['nyaa:b', 'true']])
+
+  const { host, click } = selector()
+  click('button[title="2 releases on Nyaa"]')
+  expect(host.querySelectorAll('.release')).toHaveLength(2)
+  expect(current(host)).toEqual([])
+})
