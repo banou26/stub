@@ -1,5 +1,5 @@
 /**
- * The audio and subtitle languages the viewer last picked (./utils/track-languages.ts), between the watch page
+ * The audio and subtitle languages a player starts in (./utils/track-languages.ts), between the watch page
  * that keeps them on the FKN account and stub's own embed, where the player runs and no account sync does.
  *
  * The page hands them to the embed in its url, under their setting keys, and the embed tells the page each
@@ -10,13 +10,13 @@ import type { TrackKind } from './embed-tracks'
 import { postMessage } from '@banou/ponyfill/web-messaging'
 
 import { settings } from './settings-store'
-import { AUDIO_LANGUAGE_KEY, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY, type TrackLanguages } from './utils/track-languages'
+import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY, type TrackLanguages } from './utils/track-languages'
 
 const PICKED = 'stub:embed-language-picked'
 
 /** On the watch page: the embed url parameters handing over the languages kept. */
 export const trackLanguagesParams = (): Record<string, string> => Object.fromEntries(
-  [AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY].flatMap(key => {
+  [AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY].flatMap(key => {
     const value = settings.getItem(key)
     return value === null ? [] : [[key, value]]
   }),
@@ -29,10 +29,11 @@ export const trackLanguagesOf = (params: URLSearchParams): TrackLanguages => rea
 export const hearTrackLanguages = (iframe: HTMLIFrameElement, host: Window = window) => {
   const receive = (event: MessageEvent) => {
     if (event.source !== iframe.contentWindow || event.origin !== host.location.origin) return
-    const { type, kind, language } = (event.data ?? {}) as { type?: unknown, kind?: unknown, language?: unknown }
+    const { type, kind, language, on } = (event.data ?? {}) as { type?: unknown, kind?: unknown, language?: unknown, on?: unknown }
     if (type !== PICKED) return
     if (kind === 'audio' && typeof language === 'string') keepAudioLanguage(language)
     if (kind === 'subtitles' && (typeof language === 'string' || language === null)) keepSubtitleLanguage(language)
+    if (kind === 'always-subtitles' && typeof on === 'boolean') keepAlwaysSubtitles(on)
   }
   host.addEventListener('message', receive)
   return () => host.removeEventListener('message', receive)
@@ -41,4 +42,9 @@ export const hearTrackLanguages = (iframe: HTMLIFrameElement, host: Window = win
 /** In the embed: tells the page that frames it the language the viewer picked for `kind`, null for subtitles off. */
 export const tellTrackLanguage = (kind: TrackKind, language: string | null, host: Window = window) => {
   if (host.parent !== host) postMessage(host.parent, { type: PICKED, kind, language }, host.location.origin)
+}
+
+/** In the embed: tells the page that frames it whether subtitles show when the audio plays in their language. */
+export const tellAlwaysSubtitles = (on: boolean, host: Window = window) => {
+  if (host.parent !== host) postMessage(host.parent, { type: PICKED, kind: 'always-subtitles', on }, host.location.origin)
 }

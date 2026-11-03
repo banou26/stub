@@ -23,7 +23,7 @@ export type PlayerProps = {
   triedRelays?: readonly string[]
   /** the relays a light check found the episode unlisted on, ahead of one that lists it, which a cloud frame also starts past */
   unlistedRelays?: Promise<readonly string[]>
-  /** the audio and subtitle languages the viewer last picked, which the player starts in */
+  /** the audio and subtitle languages the player starts in (src/utils/track-languages.ts) */
   languages?: TrackLanguages
 }
 
