@@ -27,8 +27,8 @@ const release = (n: number) => ({ uri: `nyaa:${n}`, url: `magnet:?xt=urn:btih:${
 const playing = () => {
   const played: string[] = []
   const source = {
-    play: vi.fn(async ({ uri }: { uri: string }) => { played.push(uri); return uri !== 'nyaa:9' }),
-    onPlayback: vi.fn(async () => {}),
+    play: vi.fn(async ({ uri }: { uri: string, languages?: object }) => { played.push(uri); return uri !== 'nyaa:9' }),
+    onPlayback: vi.fn(async (_listener: (report: object) => void) => {}),
     applyPlayback: vi.fn(async () => {}),
     onFullscreenRequest: vi.fn(async () => {}),
     applyFullscreen: vi.fn(async () => {}),
@@ -76,7 +76,24 @@ test("the source's player is handed the release and the viewer's languages", asy
   keepAudioLanguage('Japanese')
   keepSubtitleLanguage(null)
   await shown(1)
-  expect(source.play).toHaveBeenCalledWith({ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null } })
+  expect(source.play).toHaveBeenCalledWith({ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null, alwaysSubtitles: false } })
+})
+
+test('a track the viewer picks in the source\'s player is what the next release starts in', async () => {
+  const { source } = playing()
+  let ear: ((report: object) => void) | undefined
+  source.onPlayback.mockImplementation(async (listener: (report: object) => void) => { ear = listener })
+  const { next } = await shown(1)
+  const state = { paused: false, time: 42, rate: 1, at: 1 }
+  ear!({ ...state, picked: { audio: 'jpn' } })
+  ear!({ ...state, picked: { subtitles: 'Français' } })
+  ear!({ ...state, picked: { alwaysSubtitles: true } })
+  ear!({ ...state, picked: { audio: 7, subtitles: {} } })
+  await next(2)
+  expect(source.play).toHaveBeenLastCalledWith({ uri: 'nyaa:2', url: 'magnet:?xt=urn:btih:2', languages: { language: 'fr-FR', audio: 'ja', subtitles: 'fr', alwaysSubtitles: true } })
+  ear!({ ...state, picked: { subtitles: null } })
+  await next(3)
+  expect(source.play.mock.lastCall![0].languages, 'subtitles turned off').toMatchObject({ subtitles: null })
 })
 
 test('the document that plays is not the one the worker connected to, so it takes the saved values before it plays', async () => {

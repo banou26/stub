@@ -36,8 +36,13 @@ test('the merge order reaches the worker at start, and again on each change', ()
 })
 
 test("the viewer's languages reach the worker at start, and again on each pick", () => {
-  expect(languagesHanded()).toEqual([{ language: 'fr-FR' }])
+  const always = { alwaysSubtitles: false }
+  expect(languagesHanded()).toEqual([{ language: 'fr-FR', ...always }])
   keepAudioLanguage('Japanese')
   keepSubtitleLanguage(null)
-  expect(languagesHanded()).toEqual([{ language: 'fr-FR' }, { language: 'fr-FR', audio: 'ja' }, { language: 'fr-FR', audio: 'ja', subtitles: null }])
+  expect(languagesHanded()).toEqual([
+    { language: 'fr-FR', ...always },
+    { language: 'fr-FR', audio: 'ja', ...always },
+    { language: 'fr-FR', audio: 'ja', subtitles: null, ...always },
+  ])
 })

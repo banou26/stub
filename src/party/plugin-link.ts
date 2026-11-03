@@ -1,8 +1,10 @@
 import type { MediaChapter } from '@banou/media-player'
+import type { TrackPick } from '../plugin-api'
 import type { PlaybackLink } from './bridge'
 import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
 
+import { keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage } from '../utils/track-languages'
 import { isPlaybackState } from './protocol'
 
 /**
@@ -33,6 +35,15 @@ const chaptersOf = (value: unknown): MediaChapter[] | undefined => {
   return chapters.every(chapter => chapter !== undefined) ? chapters : undefined
 }
 
+/** Keeps what a package's player says the viewer picked, as a pick in stub's own players is kept. */
+const keepPicked = (picked: unknown) => {
+  if (!picked || typeof picked !== 'object') return
+  const { audio, subtitles, alwaysSubtitles } = picked as Record<string, unknown>
+  if (typeof audio === 'string') keepAudioLanguage(audio)
+  if (typeof subtitles === 'string' || subtitles === null) keepSubtitleLanguage(subtitles)
+  if (typeof alwaysSubtitles === 'boolean') keepAlwaysSubtitles(alwaysSubtitles)
+}
+
 /**
  * How long a package has to answer `buffer` before its answer is nothing. The package connection has
  * no time limit of its own, so a document that stopped answering would hold the call for good.
@@ -41,7 +52,7 @@ export const BUFFER_WAIT_MS = 1_000
 
 /** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => void) => Promise<void>
   applyPlayback?: (state: PlaybackState) => Promise<void>
   buffer?: () => Promise<unknown>
   onFullscreenRequest?: (listener: () => void) => Promise<void>
@@ -61,6 +72,8 @@ export type PlaybackSource = {
  *
  * `frame` is the package's frame on this page. The link's `focus` focuses it afresh first, which gives the package's
  * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
+ *
+ * A track the viewer picks in the player is kept from the moment the link is up, party or not.
  */
 export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
   const { onPlayback, applyPlayback, buffer, focus, offerEnding, prepare } = source
@@ -76,8 +89,9 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
   let asked = true
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => {
+  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => {
     if (disposed || !isPlaybackState(report)) return
+    keepPicked(report.picked)
     ended = report.ended === true
     duration = lengthOf(report.duration)
     chapters = chaptersOf(report.chapters)

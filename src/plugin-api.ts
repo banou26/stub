@@ -9,8 +9,20 @@ export type { PlaybackState }
 /**
  * BCP 47 tags: the viewer's language, and the audio and subtitle languages picked in Settings or a player (null: off).
  * Additive to stub-source@1: a resolver gets them as `languages` in its context, and `play` with the release.
+ *
+ * `alwaysSubtitles` is Settings' Always show subtitles, and `originalAudio` is true for its audio language set to
+ * Original. With them, they say what stub's own players start in: the audio in `audio`, else the original with
+ * `originalAudio`, else in `language`, and the subtitles in `subtitles`, else in `language`. Both additive too: a stub
+ * that hands no `alwaysSubtitles` hands only the languages last picked in a player.
  */
-export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null }
+export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null, alwaysSubtitles?: boolean, originalAudio?: boolean }
+
+/**
+ * What the viewer picked in a source's player, as `@banou/media-player` reports it: an audio or a subtitle language by
+ * its tag, else its track's title (subtitles off: null), or `alwaysSubtitles` true for subtitles picked in the
+ * language the audio plays in.
+ */
+export type TrackPick = { audio?: string, subtitles?: string | null, alwaysSubtitles?: boolean }
 
 /** What playing a source's releases needs: nothing, an account with the source's site, or a paid plan there. */
 export type SourceAccess = 'none' | 'account' | 'paid'
@@ -63,9 +75,10 @@ export type StubSource = {
    * with a length an episode counts as watched at 85% played and its row shows how far in it stopped;
    * without one, only its end counts. `chapters` are the file's own, in seconds: with an ending among them,
    * Next episode is offered as it starts rather than at the end. `endingOffered` answers `offerEnding`: false
-   * only once the player's Skip Ending is off its screen.
+   * only once the player's Skip Ending is off its screen. `picked` rides the report made as the viewer picks a track:
+   * stub keeps it as it keeps a pick made in its own players, so the next media, in any player, starts in it.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => void) => Promise<void>
   /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
   applyPlayback?: (state: PlaybackState) => Promise<void>
   /**
