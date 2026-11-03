@@ -37,14 +37,6 @@ test('the picks are handed as tags, whether the player reported a tag or a name,
   expect(viewerLanguages()).toEqual({ language: 'fr-CA', audio: 'en-US', subtitles: null })
 })
 
-test('Automatic and Original are left out, as the plugin reads the content language and its own original', () => {
-  keepAudioLanguage('original')
-  keepSubtitleLanguage(undefined)
-  expect(viewerLanguages()).toEqual({ language: 'fr-CA' })
-  keepAudioLanguage('fr')
-  expect(viewerLanguages(), 'the control: a language set in Settings is handed').toEqual({ language: 'fr-CA', audio: 'fr' })
-})
-
 test("a pick naming no language, a track's own title, is left out", () => {
   keepAudioLanguage('Commentary')
   keepSubtitleLanguage('Signs & Songs')

@@ -108,7 +108,7 @@ test('names every host stub asks from the browser, and of their services only An
 
 test('says what a source added in Settings or by a link is told of the viewer: the languages, and what they entered for it', () => {
   const { text: page } = text()
-  expect(page).toContain("Sources you add in Settings, or that a link adds, are told the language you picked there, or else your browser's, and the audio and subtitle languages you picked there or last picked in a player")
+  expect(page).toContain("Sources you add in Settings, or that a link adds, are told the language you picked there, or else your browser's, and the audio and subtitle languages you last picked in a player")
   expect(page).toContain('A source also receives what you enter for it there, such as an access key, and its own code decides where that goes.')
 })
 

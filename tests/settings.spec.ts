@@ -212,13 +212,13 @@ test('on a phone the categories are a row above the panel, the page stays at the
   }
 })
 
-test('Playback has two switches, autoplay on by default, and autoplay turned off stays off across a reload', async ({ page }) => {
+test('Playback has one switch, autoplay, on by default, and turned off it stays off across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#playback`)
   await expect(panel(page)).toHaveAttribute('data-section', 'playback')
   const autoplay = page.getByRole('switch', { name: 'Autoplay next episode', exact: true })
-  await expect(page.getByRole('switch'), 'autoplay and Always show subtitles').toHaveCount(2)
+  await expect(page.getByRole('switch')).toHaveCount(1)
   await expect(autoplay).toBeChecked()
-  await expect(panel(page).locator('p'), 'labels only, and the play order is on the source cards').toHaveCount(0)
+  await expect(panel(page), 'the play order is on the source cards').toHaveText(/^Playback\s*Autoplay next episode$/)
 
   await autoplay.click()
   await expect(autoplay).not.toBeChecked()
@@ -229,39 +229,6 @@ test('Playback has two switches, autoplay on by default, and autoplay turned off
   await autoplay.click()
   await expect(autoplay).toBeChecked()
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
-})
-
-// STUB-352 (players start in the viewer's language): the settings a pick in a player also writes
-test('Playback shows the audio and subtitles a player starts in, a pick made in a player among them, and a change is kept across a reload', async ({ page }) => {
-  await page.goto(`${origin}/legal`)
-  await page.evaluate(() => {
-    localStorage.setItem('stub.player.audio-language', 'jpn')
-    localStorage.setItem('stub.player.subtitle-language', 'Español (América Latina)')
-  })
-  await page.goto(`${origin}/settings#playback`)
-  const audio = page.getByRole('combobox', { name: 'Audio language', exact: true })
-  const subtitles = page.getByRole('combobox', { name: 'Subtitle language', exact: true })
-  const always = page.getByRole('switch', { name: 'Always show subtitles', exact: true })
-  await expect(audio.locator('option:checked'), 'the player\'s jpn is the Japanese row').toHaveText('Japanese')
-  await expect(subtitles.locator('option:checked'), 'Crunchyroll\'s Latin American Spanish is its row').toHaveText('Latin American Spanish')
-  await expect(subtitles.locator('option', { hasText: /^Spanish$/ }), 'and adds no row of its own').toHaveCount(0)
-  await expect(audio.locator('option').first(), 'named as the Language section\'s Automatic').toHaveText('Automatic (English)')
-  await expect(always).not.toBeChecked()
-
-  await audio.selectOption({ label: 'Original' })
-  await subtitles.selectOption({ label: 'Off' })
-  await always.click()
-  expect(await readLocal(page)).toMatchObject({ 'stub.player.audio-language': 'original', 'stub.player.subtitle-language': 'off', 'stub.player.always-subtitles': 'on' })
-  await page.reload()
-  await expect(audio.locator('option:checked'), 'kept in this browser').toHaveText('Original')
-  await expect(subtitles.locator('option:checked')).toHaveText('Off')
-  await expect(always).toBeChecked()
-
-  await audio.selectOption({ label: 'Automatic (English)' })
-  await subtitles.selectOption({ label: 'French' })
-  const kept = await readLocal(page)
-  expect(kept['stub.player.audio-language'], 'Automatic stores nothing').toBeUndefined()
-  expect(kept['stub.player.subtitle-language']).toBe('fr')
 })
 
 test('Play order ranks the cards of stub\'s players and an added source, a moved card keeps the focus, and the order is kept and followed by another tab', async ({ page, context }) => {

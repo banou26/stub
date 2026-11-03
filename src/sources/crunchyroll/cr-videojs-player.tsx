@@ -9,7 +9,7 @@ import { useIntl } from 'react-intl'
 
 import LeftToRight from '../../components/player/left-to-right'
 import { useHostFullscreen } from '../../embed-fullscreen'
-import { tellAlwaysSubtitles, tellTrackLanguage } from '../../embed-languages'
+import { tellTrackLanguage } from '../../embed-languages'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { usePageFrameStep } from '../frame-steps'
 import { withTimelineSeek } from './timeline-seek'
@@ -68,7 +68,6 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         fullscreen={fullscreen}
         onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
         onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
-        onAlwaysShowSubtitlesChange={tellAlwaysSubtitles}
         stepFrame={stepFrame}
         language={locale}
       >

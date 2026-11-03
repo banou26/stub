@@ -61,11 +61,10 @@ test('the player starts past the relays the watch page handed over', async () =>
   expect((await open(CRUNCHYROLL)).triedRelays).toEqual(['r1', 'r2'])
 })
 
-test('the player starts in the languages the watch page handed over, Automatic in the viewer\'s', async () => {
-  vi.stubGlobal('navigator', { languages: ['fr-CA'] })
-  expect((await open({ ...CRUNCHYROLL, 'stub.player.audio-language': 'Japanese', 'stub.player.subtitle-language': 'off', 'stub.player.always-subtitles': 'on' })).languages)
-    .toEqual({ audio: 'Japanese', subtitles: null, alwaysSubtitles: true })
-  expect((await open(CRUNCHYROLL)).languages).toEqual({ audio: 'fr-CA', subtitles: 'fr-CA', alwaysSubtitles: false })
+test('the player starts in the languages the watch page handed over', async () => {
+  expect((await open({ ...CRUNCHYROLL, 'stub.player.audio-language': 'Japanese', 'stub.player.subtitle-language': 'off' })).languages)
+    .toEqual({ audio: 'Japanese', subtitles: null })
+  expect((await open(CRUNCHYROLL)).languages).toEqual({ audio: undefined, subtitles: undefined })
 })
 
 test('a Crunchyroll episode is checked past those relays as the page loads, and the player gets the answer', async () => {

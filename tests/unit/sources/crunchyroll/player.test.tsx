@@ -15,7 +15,6 @@ import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { CONNECTED_CHANNEL } from '../../../../src/tracking/connections'
-import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from '../../../../src/utils/track-languages'
 import { fakeBroadcastChannel } from '../../tracking/broadcast-channel'
 
 // The sign-in wiring of the Crunchyroll player, rendered for real against a fake frame. Crunchyroll
@@ -466,7 +465,7 @@ describe('the tracks served to the watch page', () => {
 
   // handed over by the watch page, and switched to before any list is served, so a party hears the preferred tracks
   // as where this player starts
-  describe('the languages the player starts in', () => {
+  describe('the languages the viewer last picked', () => {
     const picks = () => controls.select.mock.calls.map(([, , kind, id]) => [kind, id])
     const firstServed = () => (served.mock.calls as unknown as [EmbedTracks][]).map(([tracks]) => tracks).find(tracks => tracks.subtitles)!
     const switched: CrunchyrollTracks = {
@@ -482,6 +481,11 @@ describe('the tracks served to the watch page', () => {
       expect(picks()).toEqual([['audio', 'English#2'], ['subtitles', null]])
       expect(firstServed()).toMatchObject({ audio: { selected: 'English#2' }, subtitles: { selected: null } })
       expect(skin.audioTracks!.selection.selectedId).toBe('English#2')
+    })
+
+    test('leave the tracks alone when none was picked', async () => {
+      await playing()
+      expect(picks()).toEqual([])
     })
 
     test('leave the tracks alone when the episode has none in them, or already plays them', async () => {
@@ -542,6 +546,14 @@ describe('the tracks served to the watch page', () => {
         expect(skin.expose).toBe(true)
       })
 
+      test('at once when none was picked', async () => {
+        controls.discover.mockReturnValue(new Promise(() => {}))
+        await load()
+        await vi.waitFor(() => expect(controls.discover).toHaveBeenCalled(), { timeout: 5_000 })
+        expect(skin.remote).toBeTruthy()
+        expect(skin.expose).toBe(true)
+      })
+
       test('once a look lists one kind, while discovery looks for the other', async () => {
         controls.discover.mockResolvedValueOnce({ audio: TRACKS.audio }).mockReturnValue(new Promise(() => {}))
         await load({ audio: 'Japanese' })
@@ -583,66 +595,6 @@ describe('the tracks served to the watch page', () => {
         first.resolve(TRACKS)
         await new Promise(resolve => setTimeout(resolve, 50))
         expect(skin.expose).toBe(true)
-      })
-    })
-
-    // STUB-352 (players start in the viewer's language): the settings as the embed reads them, Automatic in the
-    // viewer's language, on an episode in three audio languages whose subtitles start off
-    describe('in the viewer\'s language', () => {
-      const SEVERAL: CrunchyrollTracks = {
-        audio: { options: [{ id: 'ja-JP', label: 'Japanese' }, { id: 'en-US', label: 'English' }, { id: 'fr-FR', label: 'Français' }], selectedId: 'ja-JP' },
-        subtitles: { options: [{ id: 'en-US', label: 'English' }, { id: 'fr-FR', label: 'Français' }, { id: 'es-419', label: 'Español (América Latina)' }], selectedId: null, offLabel: 'Off' },
-      }
-      const settings = (language: string, kept: Record<string, string> = {}) => readTrackLanguages(key => kept[key] ?? null, language)
-      const starts = async (languages: TrackLanguages, tracks = SEVERAL) => {
-        controls.discover.mockResolvedValue(tracks)
-        let now = tracks
-        controls.select.mockImplementation(async (_frame, _video, kind: 'audio' | 'subtitles', id: string | null) =>
-          now = { ...now, [kind]: { ...now[kind]!, selectedId: id } })
-        await playing(languages)
-        return { picks: picks(), first: firstServed() }
-      }
-
-      test('a French viewer on an episode with a French dub: the dub, subtitles left off', async () => {
-        const { picks, first } = await starts(settings('fr-FR'))
-        expect(picks).toEqual([['audio', 'fr-FR']])
-        expect(first).toMatchObject({ audio: { selected: 'fr-FR' }, subtitles: { selected: null } })
-      })
-
-      test('a French viewer on an episode without one: the original, French subtitles', async () => {
-        const { picks } = await starts(settings('fr-FR'), { ...SEVERAL, audio: { options: SEVERAL.audio!.options.slice(0, 2), selectedId: 'ja-JP' } })
-        expect(picks).toEqual([['subtitles', 'fr-FR']])
-      })
-
-      test('an English viewer on a Japanese episode with English subtitles: Japanese, English subtitles', async () => {
-        const { picks } = await starts(settings('en-US'), { ...SEVERAL, audio: { options: SEVERAL.audio!.options.slice(0, 1), selectedId: 'ja-JP' } })
-        expect(picks).toEqual([['subtitles', 'en-US']])
-      })
-
-      test('with subtitles always shown: the dub, and subtitles in its language', async () => {
-        const { picks } = await starts(settings('fr-FR', { [ALWAYS_SUBTITLES_KEY]: 'on' }))
-        expect(picks).toEqual([['audio', 'fr-FR'], ['subtitles', 'fr-FR']])
-      })
-
-      test('with Original audio: Crunchyroll\'s own, and subtitles in the viewer\'s language', async () => {
-        const { picks } = await starts(settings('fr-FR', { [AUDIO_LANGUAGE_KEY]: 'original' }))
-        expect(picks).toEqual([['subtitles', 'fr-FR']])
-      })
-
-      test('a pick made in a player wins: its audio, and subtitles for that audio', async () => {
-        const { picks } = await starts(settings('fr-FR', { [AUDIO_LANGUAGE_KEY]: 'English', [SUBTITLE_LANGUAGE_KEY]: 'Español (América Latina)' }))
-        expect(picks).toEqual([['audio', 'en-US'], ['subtitles', 'es-419']])
-      })
-
-      test('a Latin American Spanish viewer: the Latin American dub, past the one from Spain', async () => {
-        const audio = { options: [{ id: 'ja-JP', label: 'Japanese' }, { id: 'es-ES', label: 'Español (España)' }, { id: 'es-419', label: 'Español (América Latina)' }], selectedId: 'ja-JP' }
-        const { picks } = await starts(settings('es-419'), { ...SEVERAL, audio })
-        expect(picks).toEqual([['audio', 'es-419']])
-      })
-
-      test('subtitles turned off in a player stay off, and the subtitles shown are turned off', async () => {
-        const { picks } = await starts(settings('fr-FR', { [SUBTITLE_LANGUAGE_KEY]: 'off' }), { ...SEVERAL, subtitles: { ...SEVERAL.subtitles!, selectedId: 'en-US' } })
-        expect(picks).toEqual([['audio', 'fr-FR'], ['subtitles', null]])
       })
     })
 

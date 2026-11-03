@@ -7,16 +7,13 @@ import { languageTag } from '@banou/media-player/language'
 
 import { contentLanguage, LANGUAGE_KEY } from './i18n/languages'
 import { settings } from './settings-store'
-import { AUDIO_LANGUAGE_KEY, OFF, SUBTITLE_LANGUAGE_KEY } from './utils/track-languages'
+import { AUDIO_LANGUAGE_KEY, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from './utils/track-languages'
 
-/**
- * The content language, and the audio and subtitle languages picked in Settings or a player as tags. Automatic,
- * Original and a pick naming no language are left out.
- */
+/** The content language, and the audio and subtitle languages last picked in a player as tags; a pick naming none is left out. */
 export const viewerLanguages = (): ViewerLanguages => {
-  const subtitles = settings.getItem(SUBTITLE_LANGUAGE_KEY)
-  const audioTag = languageTag(settings.getItem(AUDIO_LANGUAGE_KEY) ?? undefined)
-  const subtitleTag = subtitles === OFF ? null : languageTag(subtitles ?? undefined)
+  const { audio, subtitles } = readTrackLanguages()
+  const audioTag = languageTag(audio)
+  const subtitleTag = subtitles === null ? null : languageTag(subtitles)
   return {
     language: contentLanguage(),
     ...audioTag ? { audio: audioTag } : {},

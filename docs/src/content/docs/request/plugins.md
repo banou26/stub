@@ -361,10 +361,10 @@ for await (const payload of await subscribe(undefined, args, { similarMedia: sim
 ```
 
 `languages` is `{ language, audio?, subtitles? }` in BCP 47 tags (`ViewerLanguages`, `src/plugin-api.ts`):
-the browser's first language, and the audio and subtitle languages picked in Settings or last picked in a
-player, subtitles off as `null`, and Automatic, Original and a pick naming no language left out. The page hands
-them to the worker at start and on every pick (`src/viewer-languages.ts`), as it hands the country, and `play`
-gets the same object beside the release. Both are additive to `stub-source@1`: an older plugin reads neither.
+the browser's first language, and the audio and subtitle languages last picked in a player, subtitles off
+as `null` and a pick naming no language left out. The page hands them to the worker at start and on every
+pick (`src/viewer-languages.ts`), as it hands the country, and `play` gets the same object beside the
+release. Both are additive to `stub-source@1`: an older plugin reads neither.
 
 `src/worker/extractor.ts:673-681` is the argument for that one function being there at all:
 

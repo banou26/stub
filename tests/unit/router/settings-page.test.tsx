@@ -98,13 +98,11 @@ test('#sources shows Sources and only Sources', async () => {
   expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
 })
 
-test('#playback shows Playback, autoplay on until turned off, and the audio and subtitles a player starts in', async () => {
+test('#playback shows Playback and its one switch, autoplay, on until turned off', async () => {
   const host = await open('#playback')
   expect(shown(host)).toEqual({ panels: ['playback'], heading: 'Playback', current: ['Playback'], accountRows: 0 })
   const autoplay = () => host.querySelector<HTMLInputElement>('input[role="switch"]')!
-  expect([...host.querySelectorAll('input[role="switch"]')].map(input => input.closest('label')?.textContent)).toEqual(['Autoplay next episode', 'Always show subtitles'])
-  const selects = [...host.querySelectorAll('[data-section] select')]
-  expect(selects.map(select => document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Audio language', 'Subtitle language'])
+  expect([...host.querySelectorAll('input[role="switch"]')].map(input => input.closest('label')?.textContent)).toEqual(['Autoplay next episode'])
   expect(host.querySelector('[data-section] p'), 'labels only').toBeNull()
   expect(host.querySelector('ol'), 'the play order is on the source cards').toBeNull()
   expect(isOn(autoplay())).toBe(true)
