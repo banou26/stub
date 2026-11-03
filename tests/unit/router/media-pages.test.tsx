@@ -198,6 +198,37 @@ describe('the preview', () => {
     expect(modal().querySelector('.episode .origins a')?.getAttribute('title'), 'the control: its source drawn').toBe('Watch on Crunchyroll')
   })
 
+  test('does not mark the rows loading again when a source joins after the preview settled, as over its title', () => {
+    let hidive = false
+    answers.origins = ids => {
+      const cr = crunchyroll(() => true)(ids)
+      return !ids.includes('hidive') ? cr : hidive ? [...cr!, { id: 'hidive', name: 'HIDIVE', icon: null, color: null }] : undefined
+    }
+    const frieren = work(1, 'Frieren')
+    const named = (settled: boolean, origins: string[]) => ({
+      ...frieren,
+      settled,
+      episodes: frieren.episodes.map(episode => ({
+        ...episode,
+        handles: origins.map(origin => ({ relation: 'SAME_AS', node: { uri: `${origin}:${episode.id}`, origin, url: `https://${origin}.example/${episode.id}` } })),
+      })),
+    })
+    const marks = () => [...modal().querySelectorAll('.episode')].map(row => row.querySelector('.origins [role="img"]')?.getAttribute('aria-label'))
+    const line = () => modal().querySelector('.hero .stack > .line [role="img"]')
+    const { answer } = preview(frieren.uri)
+    answer(named(true, ['cr']))
+    expect(marks()).toEqual([undefined, undefined])
+
+    // a source past its bound joins, naming an origin that has not answered yet
+    answer(named(false, ['cr', 'hidive']))
+    expect(line(), 'over its title').toBeNull()
+    expect(marks()).toEqual([undefined, undefined])
+
+    hidive = true
+    answer(named(false, ['cr', 'hidive']))
+    expect(modal().querySelectorAll('.episode .origins a[title="Watch on HIDIVE"]'), 'the control: the joined source drawn').toHaveLength(2)
+  })
+
   // HOR-1017: the owner, "Probably put the release date somewhere like, under the titles"; HOR-830 moved it into
   // the line over a series' title, round 3's Cinematic
   test('draws a series\' release date in the line over its title and beside its description, its season without a day, and nothing without either', () => {

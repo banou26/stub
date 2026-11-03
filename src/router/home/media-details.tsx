@@ -840,7 +840,8 @@ const jumpStyle = css`
  * carries a bar for how far the viewer got: the share where they last stopped in any of the episode's sources, else
  * full once `tracked` says it is watched. With no rows, rows' placeholders until every source has answered, then "No
  * episodes found". Past seven pages a box takes an episode's number and shows its page. Given `settled`, each released
- * row is marked loading until it is true and the origins of the rows' sources have answered.
+ * row is marked loading until it is true and the origins of the rows' sources have answered, and not again while the
+ * list is drawn, so a caller keys it by the uri it asks.
  *
  * `current` is the index of the episode playing, its row marked, and the list goes back to it whenever it changes.
  * Each row opens its episode under `mediaUri`, by default `media.uri`, on the source `sourceOf` names for it, or
@@ -870,7 +871,10 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
   )
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
   const { origins, answered } = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
-  const loading = settled !== undefined && !(settled && answered)
+  // held like `settled` itself: a source joining later names an origin that waits on its own answer, a round trip
+  const clear = useRef(false)
+  if (settled && answered) clear.current = true
+  const loading = settled !== undefined && !clear.current
   const backend = useBackend()
   const positions = usePositions()
   if (!media.episodes.length) {
