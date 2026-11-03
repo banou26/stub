@@ -1338,6 +1338,45 @@ const expectPills = async (where: string, pills: Locator) => {
   expect(genre.text, `${where}: a genre's text is brighter than a tag's`).toBeGreaterThan(tag.text)
 }
 
+// STUB-359: AniList answers Spec Late five seconds after AniZip's title and episodes, and four sources fetch what this
+// rig refuses and never answer, so the marks wait on their 30 s bound
+for (const [width, height, language] of [[1280, 800, 'en'], [390, 844, 'ar']] as const) {
+  test(`${width} px wide in ${language}, a preview marks its sources loading, as a whole and on each episode row, until every one has answered, nothing moving as the marks go`, async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/media/${LATE}`)
+    const name = language === 'en' ? 'Loading' : catalogues()[language]!['Loading']!
+    const line = modal(page).locator('.hero .stack > .line')
+    const rows = modal(page).locator('.episode:not(.placeholder)')
+    await expect(rows).toHaveCount(12, { timeout: 30_000 })
+    await expect(modal(page).locator('[data-relations]'), 'the control: AniList has not answered yet').toHaveCount(0)
+    await expect(line.getByRole('img', { name, exact: true }), 'the preview\'s mark').toBeVisible()
+    await expect(rows.locator('.origins').getByRole('img', { name, exact: true }), 'a mark on each row').toHaveCount(12)
+    // after the line's text, which is at its left in Arabic
+    expect(await line.evaluate(element => {
+      const text = document.createRange()
+      text.selectNode(element.firstChild!)
+      const { left, right } = text.getBoundingClientRect()
+      const mark = element.querySelector('[role="img"]')!.getBoundingClientRect()
+      const direction = getComputedStyle(element).direction
+      return { direction, after: direction === 'rtl' ? mark.right <= left + 0.5 : mark.left >= right - 0.5 }
+    })).toEqual({ direction: language === 'ar' ? 'rtl' : 'ltr', after: true })
+    const place = () => Promise.all([
+      line.evaluate(element => Math.round(element.getBoundingClientRect().height)),
+      rows.evaluateAll(rows => rows.map(row => {
+        const top = row.getBoundingClientRect().top
+        return [...row.querySelectorAll('.title, .origins, .date')].map(element => Math.round(element.getBoundingClientRect().top - top))
+      })),
+    ])
+    const held = await place()
+
+    await expect(modal(page).locator('[data-relations] a.relation-card').first()).toBeVisible({ timeout: 30_000 })
+    await expect(modal(page).getByRole('img', { name, exact: true })).toHaveCount(0, { timeout: 60_000 })
+    expect(await place()).toEqual(held)
+  })
+}
+
 test('a title\'s genres and tags are filled pills, the tags dimmer, on its page and in a series\' preview', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${origin}/title/${LATE}`)

@@ -157,6 +157,47 @@ describe('the preview', () => {
     expect(pending(modal())).toEqual([])
   })
 
+  // STUB-359. The worker says settled once every source has answered, one that failed or ran past its bound counted
+  // (tests/unit/worker/media-settled.test.ts), so a settled answer missing a source's fields is that source failing.
+  test('marks its sources loading over its title until every one has answered, a failed one counted', () => {
+    const mark = () => modal().querySelector('.hero .stack > .line [role="img"]')?.getAttribute('aria-label')
+    const { answer } = preview(work(1, 'Frieren').uri)
+    answer(partial(1))
+    expect(mark()).toBe('Loading')
+    answer(work(1, 'Frieren'))
+    expect(mark(), 'a first answer is not every one').toBe('Loading')
+
+    answer({ ...partial(1), settled: true })
+    expect(mark()).toBeUndefined()
+    expect(modal().querySelector('.hero .stack > .line'), 'the control: its line still drawn').not.toBeNull()
+  })
+
+  test('marks each released episode row\'s sources loading until every source has answered and their origins have', () => {
+    let ready = false
+    answers.origins = crunchyroll(() => ready)
+    const frieren = work(1, 'Frieren')
+    // the second episode airs later, so it has no sources to wait for
+    const named = (settled: boolean) => ({
+      ...frieren,
+      settled,
+      status: 'RELEASING',
+      nextAiringEpisode: { episodeNumber: 2, airingAt: '2099-01-01T00:00:00Z' },
+      episodes: frieren.episodes.map(episode => ({ ...episode, handles: [{ relation: 'SAME_AS', node: { uri: `cr:${episode.id}`, origin: 'cr', url: `https://www.crunchyroll.com/watch/${episode.id}` } }] })),
+    })
+    const marks = () => [...modal().querySelectorAll('.episode')].map(row => row.querySelector('.origins [role="img"]')?.getAttribute('aria-label'))
+    const { answer } = preview(frieren.uri)
+    answer(named(false))
+    expect(marks()).toEqual(['Loading', undefined])
+
+    answer(named(true))
+    expect(marks(), 'settled, before its sources\' origins answer').toEqual(['Loading', undefined])
+
+    ready = true
+    answer(named(true))
+    expect(marks()).toEqual([undefined, undefined])
+    expect(modal().querySelector('.episode .origins a')?.getAttribute('title'), 'the control: its source drawn').toBe('Watch on Crunchyroll')
+  })
+
   // HOR-1017: the owner, "Probably put the release date somewhere like, under the titles"; HOR-830 moved it into
   // the line over a series' title, round 3's Cinematic
   test('draws a series\' release date in the line over its title and beside its description, its season without a day, and nothing without either', () => {

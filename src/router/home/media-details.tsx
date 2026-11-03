@@ -15,6 +15,7 @@ import { Link } from 'wouter'
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
 import Paged from '../../components/paged'
+import Loading from '../../components/loading'
 import Placeholder from '../../components/placeholder'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
@@ -713,10 +714,10 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, sourceUri, current, origins, backend, unreleased, airingAt, scheduled, now, watched, progress }:
+  { episode, index, mediaUri, sourceUri, current, origins, loading, backend, unreleased, airingAt, scheduled, now, watched, progress }:
   {
-    episode: ListEpisode, index: number, mediaUri: string, sourceUri?: string, current: boolean, origins: readonly Origin[], backend: FknBackend | undefined
-    unreleased: boolean, airingAt?: string, scheduled?: string, now: number, watched: boolean, progress?: number
+    episode: ListEpisode, index: number, mediaUri: string, sourceUri?: string, current: boolean, origins: readonly Origin[], loading: boolean
+    backend: FknBackend | undefined, unreleased: boolean, airingAt?: string, scheduled?: string, now: number, watched: boolean, progress?: number
   }
 ) => {
   const intl = useIntl()
@@ -755,6 +756,7 @@ const Episode = (
           <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? intl.formatMessage({ id: 'Unreleased episode', defaultMessage: 'Unreleased episode' }) : intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: index + 1 }))}</div>
           <span className="origins">
             <SourceSelector compact sources={sources} />
+            {loading ? <Loading/> : undefined}
           </span>
         </div>
         {
@@ -837,18 +839,20 @@ const jumpStyle = css`
  * source, the first of them counting down to its time when AniList or its best-ranked source names one. Each thumbnail
  * carries a bar for how far the viewer got: the share where they last stopped in any of the episode's sources, else
  * full once `tracked` says it is watched. With no rows, rows' placeholders until every source has answered, then "No
- * episodes found". Past seven pages a box takes an episode's number and shows its page.
+ * episodes found". Past seven pages a box takes an episode's number and shows its page. Given `settled`, each released
+ * row is marked loading until it is true and the origins of the rows' sources have answered.
  *
  * `current` is the index of the episode playing, its row marked, and the list goes back to it whenever it changes.
  * Each row opens its episode under `mediaUri`, by default `media.uri`, on the source `sourceOf` names for it, or
  * where the Play pick decides when it names none.
  */
-export const Episodes = ({ media, tracked, current, mediaUri = media.uri, sourceOf }: {
+export const Episodes = ({ media, tracked, current, mediaUri = media.uri, sourceOf, settled }: {
   media: ListMedia
   tracked?: Tracked
   current?: number
   mediaUri?: string
   sourceOf?: (episode: ListEpisode) => string | undefined
+  settled?: boolean
 }) => {
   const intl = useIntl()
   const now = useNow()
@@ -865,7 +869,8 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
     media.airingSchedule?.filter(({ airingAt }) => Date.parse(airingAt) > now).map(({ episodeNumber, airingAt }) => [episodeNumber, airingAt])
   )
   // one query for every page's rows, so a page drawn later starts with its sources' icons too
-  const { origins } = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
+  const { origins, answered } = useOrigins([...new Set(media.episodes.flatMap(episodeOriginIds))])
+  const loading = settled !== undefined && !(settled && answered)
   const backend = useBackend()
   const positions = usePositions()
   if (!media.episodes.length) {
@@ -917,6 +922,7 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
                   sourceUri={sourceOf?.(episode)}
                   current={index === current}
                   origins={origins}
+                  loading={loading && !unreleased[index]}
                   backend={backend}
                   unreleased={unreleased[index]!}
                   airingAt={scheduledAt(episode, media.nextAiringEpisode) ?? (index === next ? scheduled ?? timedAt(episode) : undefined)}

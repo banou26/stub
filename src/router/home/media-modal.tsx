@@ -20,6 +20,7 @@ import MediaSeasons, { firstSeasonRedirect } from '../../components/media-season
 import MediaFranchise from '../../components/media-franchise'
 import MediaTracking from '../../components/media-tracking'
 import ModalBackdrop from '../../components/modal-backdrop'
+import Loading from '../../components/loading'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import TraceLink from '../debug/link'
 import ShareButton from '../../components/share-button'
@@ -726,9 +727,9 @@ scrollbar-gutter: stable;
 }
 `
 
-const Line = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
+const Line = ({ media, movie, loading }: { media: DetailsMedia, movie: boolean, loading: boolean }) => {
   const now = useNow()
-  return <span className="line">{movie ? filmLine(media, new Date(now)) : seriesLine(media)}</span>
+  return <span className="line">{movie ? filmLine(media, new Date(now)) : seriesLine(media)}{loading ? <Loading/> : undefined}</span>
 }
 
 const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
@@ -928,7 +929,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         <div className="over">
           {coverUrl ? <img className="poster" src={coverUrl} alt=""/> : undefined}
           <div className="stack">
-            {data?.media ? <Line media={data.media} movie={isMovie}/> : undefined}
+            {data?.media ? <Line media={data.media} movie={isMovie} loading={!settled}/> : undefined}
             {heading}
           </div>
           {movie ? <MoviePlay {...movie}>{tracking}</MoviePlay> : undefined}
@@ -973,7 +974,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         {
           isMovie || !data?.media ? undefined : (
             <div className="episode-list">
-              {current ? <Episodes key={uri} media={current} tracked={tracked}/> : <EpisodesPlaceholder/>}
+              {current ? <Episodes key={uri} media={current} tracked={tracked} settled={settled}/> : <EpisodesPlaceholder/>}
             </div>
           )
         }
