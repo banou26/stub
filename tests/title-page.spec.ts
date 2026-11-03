@@ -1339,8 +1339,9 @@ const expectPills = async (where: string, pills: Locator) => {
 }
 
 // STUB-359: AniList answers Spec Late five seconds after AniZip's title and episodes, and four sources fetch what this
-// rig refuses and never answer, so the marks wait on their 30 s bound
-for (const [width, height, language] of [[1280, 800, 'en'], [390, 844, 'ar']] as const) {
+// rig refuses and never answer, so the marks wait on their 30 s bound. At 769 px, the widest rows still beside their
+// date, each title wraps and its content column meets the date's.
+for (const [width, height, language] of [[1280, 800, 'en'], [769, 900, 'en'], [769, 900, 'ar'], [390, 844, 'ar']] as const) {
   test(`${width} px wide in ${language}, a preview marks its sources loading, as a whole and on each episode row, until every one has answered, nothing moving as the marks go`, async ({ page }) => {
     test.setTimeout(120_000)
     await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
@@ -1362,6 +1363,13 @@ for (const [width, height, language] of [[1280, 800, 'en'], [390, 844, 'ar']] as
       const direction = getComputedStyle(element).direction
       return { direction, after: direction === 'rtl' ? mark.right <= left + 0.5 : mark.left >= right - 0.5 }
     })).toEqual({ direction: language === 'ar' ? 'rtl' : 'ltr', after: true })
+    // how far each row's mark is from its date, across or down, the larger; 0 or less where they touch
+    const apart = await rows.evaluateAll(rows => rows.map(row => {
+      const mark = row.querySelector('.origins [role="img"]')!.getBoundingClientRect()
+      const date = row.querySelector('.date')!.getBoundingClientRect()
+      return Math.round(Math.max(date.left - mark.right, mark.left - date.right, date.top - mark.bottom, mark.top - date.bottom))
+    }))
+    expect(apart.every(px => px >= 4), `each row's mark clear of its date: ${apart.join(', ')}`).toBe(true)
     const place = () => Promise.all([
       line.evaluate(element => Math.round(element.getBoundingClientRect().height)),
       rows.evaluateAll(rows => rows.map(row => {

@@ -15,7 +15,7 @@ import { Link } from 'wouter'
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
 import Paged from '../../components/paged'
-import Loading from '../../components/loading'
+import Loading, { LOADING_ROOM } from '../../components/loading'
 import Placeholder from '../../components/placeholder'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
@@ -515,6 +515,12 @@ export const SourceLinks = (
 const episodesStyle = css`
   border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
 
+  /* the room a row's loading mark hangs into, or a wrapped title's mark reaches the date; held after the marks go, so
+     nothing moves */
+  &.marks .origins {
+    padding-inline-end: ${LOADING_ROOM};
+  }
+
   .episode {
     position: relative;
     display: flex;
@@ -912,7 +918,7 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
         start={jumped?.index ?? current ?? currentEpisode(media.episodes, tracked)}
       >
         {(page, offset) => (
-          <div className="episodes" css={episodesStyle} ref={rows}>
+          <div className={settled === undefined ? 'episodes' : 'episodes marks'} css={episodesStyle} ref={rows}>
             {page.map((episode, at) => {
               const index = offset + at
               const saved = newestPosition(playableUris(episode), positions)
