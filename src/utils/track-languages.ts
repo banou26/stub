@@ -14,7 +14,7 @@ export const SUBTITLE_LANGUAGE_KEY = 'stub.player.subtitle-language'
 export const ALWAYS_SUBTITLES_KEY = 'stub.player.always-subtitles'
 export const ORIGINAL = 'original'
 export const OFF = 'off'
-const ON = 'on'
+export const ON = 'on'
 
 /** What a player starts in, as `startingTracks` takes it: Automatic is `language`, Original no audio, off null. */
 export type TrackLanguages = TrackPreferences

@@ -6,11 +6,11 @@ import { useEffect, useId, useMemo, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { switchStyle } from '../../components/switch-style'
-import { contentLanguage, OFFERED } from '../../i18n/languages'
+import { bestLanguage, contentLanguage, OFFERED } from '../../i18n/languages'
 import { settings } from '../../settings-store'
 import { readAutoplay, setAutoplay, watchAutoplay } from '../../utils/autoplay'
 import {
-  AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, OFF, ORIGINAL, readTrackLanguages,
+  ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, OFF, ON, ORIGINAL,
   SUBTITLE_LANGUAGE_KEY, watchTrackLanguages,
 } from '../../utils/track-languages'
 import { languageName } from './language'
@@ -54,8 +54,8 @@ const Switch = ({ children, on, set }: { children: ComponentChildren, on: boolea
 )
 
 /**
- * A language setting: Automatic, naming the viewer's language, then `first`, then each offered language by name, and
- * a language a player reported that none of them is, by its name or as reported.
+ * A language setting: Automatic, naming the viewer's language as the Language section's Automatic does, then `first`,
+ * then each offered language by name, and a language a player reported that none of them is, by its name or as reported.
  */
 const LanguageRow = ({ title, setting, value, first, pick }: {
   title: string
@@ -75,13 +75,14 @@ const LanguageRow = ({ title, setting, value, first, pick }: {
   const tag = languageTag(value ?? undefined)
   const shown = value === null ? '' : listed(value) ? value : tag && OFFERED.includes(tag) ? tag : value
   const reported = shown === '' || listed(shown) ? [] : [{ value: shown, label: tag ? nameOf(tag) : shown }]
+  const viewer = contentLanguage()
   return (
     <div className="row" data-setting={setting}>
       <div className="head">
         <h3 id={id}>{title}</h3>
       </div>
       <select aria-labelledby={id} value={shown} onChange={event => pick(event.currentTarget.value || undefined)}>
-        <option value="">{intl.formatMessage({ id: 'Automatic ({language})', defaultMessage: 'Automatic ({language})' }, { language: nameOf(contentLanguage()) })}</option>
+        <option value="">{intl.formatMessage({ id: 'Automatic ({language})', defaultMessage: 'Automatic ({language})' }, { language: nameOf(bestLanguage([viewer], OFFERED) ?? viewer) })}</option>
         {[first, ...reported, ...byName].map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </div>
@@ -106,7 +107,7 @@ export const PlaybackSection = () => {
   const autoplay = useSetting(readAutoplay, watchAutoplay)
   const audio = useSetting(() => settings.getItem(AUDIO_LANGUAGE_KEY), watchTrackLanguages)
   const subtitles = useSetting(() => settings.getItem(SUBTITLE_LANGUAGE_KEY), watchTrackLanguages)
-  const always = useSetting(() => readTrackLanguages().alwaysSubtitles === true, watchTrackLanguages)
+  const always = useSetting(() => settings.getItem(ALWAYS_SUBTITLES_KEY) === ON, watchTrackLanguages)
   return (
     <div css={style}>
       <Switch on={autoplay} set={setAutoplay}>
@@ -124,7 +125,7 @@ export const PlaybackSection = () => {
         setting="subtitle-language"
         value={subtitles}
         first={{ value: OFF, label: intl.formatMessage({ id: 'Off#subtitles turned off', defaultMessage: 'Off', description: 'subtitles turned off' }) }}
-        pick={language => keepSubtitleLanguage(language === OFF ? null : language)}
+        pick={keepSubtitleLanguage}
       />
       <Switch on={always} set={keepAlwaysSubtitles}>
         {intl.formatMessage({ id: 'Always show subtitles', defaultMessage: 'Always show subtitles' })}
