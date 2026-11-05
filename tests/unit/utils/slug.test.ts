@@ -9,6 +9,8 @@ test.each([
   ['Re:ZERO -Starting Life in Another World-', 're-zero-starting-life-in-another-world'],
   ['ＳＰＹ×ＦＡＭＩＬＹ', 'spy-family'],
   ['Æon Flux', 'aeon-flux'],
+  ['Kılıç Ali\'nin Ħamrun Ŧeahkka Ŋuolla', 'kilic-alinin-hamrun-teahkka-nguolla'],
+  ['ʻOhana Means Family', 'ohana-means-family'],
   ['86 EIGHTY-SIX', '86-eighty-six'],
   ['.hack//Sign', 'hack-sign'],
   ['鬼滅の刃 無限列車編', '鬼滅の刃-無限列車編'],

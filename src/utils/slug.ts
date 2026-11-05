@@ -1,7 +1,7 @@
 // No imports: the app, its worker and the link preview Function share it.
 
 // Latin letters NFKD leaves whole, written as English writes them
-const SPELLED: Record<string, string> = { ß: 'ss', æ: 'ae', œ: 'oe', ø: 'o', đ: 'd', ð: 'd', ł: 'l', þ: 'th' }
+const SPELLED: Record<string, string> = { ß: 'ss', æ: 'ae', œ: 'oe', ø: 'o', đ: 'd', ð: 'd', ł: 'l', þ: 'th', ı: 'i', ħ: 'h', ŧ: 't', ŋ: 'ng' }
 const MAX = 60
 
 /**
@@ -9,7 +9,7 @@ const MAX = 60
  * every run of anything else one '-', cut at a word to 60 characters. Empty when `title` has no letter or digit.
  */
 export const slugOf = (title?: string | null): string => {
-  const slug = (title ?? '').normalize('NFKC').toLowerCase().replace(/['’]/g, '')
+  const slug = (title ?? '').normalize('NFKC').toLowerCase().replace(/['’ʻʼ]/g, '')
     // a letter with its marks: a mark on a Latin letter goes, a mark on any other is part of the letter
     .replace(/[\p{L}\p{N}]\p{M}*/gu, letter => {
       const plain = letter.normalize('NFKD').replace(/\p{M}/gu, '')
