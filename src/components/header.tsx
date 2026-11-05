@@ -295,7 +295,9 @@ const style = css`
       top: 50%;
       transform: translateY(-50%);
       display: flex;
-      padding: 0.6rem;
+      /* 29 px round the 20 px icon: at 32 its focus ring crossed the border of the 33 px field at 768 px and below
+         (measured 2026-11-06) */
+      padding: 0.45rem;
       border: none;
       border-radius: 50%;
       background: transparent;

@@ -216,6 +216,16 @@ test.beforeEach(({ page }) => { page.on('filechooser', () => {}) })
 
 const barPicture = (page: Page) => page.locator('header').getByRole('button', { name: 'Search by picture' })
 const barField = (page: Page) => page.locator('header').getByRole('textbox', { name: 'Search', exact: true })
+// how far the focused button's ring reaches past the field's top, bottom, start and end
+const ringPastField = (page: Page) => page.evaluate(() => {
+  const button = document.querySelector<HTMLElement>('header .picture')!
+  const style = getComputedStyle(button)
+  const reach = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset)
+  const ring = button.getBoundingClientRect()
+  const field = document.querySelector('header form')!.getBoundingClientRect()
+  return [field.top - (ring.top - reach), ring.bottom + reach - field.bottom, field.left - (ring.left - reach), ring.right + reach - field.right]
+    .map(past => Math.max(0, past))
+})
 
 test('the header bar\'s picture button follows its field, opens the picker from the keyboard, and finds the picture\'s show', async ({ page }) => {
   const { asked } = await traceMoe(page)
@@ -225,6 +235,7 @@ test('the header bar\'s picture button follows its field, opens the picker from 
   await barField(page).focus()
   await page.keyboard.press('Tab')
   await expect(barPicture(page)).toBeFocused()
+  expect(await ringPastField(page), 'the focus ring inside the field').toEqual([0, 0, 0, 0])
   for (const key of ['Enter', 'Space']) {
     const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), page.keyboard.press(key)])
     expect(chooser.isMultiple(), key).toBe(false)
@@ -248,6 +259,7 @@ test('at 390 px the bar\'s picture button opens with its field, which stays open
       await page.keyboard.press('Tab')
       await expect(barPicture(page)).toBeFocused()
       await expect(barPicture(page), 'the field still open').toBeVisible()
+      expect(await ringPastField(page), 'the focus ring inside the field').toEqual([0, 0, 0, 0])
     }
     const [chooser] = await Promise.all([
       page.waitForEvent('filechooser', { timeout: 5_000 }),
