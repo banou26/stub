@@ -74,7 +74,8 @@ test('its English: the wordmark, the field and the buttons', () => {
   const host = hosts.at(-1)!
   const box = host.querySelector('form input')!
   expect([box.getAttribute('placeholder'), box.getAttribute('aria-label')]).toEqual(['Search anime, shows, movies…', 'Search'])
-  expect(host.querySelector('.logo')?.textContent).toBe('stub')
+  // the icon's markup carries only the whitespace between its tags
+  expect(host.querySelector('.logo')?.textContent?.trim()).toBe('stub')
   expect(host.querySelector('.search-close')?.getAttribute('aria-label')).toBe('Close search')
   expect(host.querySelector('.search-toggle')?.getAttribute('aria-label')).toBe('Search')
   const settings = host.querySelector('.actions a[href="/settings"]')!

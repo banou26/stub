@@ -1,6 +1,8 @@
 import { resolve } from 'path'
 import { defineConfig } from 'vite-plus'
 
+import { icon } from './vite.config'
+
 // Node reads its default locale (Intl's, navigator.languages) from the environment once, as a worker starts, so it
 // is set here in the main process, before any worker: a runner's own locale never changes what a test reads
 process.env.LC_ALL = 'en_US.UTF-8'
@@ -32,6 +34,7 @@ process.env.LC_ALL = 'en_US.UTF-8'
 //  - wouter and emotion have to be INLINED for any of those aliases to apply to them at all, since
 //    an externalized dependency is resolved by node rather than by vite.
 export default defineConfig({
+  define: { __STUB_ICON__: JSON.stringify(icon) },
   oxc: { jsx: { runtime: 'automatic', importSource: '@emotion/react' } },
   resolve: {
     alias: {

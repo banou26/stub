@@ -13,6 +13,10 @@ import { pageScript } from './scripts/page-script'
 // read rather than imported so the manifest does not end up in the bundle
 export const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
 
+// the header draws stub's icon inline, and vite imports nothing from public/, where the favicon and the web app
+// manifest need it
+export const icon = readFileSync(resolve(__dirname, 'public/icons/icon.svg'), 'utf8')
+
 // Cloudflare Pages hands the sha in as an env var, and its checkout may carry no usable git metadata, so
 // that is the source to trust there. Falls back to git for a local build, and to 'dev' when neither
 // answers, because a footer that renders `undefined` is worse than one that admits it does not know.
@@ -34,6 +38,7 @@ export default defineConfig(() => ({
     // read off index.html's meta: a sha in the js renames the entry on every commit, and every open tab
     // would take a deploy that changes no code for an update
     __STUB_COMMIT__: `document.querySelector('meta[name="stub-commit"]')?.content`,
+    __STUB_ICON__: JSON.stringify(icon),
   },
   fmt: { semi: false, singleQuote: true },
   lint: {

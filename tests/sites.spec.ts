@@ -435,13 +435,13 @@ test('a click in this tab carries a source FKN holds for this tab alone to the n
   expect(await page.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBeNull()
 })
 
-test('from 1200 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
+test('from 1220 px the site links sit beside the wordmark, and a desktop keeps the search centred', async ({ page }) => {
   const searchBox = async (host: string) => {
     await page.goto(at(host))
     await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
     return (await page.getByRole('textbox', { name: 'Search' }).boundingBox())!
   }
-  for (const width of [1200, 1280]) {
+  for (const width of [1220, 1280]) {
     await page.setViewportSize({ width, height: 800 })
     const plain = await searchBox('127.0.0.1')
     const search = await searchBox('series.localhost')
@@ -466,7 +466,7 @@ test('the header keeps its floors in a wider font, on every site', async ({ page
     await page.goto(at(host, '/settings'))
     await expect(searchField(page)).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
-    for (const width of [1024, 1199, 1200, 1280, 1440]) {
+    for (const width of [1024, 1219, 1220, 1280, 1440]) {
       await page.setViewportSize({ width, height: 800 })
       const [start, search, actions] = await Promise.all([page.locator('header .start'), searchField(page), page.locator('header .actions')].map(async box => (await box.boundingBox())!))
       expect(search!.width, `${host} at ${width}: the search's floor`).toBeGreaterThanOrEqual(300)
@@ -500,7 +500,7 @@ test('the header keeps its floors in every language, in a wider font, from 1024 
     await expect(page.locator('html')).toHaveAttribute('lang', language)
     await expect(page.locator('header form input:not([type="file"])')).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
-    for (const width of [1024, 1199, 1200, 1359, 1360, 1440]) {
+    for (const width of [1024, 1219, 1220, 1359, 1360, 1379, 1380, 1440]) {
       await page.setViewportSize({ width, height: 800 })
       // the placeholder measured as the language test below measures one
       const row = await page.evaluate(() => {
@@ -523,7 +523,7 @@ test('the header keeps its floors in every language, in a wider font, from 1024 
         }
       })
       const where = `${language} at ${width}`
-      if (row.links !== width >= 1200) problems.push(`${where}: the site links ${row.links ? 'show' : 'are hidden'}`)
+      if (row.links !== width >= 1220) problems.push(`${where}: the site links ${row.links ? 'show' : 'are hidden'}`)
       if (row.width < 300) problems.push(`${where}: the search is ${Math.round(row.width)} px`)
       if (row.spare < -0.5) problems.push(`${where}: the placeholder runs ${Math.round(-row.spare)} px past its box`)
       if (row.overlaps) problems.push(`${where}: the search overlaps its neighbours`)
@@ -544,8 +544,8 @@ test('the home page\'s category tabs wrap in a wider font, where they would scro
   await expect(tab(page, 'Movies'), 'the control: the wider row reached past the page').toBeInViewport({ ratio: 1 })
 })
 
-test('below 1200 px the bar is one row with no visible site links', async ({ page }) => {
-  for (const [width, height] of [[1199, 800], [1024, 800], [844, 390], [390, 844]] as const) {
+test('below 1220 px the bar is one row with no visible site links', async ({ page }) => {
+  for (const [width, height] of [[1219, 800], [1024, 800], [844, 390], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(at('127.0.0.1'))
     const plain = (await page.locator('header').boundingBox())!.height
@@ -561,6 +561,48 @@ test('below 1200 px the bar is one row with no visible site links', async ({ pag
     expect(search.y, `${width}`).toBeLessThan(logo.y + logo.height)
     expect(search.y + search.height, `${width}`).toBeGreaterThan(logo.y)
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}`).toBeLessThanOrEqual(width)
+  }
+})
+
+const wordmark = (page: Page) => page.locator('header').getByRole('link', { name: 'stub', exact: true })
+
+// STUB-357 (stub's logo at the left of its title)
+test('the wordmark is stub\'s icon then its word in one link, at the word\'s left in Arabic too', async ({ page }) => {
+  for (const language of ['en', 'ar']) {
+    await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
+    await page.goto(at('stub.localhost', '/settings'))
+    await expect(page.locator('html')).toHaveAttribute('lang', language)
+    for (const width of [1440, 900, 769, 768, 410]) {
+      await page.setViewportSize({ width, height: 800 })
+      const [icon, word] = [wordmark(page).locator('svg'), wordmark(page).getByText('stub', { exact: true })]
+      await expect(icon, `${language} at ${width}`).toBeVisible()
+      await expect(word, `${language} at ${width}`).toBeVisible()
+      const [left, right] = [(await icon.boundingBox())!, (await word.boundingBox())!]
+      expect(left.x + left.width, `${language} at ${width}: the icon at the word's left`).toBeLessThanOrEqual(right.x)
+      expect(left.y < right.y + right.height && right.y < left.y + left.height, `${language} at ${width}: on the word's line`).toBe(true)
+    }
+  }
+})
+
+// STUB-347 (below about 350 px the search button sat over the wordmark)
+test('below 410 px the wordmark is its icon alone, still named stub, and down to 320 px the search button clears it', async ({ page }) => {
+  for (const host of ['stub.localhost', 'anime.localhost', 'series.localhost', 'movies.localhost', '127.0.0.1']) {
+    await page.setViewportSize({ width: 409, height: 800 })
+    await page.goto(at(host, '/settings'))
+    await expect(searchButton(page), host).toBeVisible()
+    await page.addStyleTag({ content: WIDER_FONT })
+    for (const width of [409, 360, 340, 320]) {
+      await page.setViewportSize({ width, height: 800 })
+      await expect(wordmark(page).locator('svg'), `${host} at ${width}`).toBeVisible()
+      await expect(wordmark(page).getByText('stub', { exact: true }), `${host} at ${width}`).toHaveCSS('clip-path', 'inset(50%)')
+      // no text is left beside the arrow and the icon, so this room is the same in every font
+      await expect.poll(async () => {
+        const start = (await page.locator('header .start').boundingBox())!
+        const button = (await searchButton(page).boundingBox())!
+        return button.x - (start.x + start.width)
+      }, `${host} at ${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(4)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${host} at ${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+    }
   }
 })
 
@@ -747,7 +789,7 @@ test.describe('on a touch screen', () => {
 
 const sitesArrow = (page: Page) => page.getByRole('button', { name: 'Sites' })
 
-test('below 1200 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
+test('below 1220 px an arrow before the wordmark opens and closes the site menu with a tap', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(at('movies.localhost', '/settings'))
   const arrow = (await sitesArrow(page).boundingBox())!
@@ -822,11 +864,11 @@ test('below 480 px the search waits behind a button, and opens focused over the 
   }
 })
 
-// HOR-1064 (a My list page): the anime site's row has room for its My list link from 600 px, and below that keeps
+// HOR-1064 (a My list page): the anime site's row has room for its My list link from 630 px, and below that keeps
 // the room it had without it
-test('the anime site\'s My list link sits beside Settings from 600 px, and below it the row keeps its room', async ({ page }) => {
+test('the anime site\'s My list link sits beside Settings from 630 px, and below it the row keeps its room', async ({ page }) => {
   const link = page.getByRole('link', { name: 'My list' })
-  for (const width of [360, 390, 479, 599]) {
+  for (const width of [360, 390, 479, 629]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto(at('anime.localhost', '/settings'))
     await expect(page.getByRole('link', { name: 'Settings' }), `${width}: the control, the row is drawn`).toBeVisible()
@@ -837,7 +879,7 @@ test('the anime site\'s My list link sits beside Settings from 600 px, and below
     const button = (await searchButton(page).boundingBox())!
     expect(button.x - (start.x + start.width), `${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(12)
   }
-  for (const width of [600, 768, 1024]) {
+  for (const width of [630, 768, 1024]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto(at('anime.localhost', '/settings'))
     await expect(link, `${width}`).toBeVisible()
@@ -970,7 +1012,7 @@ const areaDrawn = async (page: Page, width: number) => {
     await page.goto(at(host))
     await expect(page.locator('header .sites-toggle')).toBeAttached()
     await read(host)
-    if (width >= 1200) continue
+    if (width >= 1220) continue
     await page.locator('header .sites-toggle').click()
     await expect(siteMenu(page)).toBeVisible()
     await read(`${host}'s site menu`)

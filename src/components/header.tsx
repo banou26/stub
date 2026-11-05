@@ -41,8 +41,10 @@ const WORDMARK = 'stub'
 const LONG_PRESS = 500
 
 // below this the site links wait in the wordmark's menu: in Russian and the pseudo-language they left the search
-// under 300 px at 1024, with its placeholder cut (measured 2026-10-31 in Montserrat, DejaVu Sans and Noto Sans)
-const LINKS_FROM = 1200
+// under 300 px at 1024, with its placeholder cut (measured 2026-10-31 in Montserrat, DejaVu Sans and Noto Sans), and
+// since the icon joined the wordmark the pseudo-language's ran 17 px past its box at 1200 and fit with 3 px to spare at
+// 1220, in tests/sites.spec.ts's WIDER_FONT (2026-11-06)
+const LINKS_FROM = 1220
 
 const style = css`
   position: fixed;
@@ -164,10 +166,27 @@ const style = css`
   .logo {
     font-weight: 800;
     letter-spacing: 0.05em;
+    /* one lockup: from 769 to 900 px the row's 1fr track otherwise squeezes it and the icon wraps over the word */
+    white-space: nowrap;
     color: #fff;
 
     &:hover {
       color: #fff;
+    }
+
+    /* centred on the capitals, so it stands over the word as far above as below */
+    .icon {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      margin-inline-end: 0.3em;
+      vertical-align: -0.15em;
+
+      svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     }
 
     /* a long press opens the site menu, so the phone's own link menu and text selection stay off it */
@@ -279,9 +298,11 @@ const style = css`
     }
   }
 
-  /* the row's words differ by font and language: with the party button's label gone (party-widget.tsx), this is what
-     leaves the search its room where the site links show, in Montserrat and in a fallback alike */
-  @media (max-width: 1359px) {
+  /* the row's words differ by font and language: with the party button's label gone below 1360 (party-widget.tsx),
+     this is what leaves the search its room where the site links show, in Montserrat and in a fallback alike. It holds
+     past the label since the icon joined the wordmark: the wider gaps cut the pseudo-language's placeholder by 12 px at
+     1360 in tests/sites.spec.ts's WIDER_FONT, and it fit with 8 px to spare at 1380 (2026-11-06). */
+  @media (max-width: 1379px) {
     gap: 1.2rem;
 
     .sites {
@@ -337,8 +358,9 @@ const style = css`
   }
 
   /* the row's one optional button: below this it leaves the search field under 200 px from 480 px, and below 480 it
-     pushes the search button into the wordmark (24 px over at 360, measured 2026-10-30) */
-  @media (max-width: 599px) {
+     pushes the search button into the wordmark (24 px over at 360, measured 2026-10-30); since the icon joined the
+     wordmark, at 620 it left the anime site's placeholder 4 px in tests/sites.spec.ts's WIDER_FONT (2026-11-05) */
+  @media (max-width: 629px) {
     .list-link {
       display: none;
     }
@@ -347,8 +369,8 @@ const style = css`
   /* below this the row has no room for a field beside the wordmark and the actions, so the field
      waits behind a button and opens over the whole row */
   @media (max-width: 479px) {
-    /* not 0.4rem: with the wordmark wider than any font draws it (tests/sites.spec.ts's WIDER_FONT), that left it
-       10.8 px from the search button at 360 (measured 2026-11-01) */
+    /* not 0.4rem: at 320 that left the search button 3 px from the site arrow and the icon, against 5 (measured
+       2026-11-05) */
     gap: 0.2rem;
     padding: 0 0.8rem;
 
@@ -414,6 +436,22 @@ const style = css`
       border: none;
       background: transparent;
       color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  /* below this the row holds the icon or the word, not both: in tests/sites.spec.ts's WIDER_FONT the lockup left the
+     search button 11.5 px at 400 and ran under it at 380 (measured 2026-11-05). The word stays the link's name. */
+  @media (max-width: 409px) {
+    .logo .icon {
+      margin-inline-end: 0;
+    }
+
+    .logo .word {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
     }
   }
 
@@ -498,6 +536,8 @@ const Wordmark = () => {
     <Link
       to={getRoutePath(Route.HOME)}
       className={hasMenu ? 'logo sites-menu' : 'logo'}
+      // a brand lockup does not mirror: right to left too, the icon stays at the word's left
+      dir="ltr"
       {...(hasMenu
         ? {
           onPointerDown: (event: PointerEvent) => {
@@ -537,7 +577,8 @@ const Wordmark = () => {
         else askForTop()
       }}
     >
-      {WORDMARK}
+      <span className="icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: __STUB_ICON__ }}/>
+      <span className="word">{WORDMARK}</span>
     </Link>
   )
   if (!hasMenu) return wordmark
