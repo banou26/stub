@@ -12,7 +12,8 @@ import { render } from 'preact'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
-import { ASK_HOLD_MS, ASK_THROTTLE_MS, expectedTime, SETTLE_MS, type PlaybackCorrection } from '../../../src/party/playback'
+import { linkMedia } from '../../../src/party/bridge'
+import { ASK_HOLD_MS, ASK_THROTTLE_MS, expectedTime, HEARTBEAT_MS, SETTLE_MS, type PlaybackCorrection } from '../../../src/party/playback'
 import { STATUS_CHECK_MS } from '../../../src/party/status'
 import { STATUS_GAP_MS } from '../../../src/party/store'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -287,7 +288,7 @@ describe('a follower', () => {
     current.store = createPartyStore(api(fake.room), memoryStorage())
     await current.store.join(INVITE)
     const player = fakeLink()
-    const follows = vi.fn<(state: PlaybackState, measured?: boolean) => PlaybackCorrection>(() => ({ rate: 1.05 }))
+    const follows = vi.fn<(state: PlaybackState, exact?: boolean) => PlaybackCorrection>(() => ({ rate: 1.05 }))
     hosts.push(mount(<PartyPlayback link={{ ...player.link, follow: follows }}/>))
     player.report(playing(10))
     say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...playing(11), at: Date.now() }, grants: { by: {}, all: ['play'] } })
@@ -467,6 +468,57 @@ describe('a follower not following playback', () => {
     act(() => { current.store.replay() })
     expect(current.store.following()).toBe(true)
     expect(player.link.apply.mock.calls.map(([s]) => [s.paused, s.time])).toEqual([[true, 30]])
+  })
+
+  // STUB-363: stub's own players keep up with the host gently, which is not what a viewer asking to be back wants
+  describe('over a player that keeps up gently', () => {
+    /**
+     * A follower's real link over a player playing level with the host's from 10 s, played on by `play`, standing
+     * still if `stalled`. The host answers clock pings, so a replayed state is read where the host is now.
+     */
+    const level = async () => {
+      const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+      fake.room.send.mockImplementation(async text => {
+        const message = decodePartyMessage(text)
+        if (message?.t !== 'ping') return
+        setTimeout(() => { seq++; fake.emit({ type: 'message', message: { envelope: null, seq, from: 'host', at: seq, text: encodePartyMessage({ t: 'pong', n: message.n, at: message.at, host: Date.now() }) }, replayed: false }) }, 50)
+      })
+      current.store = createPartyStore(api(fake.room), memoryStorage())
+      await current.store.join(INVITE)
+      const media = Object.assign(new EventTarget(), { paused: false, ended: false, currentTime: 10, playbackRate: 1, play: async () => { media.paused = false }, pause: () => { media.paused = true } })
+      const link = linkMedia(media)
+      hosts.push(mount(<PartyPlayback link={link}/>))
+      let host = 10
+      say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...playing(host), at: Date.now() }, grants: { by: {}, all: [] } })
+      const play = async (seconds: number, stalled = false) => {
+        for (let step = 0; step < seconds * 10; step++) {
+          await wait(100)
+          host += 0.1
+          if (!media.paused && !stalled) media.currentTime += 0.1 * media.playbackRate
+          if (step % (HEARTBEAT_MS / 100) === 0) say(fake, 'host', { t: 'playback', s: { ...playing(host), at: Date.now() } })
+        }
+      }
+      await play(20)
+      expect(current.store.hostClock()).toBeDefined()
+      return { media, play, host: () => host }
+    }
+
+    test('following again after a pause puts the player where the host is at once', async () => {
+      const { media, play, host } = await level()
+      act(() => { current.store.setFollowing(false) })
+      media.paused = true
+      await play(2)
+      media.paused = false
+      act(() => { current.store.setFollowing(true) })
+      expect(media.currentTime).toBeCloseTo(host(), 0)
+    })
+
+    test('Catch up puts a player that stalled 2 s where the host is at once', async () => {
+      const { media, play, host } = await level()
+      await play(2, true)
+      act(() => { current.store.replay() })
+      expect(media.currentTime).toBeCloseTo(host(), 0)
+    })
   })
 })
 

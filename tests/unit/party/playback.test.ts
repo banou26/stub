@@ -62,7 +62,8 @@ type Change = { at: number, host?: Partial<PlaybackState>, seekBy?: number, stal
  * A follower applying the host every two seconds for `seconds`, as its heartbeats and the host's messages have it
  * do, through `followCorrection`. The host plays on from 100 s, the follower's player at whatever speed the rule
  * left it; each change happens at its second: the host's state changes, the host seeks, the player stalls (and
- * stands still that long), the player jumps, or the host's report is off by that much for one apply. Says what the rule did and where the two ended.
+ * stands still that long), the player jumps, or the host's report is off by that much for one apply. Says what the
+ * rule did and where the two ended.
  */
 const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackState> = {}) => {
   let wanted: PlaybackState = { paused: false, time: 100, rate: 1, at: NOW, ...host }
@@ -79,7 +80,7 @@ const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackStat
       misread += change.misread ?? 0
     }
     wanted = { ...wanted, at: now }
-    const step = followCorrection(follow, local, { ...wanted, time: wanted.time + misread }, now, true)
+    const step = followCorrection(follow, local, { ...wanted, time: wanted.time + misread }, now)
     follow = step.follow
     const { correction } = step
     if (Object.keys(correction).length) done.push(correction)
@@ -146,6 +147,20 @@ describe('followCorrection', () => {
 
   test('a paused follower is never caught up, and the host\'s pause is followed at once', () => {
     expect(run(120, [{ at: 10, stall: 0.45 }, { at: 12, host: { paused: true } }]).done).toEqual([{ pause: true }])
+  })
+
+  // paused, the gap would stay for as long as the party is
+  test('the host\'s pause puts a follower a second off where the host paused', () => {
+    expect(run(120, [{ at: 10, stall: 1 }, { at: 12, host: { paused: true } }])).toEqual({ done: [{ seek: 112, pause: true }], drift: 0 })
+  })
+
+  // following again or Catch up: the viewer asked to be with the host now, not in a minute
+  test('exact puts a follower 2 s behind where the host is at once', () => {
+    const { follow } = followCorrection(undefined, { paused: false, time: 100, rate: 1 }, { paused: false, time: 100, rate: 1, at: NOW }, NOW)
+    const local = { paused: false, time: 100, rate: 1 }
+    const wanted = { paused: false, time: 102, rate: 1, at: NOW + 2_000 }
+    expect(followCorrection(follow, local, wanted, NOW + 2_000).correction).toEqual({})
+    expect(followCorrection(follow, local, wanted, NOW + 2_000, true).correction).toEqual({ seek: 102 })
   })
 
   // a speed is no jump: the follower takes it without a seek, and closes what is left at the new speed

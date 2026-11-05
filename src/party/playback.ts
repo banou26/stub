@@ -112,36 +112,37 @@ const median = (values: number[]) => {
 
 /**
  * What to do to a follower's `local` player to keep it with the host's, and what to remember for the next apply.
+ * `wanted.at` is on this clock.
  *
- * When the host seeked, paused or resumed since the last apply, when this player jumped by itself (a person, or the
- * player rebuilding), or on the first, it is `playbackCorrection`: the follower goes where the host is at once.
- * Otherwise the follower is the one that drifted (a stall, a decoder, the network), and it is left alone inside
+ * When `exact`, when the host seeked, paused or resumed since the last apply, when this player jumped by itself (a
+ * person, or the player rebuilding), or on the first, it is `playbackCorrection`: the follower goes where the host
+ * is at once. Otherwise the follower is the one that drifted (a stall, a decoder, the network), and it is left alone inside
  * DEAD_BAND_S. A drift that stays outside it (the median of the last FILTER_SIZE since the player last changed) is
  * closed by a catch-up: a speed scaled to the drift, held until dead reckoning says the gap is closed, then the
  * host's speed again, with nothing measured in between. Only past CATCH_UP_LIMIT_S does it seek. A new speed from
  * the host is taken at once and starts the reading over; a paused player is never caught up.
  */
-export const followCorrection = (follow: Follow | undefined, local: LocalPlayback, wanted: PlaybackState, now: number, measured = false): { correction: PlaybackCorrection, follow: Follow } => {
-  const target = expectedTime(wanted, now, measured)
+export const followCorrection = (follow: Follow | undefined, local: LocalPlayback, wanted: PlaybackState, now: number, exact = false): { correction: PlaybackCorrection, follow: Follow } => {
+  const target = expectedTime(wanted, now, true)
   const drift = target - local.time
   const heard = { ...wanted, time: target, at: now }
   // a stall stands still, so it never reads as this player jumping
-  const moved = !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > SEEK_TOLERANCE_S ||
+  const moved = exact || !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > SEEK_TOLERANCE_S ||
     local.time < follow.played.time - RUNS_BACK_S || local.time > expectedTime(follow.played, now, true) + SEEK_TOLERANCE_S
-  const correction = playbackCorrection(local, wanted, now, measured)
-  if (!moved && Math.abs(drift) <= CATCH_UP_LIMIT_S) delete correction.seek
+  const correction = playbackCorrection(local, wanted, now, true)
+  if (Math.abs(drift) <= (moved ? SEEK_TOLERANCE_S : CATCH_UP_LIMIT_S)) delete correction.seek
 
   let next: Omit<Follow, 'played'>
-  if (!follow || moved || !sameRate(follow.heard.rate, wanted.rate) || wanted.paused || local.paused || correction.seek !== undefined) next = { heard, drifts: [] }
+  if (!follow || moved || !sameRate(follow.heard.rate, wanted.rate) || local.paused || correction.seek !== undefined) next = { heard, drifts: [] }
   else if (follow.catchUp && now < follow.catchUp.until) next = { ...follow, heard }
   else {
-    const drifts = [...follow.catchUp ? [] : follow.drifts, drift].slice(-FILTER_SIZE)
+    const drifts = [...follow.drifts, drift].slice(-FILTER_SIZE)
     const filtered = drifts.length === FILTER_SIZE ? median(drifts) : 0
     if (Math.abs(filtered) > DEAD_BAND_S) {
       // behind the host runs fast, ahead of it runs slow, either side of the host's own speed
       const speed = Math.min(Math.abs(filtered) / CATCH_UP_S, NUDGE_RATE - 1)
       const rate = wanted.rate * (filtered > 0 ? 1 + speed : 1 / (1 + speed))
-      next = { heard, drifts: [], catchUp: { rate, until: now + Math.abs(filtered) / Math.abs(rate - wanted.rate) * 1000 } }
+      next = { heard, drifts: [], catchUp: { rate, until: now + Math.abs(filtered / (rate - wanted.rate)) * 1000 } }
     } else next = { heard, drifts }
   }
 

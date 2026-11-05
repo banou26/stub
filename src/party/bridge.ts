@@ -25,11 +25,12 @@ export type PlaybackLink = {
    */
   apply: (state: PlaybackState, measured?: boolean) => void
   /**
-   * Keep the player with a host whose player is at `state`, as a follower does on every state it hears and every
-   * report of its own (see `followCorrection`), and say what it did. Absent where the player keeps up by a rule
-   * of its own, as a source package's does with each state `apply` hands it.
+   * Keep the player with a host whose player is at `state`, `state.at` on this clock, as a follower does on every
+   * state it hears and every report of its own (see `followCorrection`), and say what it did; `exact` puts it where
+   * the host is at once, as on following again or Catch up. Absent where the player keeps up by a rule of its own,
+   * as a source package's does with each state `apply` hands it.
    */
-  follow?: (state: PlaybackState, measured?: boolean) => PlaybackCorrection
+  follow?: (state: PlaybackState, exact?: boolean) => PlaybackCorrection
   /** every report the player makes; returns the unsubscribe */
   onReport: (listener: (state: PlaybackState) => void) => () => void
   /** Whether the player reached the end, where the browser pauses it on its own: that pause is nobody's. */
@@ -98,9 +99,9 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
   let caughtUp: ReturnType<typeof setTimeout> | undefined
   return {
     apply: (wanted, measured) => { move(playbackCorrection(stateOf(media), wanted, Date.now(), measured)) },
-    follow: (wanted, measured) => {
+    follow: (wanted, exact) => {
       const now = Date.now()
-      const { correction, follow } = followCorrection(following, stateOf(media), wanted, now, measured)
+      const { correction, follow } = followCorrection(following, stateOf(media), wanted, now, exact)
       following = follow
       clearTimeout(caughtUp)
       const { catchUp } = follow

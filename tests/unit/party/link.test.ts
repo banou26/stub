@@ -125,7 +125,7 @@ describe('linkMedia', () => {
     let host = 100
     const play = async (seconds: number, follow: boolean) => {
       for (let step = 0; step < seconds * 2; step++) {
-        if (follow && step % 4 === 0) link.follow!({ paused: false, time: host, rate: 1, at: Date.now() }, true)
+        if (follow && step % 4 === 0) link.follow!({ paused: false, time: host, rate: 1, at: Date.now() })
         await vi.advanceTimersByTimeAsync(500)
         host += 0.5
         media.currentTime += 0.5 * media.playbackRate
@@ -140,6 +140,25 @@ describe('linkMedia', () => {
     expect(Math.abs(host - media.currentTime)).toBeLessThan(0.1)
     link.dispose()
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  // a viewer who stopped following and set a speed of their own keeps it
+  test('a speed set while a catch-up runs is not undone when the catch-up ends', async () => {
+    vi.useFakeTimers()
+    const link = linkMedia(Object.assign(media, { paused: false, currentTime: 100 }))
+    let host = 100
+    for (let step = 0; step < 40; step++) {
+      if (step === 20) media.currentTime -= 2
+      if (step % 4 === 0) link.follow!({ paused: false, time: host, rate: 1, at: Date.now() })
+      await vi.advanceTimersByTimeAsync(500)
+      host += 0.5
+      media.currentTime += 0.5 * media.playbackRate
+    }
+    expect(media.playbackRate, 'catching up').toBe(NUDGE_RATE)
+    media.playbackRate = 1.5
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(media.playbackRate).toBe(1.5)
+    link.dispose()
   })
 
   test('follow leaves an ended player alone unless the host is somewhere else', () => {

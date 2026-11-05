@@ -65,7 +65,8 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   const requested = useRef(new Map<TrackKind, string | null>())
   const busy = () => local.current?.busy ?? false
 
-  const apply = (target: PlaybackState) => {
+  // exact: where the host is at once, as on following again and on Catch up, rather than kept with the host
+  const apply = (target: PlaybackState, exact = false) => {
     // read live: the report listener and the hold timer hold an older render
     if (!link || !party.following() || busy()) return
     const now = Date.now()
@@ -74,13 +75,13 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     const predicted = local && playbackCorrection(local, target, now, true)
     // play() on an ended player starts it over from 0: it follows the host only somewhere else
     if (link.ended?.() && predicted?.seek === undefined) return
-    const correction = link.follow ? link.follow(target, true) : (link.apply(target, true), predicted)
+    const correction = link.follow ? link.follow(target, exact) : (link.apply(target, true), predicted)
     if (!correction || correction.seek !== undefined || correction.play || correction.pause) settleUntil.current = now + SETTLE_MS
     if (correction?.seek !== undefined) seekingTo.current = correction.seek
   }
-  const reapply = () => {
+  const reapply = (exact = false) => {
     const heard = wanted.current
-    if (heard) apply(advance(heard, heard.at, Date.now()))
+    if (heard) apply(advance(heard, heard.at, Date.now()), exact)
   }
   const ask = (controls: PlayerControl[], reported: PlaybackState) => {
     const clock = party.hostClock()
@@ -97,7 +98,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     }
     holdUntil.current = Date.now() + ASK_HOLD_MS
     clearTimeout(holdTimer.current)
-    holdTimer.current = setTimeout(reapply, ASK_HOLD_MS)
+    holdTimer.current = setTimeout(() => reapply(), ASK_HOLD_MS)
   }
 
   useEffect(() => {
@@ -143,7 +144,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     }
   }, [role, link])
 
-  useEffect(() => { if (following) reapply() }, [following])
+  useEffect(() => { if (following) reapply(true) }, [following])
 
   useEffect(() => {
     if (role !== 'guest') return
@@ -226,7 +227,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   // the party's choice or this member's own moved
   useEffect(followTracks)
 
-  usePartyMessages(message => {
+  usePartyMessages((message, { replayed }) => {
     if (role === 'host') {
       // the store already dropped an ask its sender was not granted
       if (message.t !== 'ask' || !('s' in message) || message.path !== here() || !link || !last.current) return
@@ -252,7 +253,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     const now = Date.now()
     const state = { ...told, time: expectedTime(told, now, !!clock), at: now }
     wanted.current = state
-    if (now >= holdUntil.current) apply(state)
+    if (now >= holdUntil.current) apply(state, replayed)
   })
 
   return null
