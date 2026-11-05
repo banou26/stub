@@ -24,7 +24,8 @@ import { mount, unmount } from './dom'
 //    report made on an event reads it fresh;
 //  - a message waits 40 ms plus a random delay of 60 ms on average, and one in fifty waits a second more, in order;
 //  - the host's clock is 1.5 s ahead of the guest's, and the guest measures it over those same delays;
-//  - a write to the mirror reaches the far player 10 ms later, and a seek holds it still for 300 ms more.
+//  - a write to the mirror reaches the far player 10 ms later, and a seek holds it still for 300 ms more (or `seekMs`),
+//    the mirror saying it is seeking until it lands.
 
 /** What to throw at the party. Times are in seconds from the start. */
 export type Scenario = {
@@ -38,6 +39,8 @@ export type Scenario = {
   hostSeeks?: [at: number, by: number][]
   /** The host's speed throughout. */
   rate?: number
+  /** How long a seek holds the guest's player still before it plays, in milliseconds. */
+  seekMs?: number
 }
 
 /** What the guest's player went through, and how far it was from the host's, sampled every 100 ms. */
@@ -69,7 +72,7 @@ const random = (seed: number) => () => {
 }
 
 /** A player behind a remote mirror: the far player plays on, the mirror says what it last heard. */
-const player = (rand: () => number, speedError = 0) => {
+const player = (rand: () => number, speedError = 0, seekMs = SEEK_MS) => {
   let position = 0
   let since = Date.now()
   let rate = 1
@@ -79,6 +82,7 @@ const player = (rand: () => number, speedError = 0) => {
   const shown = { time: 0, rate: 1 }
   // a write the far player has not taken yet outranks what it last said, as on the mirror
   let seeking: number | undefined
+  let inFlight = 0
   const refresh = () => { shown.time = seeking ?? truth() }
   const counts = { rateChanges: 0, seeks: 0, rates: [] as number[] }
   setTimeout(() => setInterval(refresh, TIMEUPDATE_MS), rand() * TIMEUPDATE_MS)
@@ -88,20 +92,22 @@ const player = (rand: () => number, speedError = 0) => {
   const media = Object.defineProperties(target, {
     paused: { value: false },
     ended: { value: false },
+    seeking: { get: () => inFlight > 0 },
     currentTime: {
       get: () => shown.time,
       set: (time: number) => {
         shown.time = seeking = time
         counts.seeks++
+        inFlight++
         // the far player is there once it takes the write, and stands still until the seek lands
         setTimeout(() => {
           seeking = undefined
           settle()
           position = time
-          stalledUntil = Math.max(stalledUntil, Date.now() + SEEK_MS)
+          stalledUntil = Math.max(stalledUntil, Date.now() + seekMs)
           refresh()
         }, WRITE_MS)
-        setTimeout(() => fire('seeked'), WRITE_MS + SEEK_MS)
+        setTimeout(() => { inFlight--; fire('seeked') }, WRITE_MS + seekMs)
       },
     },
     playbackRate: {
@@ -151,7 +157,7 @@ export const simulate = async (scenario: Scenario, useStore: (store: PartyStore)
   await store.join(INVITE)
 
   const host = player(rand)
-  const guest = player(rand, scenario.decoderDrift)
+  const guest = player(rand, scenario.decoderDrift, scenario.seekMs)
   if (scenario.rate) host.media.playbackRate = scenario.rate
   const hostLink = linkMedia(host.media)
   const guestLink = linkMedia(guest.media)

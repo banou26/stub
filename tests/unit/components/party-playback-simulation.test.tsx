@@ -66,4 +66,14 @@ describe('a follower kept with the host', () => {
   test('at 2x takes the host\'s speed and is left alone through five minutes of jitter', async () => {
     for (const run of await runs({ minutes: 5, rate: 2 })) expect(run).toMatchObject({ rates: [2], seeks: 0 })
   })
+
+  // Measured 2026-11-06 before the change: 31 seeks in three minutes, each sent again before the last one landed,
+  // and the follower never played
+  test('whose seeks take 6 s to land follows the host\'s jump with two seeks and one catch-up at most', async () => {
+    for (const run of await runs({ minutes: 3, seekMs: 6_000, hostSeeks: [[30, 10]] })) {
+      expect(run.seeks).toBe(2)
+      expect(run.rateChanges).toBeLessThanOrEqual(2)
+      expect(run.lastMinuteMax).toBeLessThan(0.5)
+    }
+  })
 })

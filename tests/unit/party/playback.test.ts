@@ -62,12 +62,14 @@ type Change = { at: number, host?: Partial<PlaybackState>, seekBy?: number, stal
  * A follower applying the host every two seconds for `seconds`, as its heartbeats and the host's messages have it
  * do, through `followCorrection`. The host plays on from 100 s, the follower's player at whatever speed the rule
  * left it; each change happens at its second: the host's state changes, the host seeks, the player stalls (and
- * stands still that long), the player jumps, or the host's report is off by that much for one apply. Says what the
+ * stands still that long), the player jumps, or the host's report is off by that much for one apply. A seek the
+ * player is sent stands still `seekS` seconds, seeking, before it plays, or each the next of `seekS`. Says what the
  * rule did and where the two ended.
  */
-const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackState> = {}) => {
+const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackState> = {}, seekS: number | number[] = 0) => {
   let wanted: PlaybackState = { paused: false, time: 100, rate: 1, at: NOW, ...host }
-  const local = { paused: wanted.paused, time: 100, rate: wanted.rate }
+  const local = { paused: wanted.paused, time: 100, rate: wanted.rate, seeking: false }
+  let lands = 0
   let follow: Follow | undefined
   const done: PlaybackCorrection[] = []
   for (let second = 0; second <= seconds; second += 2) {
@@ -84,12 +86,19 @@ const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackStat
     follow = step.follow
     const { correction } = step
     if (Object.keys(correction).length) done.push(correction)
-    if (correction.seek !== undefined) local.time = correction.seek
+    if (correction.seek !== undefined) {
+      const takes = typeof seekS === 'number' ? seekS : seekS.shift() ?? 0
+      local.time = correction.seek
+      local.seeking = takes > 0
+      lands = second + takes
+    }
     if (correction.rate !== undefined) local.rate = correction.rate
     if (correction.play) local.paused = false
     if (correction.pause) local.paused = true
     if (!wanted.paused) wanted = { ...wanted, time: wanted.time + 2 * wanted.rate }
-    if (!local.paused) local.time += 2 * local.rate
+    const played = local.seeking ? Math.max(0, second + 2 - lands) : 2
+    if (second + 2 >= lands) local.seeking = false
+    if (!local.paused) local.time += played * local.rate
   }
   return { done, drift: wanted.time - local.time }
 }
@@ -172,6 +181,16 @@ describe('followCorrection', () => {
     const wanted = { paused: false, time: 102, rate: 1, at: NOW + 2_000 }
     expect(followCorrection(follow, local, wanted, NOW + 2_000).correction).toEqual({})
     expect(followCorrection(follow, local, wanted, NOW + 2_000, true).correction).toEqual({ seek: 102 })
+  })
+
+  // a seek sent again before the last one landed starts the wait over, and a slow network never gets to play
+  test('a player still seeking is not seeked again, and a seek that landed 7 s behind aims the next 7 s ahead', () => {
+    expect(run(120, [{ at: 20, seekBy: 10 }], {}, 7)).toEqual({ done: [{ seek: 130 }, { seek: 145 }], drift: 0 })
+  })
+
+  // a seek further ahead fetches more, so it can be slower than the one it learnt from
+  test('a seek aimed ahead that still lands behind aims the next by both', () => {
+    expect(run(120, [{ at: 20, seekBy: 10 }], {}, [6, 10, 10])).toEqual({ done: [{ seek: 130 }, { seek: 142 }, { seek: 156 }], drift: 0 })
   })
 
   // a speed is no jump: the follower takes it without a seek, and closes what is left at the new speed

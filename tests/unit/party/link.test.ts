@@ -11,6 +11,7 @@ const fakeMedia = () => {
   return Object.assign(target, {
     paused: true,
     ended: false,
+    seeking: false,
     currentTime: 0,
     playbackRate: 1,
     play: vi.fn(async () => { media.paused = false }),
@@ -158,6 +159,18 @@ describe('linkMedia', () => {
     media.playbackRate = 1.5
     await vi.advanceTimersByTimeAsync(60_000)
     expect(media.playbackRate).toBe(1.5)
+    link.dispose()
+  })
+
+  // the mirror says a seek in flight is where it was sent, and sending it again starts the wait over
+  test('follow leaves a player whose seek has not landed where it was sent', () => {
+    vi.useFakeTimers()
+    const link = linkMedia(Object.assign(media, { paused: false, currentTime: 90 }))
+    expect(link.follow!({ paused: false, time: 100, rate: 1, at: Date.now() })).toEqual({ seek: 100 })
+    media.seeking = true
+    vi.advanceTimersByTime(5_000)
+    expect(link.follow!({ paused: false, time: 105, rate: 1, at: Date.now() })).toEqual({})
+    expect(media.currentTime).toBe(100)
     link.dispose()
   })
 

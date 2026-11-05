@@ -59,6 +59,7 @@ const EVENTS = ['play', 'pause', 'seeked', 'ratechange', 'ended'] as const
 export type LinkableMedia = EventTarget & {
   paused: boolean
   ended?: boolean
+  seeking?: boolean
   duration?: number
   currentTime: number
   playbackRate?: number
@@ -101,7 +102,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
     apply: (wanted, measured) => { move(playbackCorrection(stateOf(media), wanted, Date.now(), measured)) },
     follow: (wanted, exact) => {
       const now = Date.now()
-      const { correction, follow } = followCorrection(following, stateOf(media), wanted, now, exact)
+      const { correction, follow } = followCorrection(following, { ...stateOf(media), seeking: media.seeking }, wanted, now, exact)
       following = follow
       clearTimeout(caughtUp)
       const { catchUp } = follow

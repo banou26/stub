@@ -45,8 +45,8 @@ export const NUDGE_RATE = 1.05
 /** How often the host's player reports while it plays, so a follower that drifts is corrected. */
 export const HEARTBEAT_MS = 5_000
 
-/** The local player, as much of it as the correction reads. */
-export type LocalPlayback = { paused: boolean, time: number, rate: number }
+/** The local player, as much of it as the correction reads; `seeking` while a seek it was sent has not landed. */
+export type LocalPlayback = { paused: boolean, time: number, rate: number, seeking?: boolean }
 
 /** What to do to a local player so it matches `wanted`. Each field is present only when it has to change. */
 export type PlaybackCorrection = { seek?: number, play?: true, pause?: true, rate?: number }
@@ -102,6 +102,8 @@ export type Follow = {
   drifts: number[]
   /** the catch-up running: its speed, held until `until` on this clock */
   catchUp?: { rate: number, until: number }
+  /** a seek this player was sent, until it is read once it landed: how far past the host it aimed, in seconds */
+  seek?: { aim: number }
 }
 
 const median = (values: number[]) => {
@@ -120,7 +122,9 @@ const median = (values: number[]) => {
  * DEAD_BAND_S. A drift that stays outside it (the median of the last FILTER_SIZE since the player last changed) is
  * closed by a catch-up: a speed scaled to the drift, held until dead reckoning says the gap is closed, then the
  * host's speed again, with nothing measured in between. Only past CATCH_UP_LIMIT_S does it seek. A new speed from
- * the host is taken at once and starts the reading over; a paused player is never caught up.
+ * the host is taken at once and starts the reading over; a paused player is never caught up, and one still seeking
+ * is neither read nor sent again, since it says where it was sent rather than where it plays. A seek that landed
+ * far behind (a slow network) tells what the next costs, so that one aims as far past the host.
  *
  * Drifts and limits are in seconds of the host playing, not of media: what a reading is off by is time (a mirror's
  * last `timeupdate`, a message's delay), which at 2x is twice the media.
@@ -134,10 +138,13 @@ export const followCorrection = (follow: Follow | undefined, local: LocalPlaybac
   const moved = exact || !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > slack ||
     local.time < follow.played.time - RUNS_BACK_S || local.time > expectedTime(follow.played, now, true) + slack
   const correction = playbackCorrection(local, wanted, now, true)
-  if (Math.abs(drift) <= (moved ? SEEK_TOLERANCE_S : CATCH_UP_LIMIT_S)) delete correction.seek
+  if (Math.abs(drift) <= (moved ? SEEK_TOLERANCE_S : local.seeking ? Infinity : CATCH_UP_LIMIT_S)) delete correction.seek
+  // read once a seek landed, the drift is what that seek cost beyond what it aimed, so the next aims that far ahead
+  const aim = !moved && correction.seek !== undefined && follow?.seek ? Math.max(0, drift + follow.seek.aim) : 0
+  if (correction.seek !== undefined) correction.seek += aim * wanted.rate
 
   let next: Omit<Follow, 'played'>
-  if (!follow || moved || !sameRate(follow.heard.rate, wanted.rate) || local.paused || correction.seek !== undefined) next = { heard, drifts: [] }
+  if (!follow || moved || !sameRate(follow.heard.rate, wanted.rate) || local.paused || local.seeking || correction.seek !== undefined) next = { heard, drifts: [] }
   else if (follow.catchUp && now < follow.catchUp.until) next = { ...follow, heard }
   else {
     const drifts = [...follow.drifts, drift].slice(-FILTER_SIZE)
@@ -154,7 +161,8 @@ export const followCorrection = (follow: Follow | undefined, local: LocalPlaybac
   if (sameRate(local.rate, rate)) delete correction.rate
   else correction.rate = rate
   const played = { paused: correction.pause ?? (local.paused && !correction.play), time: correction.seek ?? local.time, rate, at: now }
-  return { correction, follow: { ...next, played } }
+  const seek = correction.seek !== undefined ? { aim } : local.seeking ? follow?.seek : undefined
+  return { correction, follow: { ...next, played, seek } }
 }
 
 export const sameRate = (a: number, b: number) => Math.abs(a - b) <= 0.001
