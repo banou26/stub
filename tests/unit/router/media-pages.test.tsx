@@ -101,8 +101,8 @@ const violet = {
 
 beforeEach(() => {
   vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } })
-  // the pages carry the query string across a rewrite, read off the window
-  vi.stubGlobal('location', { search: '' })
+  // the pages carry the query string across a rewrite, read off the window, and name their address on its origin
+  vi.stubGlobal('location', { search: '', origin: 'https://anime.fkn.app' })
 })
 const hosts: HTMLElement[] = []
 afterEach(() => {
@@ -693,6 +693,25 @@ describe('the address names the work', () => {
       answer(frieren, frieren.uri)
       navigate(`/${route}/${frieren.uri}/sousou-no-frieren`)
       expect(history.at(-1)).toBe(`/${route}/${frieren.uri}/frieren`)
+    })
+
+    // Mutation: drop `useCanonical`, or always add a link of its own.
+    test(`/${route}: names the work's title page as its one address once the name is known, and no more once it is gone`, () => {
+      const canonicals = () => [...document.head.querySelectorAll('link[rel="canonical"]')].map(link => link.getAttribute('href'))
+      const { answer, navigate } = page(frieren.uri)
+      answer(partial(1), frieren.uri)
+      expect(canonicals(), 'none before the name').toEqual([])
+      answer(frieren, frieren.uri)
+      expect(canonicals()).toEqual(['https://anime.fkn.app/title/ag:(anilist:1)/frieren'])
+      navigate('/elsewhere')
+      expect(canonicals()).toEqual([])
+
+      const written = document.createElement('link')
+      written.setAttribute('rel', 'canonical')
+      written.setAttribute('href', 'https://anime.fkn.app/title/ag:(anilist:1)/frieren')
+      document.head.append(written)
+      page(frieren.uri).answer(frieren, frieren.uri)
+      expect(canonicals(), 'the link preview Function\'s link is taken over').toEqual(['https://anime.fkn.app/title/ag:(anilist:1)/frieren'])
     })
 
     test(`/${route}: a work titled in no Latin letters ends on its own letters, and stays there`, () => {
