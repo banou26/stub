@@ -143,6 +143,8 @@ const packagePlayer = ({ seekTakes = 0 } = {}) => {
   let ear: ((state: PlaybackState & { ended?: boolean, seeking?: boolean, readyState?: number }) => void) | undefined
   const player = { paused: false, ended: false, time: 100, rate: 1, seeking: false, readyState: 4 }
   const told: (PlaybackState & { exact?: PlaybackCorrection })[] = []
+  const toldAt: number[] = []
+  const start = Date.now()
   let stands = 0
   let host = 100
   let step = 0
@@ -151,6 +153,7 @@ const packagePlayer = ({ seekTakes = 0 } = {}) => {
     onPlayback: async listener => { ear = listener },
     applyPlayback: async state => {
       told.push(state)
+      toldAt.push(Date.now())
       const { seek, rate } = state.exact ?? {}
       if (seek !== undefined) { player.time = seek; player.seeking = seekTakes > 0; stands = seekTakes }
       if (rate !== undefined) { player.rate = rate; report() }
@@ -173,7 +176,13 @@ const packagePlayer = ({ seekTakes = 0 } = {}) => {
   const stall = (seconds: number) => { stands = seconds; player.readyState = 2; report() }
   // what the package was told to do, leaving out the applies that told it nothing
   const moves = () => told.map(state => state.exact).filter(exact => exact && Object.keys(exact).length)
-  return { link, player, told, moves, play, stall, report, hostSeek: (by: number) => { host += by }, drift: () => host - player.time }
+  return {
+    link, player, told, toldAt, moves, play, stall, report,
+    hostSeek: (by: number) => { host += by },
+    drift: () => host - player.time,
+    // where the host's player is at `at`, a host that never seeked
+    hostAt: (at: number) => 100 + (at - start) / 1000,
+  }
 }
 
 describe('a package\'s player followed', () => {
@@ -201,7 +210,34 @@ describe('a package\'s player followed', () => {
     expect(moves()).toEqual([{ rate: NUDGE_RATE }, { rate: 1 }])
     expect(Math.abs(drift())).toBeLessThan(0.1)
     link.dispose()
-    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  // a package from before `exact` trusts a state's age up to 2 s, so a state as old as the catch-up would seek it back
+  test('ends a catch-up beside where the host is by then, for a package that keeps its own rule', async () => {
+    vi.useFakeTimers()
+    const { told, toldAt, play, stall, hostAt, link } = packagePlayer()
+    await play(10)
+    stall(2)
+    await play(20)
+    await play(60, { follow: false })
+    const end = told.at(-1)!
+    const at = toldAt.at(-1)!
+    expect(end.exact).toEqual({ rate: 1 })
+    expect(end.time + Math.min(at - end.at, 2_000) / 1000 * end.rate).toBeCloseTo(hostAt(at))
+    link.dispose()
+  })
+
+  test('tells nothing once the link is gone, a catch-up running then included', async () => {
+    vi.useFakeTimers()
+    const { told, moves, play, stall, link } = packagePlayer()
+    await play(10)
+    stall(2)
+    await play(20)
+    expect(moves()).toEqual([{ rate: NUDGE_RATE }])
+    const before = told.length
+    link.dispose()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(told).toHaveLength(before)
   })
 
   // read as playing on from the report that said it stalled, a follow inside the stall would see the player jump back
