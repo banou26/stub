@@ -1,4 +1,4 @@
-import type { Browser, Frame, Page } from '@playwright/test'
+import type { Browser, Frame, Locator, Page } from '@playwright/test'
 
 import { expect, firefox, test, webkit } from '@playwright/test'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
@@ -417,6 +417,58 @@ const launchFirefox = async () => {
 const connectWebKit = async (): Promise<Browser> => {
   test.skip(!process.env.PW_WEBKIT_WS, 'no WebKit server (PW_WEBKIT_WS)')
   return webkit.connect(process.env.PW_WEBKIT_WS!)
+}
+
+// STUB-358: `f` on the page itself, with no player's frame focused, fullscreens the stage and leaves it, and the
+// player never hears it; typed in a text field, as the header's search box is, it fullscreens nothing.
+const fOnThePage = async (page: Page, path: string, button: Locator, player: () => Frame | undefined) => {
+  await serve(page)
+  await page.goto(`${ORIGIN}${path}`)
+  await expect(button).toBeAttached({ timeout: 30_000 })
+  await page.evaluate(() => { document.body.prepend(Object.assign(document.createElement('input'), { type: 'text', className: 'search' })) })
+  const search = page.locator('input.search')
+  await search.focus()
+  await page.keyboard.press('f')
+  await expect(search).toHaveValue('f')
+  await page.waitForTimeout(500)
+  expect(await fullscreenElement(page), 'f in a text field fullscreens nothing').toBe(null)
+  await search.blur()
+
+  await page.keyboard.press('f')
+  await expect.poll(() => fullscreenElement(page), { message: 'f on the page fullscreens the stage' }).toBe('stage')
+  await expect(button, 'the player is told the stage is fullscreen').toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('f')
+  await expect.poll(() => fullscreenElement(page), { message: 'and f again leaves it' }).toBe(null)
+  await expect(button, 'the player is told the stage left fullscreen').toHaveAttribute('aria-pressed', 'false')
+  expect(await player()!.evaluate(() => (window as unknown as { keys: string[] }).keys), 'the player heard no key').toEqual([])
+}
+
+for (const [journey, path, button, player] of [
+  ['', stageWatchPath(1), (page: Page) => page.frameLocator('.stage iframe').locator('button.full-screen'), (page: Page) => page.frames().find(frame => frame.url().startsWith(`${ORIGIN}/embed.html?`))],
+  [' for a torrent two frames down', torrentWatchPath(1), (page: Page) => page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.full-screen'), torrentPlayer],
+] as const) {
+  const name = `f on the page fullscreens the stage and leaves it, and f in a text field does nothing${journey}`
+  const run = (page: Page) => fOnThePage(page, path, button(page), () => player(page))
+  test(`${name}, in Chromium`, async ({ browser }) => {
+    test.setTimeout(60_000)
+    const page = await browser.newPage({ viewport: VIEWPORT })
+    try {
+      await run(page)
+    } finally {
+      await page.close()
+    }
+  })
+  for (const [engine, launch] of [['Firefox', launchFirefox], ['WebKit', connectWebKit]] as const) {
+    test(`${name}, in ${engine}`, async () => {
+      test.setTimeout(60_000)
+      const browser = await launch()
+      try {
+        await run(await browser.newPage({ viewport: VIEWPORT }))
+      } finally {
+        await browser.close()
+      }
+    })
+  }
 }
 
 for (const [journey, run] of [['', fullscreenAcrossEpisodes], [' for a torrent two frames down', torrentAcrossEpisodes]] as const) {
