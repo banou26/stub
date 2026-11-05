@@ -6,7 +6,7 @@ import type { TitleMedia } from '../title/facts'
 import { intl } from '../../i18n'
 import { site } from '../../site'
 import { releaseDateLabel } from '../../utils/release-date'
-import { formatLabel, genreLabel } from '../search/params'
+import { formatLabel } from '../search/params'
 import { episodesLabel, releasedLabel } from '../title/facts'
 import { filmRelease } from './episodes'
 import { runtimeText } from './movie'
@@ -72,10 +72,10 @@ export const filmLine = (media: PreviewMedia, now = new Date()): string => {
 }
 
 /**
- * The side column's words: the categories drawn as pills, the genres in the language shown, and for a series when it
- * aired, left out when no source gave it.
+ * The side column's words: the categories drawn as pills, and for a series when it aired, left out when no source gave
+ * it.
  */
 export const sideFacts = (media: PreviewMedia, film: boolean): { genres: string[], tags: string[], aired: string | undefined } => {
   const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  return { genres: genres.map(genreLabel), tags, aired: film ? undefined : releasedLabel(media, { locale: intl.locale }) }
+  return { genres, tags, aired: film ? undefined : releasedLabel(media, { locale: intl.locale }) }
 }

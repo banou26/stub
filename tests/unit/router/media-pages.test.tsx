@@ -142,6 +142,10 @@ const HELD_FACTS = [...Array<string>(8).fill('fact.placeholder'), 'fact.placehol
 const facts = (root: Element) => [...root.querySelectorAll('.facts > div')]
   .map(line => `${line.querySelector('dt')!.textContent}: ${line.classList.contains('placeholder') ? 'held' : line.querySelector('dd')!.textContent}`)
 
+// each pill's words and where it leads, nothing for one that is no link
+const pills = (root: Element) => [...root.querySelectorAll('.chips > .chip')].map(pill => [pill.textContent, pill.getAttribute('href')])
+const click = (element: Element) => act(() => { element.dispatchEvent(Object.assign(new Event('click', { bubbles: true, cancelable: true }), { button: 0 })) })
+
 describe('the preview', () => {
   test('holds its title and description until the worker answers, then draws them', () => {
     const { answer } = preview(work(1, 'Frieren').uri)
@@ -282,6 +286,25 @@ describe('the preview', () => {
     expect(classes(modal().querySelectorAll('.side > .chips > *'))).toEqual(['chip.genre', 'chip.tag'])
     expect([...modal().querySelectorAll('.side > .chips > *')].map(chip => chip.textContent)).toEqual(['Fantasy', 'Travel'])
     expect(modal().querySelector('.facts'), 'no series facts').toBeNull()
+  })
+
+  // STUB-362: the owner, "Genre tags on media-preview/details should be clickable and redirect on genre search"
+  test('draws each genre as a link to the search for it, in the page\'s language, which leaves the preview for the search page', async () => {
+    const frieren = { ...work(1, 'Frieren'), genres: ['Comedy', 'Award Winning'] }
+    const { answer, history } = preview(frieren.uri)
+    try {
+      await startLanguage({ language: 'de', languages: ['de-DE'] })
+      answer(frieren)
+      expect(pills(modal().querySelector('.side')!), 'a genre a site offers, one it does not as its source writes it, and a tag').toEqual([
+        ['Komödie', '/search?genre=Comedy'], ['Award Winning', '/search?genre=Award+Winning'], ['Travel', null],
+      ])
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
+
+    click(modal().querySelector('.side a.genre')!)
+    expect(history.at(-1)).toBe('/search?genre=Comedy')
+    expect(document.body.querySelector('.modal'), 'the preview closed').toBeNull()
   })
 
   // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does
@@ -453,6 +476,22 @@ describe('the title page', () => {
     ready = true
     answer(streamed(true))
     expect([...host.querySelectorAll('.watch.film a .name')].map(name => name.textContent)).toEqual(['Crunchyroll'])
+  })
+
+  // STUB-362
+  test('draws each genre as a link to the search for it, in the page\'s language, and each tag as no link', async () => {
+    const frieren = { ...work(1, 'Frieren'), genres: ['Comedy', 'Award Winning'] }
+    const { host, answer, history } = titlePage(frieren.uri)
+    try {
+      await startLanguage({ language: 'de', languages: ['de-DE'] })
+      answer(frieren)
+      expect(pills(host.querySelector('.facts')!)).toEqual([['Komödie', '/search?genre=Comedy'], ['Award Winning', '/search?genre=Award+Winning'], ['Travel', null]])
+    } finally {
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
+
+    click(host.querySelectorAll('.facts a.genre')[1]!)
+    expect(history.at(-1)).toBe('/search?genre=Award+Winning')
   })
 
   test('holds a line for each fact every anime has in its place, until it arrives or every source has answered without it', () => {

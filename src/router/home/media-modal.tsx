@@ -739,7 +739,7 @@ const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) =>
   return (
     <>
       {media.averageScore ? <StarScore percent={media.averageScore}/> : undefined}
-      <MediaCategories genres={genres} tags={tags}/>
+      <MediaCategories genres={genres} tags={tags} linked/>
       {aired ? <dl className="facts"><div><dt>{intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' })}</dt><dd>{aired}</dd></div></dl> : undefined}
     </>
   )

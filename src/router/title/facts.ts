@@ -10,7 +10,7 @@ import { defineMessages } from 'react-intl'
 
 import { MediaStatus } from '../../generated/graphql'
 import { intl, NAME_LIST } from '../../i18n'
-import { formatLabel, genreLabel, seasonLabel, statusLabel } from '../search/params'
+import { formatLabel, seasonLabel, statusLabel } from '../search/params'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
 import { isMovieMedia } from '../home/movie'
 
@@ -34,7 +34,7 @@ export type TitleMedia = {
 
 /**
  * A labelled fact; one with no value is held, its line kept for a source still to give it. `pills` names a list of
- * genres or tags, drawn as pills.
+ * genres, as their sources name them, or tags, drawn as pills.
  */
 export type Fact = { label: string, value?: string | readonly string[], pills?: 'genre' | 'tag' }
 
@@ -129,7 +129,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     { label: intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' }), value: seasonLabel(media.season, media.seasonYear) },
     { label: intl.formatMessage({ id: 'Studios', defaultMessage: 'Studios' }), value: names(media.studios) },
     { label: intl.formatMessage({ id: 'Source#adapted from', defaultMessage: 'Source', description: 'adapted from' }), value: sourceLabel(media.sourceMaterial) },
-    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: media.genres?.length ? media.genres.map(genreLabel) : undefined, pills: 'genre' },
+    { label: intl.formatMessage({ id: 'Genres', defaultMessage: 'Genres' }), value: media.genres?.length ? media.genres : undefined, pills: 'genre' },
     { label: intl.formatMessage({ id: 'Tags', defaultMessage: 'Tags' }), value: media.tags?.length ? media.tags : undefined, pills: 'tag' },
     { label: intl.formatMessage({ id: 'Also known as', defaultMessage: 'Also known as' }), value: names(others) },
   ]

@@ -1409,6 +1409,33 @@ test('a title\'s genres and tags are filled pills, the tags dimmer, on its page 
   await expectPills('the preview', side)
 })
 
+// STUB-362: the owner, "Genre tags on media-preview/details should be clickable and redirect on genre search"
+test('a genre on a title\'s page and in its preview opens the search for it, the preview closing, and a reload keeps it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/media/${LATE}`)
+  const drama = modal(page).locator('.columns > .side .chip.genre', { hasText: 'Drama' })
+  const fill = () => drama.evaluate(element => getComputedStyle(element).backgroundColor)
+  await expect(drama).toBeVisible({ timeout: 30_000 })
+  const rest = await fill()
+  await drama.hover()
+  await expect.poll(fill, 'lighter under the pointer').not.toBe(rest)
+  await drama.click()
+  await expect(page).toHaveURL(`${origin}/search?genre=Drama`)
+  await expect(modal(page)).toHaveCount(0)
+  const picked = page.getByRole('button', { name: 'Remove Drama', exact: true })
+  await expect(picked).toBeVisible()
+  await page.reload()
+  await expect(picked).toBeVisible({ timeout: 30_000 })
+
+  await page.goto(`${origin}/title/${LATE}`)
+  const mystery = page.locator('.facts .chip.genre', { hasText: 'Mystery' })
+  await mystery.focus()
+  await expect(mystery, 'a ring when reached from the keyboard').toHaveCSS('outline-style', 'solid', { timeout: 30_000 })
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(`${origin}/search?genre=Mystery`)
+  await expect(page.getByRole('button', { name: 'Remove Mystery', exact: true })).toBeVisible()
+})
+
 test('the score follows a gold star, on a title\'s page, in a series\' preview and on a search\'s cards and rows', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const GOLD = 'rgb(245, 197, 24)'

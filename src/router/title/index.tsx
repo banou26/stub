@@ -831,7 +831,7 @@ const TitlePage = () => {
                   ? (
                     <div key={label} className={pills && 'pills'}>
                       <dt>{label}</dt>
-                      <dd>{typeof value === 'string' ? value : <MediaCategories {...pills === 'genre' ? { genres: value } : { tags: value }}/>}</dd>
+                      <dd>{typeof value === 'string' ? value : <MediaCategories {...pills === 'genre' ? { genres: value, linked: true } : { tags: value }}/>}</dd>
                     </div>
                   )
                   : <div key={label} className={pills ? 'fact placeholder pills' : 'fact placeholder'} aria-hidden="true"><dt>{label}</dt><dd><Placeholder className="pending"/></dd></div>)}

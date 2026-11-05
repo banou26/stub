@@ -80,12 +80,12 @@ test('a series\' line names its format, release and episodes', () => {
   expect(seriesLine({})).toBe('')
 })
 
-test('in German, the side column\'s genres and date and both lines are German', async () => {
+// the genres as their sources name them, which their pills label and link to the search by (tests/unit/router/media-pages.test.tsx)
+test('in German, the side column\'s date and both lines are German, its genres as their sources name them', async () => {
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
     const comedy = { ...penguin, genres: ['Comedy', 'Award Winning'] }
-    expect(sideFacts(comedy, false)).toEqual({ genres: ['Komödie', 'Award Winning'], tags: ['Coming of Age'], aired: releaseDateLabel('2018-08-17', { locale: 'de' }) })
-    expect(sideFacts(comedy, true).genres, 'a genre a site offers, and one it does not as its source writes it').toEqual(['Komödie', 'Award Winning'])
+    expect(sideFacts(comedy, false)).toEqual({ genres: ['Comedy', 'Award Winning'], tags: ['Coming of Age'], aired: releaseDateLabel('2018-08-17', { locale: 'de' }) })
     expect(filmLine(penguin)).toBe(`Film · ${releaseDateLabel('2018-08-17', { locale: 'de' })} · ${runtimeText(120)}`)
     expect(seriesLine({ type: MediaType.Tv, startDate: '2023-09-29', episodeCount: 28 })).toBe(`TV-Serie · ${releaseDateLabel('2023-09-29', { locale: 'de' })} · 28 Folgen`)
   } finally {

@@ -166,7 +166,8 @@ describe('in German', () => {
       { label: 'Saison', value: 'Herbst 2023' },
       { label: 'Studios', value: 'Madhouse' },
       { label: 'Vorlage', value: 'Manga' },
-      { label: 'Genres', value: ['Abenteuer', 'Drama', 'Fantasy'], pills: 'genre' },
+      // as their sources name them, which their pills label (tests/unit/router/media-pages.test.tsx)
+      { label: 'Genres', value: ['Adventure', 'Drama', 'Fantasy'], pills: 'genre' },
       { label: 'Tags', value: ['Elf', 'Travel'], pills: 'tag' },
       { label: 'Andere Titel', value: '葬送のフリーレン' },
     ])

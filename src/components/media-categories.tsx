@@ -1,4 +1,7 @@
 import { css } from '@emotion/react'
+import { Link } from 'wouter'
+
+import { genreLabel, searchPath } from '../router/search/params'
 
 /**
  * The look of `MediaCategories`, which the page drawing it carries in its own style. A style a component inserts itself
@@ -28,14 +31,25 @@ export const categoriesStyle = css`
 
   & > .genre { background: rgba(255, 255, 255, 0.12); color: #fff; }
   & > .tag { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); }
+
+  & > a.genre { text-decoration: none; }
+  & > a.genre:hover { background: rgba(255, 255, 255, 0.2); }
+  /* inside the pill: the title page's row of them scrolls, which clips anything drawn around one */
+  & > a.genre:focus-visible { outline: 0.2rem solid rgba(255, 255, 255, 0.8); outline-offset: -0.2rem; }
 `
 
-/** A title's genres, then its tags, as pills, the genres brighter, drawn as `categoriesStyle` says; nothing when it has neither. */
-const MediaCategories = ({ genres = [], tags = [] }: { genres?: readonly string[], tags?: readonly string[] }) =>
+/**
+ * A title's genres, then its tags, as pills, the genres brighter and in the page's language, drawn as `categoriesStyle`
+ * says; nothing when it has neither. With `linked` each genre links to the search for it, so never inside another link,
+ * as a card and a row are.
+ */
+const MediaCategories = ({ genres = [], tags = [], linked = false }: { genres?: readonly string[], tags?: readonly string[], linked?: boolean }) =>
   genres.length || tags.length
     ? (
       <div className="chips">
-        {genres.map(genre => <span key={genre} className="chip genre">{genre}</span>)}
+        {genres.map(genre => linked
+          ? <Link key={genre} className="chip genre" href={searchPath({ genres: [genre] })}>{genreLabel(genre)}</Link>
+          : <span key={genre} className="chip genre">{genreLabel(genre)}</span>)}
         {tags.map(tag => <span key={tag} className="chip tag">{tag}</span>)}
       </div>
     )
