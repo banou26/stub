@@ -12,7 +12,7 @@ import { render } from 'preact'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
-import { ASK_HOLD_MS, ASK_THROTTLE_MS, SETTLE_MS } from '../../../src/party/playback'
+import { ASK_HOLD_MS, ASK_THROTTLE_MS, expectedTime, SETTLE_MS } from '../../../src/party/playback'
 import { STATUS_CHECK_MS } from '../../../src/party/status'
 import { STATUS_GAP_MS } from '../../../src/party/store'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -267,6 +267,17 @@ describe('a follower', () => {
     expect(player.link.apply).not.toHaveBeenCalled()
     say(fake, 'host', { t: 'playback', s: { ...playing(600), at: Date.now() } })
     expect(player.link.apply).toHaveBeenCalledTimes(1)
+  })
+
+  // STUB-363: read again on the player's next report, the state as heard used to lose the time its message took,
+  // so a follower's every other apply aimed that far behind the host
+  test('a re-apply on its own player\'s report still counts the time the host\'s message took to arrive', async () => {
+    const { fake, player } = await follow({ all: [] })
+    say(fake, 'host', { t: 'playback', s: { ...playing(20), at: Date.now() - 300 } })
+    await wait(5_000)
+    player.report(playing(25.3))
+    const [state, measured] = player.link.apply.mock.calls.at(-1)!
+    expect(expectedTime(state, Date.now(), measured)).toBeCloseTo(25.3)
   })
 
   // HOR-1106: every address carries its viewer's own sources, and the host's are not this follower's

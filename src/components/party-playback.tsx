@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'preact/hooks'
 
 import { party } from '../party'
 import { TRACK_KINDS } from '../embed-tracks'
-import { advance, ASK_HOLD_MS, ASK_THROTTLE_MS, askedState, personAction, playbackCorrection, SEEK_TOLERANCE_S, SETTLE_MS } from '../party/playback'
+import { advance, ASK_HOLD_MS, ASK_THROTTLE_MS, askedState, expectedTime, personAction, playbackCorrection, SEEK_TOLERANCE_S, SETTLE_MS } from '../party/playback'
 import { toHostTime, toLocalTime } from '../party/clock'
 import { HAVE_FUTURE_DATA, readiness, STATUS_CHECK_MS } from '../party/status'
 import { nextMine, trackToSelect } from '../party/tracks'
@@ -47,9 +47,9 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   const state = useParty()
   const role = state.status === 'active' ? state.role : undefined
   const following = party.following()
-  // what the host last said, and WHEN it was heard on this clock, so a re-apply later is moved
-  // forward by the time that passed rather than seeking the player back to a stale second
-  const wanted = useRef<{ state: PlaybackState, receivedAt: number, measured: boolean } | undefined>(undefined)
+  // where the host was when it last said, on this clock, so a re-apply later is moved forward by the
+  // time that passed rather than seeking the player back to a stale second
+  const wanted = useRef<PlaybackState | undefined>(undefined)
   // the player's own last report: a guest reads a person against it, a host answers an ask from it
   const last = useRef<PlaybackState | undefined>(undefined)
   const holdUntil = useRef(0)
@@ -65,21 +65,21 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   const requested = useRef(new Map<TrackKind, string | null>())
   const busy = () => local.current?.busy ?? false
 
-  const apply = (target: PlaybackState, measured: boolean) => {
+  const apply = (target: PlaybackState) => {
     // read live: the report listener and the hold timer hold an older render
     if (!link || !party.following() || busy()) return
     const now = Date.now()
     const local = last.current && advance(last.current, last.current.at, now)
-    const correction = local && playbackCorrection(local, target, now, measured)
+    const correction = local && playbackCorrection(local, target, now, true)
     // play() on an ended player starts it over from 0: it follows the host only somewhere else
     if (link.ended?.() && correction?.seek === undefined) return
     if (!correction || correction.seek !== undefined || correction.play || correction.pause) settleUntil.current = now + SETTLE_MS
     if (correction?.seek !== undefined) seekingTo.current = correction.seek
-    link.apply(target, measured)
+    link.apply(target, true)
   }
   const reapply = () => {
     const heard = wanted.current
-    if (heard) apply(advance(heard.state, heard.receivedAt, Date.now()), heard.measured)
+    if (heard) apply(advance(heard, heard.at, Date.now()))
   }
   const ask = (controls: PlayerControl[], reported: PlaybackState) => {
     const clock = party.hostClock()
@@ -122,7 +122,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
       if (!heard || link.ended?.() || !party.following() || busy()) return
       const now = Date.now()
       const holding = now < holdUntil.current
-      const target = advance(heard.state, heard.receivedAt, now)
+      const target = advance(heard, heard.at, now)
       const landed = seekingTo.current !== undefined && Math.abs(reported.time - seekingTo.current) <= SEEK_TOLERANCE_S
       if (landed) seekingTo.current = undefined
       // while holding nothing is applied, so the person is read against the player's own last report
@@ -130,7 +130,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
         ? personAction(before, reported, holding ? before : target).filter(control => party.may(control) && !(landed && control === 'seek'))
         : []
       if (used.length) ask(used, reported)
-      else if (!holding) apply(target, heard.measured)
+      else if (!holding) apply(target)
     })
     return () => {
       off()
@@ -163,7 +163,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
       if (!party.following()) { party.setStatus({ s: 'away', path: page, ...where }); return }
       // judged only at a second the host said to this player: its own is not the party's
       const heard = wanted.current
-      was = heard ? readiness(was, buffer, advance(heard.state, heard.receivedAt, now).time, link?.duration?.()) : 'loading'
+      was = heard ? readiness(was, buffer, advance(heard, heard.at, now).time, link?.duration?.()) : 'loading'
       party.setStatus({ s: was, path: page, ...where })
     }
     void check()
@@ -241,14 +241,17 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     if (!next) return
     // the host's playback is for the host's page: a guest on another episode keeps its own
     if (party.hostPath() !== here()) return
-    // The host stamped `at` on ITS clock. Once a round trip has been timed the two are reconciled
-    // here, once, so everything downstream (advance, the tolerance, a source package's own reading)
-    // works in local time and can trust the age of the report in full rather than capping it.
-    // Unmeasured it is passed through as it always was, and read cautiously.
+    // The host stamped `at` on ITS clock. Once a round trip has been timed the two are reconciled, so
+    // the report's age is trusted in full; unmeasured it is capped (see expectedTime). Either way it is
+    // turned here, once, into where the host is NOW on this clock, so everything downstream (advance,
+    // the tolerance, a source package's own reading) works in local time, and a re-apply later still
+    // counts the time the message took to arrive.
     const clock = party.hostClock()
-    const state = clock ? { ...next, at: toLocalTime(next.at, clock.offset) } : next
-    wanted.current = { state, receivedAt: Date.now(), measured: !!clock }
-    if (Date.now() >= holdUntil.current) apply(state, !!clock)
+    const told = clock ? { ...next, at: toLocalTime(next.at, clock.offset) } : next
+    const now = Date.now()
+    const state = { ...told, time: expectedTime(told, now, !!clock), at: now }
+    wanted.current = state
+    if (now >= holdUntil.current) apply(state)
   })
 
   return null
