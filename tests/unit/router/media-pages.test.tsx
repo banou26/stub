@@ -678,6 +678,23 @@ describe('the address names the work', () => {
       expect(history).toEqual([`/${route}/${frieren.uri}/frieren`])
     })
 
+    // Mutation: drop the title from the rewrite's dependencies.
+    test(`/${route}: takes the work's name when it comes after the work`, () => {
+      const { answer, history } = page(frieren.uri)
+      answer(partial(1), frieren.uri)
+      expect(history, 'the control: no name yet').toEqual([`/${route}/${frieren.uri}`])
+      answer(frieren, frieren.uri)
+      expect(history).toEqual([`/${route}/${frieren.uri}/frieren`])
+    })
+
+    // Mutation: drop the address's name from the rewrite's dependencies.
+    test(`/${route}: a link to the same work under another name ends on its name`, () => {
+      const { answer, history, navigate } = page(frieren.uri)
+      answer(frieren, frieren.uri)
+      navigate(`/${route}/${frieren.uri}/sousou-no-frieren`)
+      expect(history.at(-1)).toBe(`/${route}/${frieren.uri}/frieren`)
+    })
+
     test(`/${route}: a work titled in no Latin letters ends on its own letters, and stays there`, () => {
       const { answer, history } = page(frieren.uri)
       answer(work(1, '葬送のフリーレン'), frieren.uri)
