@@ -11,7 +11,10 @@ import { NUDGE_RATE } from '../../../src/party/playback'
 // STUB-363 (watch-together sync changes the playback speed too often): a party of two through the real follower,
 // with the delays and the stale readings a party meets in stub (see ./party-playback-simulation.tsx). Measured
 // 2026-11-05 before the change, the same runs moved the follower's speed 25 to 34 times a minute, between 0.952,
-// 1 and 1.05, and seeked it every minute or two with nothing to follow.
+// 1 and 1.05, and seeked it every minute or two with nothing to follow. STUB-366 (the torrent player follows a watch
+// party without constant speed changes): the same through a source package's player, measured 2026-11-06 before the
+// change at 19 to 28 speed changes a minute with nothing to follow, 925 seeks in five minutes at 2x, and 140 in three
+// with seeks that take 6 s.
 
 const current = vi.hoisted(() => ({ store: undefined as unknown as PartyStore }))
 vi.mock('../../../src/party', () => ({ party: new Proxy({}, { get: (_, key) => current.store[key as keyof PartyStore] }) }))
@@ -28,14 +31,16 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 const SEEDS = [1, 2, 3]
-// one after another: they share the fake clock and the store `src/party` stands for
-const runs = async (scenario: Scenario) => {
-  const done: Run[] = []
-  for (const seed of SEEDS) done.push(await simulate({ ...scenario, seed }, store => { current.store = store }))
-  return done
-}
+// a package's heartbeat reads the mirror at the same point of its cycle every time, so its drift is read up to a
+// quarter second off for minutes, where stub's own embed is read afresh at each apply
+describe.each([{ player: 'stub\'s own', plugin: false, decoderMax: 0.5 }, { player: 'a source package\'s', plugin: true, decoderMax: 0.6 }])('a follower on $player player kept with the host', ({ plugin, decoderMax }) => {
+  // one after another: they share the fake clock and the store `src/party` stands for
+  const runs = async (scenario: Scenario) => {
+    const done: Run[] = []
+    for (const seed of SEEDS) done.push(await simulate({ ...scenario, seed, plugin }, store => { current.store = store }))
+    return done
+  }
 
-describe('a follower kept with the host', () => {
   test('is left alone through ten minutes of jitter', async () => {
     for (const run of await runs({ minutes: 10 })) expect(run).toMatchObject({ rateChanges: 0, seeks: 0 })
   })
@@ -44,7 +49,7 @@ describe('a follower kept with the host', () => {
   test('catches a decoder drifting once in ten minutes, and stays well under a second from the host', async () => {
     for (const run of await runs({ minutes: 10, decoderDrift: 0.001 })) {
       expect(run).toMatchObject({ rateChanges: 2, seeks: 0 })
-      expect(run.maxDrift).toBeLessThan(0.5)
+      expect(run.maxDrift).toBeLessThan(decoderMax)
     }
   })
 

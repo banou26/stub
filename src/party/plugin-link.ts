@@ -1,12 +1,15 @@
 import type { MediaChapter } from '@banou/media-player'
 import type { TrackPick } from '../plugin-api'
 import type { PlaybackLink } from './bridge'
+import type { Follow, LocalPlayback, PlaybackCorrection } from './playback'
 import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
 
 import { hearFullscreenKey } from '../embed-fullscreen'
 import { keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage } from '../utils/track-languages'
+import { advance, followCorrection, sameRate, SEEK_TOLERANCE_S } from './playback'
 import { isPlaybackState } from './protocol'
+import { HAVE_FUTURE_DATA } from './status'
 
 /**
  * A package's `duration`, 0 while the player does not know it yet. Undefined, a player with no length to
@@ -51,10 +54,13 @@ const keepPicked = (picked: unknown) => {
  */
 export const BUFFER_WAIT_MS = 1_000
 
+/** What a source package's player reports. See plugin-api.ts. */
+type PlayerReport = PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, seeking?: boolean, readyState?: number }
+
 /** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => void) => Promise<void>
-  applyPlayback?: (state: PlaybackState) => Promise<void>
+  onPlayback?: (listener: (state: PlayerReport) => void) => Promise<void>
+  applyPlayback?: (state: PlaybackState & { exact?: PlaybackCorrection }) => Promise<void>
   buffer?: () => Promise<unknown>
   onFullscreenRequest?: (listener: () => void) => Promise<void>
   applyFullscreen?: (active: boolean) => Promise<void>
@@ -75,6 +81,10 @@ export type PlaybackSource = {
  * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
  *
  * A track the viewer picks in the player is kept from the moment the link is up, party or not.
+ *
+ * `follow` keeps the player with the host by `followCorrection`, as stub's own players are kept, over where its reports
+ * put it now: played on from the last one unless it said it was seeking or waiting, and at a seek it was sent until a
+ * report shows it. The package is told what to do as `exact`, beside the host's state for a package from before it.
  */
 export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
   const { onPlayback, applyPlayback, buffer, focus, offerEnding, prepare } = source
@@ -88,9 +98,13 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
   let endingOffered = true
   // the last ask, since the player's last word can be older than an ask still on its way
   let asked = true
+  let last: (PlaybackState & { seeking: boolean, standing: boolean }) | undefined
+  let seekTo: number | undefined
+  let following: Follow | undefined
+  let caughtUp: ReturnType<typeof setTimeout> | undefined
   // vetted: the package is another origin's code, and what it says goes into the host's snapshot and
   // out to every follower, where the decoder would drop it anyway; better to drop it here, once
-  const ear = (report: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => {
+  const ear = (report: PlayerReport) => {
     if (disposed || !isPlaybackState(report)) return
     keepPicked(report.picked)
     ended = report.ended === true
@@ -98,16 +112,44 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
     chapters = chaptersOf(report.chapters)
     endingOffered = report.endingOffered !== false
     const { paused, time, rate, at } = report
+    const seeking = report.seeking === true
+    if (seekTo !== undefined && (seeking || Math.abs(time - seekTo) <= SEEK_TOLERANCE_S)) seekTo = undefined
+    last = { paused, time, rate, at, seeking, standing: seeking || (finite(report.readyState) && report.readyState < HAVE_FUTURE_DATA) }
     for (const listener of listeners) listener({ paused, time, rate, at })
   }
   const listen = () => { onPlayback(ear).catch(() => {}) }
   listen()
+  const local = (now: number): LocalPlayback | undefined => {
+    if (!last) return undefined
+    const { paused, rate, seeking, standing } = last
+    if (seekTo !== undefined) return { paused, time: seekTo, rate, seeking: true }
+    return { paused, time: standing ? last.time : advance(last, last.at, now).time, rate, seeking }
+  }
+  const tell = (state: PlaybackState, exact: PlaybackCorrection) => {
+    if (exact.seek !== undefined) seekTo = exact.seek
+    applyPlayback({ ...state, exact }).catch(() => {})
+  }
 
   return {
     // `measured` is not forwarded: the package's contract takes a state and nothing else, and it does
     // not need to be told. What reaches it here already carries a local `at` (party-playback.tsx
     // converts before applying), so the package's own cap on a report's age never binds.
     apply: state => { applyPlayback(state).catch(() => {}) },
+    follow: (wanted, atOnce) => {
+      const now = Date.now()
+      const own = local(now)
+      // the package greets its player on every new ear, so a report is on its way
+      if (disposed || !own) return {}
+      const { correction, follow } = followCorrection(following, own, wanted, now, atOnce)
+      following = follow
+      clearTimeout(caughtUp)
+      const { catchUp } = follow
+      if (catchUp) caughtUp = setTimeout(() => { if (last && sameRate(last.rate, catchUp.rate)) tell(advance(wanted, now, Date.now()), { rate: wanted.rate }) }, catchUp.until - now)
+      // play() on an ended player starts it over from 0: it follows the host only somewhere else
+      if (ended && correction.seek === undefined) return {}
+      tell(wanted, correction)
+      return correction
+    },
     // registering the ear again is how the package is asked where the player is NOW: it greets its
     // player on every registration, and the player answers a greeting with a report. A party that
     // starts against a paused player would otherwise have nothing to tell a joiner until the host
@@ -141,7 +183,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
         new Promise<undefined>(resolve => setTimeout(resolve, BUFFER_WAIT_MS)),
       ]),
     } : {},
-    dispose: () => { disposed = true; listeners.clear() },
+    dispose: () => { disposed = true; clearTimeout(caughtUp); listeners.clear() },
   }
 }
 

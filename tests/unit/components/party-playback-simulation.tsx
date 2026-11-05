@@ -1,4 +1,6 @@
 import type { LinkableMedia } from '../../../src/party/bridge'
+import type { PlaybackCorrection } from '../../../src/party/playback'
+import type { PlaybackSource } from '../../../src/party/plugin-link'
 import type { PartyMessage, PlaybackState } from '../../../src/party/protocol'
 import type { PartyStore } from '../../../src/party/store'
 
@@ -7,7 +9,8 @@ import { vi } from 'vite-plus/test'
 
 import PartyPlayback from '../../../src/components/party-playback'
 import { linkMedia } from '../../../src/party/bridge'
-import { advance } from '../../../src/party/playback'
+import { advance, HEARTBEAT_MS } from '../../../src/party/playback'
+import { pluginPlaybackLink } from '../../../src/party/plugin-link'
 import { decodePartyMessage, encodePartyMessage, NO_GRANTS } from '../../../src/party/protocol'
 import { createPartyStore } from '../../../src/party/store'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -25,7 +28,9 @@ import { mount, unmount } from './dom'
 //  - a message waits 40 ms plus a random delay of 60 ms on average, and one in fifty waits a second more, in order;
 //  - the host's clock is 1.5 s ahead of the guest's, and the guest measures it over those same delays;
 //  - a write to the mirror reaches the far player 10 ms later, and a seek holds it still for 300 ms more (or `seekMs`),
-//    the mirror saying it is seeking until it lands.
+//    the mirror saying it is seeking until it lands;
+//  - with `plugin`, the guest's player is a source package's, as stub-plugin serves it (src/ui/playback.ts there): the
+//    package holds the mirror and reports on its events and every five seconds while it plays, 5 ms away.
 
 /** What to throw at the party. Times are in seconds from the start. */
 export type Scenario = {
@@ -41,6 +46,8 @@ export type Scenario = {
   rate?: number
   /** How long a seek holds the guest's player still before it plays, in milliseconds. */
   seekMs?: number
+  /** The guest's player is a source package's rather than stub's own embed. */
+  plugin?: boolean
 }
 
 /** What the guest's player went through, and how far it was from the host's, sampled every 100 ms. */
@@ -63,6 +70,7 @@ const WRITE_MS = 10
 const SEEK_MS = 300
 const STATE_MS = 10_000
 const SAMPLE_MS = 100
+const PACKAGE_MS = 5
 
 const random = (seed: number) => () => {
   seed = (seed + 0x6D2B79F5) | 0
@@ -93,6 +101,7 @@ const player = (rand: () => number, speedError = 0, seekMs = SEEK_MS) => {
     paused: { value: false },
     ended: { value: false },
     seeking: { get: () => inFlight > 0 },
+    readyState: { get: () => inFlight > 0 || Date.now() < stalledUntil ? 2 : 4 },
     currentTime: {
       get: () => shown.time,
       set: (time: number) => {
@@ -125,8 +134,45 @@ const player = (rand: () => number, speedError = 0, seekMs = SEEK_MS) => {
     media,
     counts,
     truth,
-    stall: (seconds: number) => { settle(); stalledUntil = Date.now() + seconds * 1000 },
+    stall: (seconds: number) => {
+      settle()
+      stalledUntil = Date.now() + seconds * 1000
+      fire('waiting')
+      setTimeout(() => fire('playing'), seconds * 1000)
+    },
     seekBy: (by: number) => { media.currentTime = truth() + by },
+  }
+}
+
+/**
+ * A source package's player, as stub-plugin's relay serves it over `media`: what it reports, and what it does with a
+ * state, which is exactly what `exact` says, or by the package's own rule from before `exact` for a state without it.
+ */
+const pluginSource = (media: LinkableMedia): PlaybackSource => {
+  let ear: ((state: PlaybackState) => void) | undefined
+  const report = () => {
+    const state = { paused: media.paused, time: media.currentTime, rate: media.playbackRate ?? 1, at: Date.now(), seeking: media.seeking, readyState: media.readyState }
+    setTimeout(() => ear?.(state), PACKAGE_MS)
+  }
+  for (const event of ['play', 'pause', 'seeked', 'ratechange', 'ended', 'waiting', 'playing']) media.addEventListener(event, report)
+  setInterval(() => { if (!media.paused) report() }, HEARTBEAT_MS)
+  const move = (state: PlaybackState & { exact?: PlaybackCorrection }) => {
+    const rate = media.playbackRate ?? 1
+    let { exact } = state
+    if (!exact) {
+      const target = state.paused ? state.time : state.time + Math.min(Math.max(Date.now() - state.at, 0), 2_000) / 1000 * state.rate
+      const drift = target - media.currentTime
+      const seek = Math.abs(drift) > 0.5 ? target : undefined
+      const nudging = !state.paused && seek === undefined && Math.abs(rate / state.rate - 1) <= 0.051 && Math.abs(drift) >= 0.05
+      const wanted = nudging ? state.rate * (drift > 0 ? 1.05 : 1 / 1.05) : state.rate
+      exact = { ...seek === undefined ? {} : { seek }, ...Math.abs(rate - wanted) > 0.001 ? { rate: wanted } : {} }
+    }
+    if (exact.seek !== undefined) media.currentTime = exact.seek
+    if (exact.rate !== undefined) media.playbackRate = exact.rate
+  }
+  return {
+    onPlayback: async listener => { ear = listener; setTimeout(report, PACKAGE_MS) },
+    applyPlayback: state => new Promise(resolve => setTimeout(() => { move(state); resolve() }, PACKAGE_MS)),
   }
 }
 
@@ -160,7 +206,7 @@ export const simulate = async (scenario: Scenario, useStore: (store: PartyStore)
   const guest = player(rand, scenario.decoderDrift, scenario.seekMs)
   if (scenario.rate) host.media.playbackRate = scenario.rate
   const hostLink = linkMedia(host.media)
-  const guestLink = linkMedia(guest.media)
+  const guestLink = scenario.plugin ? pluginPlaybackLink(pluginSource(guest.media))! : linkMedia(guest.media)
   let last: PlaybackState | undefined
   let lastAt = 0
   const state = (): PartyMessage => ({ t: 'state', path: PATH, y: 0, grants: NO_GRANTS, ...last ? { s: onHostClock(advance(last, lastAt, Date.now())) } : {} })

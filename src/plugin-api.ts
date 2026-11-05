@@ -1,5 +1,6 @@
 import type { MediaChapter } from '@banou/media-player'
 import type { Resolvers } from './generated/schema/types.generated'
+import type { PlaybackCorrection } from './party/playback'
 import type { PlaybackState } from './party/protocol'
 
 export type { PlaybackState }
@@ -78,10 +79,19 @@ export type StubSource = {
    * Next episode is offered as it starts rather than at the end. `endingOffered` answers `offerEnding`: false
    * only once the player's Skip Ending is off its screen. `picked` rides the report made as the viewer picks a track:
    * stub keeps it as it keeps a pick made in its own players, so the next media, in any player, starts in it.
+   * `seeking` and `readyState` are the player's own, as a media element's, with a report as it starts waiting for data
+   * and as it plays again: between reports, a follower's player is read as playing on from its last one, except while
+   * it seeks or waits, when it stands still.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick }) => void) => Promise<void>
-  /** Make the player match `state`. Nothing playing is nothing to do, not an error. */
-  applyPlayback?: (state: PlaybackState) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, seeking?: boolean, readyState?: number }) => void) => Promise<void>
+  /**
+   * Make the player match `state`. Nothing playing is nothing to do, not an error.
+   *
+   * With `exact`, stub has decided what a follower's player does and it does that alone: it seeks to `exact.seek`,
+   * plays at `exact.rate`, plays or pauses, each only when present, and nothing when `exact` is empty. `state` is then
+   * where the host's player is, for a package from before `exact`, which keeps its own rule.
+   */
+  applyPlayback?: (state: PlaybackState & { exact?: PlaybackCorrection }) => Promise<void>
   /**
    * Where the player `play` put up is, how far it can play on its own (`readyState`, as a media
    * element's) and the ranges it holds, in seconds; undefined with nothing playing. Optional and

@@ -1,8 +1,11 @@
 // A source package's player as the same link the built-in embed produces, driven with a fake source.
 import type { Mock } from 'vite-plus/test'
+import type { PlaybackCorrection } from '../../../src/party/playback'
+import type { PlaybackState } from '../../../src/party/protocol'
 
-import { describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { NUDGE_RATE } from '../../../src/party/playback'
 import { BUFFER_WAIT_MS, pluginPlaybackLink, servePluginFullscreen } from '../../../src/party/plugin-link'
 
 const STATE = { paused: false, time: 42, rate: 1, at: 1 }
@@ -127,6 +130,145 @@ describe('pluginPlaybackLink', () => {
     })!
     expect(() => link.apply(STATE)).not.toThrow()
     await new Promise(resolve => setTimeout(resolve, 0))
+  })
+})
+
+/**
+ * A package's player as stub-plugin serves it, from 100 s: it reports every five seconds while it plays and on a new
+ * speed, a stall or a seek landing, and does what `exact` says. `play` moves both players on in half seconds, the
+ * host's from 100 s at 1x, following it every two seconds as heartbeats have it, a host report off by `misread` for
+ * each; `stall` holds the player still, waiting for data, and `seekTakes` is how long a seek holds it.
+ */
+const packagePlayer = ({ seekTakes = 0 } = {}) => {
+  let ear: ((state: PlaybackState & { ended?: boolean, seeking?: boolean, readyState?: number }) => void) | undefined
+  const player = { paused: false, ended: false, time: 100, rate: 1, seeking: false, readyState: 4 }
+  const told: (PlaybackState & { exact?: PlaybackCorrection })[] = []
+  let stands = 0
+  let host = 100
+  let step = 0
+  const report = () => ear?.({ ...player, at: Date.now() })
+  const link = pluginPlaybackLink({
+    onPlayback: async listener => { ear = listener },
+    applyPlayback: async state => {
+      told.push(state)
+      const { seek, rate } = state.exact ?? {}
+      if (seek !== undefined) { player.time = seek; player.seeking = seekTakes > 0; stands = seekTakes }
+      if (rate !== undefined) { player.rate = rate; report() }
+    },
+  })!
+  report()
+  const play = async (seconds: number, { follow = true, misread = [0] } = {}) => {
+    const end = step + seconds * 2
+    for (; step < end; step++) {
+      if (follow && step % 4 === 0) link.follow!({ paused: false, time: host + misread[step / 4 % misread.length]!, rate: 1, at: Date.now() })
+      if (step % 10 === 7) report()
+      await vi.advanceTimersByTimeAsync(500)
+      host += 0.5
+      if (stands > 0) {
+        stands -= 0.5
+        if (stands <= 0) { player.seeking = false; player.readyState = 4; report() }
+      } else player.time += 0.5 * player.rate
+    }
+  }
+  const stall = (seconds: number) => { stands = seconds; player.readyState = 2; report() }
+  // what the package was told to do, leaving out the applies that told it nothing
+  const moves = () => told.map(state => state.exact).filter(exact => exact && Object.keys(exact).length)
+  return { link, player, told, moves, play, stall, report, hostSeek: (by: number) => { host += by }, drift: () => host - player.time }
+}
+
+describe('a package\'s player followed', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  test('is left alone through jitter, an outlier included, and told so beside the host\'s state', async () => {
+    vi.useFakeTimers()
+    const { told, moves, play, link } = packagePlayer()
+    await play(120, { misread: [0.2, -0.15, 0.1, -0.2, 0.45, 0.2, -0.1, 0.15, -0.2, 0.05] })
+    expect(moves()).toEqual([])
+    // a package from before `exact` follows the host's state by its own rule, as it always did
+    expect(told.at(-1)).toEqual({ paused: false, time: expect.any(Number), rate: 1, at: expect.any(Number), exact: {} })
+    link.dispose()
+  })
+
+  // the catch-up is planned to end, and nothing has to be followed then for it to
+  test('closes a 2 s stall with one gentle catch-up, then the host\'s speed on time, with nothing followed meanwhile', async () => {
+    vi.useFakeTimers()
+    const { moves, play, stall, drift, link } = packagePlayer()
+    await play(10)
+    stall(2)
+    await play(20)
+    expect(moves()).toEqual([{ rate: NUDGE_RATE }])
+    await play(60, { follow: false })
+    expect(moves()).toEqual([{ rate: NUDGE_RATE }, { rate: 1 }])
+    expect(Math.abs(drift())).toBeLessThan(0.1)
+    link.dispose()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  // read as playing on from the report that said it stalled, a follow inside the stall would see the player jump back
+  test('reads a stall it was told of standing still, so the stall is caught up rather than seeked', async () => {
+    vi.useFakeTimers()
+    const { moves, play, stall, drift, link } = packagePlayer()
+    await play(11)
+    stall(2.5)
+    await play(120)
+    expect(moves().every(move => move?.seek === undefined && move?.rate !== undefined && move.rate >= 1)).toBe(true)
+    expect(Math.abs(drift())).toBeLessThan(0.15)
+    link.dispose()
+  })
+
+  test('a speed set while a catch-up runs is not undone when the catch-up ends', async () => {
+    vi.useFakeTimers()
+    const { moves, player, play, stall, report, link } = packagePlayer()
+    await play(10)
+    stall(2)
+    await play(20)
+    player.rate = 1.5
+    report()
+    await play(60, { follow: false })
+    expect(moves()).toEqual([{ rate: NUDGE_RATE }])
+    link.dispose()
+  })
+
+  test('follows the host\'s jump with one seek, never sent again before a report shows it', () => {
+    vi.useFakeTimers()
+    const { link, moves } = packagePlayer()
+    expect(link.follow!({ paused: false, time: 130, rate: 1, at: Date.now() })).toEqual({ seek: 130 })
+    // the package has not reported since, so its last report is still the old time
+    expect(link.follow!({ paused: false, time: 130.1, rate: 1, at: Date.now() })).toEqual({})
+    expect(moves()).toEqual([{ seek: 130 }])
+    link.dispose()
+  })
+
+  // a seek sent again before the last one landed starts the wait over, and a slow network never gets to play
+  test('whose seeks take 7 s to land is not seeked again meanwhile, and aims the next as far ahead as it landed behind', async () => {
+    vi.useFakeTimers()
+    const { moves, play, hostSeek, drift, link } = packagePlayer({ seekTakes: 7 })
+    await play(10)
+    hostSeek(10)
+    await play(80)
+    expect(moves()).toEqual([{ seek: 120 }, { seek: 135 }])
+    expect(Math.abs(drift())).toBeLessThan(0.1)
+    link.dispose()
+  })
+
+  test('an ended player is left alone unless the host is somewhere else', () => {
+    vi.useFakeTimers()
+    const { link, player, moves, report } = packagePlayer()
+    Object.assign(player, { paused: true, ended: true, time: 1440 })
+    report()
+    const now = Date.now()
+    link.follow!({ paused: false, time: 1440, rate: 1, at: now })
+    expect(link.follow!({ paused: false, time: 1440.2, rate: 1, at: now })).toEqual({})
+    expect(link.follow!({ paused: false, time: 600, rate: 1, at: now })).toEqual({ seek: 600, play: true })
+    expect(moves()).toEqual([{ seek: 600, play: true }])
+    link.dispose()
+  })
+
+  test('nothing is told before the player first reports', () => {
+    const applyPlayback = vi.fn(async () => {})
+    const link = pluginPlaybackLink({ onPlayback: async () => {}, applyPlayback })!
+    expect(link.follow!({ paused: false, time: 100, rate: 1, at: Date.now() })).toEqual({})
+    expect(applyPlayback).not.toHaveBeenCalled()
   })
 })
 
