@@ -121,7 +121,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
         if (!played) { callbacks.current.onUnplayable(); return }
         link = pluginPlaybackLink(source, iframe)
         if (link) callbacks.current.onPlayback?.(link)
-        if (stage?.current) stopFullscreen = servePluginFullscreen(source, stage.current)
+        if (stage?.current) stopFullscreen = servePluginFullscreen(source, stage.current, window, iframe)
       } catch (error) {
         if (done) return
         console.warn(`Source '${pluginUri}' could not start playback:`, error)

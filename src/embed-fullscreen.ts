@@ -16,13 +16,41 @@ const ASK = 'stub:embed-fullscreen?'
 const REQUEST = 'stub:embed-fullscreen-request'
 
 /**
- * On the watch page: keeps the fullscreen of the embed in `iframe` on `stage`. A request from the embed leaves
- * fullscreen when the page is in it and fullscreens `stage` otherwise, and the embed is told every change. Nothing
- * where the page cannot fullscreen. Returns the stop.
+ * On the watch page, while a player's fullscreen is kept on `stage`: `f` pressed on the page itself does what the
+ * player's own `f` does, and on fullscreening gives the keys to the player's `frame`, and through `inner` to a frame
+ * inside it, so the next `f` is the player's own. Keys pressed in the page never reach a frame, nor a frame's the page,
+ * so one press is heard once. Not in a text field, and not with Ctrl, Cmd or Alt, which leave the browser's find its
+ * keys. Returns the stop.
+ */
+export const hearFullscreenKey = (document: Document, stage: HTMLElement, frame?: HTMLIFrameElement, inner?: () => void) => {
+  const keydown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null
+    if (event.key !== 'f' || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
+    if (target?.isContentEditable || /^(input|textarea|select)$/i.test(target?.tagName ?? '')) return
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+      return
+    }
+    // The frame takes the keys before the request and the one inside it once the page is fullscreen. Asked together,
+    // the inner frame could take them before Chrome 156 had given them to the frame around it, which then kept them
+    // (4 runs in 60, none in 40 this way, 2026-11-06). Blurred first, as in ./party/plugin-link.ts.
+    frame?.blur()
+    frame?.focus()
+    stage.requestFullscreen().then(inner, () => {})
+  }
+  document.addEventListener('keydown', keydown)
+  return () => document.removeEventListener('keydown', keydown)
+}
+
+/**
+ * On the watch page: keeps the fullscreen of the embed in `iframe` on `stage`. A request from the embed, or `f` on the
+ * page (see `hearFullscreenKey`), leaves fullscreen when the page is in it and fullscreens `stage` otherwise, and the
+ * embed is told every change. Nothing where the page cannot fullscreen. Returns the stop.
  */
 export const serveEmbedFullscreen = (iframe: HTMLIFrameElement, stage: HTMLElement, host: Window = window) => {
   const { document } = host
   if (!document.fullscreenEnabled) return () => {}
+  const stopKey = hearFullscreenKey(document, stage, iframe)
   const send = () => {
     if (iframe.contentWindow) postMessage(iframe.contentWindow, { type: STATE, active: Boolean(document.fullscreenElement) }, host.location.origin)
   }
@@ -37,6 +65,7 @@ export const serveEmbedFullscreen = (iframe: HTMLIFrameElement, stage: HTMLEleme
   document.addEventListener('fullscreenchange', send)
   send()
   return () => {
+    stopKey()
     host.removeEventListener('message', receive)
     document.removeEventListener('fullscreenchange', send)
   }

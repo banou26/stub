@@ -716,19 +716,6 @@ const Watch = () => {
     return serveEmbedFullscreen(iframe, stage.current)
   }, [viaPlugin, embedUrl])
 
-  // `f` on the page itself fullscreens the stage as a player's own does: neither document hears the other's keys
-  useEffect(() => {
-    const press = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-      if (event.key !== 'f' || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
-      if (target?.isContentEditable || /^(input|textarea|select)$/i.test(target?.tagName ?? '')) return
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
-      else if (stage.current?.querySelector('iframe')) stage.current.requestFullscreen().catch(() => {})
-    }
-    document.addEventListener('keydown', press)
-    return () => document.removeEventListener('keydown', press)
-  }, [])
-
   // A frame in place of another takes the keys: the one they were in went with its frame, and a press on Next left
   // them on a button that went too, which in fullscreen is the page's only control.
   const framed = useRef(false)

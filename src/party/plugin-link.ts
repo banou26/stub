@@ -4,6 +4,7 @@ import type { PlaybackLink } from './bridge'
 import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
 
+import { hearFullscreenKey } from '../embed-fullscreen'
 import { keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage } from '../utils/track-languages'
 import { isPlaybackState } from './protocol'
 
@@ -147,14 +148,16 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
 /**
  * Keeps the fullscreen of a source package's player on `stage`, as ../embed-fullscreen.ts does for stub's own embed:
  * the player asks through the package's `onFullscreenRequest`, within its press's activation, and the package is told
- * the page's state through `applyFullscreen`, at once and on every change. A package without the pair, or a page
- * that cannot fullscreen, leaves the player its own fullscreen. Returns the stop.
+ * the page's state through `applyFullscreen`, at once and on every change. `f` on the page asks too, and then gives
+ * the keys to the package's `frame` and through its `focus` to the player. A package without the pair, or a page that
+ * cannot fullscreen, leaves the player its own fullscreen. Returns the stop.
  */
-export const servePluginFullscreen = (source: PlaybackSource, stage: HTMLElement, host: Window = window) => {
+export const servePluginFullscreen = (source: PlaybackSource, stage: HTMLElement, host: Window = window, frame?: HTMLIFrameElement) => {
   const { document } = host
-  const { onFullscreenRequest, applyFullscreen } = source
+  const { onFullscreenRequest, applyFullscreen, focus } = source
   if (!document.fullscreenEnabled || !onFullscreenRequest || !applyFullscreen) return () => {}
   let stopped = false
+  const stopKey = hearFullscreenKey(document, stage, frame, () => { if (!stopped) focus?.().catch(() => {}) })
   const tell = () => { applyFullscreen(Boolean(document.fullscreenElement)).catch(() => {}) }
   onFullscreenRequest(() => {
     if (!stopped) (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen()).catch(() => {})
@@ -163,6 +166,7 @@ export const servePluginFullscreen = (source: PlaybackSource, stage: HTMLElement
   tell()
   return () => {
     stopped = true
+    stopKey()
     document.removeEventListener('fullscreenchange', tell)
   }
 }

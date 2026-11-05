@@ -385,6 +385,34 @@ describe('a package\'s fullscreen, kept on the stage', () => {
     expect(told, 'and nothing told').toEqual([false, true, false])
   })
 
+  // STUB-358: asked together, the player two frames down could take the keys before Chrome 156 had given them to the
+  // package's frame, which then kept them
+  test('f on the page fullscreens the stage, the package\'s frame taking the keys before the request and its player once in', async () => {
+    const { host, document, stage, change } = page()
+    const { source } = fullscreenSource()
+    const order: string[] = []
+    const frame = { blur: () => {}, focus: () => { order.push('frame') } } as unknown as HTMLIFrameElement
+    let enter = () => {}
+    stage.requestFullscreen.mockImplementation(() => {
+      order.push('request')
+      return new Promise<void>(resolve => { enter = resolve })
+    })
+    const stop = servePluginFullscreen({ ...source, focus: async () => { order.push('player') } }, stage, host, frame)
+    const f = () => document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'f' }))
+    f()
+    expect(order).toEqual(['frame', 'request'])
+    enter()
+    await vi.waitFor(() => expect(order).toEqual(['frame', 'request', 'player']))
+    change(stage)
+    f()
+    expect(document.exitFullscreen).toHaveBeenCalledTimes(1)
+    expect(order, 'leaving moves no keys').toEqual(['frame', 'request', 'player'])
+    stop()
+    change(null)
+    f()
+    expect(stage.requestFullscreen, 'not once stopped').toHaveBeenCalledTimes(1)
+  })
+
   test('a page that cannot fullscreen, or a package without the pair, leaves the player its own', () => {
     const cannot = page(false)
     const { source } = fullscreenSource()
