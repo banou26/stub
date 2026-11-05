@@ -70,12 +70,13 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     if (!link || !party.following() || busy()) return
     const now = Date.now()
     const local = last.current && advance(last.current, last.current.at, now)
-    const correction = local && playbackCorrection(local, target, now, true)
+    // what a source package's player does with `apply`, by the same tolerance
+    const predicted = local && playbackCorrection(local, target, now, true)
     // play() on an ended player starts it over from 0: it follows the host only somewhere else
-    if (link.ended?.() && correction?.seek === undefined) return
+    if (link.ended?.() && predicted?.seek === undefined) return
+    const correction = link.follow ? link.follow(target, true) : (link.apply(target, true), predicted)
     if (!correction || correction.seek !== undefined || correction.play || correction.pause) settleUntil.current = now + SETTLE_MS
     if (correction?.seek !== undefined) seekingTo.current = correction.seek
-    link.apply(target, true)
   }
   const reapply = () => {
     const heard = wanted.current

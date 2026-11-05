@@ -1,10 +1,10 @@
 // A media as the link the party's playback sync reads: reports on the events a person can cause and
-// on a clock while playing, applies a state with the tolerance in playback.ts, and answers a new ear
+// on a clock while playing, applies or follows a state by the rules in playback.ts, and answers a new ear
 // at once. Driven with a fake media, the same shape @banou/media-player's remote player has.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { linkMedia } from '../../../src/party/bridge'
-import { HEARTBEAT_MS } from '../../../src/party/playback'
+import { HEARTBEAT_MS, NUDGE_RATE } from '../../../src/party/playback'
 
 const fakeMedia = () => {
   const target = new EventTarget()
@@ -105,14 +105,52 @@ describe('linkMedia', () => {
     media.paused = false
     media.currentTime = 100.3
     link.apply({ paused: false, time: 100, rate: 1, at: now })
-    // inside the tolerance nothing seeks; the gap is closed by rate instead, so the clock is untouched
+    // inside the tolerance nothing moves: the host's own player answers an ask with this, and is never corrected after
     expect(media.currentTime, 'inside the tolerance').toBe(100.3)
-    expect(media.playbackRate, 'ahead of the host, so it runs slow until it is level').toBeLessThan(1)
+    expect(media.playbackRate, 'at the asked speed').toBe(1)
     expect(media.play).toHaveBeenCalledTimes(1)
 
     link.apply({ paused: true, time: 100.3, rate: 1.5, at: now })
     expect(media.pause).toHaveBeenCalledTimes(1)
     expect(media.playbackRate).toBe(1.5)
+    link.dispose()
+  })
+
+  // the catch-up is planned to end, and nothing has to be applied then for it to: a follower that stopped following
+  // would otherwise be left fast for good
+  test('follow catches up and goes back to the host\'s speed on time, with nothing applied meanwhile', async () => {
+    vi.useFakeTimers()
+    const link = linkMedia(Object.assign(media, { paused: false, currentTime: 100 }))
+    // the host plays on from 100 s and is followed every two seconds, as heartbeats have it; the player stalls 2 s at 10 s
+    let host = 100
+    const play = async (seconds: number, follow: boolean) => {
+      for (let step = 0; step < seconds * 2; step++) {
+        if (follow && step % 4 === 0) link.follow!({ paused: false, time: host, rate: 1, at: Date.now() }, true)
+        await vi.advanceTimersByTimeAsync(500)
+        host += 0.5
+        media.currentTime += 0.5 * media.playbackRate
+      }
+    }
+    await play(10, true)
+    media.currentTime -= 2
+    await play(10, true)
+    expect(media.playbackRate, 'catching up').toBe(NUDGE_RATE)
+    await play(60, false)
+    expect(media.playbackRate, 'back at the host\'s speed').toBe(1)
+    expect(Math.abs(host - media.currentTime)).toBeLessThan(0.1)
+    link.dispose()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('follow leaves an ended player alone unless the host is somewhere else', () => {
+    vi.useFakeTimers()
+    const link = linkMedia(Object.assign(media, { paused: true, ended: true, currentTime: 1440 }))
+    const now = Date.now()
+    link.follow!({ paused: false, time: 1440, rate: 1, at: now })
+    expect(link.follow!({ paused: false, time: 1440.2, rate: 1, at: now })).toEqual({})
+    expect(media.play).not.toHaveBeenCalled()
+    expect(link.follow!({ paused: false, time: 600, rate: 1, at: now })).toEqual({ seek: 600, play: true })
+    expect(media.currentTime).toBe(600)
     link.dispose()
   })
 

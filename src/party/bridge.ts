@@ -5,7 +5,7 @@ import type { PlayerBuffer } from './status'
 
 import { mediaPlayer } from '@banou/media-player/remote'
 
-import { HEARTBEAT_MS, playbackCorrection } from './playback'
+import { followCorrection, HEARTBEAT_MS, playbackCorrection, sameRate, type Follow, type PlaybackCorrection } from './playback'
 
 // A player the party can hear and move, whoever holds it.
 //
@@ -24,6 +24,12 @@ export type PlaybackLink = {
    * trusted in full or capped, and nothing else.
    */
   apply: (state: PlaybackState, measured?: boolean) => void
+  /**
+   * Keep the player with a host whose player is at `state`, as a follower does on every state it hears and every
+   * report of its own (see `followCorrection`), and say what it did. Absent where the player keeps up by a rule
+   * of its own, as a source package's does with each state `apply` hands it.
+   */
+  follow?: (state: PlaybackState, measured?: boolean) => PlaybackCorrection
   /** every report the player makes; returns the unsubscribe */
   onReport: (listener: (state: PlaybackState) => void) => () => void
   /** Whether the player reached the end, where the browser pauses it on its own: that pause is nobody's. */
@@ -72,22 +78,37 @@ const stateOf = (media: LinkableMedia): PlaybackState => ({
 
 /**
  * A media as a link: reports on every event a person can cause and every few seconds while playing,
- * and applies a state with the tolerance in ./playback.ts.
+ * and applies or follows a state by the rules in ./playback.ts.
  */
 export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}): PlaybackLink => {
   const listeners = new Set<(state: PlaybackState) => void>()
   const report = () => { const state = stateOf(media); for (const listener of listeners) listener(state) }
   for (const event of EVENTS) media.addEventListener(event, report)
   const heartbeat = setInterval(() => { if (!media.paused) report() }, HEARTBEAT_MS)
+  const move = (correction: PlaybackCorrection) => {
+    if (correction.seek !== undefined) media.currentTime = correction.seek
+    if (correction.rate !== undefined) media.playbackRate = correction.rate
+    if (correction.pause) media.pause()
+    // `autoplay` where the player has one: a follower never clicked inside the player's document,
+    // and starting muted is better than not starting. The next heartbeat asks again either way.
+    if (correction.play) (media.autoplay ? media.autoplay() : media.play()).catch(() => {})
+  }
+  let following: Follow | undefined
+  // a catch-up ends on time whether or not anything is applied by then, a follower that stopped following included
+  let caughtUp: ReturnType<typeof setTimeout> | undefined
   return {
-    apply: (wanted, measured) => {
-      const correction = playbackCorrection(stateOf(media), wanted, Date.now(), measured)
-      if (correction.seek !== undefined) media.currentTime = correction.seek
-      if (correction.rate !== undefined) media.playbackRate = correction.rate
-      if (correction.pause) media.pause()
-      // `autoplay` where the player has one: a follower never clicked inside the player's document,
-      // and starting muted is better than not starting. The next heartbeat asks again either way.
-      if (correction.play) (media.autoplay ? media.autoplay() : media.play()).catch(() => {})
+    apply: (wanted, measured) => { move(playbackCorrection(stateOf(media), wanted, Date.now(), measured)) },
+    follow: (wanted, measured) => {
+      const now = Date.now()
+      const { correction, follow } = followCorrection(following, stateOf(media), wanted, now, measured)
+      following = follow
+      clearTimeout(caughtUp)
+      const { catchUp } = follow
+      if (catchUp) caughtUp = setTimeout(() => { if (sameRate(media.playbackRate ?? 1, catchUp.rate)) media.playbackRate = wanted.rate }, catchUp.until - now)
+      // play() on an ended player starts it over from 0: it follows the host only somewhere else
+      if (media.ended && correction.seek === undefined) return {}
+      move(correction)
+      return correction
     },
     // a new ear is answered with where the player is now, not at its next event
     onReport: listener => { listeners.add(listener); queueMicrotask(report); return () => { listeners.delete(listener) } },
@@ -102,6 +123,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
     dispose: () => {
       for (const event of EVENTS) media.removeEventListener(event, report)
       clearInterval(heartbeat)
+      clearTimeout(caughtUp)
       listeners.clear()
       onClose()
     },

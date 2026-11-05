@@ -1,31 +1,45 @@
 import type { PlaybackState, PlayerAsk, PlayerControl } from './protocol'
 
-// How a follower's player is moved to match the host's. Pure and import-free so the tolerance can be
-// pinned: it is the one number that decides between a follower that stutters every heartbeat and
-// one that drifts.
+// How a follower's player is moved to match the host's. Pure and import-free so the numbers can be pinned: they
+// decide between a follower that keeps changing speed and one that drifts.
 
 /**
- * The gap past which a follower seeks to the host's position, in seconds.
- *
- * Under it nothing is touched: the host's heartbeat arrives every few seconds, transit is a few
- * hundred milliseconds at most, and seeking a player that is already within a second of the host
- * would buy nothing and cost a visible stall each time. Over it the follower has fallen behind, or
- * the host seeked, and either way the honest move is to jump.
+ * The gap past which a player is seeked to where it was asked to be, in seconds: the host's own player on a
+ * follower's ask, and a follower's when the host seeked, paused or resumed. Under it a seek would buy nothing and
+ * cost a visible stall.
  */
 export const SEEK_TOLERANCE_S = 0.5
 
 /**
- * The drift a follower closes by playing slightly faster or slower rather than by seeking.
- *
- * Between NUDGE_FLOOR_S and SEEK_TOLERANCE_S a seek would be the wrong tool: it costs a visible
- * stall and a re-buffer to fix a gap nobody can see, and the host's heartbeat would hand it back a
- * few seconds later. Running at NUDGE_RATE instead closes a quarter second in about five seconds,
- * inaudibly, and the follower ends up genuinely level rather than merely within tolerance.
- *
- * Below the floor nothing is done at all, which is what stops the correction oscillating: a follower
- * that nudged until it was exact would overshoot and nudge back forever.
+ * The drift past which a follower seeks even though the host only played on, in seconds; under it, and outside
+ * DEAD_BAND_S, it catches up by speed instead. A seek is a visible jump and a stall to re-buffer, which can leave
+ * the follower behind again, while a catch-up closes 3 s in a minute with nothing to see.
  */
-export const NUDGE_FLOOR_S = 0.05
+export const CATCH_UP_LIMIT_S = 3
+
+/**
+ * The drift a follower leaves alone, in seconds: under it two viewers cannot tell they are apart. What a follower
+ * measures is off by up to a quarter second on each side (a player's mirror says its time as of its last
+ * `timeupdate`, 250 ms apart in Chrome, and a heartbeat reads it at the same point of that cycle every time), plus
+ * what the message's delay leaves. In tests/unit/components/party-playback-simulation.tsx, 2026-11-05, a band of
+ * 0.25 s once caught up on that alone in twelve ten-minute runs with no drift, 0.3 s never did, and 0.4 s keeps a
+ * margin while a decoder drifting a millisecond a second stays under 0.5 s from the host.
+ */
+export const DEAD_BAND_S = 0.4
+
+/**
+ * How many drifts a follower reads before it believes one: the median of the last FILTER_SIZE since its player
+ * last changed, so one late report moves nothing and only a drift that stays outside the band for a while (most
+ * of five applies, about ten seconds of heartbeats and host messages) starts a catch-up.
+ */
+export const FILTER_SIZE = 5
+
+/**
+ * How long a catch-up runs, in seconds, and the most it moves off the host's speed. The speed is the drift over
+ * CATCH_UP_S, so a small drift is closed gently and in one go, and a large one at NUDGE_RATE for as long as it
+ * takes: 5% is under what a viewer hears, with the browser keeping the pitch.
+ */
+export const CATCH_UP_S = 10
 export const NUDGE_RATE = 1.05
 
 /** How often the host's player reports while it plays, so a follower that drifts is corrected. */
@@ -62,35 +76,84 @@ export const expectedTime = (state: PlaybackState, now: number, measured = false
 const MAX_TRANSIT_MS = 2_000
 
 /**
- * What to do to `local` so it matches `wanted`, in three tiers of drift.
- *
- * Over SEEK_TOLERANCE_S it jumps, because the follower is somewhere else entirely: the host seeked,
- * or a stall put it behind. Between the floor and the tolerance it runs off-rate to close the gap
- * smoothly, so a follower converges on the host rather than settling anywhere inside a tolerance
- * band. Under the floor it is left alone, since a correction that never stops is a stutter.
- *
- * A paused player is never nudged: it is not moving, so a rate has nothing to act on, and it would
- * be left at the wrong rate for whenever it resumes. Nor is a player whose speed is changing by more
- * than a nudge: it is set exactly, since the host's own player answers a follower's speed ask with
- * this, nothing corrects the host afterwards, and a nudge in that step would leave it 5% off.
+ * What to do to `local` so it matches `wanted` at once: seek past SEEK_TOLERANCE_S, play, pause and take its
+ * speed. What the host's player does with a follower's ask.
  */
 export const playbackCorrection = (local: LocalPlayback, wanted: PlaybackState, now: number, measured = false): PlaybackCorrection => {
   const correction: PlaybackCorrection = {}
   const target = expectedTime(wanted, now, measured)
-  const drift = target - local.time
-  if (Math.abs(drift) > SEEK_TOLERANCE_S) correction.seek = target
+  if (Math.abs(target - local.time) > SEEK_TOLERANCE_S) correction.seek = target
   if (wanted.paused && !local.paused) correction.pause = true
   if (!wanted.paused && local.paused) correction.play = true
-
-  // behind the host runs fast, ahead of it runs slow, and anything else runs at the host's own rate
-  const nudging = !wanted.paused && correction.seek === undefined && Math.abs(drift) >= NUDGE_FLOOR_S && nudgeOf(local.rate, wanted.rate)
-  const rate = nudging ? wanted.rate * (drift > 0 ? NUDGE_RATE : 1 / NUDGE_RATE) : wanted.rate
-  if (!sameRate(local.rate, rate)) correction.rate = rate
+  if (!sameRate(local.rate, wanted.rate)) correction.rate = wanted.rate
   return correction
 }
 
-const sameRate = (a: number, b: number) => Math.abs(a - b) <= 0.001
-/** Whether `rate` is `base` or a nudge either side of it. */
+/** How far a player's time may run back before it moved: by itself it never runs back, so this is only slack. */
+const RUNS_BACK_S = 0.05
+
+/** What a follower's correction keeps from one apply to the next. */
+export type Follow = {
+  /** where the host's player was at the last apply, on this clock */
+  heard: PlaybackState
+  /** where this player was left at the last apply */
+  played: PlaybackState
+  /** the drifts measured since the player last changed, newest last, in seconds */
+  drifts: number[]
+  /** the catch-up running: its speed, held until `until` on this clock */
+  catchUp?: { rate: number, until: number }
+}
+
+const median = (values: number[]) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = sorted.length >> 1
+  return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2
+}
+
+/**
+ * What to do to a follower's `local` player to keep it with the host's, and what to remember for the next apply.
+ *
+ * When the host seeked, paused or resumed since the last apply, when this player jumped by itself (a person, or the
+ * player rebuilding), or on the first, it is `playbackCorrection`: the follower goes where the host is at once.
+ * Otherwise the follower is the one that drifted (a stall, a decoder, the network), and it is left alone inside
+ * DEAD_BAND_S. A drift that stays outside it (the median of the last FILTER_SIZE since the player last changed) is
+ * closed by a catch-up: a speed scaled to the drift, held until dead reckoning says the gap is closed, then the
+ * host's speed again, with nothing measured in between. Only past CATCH_UP_LIMIT_S does it seek. A new speed from
+ * the host is taken at once and starts the reading over; a paused player is never caught up.
+ */
+export const followCorrection = (follow: Follow | undefined, local: LocalPlayback, wanted: PlaybackState, now: number, measured = false): { correction: PlaybackCorrection, follow: Follow } => {
+  const target = expectedTime(wanted, now, measured)
+  const drift = target - local.time
+  const heard = { ...wanted, time: target, at: now }
+  // a stall stands still, so it never reads as this player jumping
+  const moved = !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > SEEK_TOLERANCE_S ||
+    local.time < follow.played.time - RUNS_BACK_S || local.time > expectedTime(follow.played, now, true) + SEEK_TOLERANCE_S
+  const correction = playbackCorrection(local, wanted, now, measured)
+  if (!moved && Math.abs(drift) <= CATCH_UP_LIMIT_S) delete correction.seek
+
+  let next: Omit<Follow, 'played'>
+  if (!follow || moved || !sameRate(follow.heard.rate, wanted.rate) || wanted.paused || local.paused || correction.seek !== undefined) next = { heard, drifts: [] }
+  else if (follow.catchUp && now < follow.catchUp.until) next = { ...follow, heard }
+  else {
+    const drifts = [...follow.catchUp ? [] : follow.drifts, drift].slice(-FILTER_SIZE)
+    const filtered = drifts.length === FILTER_SIZE ? median(drifts) : 0
+    if (Math.abs(filtered) > DEAD_BAND_S) {
+      // behind the host runs fast, ahead of it runs slow, either side of the host's own speed
+      const speed = Math.min(Math.abs(filtered) / CATCH_UP_S, NUDGE_RATE - 1)
+      const rate = wanted.rate * (filtered > 0 ? 1 + speed : 1 / (1 + speed))
+      next = { heard, drifts: [], catchUp: { rate, until: now + Math.abs(filtered) / Math.abs(rate - wanted.rate) * 1000 } }
+    } else next = { heard, drifts }
+  }
+
+  const rate = next.catchUp?.rate ?? wanted.rate
+  if (sameRate(local.rate, rate)) delete correction.rate
+  else correction.rate = rate
+  const played = { paused: correction.pause ?? (local.paused && !correction.play), time: correction.seek ?? local.time, rate, at: now }
+  return { correction, follow: { ...next, played } }
+}
+
+export const sameRate = (a: number, b: number) => Math.abs(a - b) <= 0.001
+/** Whether `rate` is `base` or a catch-up either side of it. */
 const nudgeOf = (rate: number, base: number) => rate <= base * NUDGE_RATE + 0.001 && rate >= base / NUDGE_RATE - 0.001
 
 /**
@@ -126,16 +189,16 @@ export const ASK_THROTTLE_MS = 250
  *
  * `play` is the player pausing or resuming AWAY from `wanted`, so a player answering the host's own
  * pause late is not read as the person. `seek` is the time jumping against the previous report, back
- * past the nudge floor (a player's time never runs back by itself, and a 5 s skip made 4.5 s after the
+ * by more than RUNS_BACK_S (a player's time never runs back by itself, and a 5 s skip made 4.5 s after the
  * last report lands only 0.5 s behind it) or forward past what it played since plus the tolerance, and
  * landing away from `wanted`: a stall stands still, so it is never a seek however far behind it leaves
- * the player. `rate` is a speed more than a nudge from the last report's (menus step 0.25, and the
- * player's own nudge can land after the host's new speed) that is neither `wanted`'s nor a nudge of it.
+ * the player. `rate` is a speed more than a catch-up from the last report's (menus step 0.25, and the
+ * player's own catch-up can land after the host's new speed) that is neither `wanted`'s nor a catch-up of it.
  */
 export const personAction = (previous: PlaybackState, report: PlaybackState, wanted: LocalPlayback): PlayerControl[] => {
   const used: PlayerControl[] = []
   if (report.paused !== previous.paused && report.paused !== wanted.paused) used.push('play')
-  const jumped = report.time < previous.time - NUDGE_FLOOR_S || report.time > expectedTime(previous, report.at, true) + SEEK_TOLERANCE_S
+  const jumped = report.time < previous.time - RUNS_BACK_S || report.time > expectedTime(previous, report.at, true) + SEEK_TOLERANCE_S
   if (jumped && Math.abs(report.time - wanted.time) > SEEK_TOLERANCE_S) used.push('seek')
   if (!nudgeOf(report.rate, previous.rate) && !nudgeOf(report.rate, wanted.rate)) used.push('rate')
   return used

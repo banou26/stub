@@ -12,7 +12,7 @@ import { render } from 'preact'
 
 import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
-import { ASK_HOLD_MS, ASK_THROTTLE_MS, expectedTime, SETTLE_MS } from '../../../src/party/playback'
+import { ASK_HOLD_MS, ASK_THROTTLE_MS, expectedTime, SETTLE_MS, type PlaybackCorrection } from '../../../src/party/playback'
 import { STATUS_CHECK_MS } from '../../../src/party/status'
 import { STATUS_GAP_MS } from '../../../src/party/store'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -278,6 +278,24 @@ describe('a follower', () => {
     player.report(playing(25.3))
     const [state, measured] = player.link.apply.mock.calls.at(-1)!
     expect(expectedTime(state, Date.now(), measured)).toBeCloseTo(25.3)
+  })
+
+  // STUB-363: stub's own players keep up by speed inside a few seconds of the host, where a seek would have been
+  // assumed and the person's controls ignored for SETTLE_MS on every apply
+  test('a link that follows by itself is followed, and what it did decides whether the person is read', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage())
+    await current.store.join(INVITE)
+    const player = fakeLink()
+    const follows = vi.fn<(state: PlaybackState, measured?: boolean) => PlaybackCorrection>(() => ({ rate: 1.05 }))
+    hosts.push(mount(<PartyPlayback link={{ ...player.link, follow: follows }}/>))
+    player.report(playing(10))
+    say(fake, 'host', { t: 'state', path: PATH, y: 0, s: { ...playing(11), at: Date.now() }, grants: { by: {}, all: ['play'] } })
+    expect(follows).toHaveBeenCalledTimes(1)
+    await wait(500)
+    player.report(paused(10.5))
+    expect(asks(fake)).toMatchObject([{ t: 'ask', c: 'play', s: { paused: true } }])
+    expect(player.link.apply).not.toHaveBeenCalled()
   })
 
   // HOR-1106: every address carries its viewer's own sources, and the host's are not this follower's

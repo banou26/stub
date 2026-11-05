@@ -1,10 +1,12 @@
-// The one number that decides between a follower that stutters on every heartbeat and one that
-// drifts is here, so it is pinned with the cases on both sides of it.
+// The numbers that decide between a follower that keeps changing speed and one that drifts are here, so they are
+// pinned with the cases on both sides of them.
 import { describe, expect, test } from 'vite-plus/test'
 
 import type { PlaybackState } from '../../../src/party/protocol'
 
-import { NUDGE_FLOOR_S, NUDGE_RATE, SEEK_TOLERANCE_S, advance, askedState, expectedTime, personAction, playbackCorrection } from '../../../src/party/playback'
+import type { Follow, PlaybackCorrection } from '../../../src/party/playback'
+
+import { CATCH_UP_LIMIT_S, CATCH_UP_S, DEAD_BAND_S, FILTER_SIZE, NUDGE_RATE, SEEK_TOLERANCE_S, advance, askedState, expectedTime, followCorrection, personAction, playbackCorrection } from '../../../src/party/playback'
 
 const NOW = 1_788_700_000_000
 
@@ -30,33 +32,10 @@ describe('expectedTime', () => {
 describe('playbackCorrection', () => {
   const wanted = { paused: false, time: 100, rate: 1, at: NOW }
 
-  // Three tiers, and the middle one is the point: a follower that is merely close used to be left
-  // close for ever, drifting inside the tolerance band with every heartbeat handing it back.
-  test('a follower under the floor is left alone', () => {
-    expect(playbackCorrection({ paused: false, time: 100 + NUDGE_FLOOR_S / 2, rate: 1 }, wanted, NOW)).toEqual({})
-    expect(playbackCorrection({ paused: false, time: 100 - NUDGE_FLOOR_S / 2, rate: 1 }, wanted, NOW)).toEqual({})
-  })
-
-  test('a follower inside the tolerance closes the gap by rate, not by seeking', () => {
-    // behind the host, so it runs fast until it is level
-    expect(playbackCorrection({ paused: false, time: 100 - 0.3, rate: 1 }, wanted, NOW)).toEqual({ rate: NUDGE_RATE })
-    // ahead of it, so it runs slow
-    expect(playbackCorrection({ paused: false, time: 100 + 0.3, rate: 1 }, wanted, NOW)).toEqual({ rate: 1 / NUDGE_RATE })
-    // and a nudge that did its job hands the rate back rather than leaving the player fast
-    expect(playbackCorrection({ paused: false, time: 100, rate: NUDGE_RATE }, wanted, NOW)).toEqual({ rate: 1 })
-  })
-
-  test('a nudge follows the host\'s own rate rather than replacing it', () => {
-    const fast = { ...wanted, rate: 2 }
-    expect(playbackCorrection({ paused: false, time: 99.7, rate: 2 }, fast, NOW)).toEqual({ rate: 2 * NUDGE_RATE })
-  })
-
-  test('a paused follower is never nudged, since a rate has nothing to act on', () => {
-    const stopped = { ...wanted, paused: true }
-    expect(playbackCorrection({ paused: true, time: 100 - 0.3, rate: 1 }, stopped, NOW)).toEqual({})
-  })
-
-  test('and one outside it is seeked to where the host is', () => {
+  // what the host's player does with a follower's ask, and what a follower does when the host moved
+  test('seeks past the tolerance and leaves the player alone inside it, never off the host\'s speed', () => {
+    expect(playbackCorrection({ paused: false, time: 100 - SEEK_TOLERANCE_S + 0.1, rate: 1 }, wanted, NOW)).toEqual({})
+    expect(playbackCorrection({ paused: false, time: 100 + SEEK_TOLERANCE_S - 0.1, rate: 1 }, wanted, NOW)).toEqual({})
     expect(playbackCorrection({ paused: false, time: 100 + SEEK_TOLERANCE_S + 0.1, rate: 1 }, wanted, NOW)).toEqual({ seek: 100 })
     expect(playbackCorrection({ paused: false, time: 0, rate: 1 }, wanted, NOW)).toEqual({ seek: 100 })
   })
@@ -69,11 +48,111 @@ describe('playbackCorrection', () => {
   })
 
   // The host answers a follower's speed ask with this against its own last report, whose time is up
-  // to a quarter second stale, and nothing corrects the host afterwards: a nudge here would leave the
-  // whole party at 1.575.
-  test('a new speed is set exactly, never nudged in the same step', () => {
+  // to a quarter second stale, and nothing corrects the host afterwards: a speed off the asked one here
+  // would leave the whole party at it.
+  test('a new speed is set exactly', () => {
     expect(playbackCorrection({ paused: false, time: 100 - 0.2, rate: 1 }, { ...wanted, rate: 1.5 }, NOW)).toEqual({ rate: 1.5 })
     expect(playbackCorrection({ paused: false, time: 100 + 0.2, rate: 1.5 }, wanted, NOW)).toEqual({ rate: 1 })
+  })
+})
+
+type Change = { at: number, host?: Partial<PlaybackState>, seekBy?: number, stall?: number, jump?: number, misread?: number }
+
+/**
+ * A follower applying the host every two seconds for `seconds`, as its heartbeats and the host's messages have it
+ * do, through `followCorrection`. The host plays on from 100 s, the follower's player at whatever speed the rule
+ * left it; each change happens at its second: the host's state changes, the host seeks, the player stalls (and
+ * stands still that long), the player jumps, or the host's report is off by that much for one apply. Says what the rule did and where the two ended.
+ */
+const run = (seconds: number, changes: Change[] = [], host: Partial<PlaybackState> = {}) => {
+  let wanted: PlaybackState = { paused: false, time: 100, rate: 1, at: NOW, ...host }
+  const local = { paused: wanted.paused, time: 100, rate: wanted.rate }
+  let follow: Follow | undefined
+  const done: PlaybackCorrection[] = []
+  for (let second = 0; second <= seconds; second += 2) {
+    const now = NOW + second * 1000
+    let misread = 0
+    for (const change of changes.filter(change => change.at === second)) {
+      wanted = { ...wanted, ...change.host, time: wanted.time + (change.seekBy ?? 0) }
+      local.time -= change.stall ?? 0
+      local.time += change.jump ?? 0
+      misread += change.misread ?? 0
+    }
+    wanted = { ...wanted, at: now }
+    const step = followCorrection(follow, local, { ...wanted, time: wanted.time + misread }, now, true)
+    follow = step.follow
+    const { correction } = step
+    if (Object.keys(correction).length) done.push(correction)
+    if (correction.seek !== undefined) local.time = correction.seek
+    if (correction.rate !== undefined) local.rate = correction.rate
+    if (correction.play) local.paused = false
+    if (correction.pause) local.paused = true
+    if (!wanted.paused) wanted = { ...wanted, time: wanted.time + 2 * wanted.rate }
+    if (!local.paused) local.time += 2 * local.rate
+  }
+  return { done, drift: wanted.time - local.time }
+}
+
+describe('followCorrection', () => {
+  test('a follower inside the dead band is left alone', () => {
+    expect(run(120, [{ at: 10, stall: DEAD_BAND_S - 0.05 }]).done).toEqual([])
+    expect(run(120, [{ at: 10, stall: -(DEAD_BAND_S - 0.05) }]).done).toEqual([])
+  })
+
+  // a host's player read up to a quarter second stale, and one report off by more than the band, are samples of five
+  test('jitter alone, an outlier included, changes nothing', () => {
+    const jitter = [0.2, -0.15, 0.1, -0.2, 0.45, 0.2, -0.1, 0.15, -0.2, 0.05].map((misread, index) => ({ at: 10 + index * 2, misread }))
+    expect(run(120, [...jitter, ...jitter.map(change => ({ ...change, at: change.at + 40 }))]).done).toEqual([])
+  })
+
+  test('a steady 2 s drift is closed by one gentle catch-up, then the host\'s speed', () => {
+    const { done, drift } = run(180, [{ at: 10, stall: 2 }])
+    expect(done).toEqual([{ rate: NUDGE_RATE }, { rate: 1 }])
+    expect(Math.abs(drift)).toBeLessThan(0.15)
+  })
+
+  test('the catch-up speed is scaled to the drift, either side of the host\'s speed', () => {
+    const rates = (done: PlaybackCorrection[]) => done.map(correction => correction.rate?.toFixed(4))
+    expect(rates(run(120, [{ at: 10, stall: 0.45 }]).done)).toEqual([(1 + 0.45 / CATCH_UP_S).toFixed(4), '1.0000'])
+    expect(rates(run(120, [{ at: 10, stall: -0.45 }]).done)).toEqual([(1 / (1 + 0.45 / CATCH_UP_S)).toFixed(4), '1.0000'])
+    const fast = run(120, [{ at: 10, stall: 2 }], { rate: 2 }).done
+    expect(fast).toEqual([{ rate: 2 * NUDGE_RATE }, { rate: 2 }])
+  })
+
+  // most of the last FILTER_SIZE drifts out of the band, read again from nothing after the player changed
+  test('a catch-up waits for the drift to stay out', () => {
+    expect(run(12, [{ at: 10, stall: 2 }]).done).toEqual([])
+    expect(run(14, [{ at: 10, stall: 2 }]).done).toEqual([{ rate: NUDGE_RATE }])
+    const seeked = [{ at: 20, seekBy: 10 }, { at: 22, stall: 2 }]
+    expect(run(20 + FILTER_SIZE * 2 - 2, seeked).done).toEqual([{ seek: 130 }])
+    expect(run(20 + FILTER_SIZE * 2, seeked).done).toEqual([{ seek: 130 }, { rate: NUDGE_RATE }])
+  })
+
+  test('the host\'s 10 s jump, or 2 s one, is one seek at once', () => {
+    expect(run(120, [{ at: 20, seekBy: 10 }])).toEqual({ done: [{ seek: 130 }], drift: 0 })
+    expect(run(120, [{ at: 20, seekBy: -2 }])).toEqual({ done: [{ seek: 118 }], drift: 0 })
+  })
+
+  // a person's seek the host did not take, or the player rebuilding somewhere else: put back as the host's own jump
+  test('the player\'s own jump of under 3 s either way is undone with one seek at once', () => {
+    expect(run(120, [{ at: 20, jump: 2 }])).toEqual({ done: [{ seek: 120 }], drift: 0 })
+    // back, it shows only once it lands behind where the player was last read: closer, it is a stall standing still
+    expect(run(120, [{ at: 20, jump: -2.5 }])).toEqual({ done: [{ seek: 120 }], drift: 0 })
+  })
+
+  test('a stall past the limit is a seek, since a catch-up would take minutes', () => {
+    expect(run(120, [{ at: 20, stall: CATCH_UP_LIMIT_S + 1 }])).toEqual({ done: [{ seek: 120 }], drift: 0 })
+  })
+
+  test('a paused follower is never caught up, and the host\'s pause is followed at once', () => {
+    expect(run(120, [{ at: 10, stall: 0.45 }, { at: 12, host: { paused: true } }]).done).toEqual([{ pause: true }])
+  })
+
+  // a speed is no jump: the follower takes it without a seek, and closes what is left at the new speed
+  test('the host\'s new speed mid catch-up is taken exactly, and the rest is caught up at it', () => {
+    const { done, drift } = run(180, [{ at: 10, stall: 2 }, { at: 30, host: { rate: 1.5 } }])
+    expect(done).toEqual([{ rate: NUDGE_RATE }, { rate: 1.5 }, { rate: 1.5 * NUDGE_RATE }, { rate: 1.5 }])
+    expect(Math.abs(drift)).toBeLessThan(0.15)
   })
 })
 
