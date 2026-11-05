@@ -344,3 +344,50 @@ test('a picture search takes over the field its words were typed in, picked with
   await expect(page).toHaveURL(sceneUrl)
   await expect.soft(field(page), 'pasted in the page\'s field').toHaveValue('')
 })
+
+/**
+ * Fills the browser's clipboard as a copy does: a picture with its markup beside it, as Chrome's Copy Image hands it,
+ * and `text` as the text beside it, which Firefox's and Safari's Copy Image make the picture's address and Excel the
+ * words of its cells. Words alone when there is no `bytes`.
+ */
+const copy = (page: Page, bytes: Buffer | undefined, text?: string) =>
+  page.evaluate(async ({ bytes, text }) => {
+    const parts: Record<string, Blob> = {}
+    if (bytes) {
+      parts['image/png'] = new Blob([new Uint8Array(bytes)], { type: 'image/png' })
+      parts['text/html'] = new Blob(['<img src="https://example.com/shot.png">'], { type: 'text/html' })
+    }
+    if (text !== undefined) parts['text/plain'] = new Blob([text], { type: 'text/plain' })
+    await navigator.clipboard.write([new ClipboardItem(parts)])
+  }, { bytes: bytes && [...bytes], text })
+
+test('a picture pasted in the bar from the keyboard opens its scene search, its address beside it or not, and words stay the field\'s', async ({ page, context }) => {
+  const { asked } = await traceMoe(page)
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: at('anime.localhost', '') })
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const [how, bytes, text] of [
+      ['as Chrome copies it', FRAME, undefined],
+      ['as Firefox and Safari copy it', FRAME, 'https://example.com/shot.png'],
+      ['words beside a picture, as Excel copies them', FRAME, 'Spec Rated'],
+      ['words alone', undefined, 'Spec Rated'],
+    ] as const) {
+      const where = `${how} at ${width}`
+      await page.goto(at('anime.localhost', '/settings'))
+      if (width < 480) await page.locator('header .search-toggle').click()
+      await barField(page).focus()
+      await copy(page, bytes, text)
+      await page.keyboard.press('ControlOrMeta+V')
+      if (text === 'Spec Rated') {
+        await expect(page, where).toHaveURL(/\/search\?q=Spec(\+|%20)Rated$/)
+        await expect(barField(page), where).toHaveValue('Spec Rated')
+        continue
+      }
+      await expect(page, where).toHaveURL(sceneUrl)
+      await expect(page.locator('.scene').first(), where).toContainText('Spec Rated')
+      await expect(barField(page), where).toHaveValue('')
+      await page.screenshot({ path: test.info().outputPath(`pasted-${width}-${text ? 'address' : 'picture'}.png`) })
+    }
+  }
+  expect(asked, 'one ask per picture pasted').toHaveLength(4)
+})
