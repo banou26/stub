@@ -53,10 +53,12 @@ test('Always show subtitles is handed as set', () => {
   expect(viewerLanguages().alwaysSubtitles).toBe(false)
 })
 
-test("a pick naming no language, a track's own title, is left out", () => {
+test("a pick naming no language, a track's own title, is left out, the subtitles said to be one", () => {
   keepAudioLanguage('Commentary')
   keepSubtitleLanguage('Signs & Songs')
-  expect(viewerLanguages()).toEqual({ language: 'fr-CA', alwaysSubtitles: false })
+  expect(viewerLanguages()).toEqual({ language: 'fr-CA', alwaysSubtitles: false, titledSubtitles: true })
+  keepSubtitleLanguage('fr')
+  expect(viewerLanguages(), 'the control: a language is no title').toEqual({ language: 'fr-CA', subtitles: 'fr', alwaysSubtitles: false })
 })
 
 test('a watcher hears each pick, the language and Always show subtitles set in Settings included, and nothing once stopped', () => {

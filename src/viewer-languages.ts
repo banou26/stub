@@ -12,7 +12,7 @@ import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, OFF, ON, ORIGINAL, SUBTITLE_L
 /**
  * The content language, the audio and subtitle languages picked in Settings or a player as tags, and Always show
  * subtitles. Automatic, Original and a pick naming no language are left out of the tags, Original being
- * `originalAudio`.
+ * `originalAudio` and a subtitle track's title `titledSubtitles`.
  */
 export const viewerLanguages = (): ViewerLanguages => {
   const audio = settings.getItem(AUDIO_LANGUAGE_KEY)
@@ -25,6 +25,7 @@ export const viewerLanguages = (): ViewerLanguages => {
     ...subtitleTag !== undefined ? { subtitles: subtitleTag } : {},
     alwaysSubtitles: settings.getItem(ALWAYS_SUBTITLES_KEY) === ON,
     ...audio === ORIGINAL ? { originalAudio: true } : {},
+    ...subtitles && subtitleTag === undefined ? { titledSubtitles: true } : {},
   }
 }
 

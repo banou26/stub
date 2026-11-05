@@ -360,10 +360,11 @@ and the viewer's languages, minted per call at `src/worker/extractor.ts:682`:
 for await (const payload of await subscribe(undefined, args, { similarMedia: similarMediaFrom(origin), languages: heldViewerLanguages() })) {
 ```
 
-`languages` is `{ language, audio?, subtitles?, alwaysSubtitles?, originalAudio? }` (`ViewerLanguages`,
-`src/plugin-api.ts`): in BCP 47 tags, the browser's first language, and the audio and subtitle languages picked in
-Settings or last picked in a player, subtitles off as `null`, and Automatic, Original and a pick naming no language
-left out; then Always show subtitles, and `originalAudio: true` for an audio language set to Original. The page
+`languages` is `{ language, audio?, subtitles?, alwaysSubtitles?, originalAudio?, titledSubtitles? }`
+(`ViewerLanguages`, `src/plugin-api.ts`): in BCP 47 tags, the browser's first language, and the audio and subtitle
+languages picked in Settings or last picked in a player, subtitles off as `null`, and Automatic, Original and a pick
+naming no language left out; then Always show subtitles, `originalAudio: true` for an audio language set to Original,
+and `titledSubtitles: true` for subtitles picked by a track's title that names no language. The page
 hands them to the worker at start and on every pick (`src/viewer-languages.ts`), as it hands the country, and `play`
 gets the same object beside the release, for its player to start where stub's own do. All of it is additive to
 `stub-source@1`: an older plugin reads none of it. A pick made in the source's player comes back on its next

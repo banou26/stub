@@ -10,12 +10,13 @@ export type { PlaybackState }
  * BCP 47 tags: the viewer's language, and the audio and subtitle languages picked in Settings or a player (null: off).
  * Additive to stub-source@1: a resolver gets them as `languages` in its context, and `play` with the release.
  *
- * `alwaysSubtitles` is Settings' Always show subtitles, and `originalAudio` is true for its audio language set to
- * Original. With them, they say what stub's own players start in: the audio in `audio`, else the original with
- * `originalAudio`, else in `language`, and the subtitles in `subtitles`, else in `language`. Both additive too: a stub
- * that hands no `alwaysSubtitles` hands only the languages last picked in a player.
+ * `alwaysSubtitles` is Settings' Always show subtitles, `originalAudio` is true for its audio language set to Original,
+ * and `titledSubtitles` is true for subtitles picked by a track's title naming no language (`Signs & Songs`). With
+ * them, they say what stub's own players start in: the audio in `audio`, else the original with `originalAudio`, else
+ * in `language`, and the subtitles in `subtitles`, else on that title with `titledSubtitles`, else in `language`. All
+ * additive too, so without `alwaysSubtitles` (an older stub) Automatic, Original and a title cannot be told apart.
  */
-export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null, alwaysSubtitles?: boolean, originalAudio?: boolean }
+export type ViewerLanguages = { language: string, audio?: string, subtitles?: string | null, alwaysSubtitles?: boolean, originalAudio?: boolean, titledSubtitles?: boolean }
 
 /**
  * What the viewer picked in a source's player, as `@banou/media-player` reports it: an audio or a subtitle language by

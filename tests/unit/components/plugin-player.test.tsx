@@ -94,6 +94,10 @@ test('a track the viewer picks in the source\'s player is what the next release 
   ear!({ ...state, picked: { subtitles: null } })
   await next(3)
   expect(source.play.mock.lastCall![0].languages, 'subtitles turned off').toMatchObject({ subtitles: null })
+  ear!({ ...state, picked: { subtitles: 'Signs & Songs' } })
+  await next(4)
+  expect(source.play.mock.lastCall![0].languages, 'a track picked by its title').toMatchObject({ titledSubtitles: true })
+  expect(source.play.mock.lastCall![0].languages).not.toHaveProperty('subtitles')
 })
 
 test('the document that plays is not the one the worker connected to, so it takes the saved values before it plays', async () => {
