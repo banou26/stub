@@ -1,6 +1,7 @@
 import type { Answer, Preview } from '../src/preview'
 
 import { siteOf, type Site } from '../src/site'
+import { PLUGIN_PARAM } from '../src/utils/plugin-links'
 import { nameSegment } from '../src/utils/slug'
 import { routeMediaUri } from '../src/utils/uri'
 import { expandPath, SHORT_PATH } from '../src/utils/share-link'
@@ -110,20 +111,24 @@ const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g,
 
 const tag = (attribute: 'property' | 'name', key: string, value: string) => `<meta ${attribute}="${key}" content="${escapeHtml(value)}">`
 
-// a work goes by one address, its title page's with its name, whether asked as the preview, the page or a short link
-const canonicalOf = (url: URL, address: URL, title?: string) => {
+// A work goes by one address, its title page's with its name and no query, whether asked as the preview, the page or a
+// short link. The card's url keeps the sources the sharer named, the one parameter a short link carries.
+const addressesOf = (url: URL, address: URL, title?: string) => {
   const segment = WORK_PATH.exec(address.pathname)?.[1]
-  return segment && title ? new URL(`/title/${routeMediaUri(segment)}${nameSegment(title)}${address.search}`, url).href : url.href
+  if (!segment || !title) return { canonical: `${url.origin}${url.pathname}`, card: url.href }
+  const canonical = new URL(`/title/${routeMediaUri(segment)}${nameSegment(title)}`, url).href
+  const plugins = address.search.slice(1).split('&').filter(part => part.startsWith(`${PLUGIN_PARAM}=`)).join('&')
+  return { canonical, card: plugins ? `${canonical}?${plugins}` : canonical }
 }
 
 const withPreview = async (page: Response, url: URL, address: URL, site: Site, preview?: Preview) => {
   const name = SITE_NAMES[site]
-  const canonical = canonicalOf(url, address, preview?.title)
+  const { canonical, card } = addressesOf(url, address, preview?.title)
   const tags = [
     `<link rel="canonical" href="${escapeHtml(canonical)}">`,
     tag('property', 'og:site_name', name),
     tag('property', 'og:type', 'video.other'),
-    tag('property', 'og:url', canonical),
+    tag('property', 'og:url', card),
     tag('property', 'og:title', preview?.title ?? name),
     preview?.description && tag('property', 'og:description', preview.description),
     preview?.image && tag('property', 'og:image', preview.image),

@@ -753,9 +753,24 @@ test('a crawler on a short link to a title, its name an old one, gets the title 
   const address = `https://anime.fkn.app${SHORT_PATH}${shortenPath(named)}`
   expect(address, 'the control: the short link carries the name').toMatch(/\/s\/[\w-]+\/black-clover$/)
   const { html } = await call(address)
-  const canonical = 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover-season-2?plugins=https:stub.plugins.banou.dev'
-  expect(meta(html, 'og:url')).toEqual([canonical])
+  const canonical = 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover-season-2'
+  expect(meta(html, 'og:url')).toEqual([`${canonical}?plugins=https:stub.plugins.banou.dev`])
   expect(canonicals(html)).toEqual([canonical])
+})
+
+// Mutation: keep the address's whole query on either.
+test('a work\'s canonical address carries no query, and its card\'s url the sources the address names alone', async () => {
+  const { html } = await call('https://anime.fkn.app/media/ag:(anilist:195604)/old?trace=1&plugins=https:stub.plugins.banou.dev&fbclid=abc')
+  const canonical = 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover-season-2'
+  expect(canonicals(html)).toEqual([canonical])
+  expect(meta(html, 'og:url')).toEqual([`${canonical}?plugins=https:stub.plugins.banou.dev`])
+  const plain = await call('https://anime.fkn.app/title/ag:(anilist:195604)?trace=1&utm_source=chat')
+  expect(canonicals(plain.html)).toEqual([canonical])
+  expect(meta(plain.html, 'og:url')).toEqual([canonical])
+  const watch = 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)'
+  const watched = await call(`${watch}?trace=1`)
+  expect(canonicals(watched.html), 'a watch address is its own').toEqual([watch])
+  expect(meta(watched.html, 'og:url')).toEqual([`${watch}?trace=1`])
 })
 
 test('a work titled in no Latin letters gets its own letters as its name, a valid address', async () => {
