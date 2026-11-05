@@ -270,6 +270,17 @@ const style = css`
     &.holding {
       border-radius: 0;
     }
+
+    &.still {
+      background: #000;
+
+      img {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        object-fit: cover;
+      }
+    }
   }
 
   /* The prompt in the player's place starts at the player's 16:9 and grows to fit what it holds where that is too
@@ -868,9 +879,10 @@ const Watch = () => {
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
-  // the player's box from the first frame, until something is in it or the page knows nothing is coming
-  const holding = !noSource && !viaPlugin && !embedUrl && !needsExtension && !(media?.settled && !episode)
-    && (guest || !(selectedSourceUri ? everyAnswered : stuck))
+  // the player's box from the first frame, loading until something is in it or the page knows nothing is coming, and
+  // kept with the episode's picture then, so the page under it never moves
+  const empty = !noSource && !viaPlugin && !embedUrl && !needsExtension
+  const holding = empty && !(media?.settled && !episode) && (guest || !(selectedSourceUri ? everyAnswered : stuck))
   useAutoPick(pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
@@ -977,7 +989,9 @@ const Watch = () => {
             : undefined}
         </div>
         {/* beside the stage, which takes no box of its own, so that a fullscreen stage still draws only the episode */}
-        {holding ? <Placeholder className="player-container holding"/> : undefined}
+        {holding ? <Placeholder className="player-container holding"/>
+          : empty ? <div className="player-container still">{thumbnail ? <img src={thumbnail} alt=""/> : undefined}</div>
+          : undefined}
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 
         <div className="watch-info">

@@ -370,17 +370,29 @@ for (const [kind, path, player] of [
   }
 }
 
-test('the player\'s box goes once the page knows no player is coming, in Chromium', async ({ browser }) => {
-  const page = await browser.newPage({ viewport: VIEWPORT })
-  try {
-    await serve(page)
-    await page.goto(`${ORIGIN}${stageWatchPath(1).replace('cr:GSTAGE1', 'cr:GSTAGE9')}`)
-    await expect(page.locator('.media-title')).toHaveText('Spec Stage')
-    await expect(page.locator('.watch-container .player-container')).toHaveCount(0)
-  } finally {
-    await page.close()
-  }
-})
+// the address names a release the episode does not hold, so once every source answered nothing is coming
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test(`the player's box stays once the page knows no player is coming, and the row under it stays put, at ${viewport.width} px, in Chromium`, async ({ browser }) => {
+    const page = await browser.newPage({ viewport })
+    try {
+      await holdTheShow(page)
+      await page.goto(`${ORIGIN}${stageWatchPath(1).replace('cr:GSTAGE1', 'cr:GSTAGE9')}`)
+      await expect(page.locator('.watch-container > .watch-info')).toBeVisible()
+      const held = await box(page)
+      expect(held?.[2], 'the box is held while the show loads').toBeGreaterThan(150)
+      await expect(page.locator('.watch-container .player-container.holding'), 'loading').toHaveCount(1)
+      await addMontserrat(page)
+      await page.evaluate(() => (window as unknown as { releaseMedia: () => void }).releaseMedia())
+      await expect(page.locator('.media-title')).toHaveText('Spec Stage')
+      await expect(page.locator('.watch-container .player-container.holding'), 'the page knows').toHaveCount(0)
+      await page.evaluate(() => new Promise(requestAnimationFrame).then(() => new Promise(requestAnimationFrame)))
+      expect(await page.evaluate(() => (window as unknown as { rows: number[] }).rows), 'the row never moved').toEqual([Math.round(held![0] + held![2])])
+      expect(await box(page), 'the box as it was').toEqual(held)
+    } finally {
+      await page.close()
+    }
+  })
+}
 
 const launchFirefox = async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH

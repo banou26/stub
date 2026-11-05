@@ -3032,7 +3032,7 @@ test('a run that has not answered yet is never read from the one asked before it
   expect(host.querySelector('.episode-step')).toBeNull()
 })
 
-test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it', () => {
+test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it, the player\'s box kept', () => {
   origins = undefined
   const { hook } = memoryLocation()
   const tree = () => withIntl(<Router hook={hook}><Watch/></Router>)
@@ -3040,14 +3040,17 @@ test('the episode title holds its place until the episode is known, and reads it
   const host = mount(tree())
   hosts.push(host)
   const title = () => host.querySelector('.episode-title')!
+  const box = () => host.querySelector('.watch-container > .player-container')?.classList
   expect(title().querySelector('[aria-hidden="true"]'), 'held').not.toBeNull()
   expect(title().textContent).toBe('')
+  expect(box()?.contains('holding'), 'the player\'s box loading').toBe(true)
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: false }; render(tree(), host) })
   expect(title().textContent, 'a source is still out').toBe('')
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }; render(tree(), host) })
   expect(title().textContent).toBe(addressUri)
+  expect(box()?.contains('still'), 'the player\'s box kept, nothing coming').toBe(true)
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
   expect(title().textContent).toMatch(/^E3 - Plan$/)
