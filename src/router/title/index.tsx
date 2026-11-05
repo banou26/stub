@@ -849,7 +849,7 @@ const TitlePage = () => {
           <MediaSeasons
             seasons={media?.seasons}
             currentUris={currentUris}
-            href={uri => `${getRoutePath(Route.TITLE, { uri })}${search}`}
+            href={uri => `${getRoutePath(Route.TITLE, { uri, name: title?.title })}${search}`}
           />
           {
             media && !isMovie

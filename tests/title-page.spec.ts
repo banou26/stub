@@ -722,12 +722,13 @@ test('a show\'s page links each of its seasons, its own marked, at 1440 and 390 
     await expect(seasons.nth(1)).toHaveAttribute('aria-current', 'page')
     expect(await overflowX(page)).toBe(0)
   }
+  await expect(seasons.nth(2)).toHaveAttribute('href', '/title/ag:(tmdb:93405-s3)/squid-game')
   await seasons.nth(2).click()
-  await expect(page).toHaveURL(/\/title\/ag:\([^/]*tmdb:93405-s3[,)]/)
+  await expect(page).toHaveURL(/\/title\/ag:\([^/]*tmdb:93405-s3[,)][^/]*\/squid-game$/)
   await expect(seasons.nth(2)).toHaveAttribute('aria-current', 'page', { timeout: 30_000 })
   // the modal links each season to its own modal
   await page.goto(`${origin}/media/tmdb:93405-s2`)
-  await expect(modal(page).locator('[data-seasons] a').nth(0)).toHaveAttribute('href', '/media/ag:(tmdb:93405-s1)', { timeout: 30_000 })
+  await expect(modal(page).locator('[data-seasons] a').nth(0)).toHaveAttribute('href', '/media/ag:(tmdb:93405-s1)/squid-game', { timeout: 30_000 })
 })
 
 test('a show\'s own address opens its first season, the Seasons row marking it', async ({ page }) => {

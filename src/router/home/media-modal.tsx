@@ -972,7 +972,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
         <MediaSeasons
           seasons={data?.media?.seasons}
           currentUris={seasonUris}
-          href={uri => `${getRoutePath(Route.MEDIA, { uri })}${search}`}
+          href={uri => `${getRoutePath(Route.MEDIA, { uri, name: title })}${search}`}
         />
         {
           isMovie || !data?.media ? undefined : (

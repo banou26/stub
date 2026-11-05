@@ -747,11 +747,20 @@ describe('a show\'s own address', () => {
     test(`/${route}: goes to its first season though its address grows as it answers`, () => {
       const opened = page('ag:(tvmaze:900200)')
       opened.answer(show(900200, [1, 2]), 'ag:(tvmaze:900200)')
-      expect(opened.history).toEqual([`/${route}/ag:(tvmaze:900200-s1)`])
+      expect(opened.history).toEqual([`/${route}/ag:(tvmaze:900200-s1)/spec-maze`])
 
       const control = page('ag:(tvmaze:900201)')
       control.answer(show(900201), 'ag:(tvmaze:900201)')
       expect(control.history, 'the control: with no seasons the address grows').toEqual([`/${route}/ag:(imdb:tt900201,tvmaze:900201)/spec-maze`])
+    })
+
+    // Mutation: link a season by its uri alone.
+    test(`/${route}: links each season under the show's name`, () => {
+      const season = { ...show(900202, [1, 2]), uri: 'ag:(tvmaze:900202-s1)', handles: [{ relation: 'SAME_AS', node: { uri: 'tvmaze:900202-s1', origin: 'tvmaze' } }] }
+      const { host, answer } = page(season.uri)
+      answer(season)
+      const links = [...(route === 'media' ? modal() : host).querySelectorAll('[data-seasons] a')].map(link => link.getAttribute('href'))
+      expect(links).toEqual([`/${route}/ag:(tvmaze:900202-s1)/spec-maze`, `/${route}/ag:(tvmaze:900202-s2)/spec-maze`])
     })
   }
 })
