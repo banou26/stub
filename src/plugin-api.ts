@@ -79,9 +79,10 @@ export type StubSource = {
    * Next episode is offered as it starts rather than at the end. `endingOffered` answers `offerEnding`: false
    * only once the player's Skip Ending is off its screen. `picked` rides the report made as the viewer picks a track:
    * stub keeps it as it keeps a pick made in its own players, so the next media, in any player, starts in it.
-   * `seeking` and `readyState` are the player's own, as a media element's, with a report as it starts waiting for data
-   * and as it plays again: between reports, a follower's player is read as playing on from its last one, except while
-   * it seeks or waits, when it stands still.
+   * `seeking` and `readyState` are the player's own, as a media element's, with a report as a stall starts and as it
+   * ends (none inside a seek, which the report as it lands covers): between reports, a follower's player is read as
+   * playing on from its last one, except while it seeks or waits, when it stands still. A report made while it seeks
+   * is read for this viewer's player alone, and never told to the party.
    */
   onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, seeking?: boolean, readyState?: number }) => void) => Promise<void>
   /**

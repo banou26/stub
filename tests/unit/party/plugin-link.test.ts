@@ -102,6 +102,19 @@ describe('pluginPlaybackLink', () => {
     }
   })
 
+  // A host seeking where its player has not loaded reports as it starts waiting, at the time it was sent to: told to
+  // the party, a follower seeks there and plays on, then seeks back once the host's seek lands
+  test('a report made while the player seeks is kept from the party, and the one as it lands goes on', () => {
+    const { source, report } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    const heard = vi.fn()
+    link.onReport(heard)
+    report({ ...STATE, time: 160, seeking: true, readyState: 1 } as typeof STATE)
+    expect(heard).not.toHaveBeenCalled()
+    report({ ...STATE, time: 160, seeking: false, readyState: 4 } as typeof STATE)
+    expect(heard).toHaveBeenCalledWith({ ...STATE, time: 160 })
+  })
+
   test('apply crosses to the package', () => {
     const { source, applied } = fakeSource()
     pluginPlaybackLink(source)!.apply(STATE)

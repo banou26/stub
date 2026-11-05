@@ -85,6 +85,9 @@ export type PlaybackSource = {
  * `follow` keeps the player with the host by `followCorrection`, as stub's own players are kept, over where its reports
  * put it now: played on from the last one unless it said it was seeking or waiting, and at a seek it was sent until a
  * report shows it. The package is told what to do as `exact`, beside the host's state for a package from before it.
+ *
+ * A report made while the player seeks says where it was sent, not where it plays, so it reaches `follow` and no
+ * listener: told to the party, a follower would seek there and play on, then seek back as the host's seek lands.
  */
 export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameElement): PlaybackLink | undefined => {
   const { onPlayback, applyPlayback, buffer, focus, offerEnding, prepare } = source
@@ -115,7 +118,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
     const seeking = report.seeking === true
     if (seekTo !== undefined && (seeking || Math.abs(time - seekTo) <= SEEK_TOLERANCE_S)) seekTo = undefined
     last = { paused, time, rate, at, seeking, standing: seeking || (finite(report.readyState) && report.readyState < HAVE_FUTURE_DATA) }
-    for (const listener of listeners) listener({ paused, time, rate, at })
+    if (!seeking) for (const listener of listeners) listener({ paused, time, rate, at })
   }
   const listen = () => { onPlayback(ear).catch(() => {}) }
   listen()

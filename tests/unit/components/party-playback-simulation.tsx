@@ -30,7 +30,8 @@ import { mount, unmount } from './dom'
 //  - a write to the mirror reaches the far player 10 ms later, and a seek holds it still for 300 ms more (or `seekMs`),
 //    the mirror saying it is seeking until it lands;
 //  - with `plugin`, the guest's player is a source package's, as stub-plugin serves it (src/ui/playback.ts there): the
-//    package holds the mirror and reports on its events and every five seconds while it plays, 5 ms away.
+//    package holds the mirror and reports on its events and every five seconds while it plays, 5 ms away; with
+//    `hostPlugin`, the host's is.
 
 /** What to throw at the party. Times are in seconds from the start. */
 export type Scenario = {
@@ -48,6 +49,9 @@ export type Scenario = {
   seekMs?: number
   /** The guest's player is a source package's rather than stub's own embed. */
   plugin?: boolean
+  /** The host's player is a source package's, and how long a seek holds it still, in milliseconds. */
+  hostPlugin?: boolean
+  hostSeekMs?: number
 }
 
 /** What the guest's player went through, and how far it was from the host's, sampled every 100 ms. */
@@ -202,10 +206,10 @@ export const simulate = async (scenario: Scenario, useStore: (store: PartyStore)
   })
   await store.join(INVITE)
 
-  const host = player(rand)
+  const host = player(rand, 0, scenario.hostSeekMs)
   const guest = player(rand, scenario.decoderDrift, scenario.seekMs)
   if (scenario.rate) host.media.playbackRate = scenario.rate
-  const hostLink = linkMedia(host.media)
+  const hostLink = scenario.hostPlugin ? pluginPlaybackLink(pluginSource(host.media))! : linkMedia(host.media)
   const guestLink = scenario.plugin ? pluginPlaybackLink(pluginSource(guest.media))! : linkMedia(guest.media)
   let last: PlaybackState | undefined
   let lastAt = 0

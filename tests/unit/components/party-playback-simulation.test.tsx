@@ -67,6 +67,17 @@ describe.each([{ player: 'stub\'s own', plugin: false, decoderMax: 0.5 }, { play
     }
   })
 
+  // A heartbeat inside a host's seek says where its player was sent, not where it plays: heard by the party, a follower
+  // seeks there and plays on, then seeks back as the host's seek lands. The follower's own seek starts once the host's
+  // has landed, so it lands behind by what it took and catches that up.
+  test('follows a host on a source package\'s player whose seek takes 6 s with one seek, then one catch-up', async () => {
+    for (const run of await runs({ minutes: 3, hostPlugin: true, hostSeekMs: 6_000, hostSeeks: [[30, 120]] })) {
+      expect(run).toMatchObject({ rateChanges: 2, seeks: 1 })
+      expect(run.rates.at(-1)).toBe(1)
+      expect(run.lastMinuteMax).toBeLessThan(0.2)
+    }
+  })
+
   // what a reading is off by is time, which at 2x is twice the media
   test('at 2x takes the host\'s speed and is left alone through five minutes of jitter', async () => {
     for (const run of await runs({ minutes: 5, rate: 2 })) expect(run).toMatchObject({ rates: [2], seeks: 0 })
