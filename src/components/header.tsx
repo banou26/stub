@@ -295,8 +295,6 @@ const style = css`
       top: 50%;
       transform: translateY(-50%);
       display: flex;
-      /* 29 px round the 20 px icon: at 32 its focus ring crossed the border of the 33 px field at 768 px and below
-         (measured 2026-11-06) */
       padding: 0.45rem;
       border: none;
       border-radius: 50%;
@@ -308,8 +306,11 @@ const style = css`
         color: #fff;
       }
 
+      /* drawn inside the button, so it never crosses the field's border, whatever the field's height in the fallback
+         font (1 px short on GitHub's runner, 2026-11-06) */
       &:focus-visible {
         outline: 2px solid rgba(255, 255, 255, 0.8);
+        outline-offset: -2px;
       }
     }
 
