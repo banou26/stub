@@ -184,8 +184,9 @@ describe('the address the modal leaves behind', () => {
     const navigations = source.match(/navigate\([^\n]*/g) ?? []
     // CONTROL: the rewrite is there to be guarded, and it goes to the media route.
     expect(navigations, 'no navigation was found, so this test read nothing').toHaveLength(1)
-    expect(navigations[0]).toContain('Route.MEDIA')
-    expect(source).toContain('if (!firstSeasonRedirect(data?.media?.seasons, seasonUris) && shouldRewriteAddress(media?.uri, params.uri, written.current)) {')
+    expect(navigations[0]).toContain('moved.path')
+    expect(source).toContain('const moved = movedAddress(Route.MEDIA, rawParams, media && { uri: media.uri, name: title }, written.current)')
+    expect(source).toContain('if (moved && !firstSeasonRedirect(data?.media?.seasons, seasonUris)) {')
   })
 })
 

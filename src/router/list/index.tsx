@@ -302,7 +302,7 @@ const Item = ({ row }: { row: Row }) => {
   const progress = pending ?? own
   const total = row.episodeCount
   const film = isMovieMedia(row)
-  const to = getRoutePath(Route.MEDIA, { uri: row.uri })
+  const to = getRoutePath(Route.MEDIA, { uri: row.uri, name: row.summary.title })
   const title = row.summary.title ?? row.uri
   const score = row.summary.score
   const patches = oneMore(row, viewerPrefs.read().targets, progress)

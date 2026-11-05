@@ -387,9 +387,9 @@ const holds = async (id: string, uris: readonly string[]): Promise<boolean> => {
  * `uri` is the decoded route uri, an aggregated address, or a cluster id, current or retired.
  *
  * `member` IS THE ONE ARGUMENT NOTHING PASSES YET, and it is here rather than later on purpose. It is
- * the second segment of `/media/:uri/:mediaUri` (`Route.MEDIA_EPISODE`), for which `router/index.tsx`
- * registers no `WRoute`: `Route.MEDIA` is `/media/:uri`, which wouter will not match against
- * `/media/a/b`, so every caller today passes one argument. 6.2 states the rule it implements ("a
+ * a member uri as the second segment of `/media/:uri/:mediaUri`, which no route reads: the second
+ * segment `Route.MEDIA` reads is the work's name, which never holds a ':', so every caller today
+ * passes one argument. 6.2 states the rule it implements ("a
  * resolve by `_id`, or through `published`, that lands on a cluster not holding the member the route
  * names falls through to resolving that member uri"), and the reason to keep it is that the rule is
  * about an address a client may ALREADY hold: a bookmark on a retired `_id` is exactly what statement

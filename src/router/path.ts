@@ -1,10 +1,10 @@
 import { builtInSources } from '../sources/built-in'
-import { fromAggregatedUri, fromUri, isAggregatedUri, joinUris } from '../utils/uri'
+import { nameSegment, slugOf } from '../utils/slug'
+import { fromAggregatedUri, fromUri, isAggregatedUri, joinUris, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../utils/uri'
 
 export enum Route {
   HOME = 'HOME',
   MEDIA = 'MEDIA',
-  MEDIA_EPISODE = 'MEDIA_EPISODE',
   TITLE = 'TITLE',
   SEARCH = 'SEARCH',
   SEARCH_LEGACY = 'SEARCH_LEGACY',
@@ -40,9 +40,9 @@ export const watchEpisodeUri = (uri: string): string => {
 
 const ROUTES = {
   [Route.HOME]: () => '/',
-  [Route.MEDIA]: ({ uri }: { uri: string }) => `/media/${uri}`,
-  [Route.MEDIA_EPISODE]: ({ uri, mediaUri }: { uri: string, mediaUri: string }) => `/media/${uri}/${mediaUri}`,
-  [Route.TITLE]: ({ uri }: { uri: string }) => `/title/${uri}`,
+  // the work's name rides after its uri, which a link without it, or with an old one, still opens (`movedAddress`)
+  [Route.MEDIA]: ({ uri, name }: { uri: string, name?: string | null }) => `/media/${uri}${nameSegment(name)}`,
+  [Route.TITLE]: ({ uri, name }: { uri: string, name?: string | null }) => `/title/${uri}${nameSegment(name)}`,
   // The filters ride in the QUERY STRING, so the href is built by `searchPath` in ./search/params.ts,
   // which knows the param names. This module stays light because the WORKER imports it
   // (store/aggregate.ts builds a media's canonical url with it), so it cannot reach the generated
@@ -70,9 +70,8 @@ export type RouteParams = {
 
 const RouterRoutes = {
   [Route.HOME]: '/',
-  [Route.MEDIA]: '/media/:uri',
-  [Route.MEDIA_EPISODE]: '/media/:uri/:mediaUri',
-  [Route.TITLE]: '/title/:uri',
+  [Route.MEDIA]: '/media/:uri/:slug?',
+  [Route.TITLE]: '/title/:uri/:slug?',
   [Route.SEARCH]: '/search',
   [Route.SEARCH_LEGACY]: '/search/:query',
   [Route.LEGAL]: '/legal',
@@ -97,3 +96,26 @@ export const getRoutePath = <
   args?: Parameters<(typeof ROUTES)[T]>[0]
 ) =>
   ROUTES[route](<any>args)
+
+/** What the preview's and the title page's routes hand their page: the uri and the name as the address spells them. */
+export type MediaParams = { uri: string, slug?: string }
+
+/**
+ * The address a preview or a title page replaces its own with, or undefined to keep it. The uri grows to the cluster's
+ * as `shouldRewriteAddress` says, else stays as the address spells it. The name follows the work in hand once the page
+ * holds the work the address names (on a navigation it holds the one being left for a beat), and with no name yet the
+ * address keeps its own. `grown` says the uri is now the cluster's, which the page keeps as `written`.
+ */
+export const movedAddress = (
+  route: Route.MEDIA | Route.TITLE,
+  params: Partial<MediaParams>,
+  media: { uri: string, name?: string } | null | undefined,
+  written?: string,
+): { path: string, grown: boolean } | undefined => {
+  const uri = routeMediaUri(params.uri)
+  if (!media || !uri || !isAggregatedUri(media.uri) || !isAggregatedUri(uri) || !matchAggregatedUris(media.uri, uri)) return undefined
+  const grown = shouldRewriteAddress(media.uri, uri, written)
+  const slug = media.name === undefined ? params.slug ?? '' : slugOf(media.name)
+  if (!grown && slug === (params.slug ?? '')) return undefined
+  return { path: `${getRoutePath(route, { uri: grown ? media.uri : params.uri! })}${slug && `/${encodeURIComponent(slug)}`}`, grown }
+}

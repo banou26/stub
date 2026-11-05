@@ -131,7 +131,7 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
               volume={0}
               url={selectedTrailer?.url}
               onError={onTrailerError}
-              redirectTo={getRoutePath(Route.MEDIA, { uri: media.uri })}
+              redirectTo={getRoutePath(Route.MEDIA, { uri: media.uri, name: title })}
               className="title-hovercard-player"
             />
           )
@@ -141,13 +141,13 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
                 <Link
                   className="trailer-fallback-cover"
                   style={{ backgroundImage: `url(${cover})` }}
-                  to={getRoutePath(Route.MEDIA, { uri: media.uri })}
+                  to={getRoutePath(Route.MEDIA, { uri: media.uri, name: title })}
                 />
               )
               : undefined
           )
       }
-      <Link to={getRoutePath(Route.MEDIA, { uri: media.uri })}>
+      <Link to={getRoutePath(Route.MEDIA, { uri: media.uri, name: title })}>
         <div className="content">
           <div className='title'>
             {title}
@@ -171,7 +171,7 @@ export const MediaPreview = ({ ref, media, ...rest }: HTMLAttributes<HTMLDivElem
           </TextEllipsis>
         </div>
       </Link>
-      <ShareButton className="share" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title}/>
+      <ShareButton className="share" path={getRoutePath(Route.TITLE, { uri: media.uri, name: title })} title={title}/>
     </div>
   )
 }

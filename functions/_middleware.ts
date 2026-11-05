@@ -1,6 +1,7 @@
 import type { Answer, Preview } from '../src/preview'
 
 import { siteOf, type Site } from '../src/site'
+import { nameSegment } from '../src/utils/slug'
 import { routeMediaUri } from '../src/utils/uri'
 import { expandPath, SHORT_PATH } from '../src/utils/share-link'
 import { createPreview } from '../functions-lib/preview.js'
@@ -17,6 +18,7 @@ type Context = { request: Request, next: () => Promise<Response>, waitUntil: (pr
 
 const CRAWLER = /discordbot|slackbot|telegrambot|twitterbot|facebookexternalhit|whatsapp|linkedinbot|redditbot|mastodon|skypeuripreview|microsoftpreview|embedly|vkshare|pinterestbot|pinterest\/0\./i
 const TITLE_PATH = /^\/(?:title|media|watch)\/([^/]+)/
+const WORK_PATH = /^\/(?:title|media)\/([^/]+)/
 const SITE_NAMES: Record<Site, string> = { anime: 'Stub Anime', movie: 'Stub Movies', series: 'Stub Series', stub: 'Stub' }
 // from the request; no unfurler documents how long it waits for a page
 const DEADLINE_MS = 2_500
@@ -108,12 +110,20 @@ const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g,
 
 const tag = (attribute: 'property' | 'name', key: string, value: string) => `<meta ${attribute}="${key}" content="${escapeHtml(value)}">`
 
-const withPreview = async (page: Response, url: URL, site: Site, preview?: Preview) => {
+// a work goes by one address, its title page's with its name, whether asked as the preview, the page or a short link
+const canonicalOf = (url: URL, address: URL, title?: string) => {
+  const segment = WORK_PATH.exec(address.pathname)?.[1]
+  return segment && title ? new URL(`/title/${routeMediaUri(segment)}${nameSegment(title)}${address.search}`, url).href : url.href
+}
+
+const withPreview = async (page: Response, url: URL, address: URL, site: Site, preview?: Preview) => {
   const name = SITE_NAMES[site]
+  const canonical = canonicalOf(url, address, preview?.title)
   const tags = [
+    `<link rel="canonical" href="${escapeHtml(canonical)}">`,
     tag('property', 'og:site_name', name),
     tag('property', 'og:type', 'video.other'),
-    tag('property', 'og:url', url.href),
+    tag('property', 'og:url', canonical),
     tag('property', 'og:title', preview?.title ?? name),
     preview?.description && tag('property', 'og:description', preview.description),
     preview?.image && tag('property', 'og:image', preview.image),
@@ -143,13 +153,14 @@ export const onRequest = async ({ request, next, waitUntil, env }: Context) => {
   const url = new URL(request.url)
   // a short link gets its address's card, kept under the same key
   const short = url.pathname.startsWith(SHORT_PATH) ? expandPath(url.pathname.slice(SHORT_PATH.length)) : undefined
-  const segment = TITLE_PATH.exec(short ? new URL(short, url).pathname : url.pathname)?.[1]
+  const address = short ? new URL(short, url) : url
+  const segment = TITLE_PATH.exec(address.pathname)?.[1]
   if (request.method !== 'GET' || !segment || !CRAWLER.test(request.headers.get('user-agent') ?? '')) return next()
   const { promise: answered, resolve } = Promise.withResolvers<void>()
   try {
     const site = siteOf(url.hostname)
     const preview = await lookup(segment, site, started, answered, waitUntil, env.STUB_SOURCES)
-    return await withPreview(await next(), url, site, preview)
+    return await withPreview(await next(), url, address, site, preview)
   } catch {
     return next()
   } finally {

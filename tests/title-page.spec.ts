@@ -188,13 +188,13 @@ test('on the page, a relation card and a series graph node open the work\'s page
   await page.goto(`${origin}${(await card.getAttribute('href'))!.replace('/media/', '/title/')}?store=graph`)
 
   await page.locator('[data-franchise-open]').click()
-  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/title/${SEQUEL}?store=graph`)
+  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/title/${SEQUEL}/spec-sequel?store=graph`)
   await page.keyboard.press('Escape')
 
   const relation = page.locator('[data-relations] a.relation-card')
-  await expect(relation).toHaveAttribute('href', `/title/${SEQUEL}?store=graph`)
+  await expect(relation).toHaveAttribute('href', `/title/${SEQUEL}/spec-sequel?store=graph`)
   await relation.click()
-  await expect(page).toHaveURL(`${origin}/title/${SEQUEL}?store=graph`)
+  await expect(page).toHaveURL(`${origin}/title/${SEQUEL}/spec-sequel?store=graph`)
   await expect(heading(page)).toHaveText('Spec Sequel')
   await expect(modal(page)).toHaveCount(0)
 })
@@ -604,11 +604,20 @@ test('a wider spelling of the same title keeps the page as it is', async ({ page
   await expect(page.getByRole('button', { name: 'Collapse' }), 'the description stays open').toBeVisible()
 })
 
+// STUB-360 (preview, title page and share addresses carry the work's name)
+test('an address with no name, or an old one, opens the work and ends on its name, on the page and in the modal', async ({ page }) => {
+  for (const [path, drawn] of [[`/title/${SEQUEL}`, heading(page)], [`/title/${SEQUEL}/spec-prequel`, heading(page)], [`/media/${SEQUEL}`, modal(page).locator('h2.title')]] as const) {
+    await page.goto(`${origin}${path}`)
+    await expect(drawn, path).toHaveText('Spec Sequel', { timeout: 30_000 })
+    await expect(page, path).toHaveURL(new RegExp(`/${path.split('/')[1]}/[^/]*anilist:900001[^/]*/spec-sequel$`))
+  }
+})
+
 test('in the modal, a relation card and a series graph node still open the modal', async ({ page }) => {
   await openModal(page)
-  await expect(modal(page).locator('a.relation-card')).toHaveAttribute('href', `/media/${SEQUEL}`)
+  await expect(modal(page).locator('a.relation-card')).toHaveAttribute('href', `/media/${SEQUEL}/spec-sequel`)
   await modal(page).locator('[data-franchise-open]').click()
-  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/media/${SEQUEL}`)
+  await expect(page.locator('.work-node[title="Spec Sequel"]')).toHaveAttribute('href', `/media/${SEQUEL}/spec-sequel`)
 })
 
 // The Apothecary Diaries season 3's relations, five that play, and One Piece's 61 (tests/fake-fetch.ts)

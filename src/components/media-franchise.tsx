@@ -285,7 +285,8 @@ const WorkNode = ({ data }: NodeProps<FranchiseFlowNode>) => {
   return (
     <Link
       className={`work-node${data.current ? ' current' : ''}${data.lit ? ' lit' : ''}`}
-      to={href(data.uri)}
+      // a work with no title is drawn by its uri, which names nothing
+      to={href(data.uri, data.title === data.uri ? undefined : data.title)}
       title={data.title}
     >
       <Handle type="target" position={Position.Left}/>
@@ -297,7 +298,7 @@ const WorkNode = ({ data }: NodeProps<FranchiseFlowNode>) => {
 }
 
 /** Where a work clicked out of this graph goes, built by `Graph`. */
-const Href = createContext((uri: string) => uri)
+const Href = createContext((uri: string, _name?: string) => uri)
 
 /** A curve from one box's right edge to the next box's left edge, which is both arrow kinds' shape. */
 const curve = (sourceX: number, sourceY: number, targetX: number, targetY: number) => {
@@ -357,7 +358,7 @@ const Graph = (
   const search = carriedSearch(useSearch())
   // memoized: a new function each hover would re-render every node
   const href = useCallback(
-    (uri: string) => `${getRoutePath(route, { uri: asAggregatedUri(uri) })}${search}`,
+    (uri: string, name?: string) => `${getRoutePath(route, { uri: asAggregatedUri(uri), name })}${search}`,
     [route, search],
   )
   const formats = useMemo(() => formatsIn(franchise), [franchise])

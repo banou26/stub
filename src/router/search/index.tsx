@@ -440,17 +440,17 @@ const Search = () => {
     grid: {
       className: 'grid',
       item: (node: SearchCardFragment) =>
-        <MediaTitle media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })} ellipsis={false}/>,
+        <MediaTitle media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri, name: node.titles?.at(0)?.title })} ellipsis={false}/>,
     },
     card: {
       className: 'cards',
       item: (node: SearchCardFragment) =>
-        <MediaCard media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
+        <MediaCard media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri, name: node.titles?.at(0)?.title })}/>,
     },
     list: {
       className: 'rows',
       item: (node: SearchCardFragment) =>
-        <MediaRow media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri })}/>,
+        <MediaRow media={node} to={getRoutePath(Route.MEDIA, { uri: node.uri, name: node.titles?.at(0)?.title })}/>,
     },
   }[displayMode]
   const pendingItems = <div className={layout.className}>{Array.from({ length: 12 }, (_, index) => <Placeholder key={index} className="pending"/>)}</div>

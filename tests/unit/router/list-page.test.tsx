@@ -96,7 +96,7 @@ test('an item shows how far, its score and format, and a mark naming each tracke
   const item = host.querySelector('.item')!
   expect(item.querySelector('.progress')?.textContent).toBe('5/ 12')
   expect(item.querySelector('.score')?.textContent).toBe('8.5')
-  expect(item.querySelector('.title')?.getAttribute('href')).toBe('/media/anilist:154587')
+  expect(item.querySelector('.title')?.getAttribute('href')).toBe('/media/anilist:154587/frieren')
   expect(item.querySelector('.differs')?.getAttribute('title')).toBe('AniList Episode 5, MyAnimeList Episode 4')
 })
 

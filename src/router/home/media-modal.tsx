@@ -1,5 +1,5 @@
 import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
-import type { RouteParams } from '../path'
+import type { MediaParams } from '../path'
 import type { DetailsMedia } from './media-details'
 
 import { css } from '@emotion/react'
@@ -25,14 +25,14 @@ import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import TraceLink from '../debug/link'
 import ShareButton from '../../components/share-button'
 import { carriedSearch } from '../debug/trace'
-import { AggregatedUri, matchAggregatedUris, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
+import { AggregatedUri, matchAggregatedUris, routeMediaUri } from '../../utils/uri'
 import { currentMedia, listedMediaFor, notKept } from './modal-media'
 import { isMovieMedia } from './movie'
 import MoviePlay, { FilmSources } from './movie-play'
 import { Episodes, EpisodesPlaceholder, GET_MEDIA_DETAILS, SourceLinks, useSettledOnce, useTrackingSummary, useWatchSources, watchOriginIds } from './media-details'
 import { filmLine, seriesLine, sideFacts } from './preview-facts'
 import NotFound from '../not-found'
-import { getRoutePath, Route } from '../path'
+import { getRoutePath, movedAddress, Route } from '../path'
 import { useNow } from '../../utils/use-now'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
 import { useDocumentTitle } from '../../utils/use-document-title'
@@ -746,7 +746,7 @@ const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) =>
 
 const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
   const intl = useIntl()
-  const rawParams = useParams<RouteParams['MEDIA']>()
+  const rawParams = useParams<MediaParams>()
   const params = { ...rawParams, uri: routeMediaUri(rawParams.uri) }
   const [, navigate] = useLocation()
   // The listing is a SOURCE OF DRAWING, never the gate: `namesSameWork` asks whether the address and
@@ -846,17 +846,18 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   const written = useRef<string | undefined>(undefined)
   const seasonUris = data?.media?.handles.map(handle => handle.node.uri) ?? []
   useEffect(() => {
-    if (!firstSeasonRedirect(data?.media?.seasons, seasonUris) && shouldRewriteAddress(media?.uri, params.uri, written.current)) {
-      written.current = media!.uri
+    const moved = movedAddress(Route.MEDIA, rawParams, media && { uri: media.uri, name: title }, written.current)
+    if (moved && !firstSeasonRedirect(data?.media?.seasons, seasonUris)) {
+      if (moved.grown) written.current = media!.uri
       // THE QUERY STRING COMES ALONG. This replace is the reason a media url loses its flags: opened
       // at `/media/...?graph=1&trace=1`, the address grows a beat later and the url it is replaced
       // with carried the path alone, so `location.search` was empty for the rest of the session and
       // the url a reader copied out of the address bar no longer reproduced their page (measured
       // 2026-09-13). The flags the worker read at load are unaffected, which is what made this
       // invisible.
-      navigate(`${getRoutePath(Route.MEDIA, { uri: media!.uri })}${location.search}`, { replace: true })
+      navigate(`${moved.path}${location.search}`, { replace: true })
     }
-  }, [media?.uri, params.uri])
+  }, [media?.uri, params.uri, title, rawParams.slug])
 
   const tracking = (
     <MediaTracking
@@ -875,8 +876,8 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           address the store has grown to, which is the one the graph knows this work by. */}
       <TraceLink uri={media?.uri}/>
       <SourceLinks uri={data?.media?.uri} handles={media?.handles} links={data?.media?.streamingLinks} except={watchOriginIds(film, media?.handles)}/>
-      <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })} title={title}/>
-      <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
+      <ShareButton path={getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri, name: title })} title={title}/>
+      <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri, name: title })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
     </div>
   )
   const heading = title || settled ? <h2 className="title">{title}</h2> : <Placeholder className="title-pending"/>

@@ -162,18 +162,22 @@ const meta = (html: string, key: string) =>
 
 const title = (html: string) => /<title>([^<]*)<\/title>/.exec(html)?.[1]
 
+const canonicals = (html: string) => [...html.matchAll(/<link rel="canonical" href="([^"]*)">/g)].map(([, href]) => href)
+
 const kept = (site: string, segment: string) => cache.get(`https://preview.cache/${site}/${segment}`)
 
 const BEBOP = 'https://anime.fkn.app/title/ag:(mal:1)'
 const COPY = { wasm: { frizbee: wasmModule, sacha: wasmModule }, deadline: expect.any(Number), settleBy: 20_000 }
 
+// Mutation: give `og:url` the request's url again, or drop the canonical link.
 test.each([
-  { address: 'https://anime.fkn.app/title/ag:(anilist:195604,mal:61967)', uri: 'ag:(anilist:195604,mal:61967)', site: 'anime', name: 'Stub Anime' },
-  { address: 'https://stub.fkn.app/media/ag:(mal:61469,offline:mal-61469)', uri: 'ag:(mal:61469,offline:mal-61469)', site: 'stub', name: 'Stub' },
-  { address: 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)', uri: 'ag:(anilist:195604)', site: 'anime', name: 'Stub Anime' },
-  { address: 'https://movies.fkn.app/title/ag%3A(nf%3A70125365)', uri: 'ag:(nf:70125365)', site: 'movie', name: 'Stub Movies' },
-  { address: 'https://series.fkn.app/media/jw:131317', uri: 'ag:(jw:131317)', site: 'series', name: 'Stub Series' },
-])('a crawler on $address gets what stub draws for $uri on $site', async ({ address, uri, site, name }) => {
+  { address: 'https://anime.fkn.app/title/ag:(anilist:195604,mal:61967)', uri: 'ag:(anilist:195604,mal:61967)', site: 'anime', name: 'Stub Anime', canonical: 'https://anime.fkn.app/title/ag:(anilist:195604,mal:61967)/black-clover-season-2' },
+  { address: 'https://stub.fkn.app/media/ag:(mal:61469,offline:mal-61469)', uri: 'ag:(mal:61469,offline:mal-61469)', site: 'stub', name: 'Stub', canonical: 'https://stub.fkn.app/title/ag:(mal:61469,offline:mal-61469)/black-clover-season-2' },
+  { address: 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)', uri: 'ag:(anilist:195604)', site: 'anime', name: 'Stub Anime', canonical: 'https://anime.fkn.app/watch/ag:(anilist:195604)/ag:(anizip:19444-1)' },
+  { address: 'https://movies.fkn.app/title/ag%3A(nf%3A70125365)', uri: 'ag:(nf:70125365)', site: 'movie', name: 'Stub Movies', canonical: 'https://movies.fkn.app/title/ag:(nf:70125365)/black-clover-season-2' },
+  { address: 'https://series.fkn.app/media/jw:131317', uri: 'ag:(jw:131317)', site: 'series', name: 'Stub Series', canonical: 'https://series.fkn.app/title/ag:(jw:131317)/black-clover-season-2' },
+  { address: 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover', uri: 'ag:(anilist:195604)', site: 'anime', name: 'Stub Anime', canonical: 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover-season-2' },
+])('a crawler on $address gets what stub draws for $uri on $site, at $canonical', async ({ address, uri, site, name, canonical }) => {
   const { response, html } = await call(address)
   expect(response.status).toBe(200)
   expect(asked).toEqual([{ uri, site, wasm: { frizbee: wasmModule, sacha: wasmModule }, deadline: expect.any(Number), settleBy: 20_000 }])
@@ -183,7 +187,8 @@ test.each([
   expect(meta(html, 'og:image')).toEqual([SETTLED.image])
   expect(meta(html, 'og:site_name')).toEqual([name])
   expect(meta(html, 'og:type')).toEqual(['video.other'])
-  expect(meta(html, 'og:url')).toEqual([address])
+  expect(meta(html, 'og:url')).toEqual([canonical])
+  expect(canonicals(html)).toEqual([canonical])
   expect(meta(html, 'twitter:card')).toEqual(['summary_large_image'])
   expect(meta(html, 'theme-color')).toEqual(['#f1a143'])
 })
@@ -633,7 +638,7 @@ test('with the STUB_SOURCES binding, a run\'s object goes to the inbox once its 
   await plain.kept
   const { puts, env } = bucket()
   const kept = await call('https://anime.fkn.app/title/ag:(anilist:2)', DISCORD, 'GET', env)
-  expect(kept.html).toBe(plain.html.replace('ag:(anilist:1)', 'ag:(anilist:2)'))
+  expect(kept.html).toBe(plain.html.replaceAll('ag:(anilist:1)', 'ag:(anilist:2)'))
   await kept.kept
   expect(puts).toEqual([{ key: OBJECT.key, value: OBJECT.body, options: { httpMetadata: { contentType: 'application/gzip' } }, cached: expect.arrayContaining(['https://preview.cache/anime/ag:(anilist:2)']) }])
 })
@@ -740,6 +745,26 @@ test('a crawler on a short link gets its address\'s card, kept under the same ke
   expect(meta(html, 'og:title')).toEqual(['Black Clover Season 2'])
   expect(meta(html, 'og:url')).toEqual([address])
   expect(kept('anime', 'ag:(anilist:195604,mal:61967)')).toBeDefined()
+})
+
+// Mutation: read the canonical off the request's url rather than the address the short link opens.
+test('a crawler on a short link to a title, its name an old one, gets the title page under the work\'s name as its url', async () => {
+  const named = '/title/ag:(anilist:195604)/black-clover?plugins=https:stub.plugins.banou.dev'
+  const address = `https://anime.fkn.app${SHORT_PATH}${shortenPath(named)}`
+  expect(address, 'the control: the short link carries the name').toMatch(/\/s\/[\w-]+\/black-clover$/)
+  const { html } = await call(address)
+  const canonical = 'https://anime.fkn.app/title/ag:(anilist:195604)/black-clover-season-2?plugins=https:stub.plugins.banou.dev'
+  expect(meta(html, 'og:url')).toEqual([canonical])
+  expect(canonicals(html)).toEqual([canonical])
+})
+
+test('a work titled in no Latin letters gets its own letters as its name, a valid address', async () => {
+  createPreview.mockImplementation(() => copy({ title: '葬送のフリーレン' }))
+  const { html } = await call('https://anime.fkn.app/title/ag:(anilist:154587)')
+  const [canonical] = canonicals(html)
+  expect(canonical).toBe('https://anime.fkn.app/title/ag:(anilist:154587)/%E8%91%AC%E9%80%81%E3%81%AE%E3%83%95%E3%83%AA%E3%83%BC%E3%83%AC%E3%83%B3')
+  expect(new URL(canonical!).href).toBe(canonical)
+  expect(decodeURIComponent(new URL(canonical!).pathname.split('/').at(-1)!)).toBe('葬送のフリーレン')
 })
 
 test('a short link that does not open gets the page untouched', async () => {

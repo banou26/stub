@@ -314,7 +314,7 @@ test('an episode is watched at or under the progress, or once Completed, and nev
 
 test('the page is its own route, beside the modal\'s', () => {
   expect(getRoutePath(Route.TITLE, { uri: 'ag:(mal:1)' })).toBe('/title/ag:(mal:1)')
-  expect(getRouterRoutePath(Route.TITLE)).toBe('/title/:uri')
+  expect(getRouterRoutePath(Route.TITLE)).toBe('/title/:uri/:slug?')
   const router = readFileSync(fileURLToPath(new URL('../../../src/router/index.tsx', import.meta.url)), 'utf-8')
   expect(router).toContain('<WRoute path={getRouterRoutePath(Route.TITLE)} component={Title}/>')
 })
@@ -322,6 +322,6 @@ test('the page is its own route, beside the modal\'s', () => {
 // media-modal.tsx cannot be imported here (see modal-media.test.ts), so its link is read off the source
 test('the modal links to the page for the address it has grown to, with the session\'s flags', () => {
   const modal = readFileSync(fileURLToPath(new URL('../../../src/router/home/media-modal.tsx', import.meta.url)), 'utf-8')
-  expect(modal).toContain('<Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri })}${search}`}>{intl.formatMessage({ id: \'More details\'')
+  expect(modal).toContain('<Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri, name: title })}${search}`}>{intl.formatMessage({ id: \'More details\'')
   expect(modal).toContain('const search = carriedSearch(useSearch())')
 })

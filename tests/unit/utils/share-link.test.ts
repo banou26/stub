@@ -97,6 +97,29 @@ describe('a short link', () => {
   })
 })
 
+describe('a short link to a work named in its address', () => {
+  // Mutation: pack the name with the uri, or leave it off the code.
+  test.each([
+    '/title/ag:(anilist:1,mal:1)/frieren-beyond-journeys-end?plugins=https:stub.plugins.banou.dev',
+    '/media/ag:(anilist:1)/frieren',
+    '/title/mal:1/%E8%91%AC%E9%80%81%E3%81%AE%E3%83%95%E3%83%AA%E3%83%BC%E3%83%AC%E3%83%B3',
+  ])('carries the name after the code and reads back exactly: %s', address => {
+    const name = address.split('?')[0]!.split('/').at(-1)!
+    const packed = shortenPath(address)
+    expect(packed).toMatch(new RegExp(`^[\\w-]+/${name}$`))
+    expect(expandPath(packed!)).toBe(address)
+    expect(packed!.split('/')[0], 'the code is the address without its name').toBe(shortenPath(address.replace(`/${name}`, '')))
+  })
+
+  test.each([
+    ['a name that is none', '/title/ag:(anilist:1)', 'a:b'],
+    ['an empty one', '/title/ag:(anilist:1)', ''],
+    ['one after a watch address', '/watch/ag:(anilist:1)/ag:(anilist:1-1)', 'frieren'],
+  ])('opens the address alone after %s', (_, address, name) => {
+    expect(expandPath(`${shortenPath(address)}/${name}`)).toBe(address)
+  })
+})
+
 describe('a code', () => {
   test('that is not one opens nothing, without throwing', () => {
     for (const garbled of ['', '!', 'abc$', 'A', 'AAAAA', 'DAAA', '_w', 'x'.repeat(20_000)]) expect(expandPath(garbled)).toBeUndefined()

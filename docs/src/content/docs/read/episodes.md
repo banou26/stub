@@ -314,7 +314,7 @@ one line earlier at `:413`. A single-member episode keeps its own real `mediaUri
 not, so the two shapes disagree about what that field means.
 
 **`url` on a merged episode points at the MEDIA route.** `aggregate.ts:438` builds
-`getRoutePath(Route.MEDIA, { uri })` with the episode's aggregated uri, not `Route.MEDIA_EPISODE`.
+`getRoutePath(Route.MEDIA, { uri })` with the episode's aggregated uri: stub has no episode route.
 The single-member shape passes the source's own episode url straight through.
 
 **The `_id` is keyed on the first member alone.** `clusterId` reads `uris[0]!`

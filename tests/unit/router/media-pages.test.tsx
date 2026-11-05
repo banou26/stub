@@ -7,6 +7,7 @@ import { act } from 'preact/test-utils'
 import { Route, Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
+import { getRouterRoutePath, Route as AppRoute } from '../../../src/router/path'
 import { releaseDateLabel } from '../../../src/utils/release-date'
 import { share } from '../components/share'
 
@@ -98,7 +99,11 @@ const violet = {
   },
 }
 
-beforeEach(() => { vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } }) })
+beforeEach(() => {
+  vi.stubGlobal('Image', class { onload?: () => void; set src (_: string) { setTimeout(() => this.onload?.()) } })
+  // the pages carry the query string across a rewrite, read off the window
+  vi.stubGlobal('location', { search: '' })
+})
 const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
@@ -110,7 +115,7 @@ afterEach(() => {
 
 const open = (path: string, page: () => preact.JSX.Element) => {
   const { hook, searchHook, navigate, history } = memoryLocation({ path, record: true })
-  const tree = () => <Router hook={hook} searchHook={searchHook}><Route path={path.replace(/ag:\(.*\)$/, ':uri')} component={page}/></Router>
+  const tree = () => <Router hook={hook} searchHook={searchHook}><Route path={getRouterRoutePath(path.startsWith('/media/') ? AppRoute.MEDIA : AppRoute.TITLE)} component={page}/></Router>
   const host = mount(withIntl(tree()))
   hosts.push(host)
   return {
@@ -628,23 +633,65 @@ describe('the url after a split', () => {
   const welded = 'ag:(anilist:210482,mal:61469,offline:mal-61469)'
   const split = 'ag:(anilist:210482,offline:mal-63825)'
   const stage = (uri: string) => ({ ...work(210482, 'Steel Ball Run'), uri })
-  // the pages carry the query string across a rewrite, read off the window
-  beforeEach(() => { vi.stubGlobal('location', { search: '' }) })
 
   for (const [page, route] of [[preview, 'media'], [titlePage, 'title']] as const) {
     test(`/${route}: an address the page grew follows its card back down, so a reload opens that card`, () => {
       const { answer, history } = page(opened)
       answer(stage(welded), opened)
-      expect(history, 'the control: grown to the welded card').toEqual([`/${route}/${welded}`])
+      expect(history, 'the control: grown to the welded card').toEqual([`/${route}/${welded}/steel-ball-run`])
 
       answer(stage(split), opened)
-      expect(history).toEqual([`/${route}/${split}`])
+      expect(history).toEqual([`/${route}/${split}/steel-ball-run`])
     })
 
     test(`/${route}: a link the reader opened is left as it is`, () => {
       const { answer, history } = page(welded)
       answer(stage(split), welded)
-      expect(history).toEqual([`/${route}/${welded}`])
+      expect(history, 'named, its uri as it was').toEqual([`/${route}/${welded}/steel-ball-run`])
+    })
+  }
+})
+
+// STUB-360 (preview, title page and share addresses carry the work's name)
+describe('the address names the work', () => {
+  const frieren = work(1, 'Frieren')
+  const NAMED = '%E8%91%AC%E9%80%81%E3%81%AE%E3%83%95%E3%83%AA%E3%83%BC%E3%83%AC%E3%83%B3'
+
+  for (const [route, page] of [['media', (path: string) => open(`/media/${path}`, () => <MediaModal mediaNodes={[]}/>)], ['title', (path: string) => open(`/title/${path}`, TitlePage)]] as const) {
+    const drawn = (host: HTMLElement) => (route === 'media' ? modal() : host).textContent
+
+    // Mutation: leave the name out of `movedAddress`, or compare the address's own name with nothing.
+    test.each([
+      ['with no name', frieren.uri],
+      ['with an old one', `${frieren.uri}/sousou-no-frieren`],
+    ])(`/${route}: an address %s opens the work and ends on its name`, (_, path) => {
+      const { host, answer, history } = page(path)
+      answer(frieren, frieren.uri)
+      expect(history).toEqual([`/${route}/${frieren.uri}/frieren`])
+      expect(drawn(host)).toContain('Frieren')
+    })
+
+    // Mutation: name the address from a work with no title yet.
+    test(`/${route}: keeps the address's name until the work's is known`, () => {
+      const { answer, history } = page(`${frieren.uri}/frieren`)
+      answer(partial(1), frieren.uri)
+      expect(history).toEqual([`/${route}/${frieren.uri}/frieren`])
+    })
+
+    test(`/${route}: a work titled in no Latin letters ends on its own letters, and stays there`, () => {
+      const { answer, history } = page(frieren.uri)
+      answer(work(1, '葬送のフリーレン'), frieren.uri)
+      answer(work(1, '葬送のフリーレン'), frieren.uri)
+      expect(history).toEqual([`/${route}/${frieren.uri}/${NAMED}`])
+      expect(new URL(history[0]!, 'https://stub.fkn.app').pathname).toBe(history[0])
+    })
+
+    // Mutation: drop the check that the work in hand is the one the address names.
+    test(`/${route}: after a navigation, the work just left never names the next address`, () => {
+      const { answer, history, navigate } = page(frieren.uri)
+      answer(frieren, frieren.uri)
+      navigate(`/${route}/ag:(anilist:2)`)
+      expect(history.at(-1)).toBe(`/${route}/ag:(anilist:2)`)
     })
   }
 })
@@ -659,7 +706,6 @@ describe('a show\'s own address', () => {
     handles: [`tvmaze:${id}`, `imdb:tt${id}`].map(uri => ({ relation: 'SAME_AS', node: { uri, origin: uri.split(':')[0] } })),
     seasons: seasons?.map(number => ({ number, uri: `tvmaze:${id}-s${number}` })),
   })
-  beforeEach(() => { vi.stubGlobal('location', { search: '' }) })
 
   for (const [page, route] of [[preview, 'media'], [titlePage, 'title']] as const) {
     test(`/${route}: goes to its first season though its address grows as it answers`, () => {
@@ -669,7 +715,7 @@ describe('a show\'s own address', () => {
 
       const control = page('ag:(tvmaze:900201)')
       control.answer(show(900201), 'ag:(tvmaze:900201)')
-      expect(control.history, 'the control: with no seasons the address grows').toEqual([`/${route}/ag:(imdb:tt900201,tvmaze:900201)`])
+      expect(control.history, 'the control: with no seasons the address grows').toEqual([`/${route}/ag:(imdb:tt900201,tvmaze:900201)/spec-maze`])
     })
   }
 })
@@ -740,7 +786,7 @@ describe('Recommendations', () => {
     const { host, answer } = titlePage(frieren.uri)
     answer(frieren)
     const card = host.querySelector('[data-recommendations] a.relation-card')!
-    expect(card.getAttribute('href')).toBe('/title/ag:(anilist:21827,mal:33352)')
+    expect(card.getAttribute('href')).toBe('/title/ag:(anilist:21827,mal:33352)/violet-evergarden')
     expect([...card.querySelectorAll('.relation, .title, .meta')].map(line => line.textContent)).toEqual(['TV · 2018', 'Violet Evergarden', 'Finished'])
   })
 
@@ -808,8 +854,8 @@ describe('Share', () => {
     const { host, answer } = titlePage('ag:(anilist:1,kitsu:1,mal:1)')
     answer({ ...work(1, 'Frieren'), uri: 'ag:(anilist:1,mal:1)' }, 'ag:(anilist:1,kitsu:1,mal:1)')
     const { link, opens } = await share(host.querySelector('.actions button[aria-label="Share"]'), `https://anime.fkn.app/title/ag:(anilist:1,kitsu:1,mal:1)${PLUGINS}&trace=1`)
-    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
-    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1,mal:1)${PLUGINS}`)
+    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\/[\w-]+\/frieren$/)
+    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1,mal:1)/frieren${PLUGINS}`)
   })
 
   test('on the preview, just before More details, a short link to the work\'s title page', async () => {
@@ -817,7 +863,7 @@ describe('Share', () => {
     answer(work(1, 'Frieren'))
     expect(modal().querySelectorAll('.links > button[aria-label="Share"] + .more')).toHaveLength(1)
     const { link, opens } = await share(modal().querySelector('.links > button[aria-label="Share"]'), `https://anime.fkn.app/media/ag:(anilist:1)${PLUGINS}`)
-    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
-    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)${PLUGINS}`)
+    expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\/[\w-]+\/frieren$/)
+    expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)/frieren${PLUGINS}`)
   })
 })

@@ -132,7 +132,7 @@ type NewEpisode = ReturnType<typeof useNewEpisodes>['episodes'][number]
 export const NewEpisodeCard = ({ episode: { work, next, count, stored }, style }: { episode: NewEpisode, style?: CSSProperties }) => {
   const intl = useIntl()
   return (
-    <Link to={getRoutePath(Route.MEDIA, { uri: work.uri })} css={cardStyle} className="card" style={style}>
+    <Link to={getRoutePath(Route.MEDIA, { uri: work.uri, name: work.summary.title })} css={cardStyle} className="card" style={style}>
       {work.summary.cover ? <img src={work.summary.cover} alt="" loading="lazy"/> : undefined}
       <div className="about">
         <span className="title">{work.summary.title ?? work.uri}</span>

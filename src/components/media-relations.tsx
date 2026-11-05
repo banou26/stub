@@ -146,7 +146,7 @@ const WorkCard = ({ card, search, route }: { card: Card, search: string, route: 
   const title = card.node.titles?.at(0)?.title
 
   return (
-    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri) })}${search}`}>
+    <Link className="relation-card" css={cardStyle} to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri), name: title })}${search}`}>
       {cover ? <img className="cover" src={cover} alt=""/> : <div className="cover"/>}
       <div className="body">
         {card.label ? <div className="relation">{card.label}</div> : undefined}

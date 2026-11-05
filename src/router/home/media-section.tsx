@@ -100,7 +100,7 @@ const CellComponent = (
       }
       <MediaTitle
         media={media}
-        to={getRoutePath(Route.MEDIA, { uri: media.uri })}
+        to={getRoutePath(Route.MEDIA, { uri: media.uri, name: media.titles?.at(0)?.title })}
         standIn
         style={{
           ...style,

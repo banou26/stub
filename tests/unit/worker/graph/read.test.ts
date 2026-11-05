@@ -590,7 +590,7 @@ test('a container with a preferredRun follows to that run', async () => {
 // Mutation: drop the `holds` check in `resolveMedia` and `/media/:uri/:mediaUri` silently opens the
 // cluster the first segment names even when the row the second names has left it.
 //
-// NO ROUTE REACHES THIS TODAY: `router/index.tsx` registers no `WRoute` for `Route.MEDIA_EPISODE`.
+// NO ROUTE REACHES THIS TODAY: the second segment `Route.MEDIA` reads is the work's name, never a member uri.
 // It is pinned because 6.2 states the rule and because the surface is exported, so the day the route
 // is wired the behaviour is already the documented one rather than whatever survived unexercised.
 test('the /media/:uri/:mediaUri fallthrough resolves the member when the cluster does not hold it', async () => {

@@ -883,7 +883,7 @@ describe('the way into this page from the app', () => {
   test('survives the media view rewriting its own url', () => {
     for (const [file, end] of [['home/media-modal.tsx', 'if (!open) return'], ['title/index.tsx', 'const bannerUrl']] as const) {
       const source = readFileSync(fileURLToPath(new URL(`../../../src/router/${file}`, import.meta.url)), 'utf-8')
-      const grow = source.slice(source.indexOf('shouldRewriteAddress(media?.uri'), source.indexOf(end))
+      const grow = source.slice(source.indexOf('const moved = movedAddress('), source.indexOf(end))
       expect(grow, `${file}: the address grow keeps the query string`).toContain('${location.search}')
       expect(grow, `${file}: the control: it is this navigate and not another`).toContain('replace: true')
     }
@@ -919,7 +919,7 @@ describe('the query string an in-app link carries', () => {
       'utf-8',
     )
     expect(source, 'the card appends it to the path it opens')
-      .toContain('to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri) })}${search}`}')
+      .toContain('to={`${getRoutePath(route, { uri: asAggregatedUri(card.node.uri), name: title })}${search}`}')
     expect(source, 'and the flags are the session\'s, since the media view rewrites its own url')
       .toContain('carriedSearch(useSearch())')
     expect(source, 'the control: this probe can miss').not.toContain('carriedSearchThatIsNotThere')
@@ -930,9 +930,9 @@ describe('the query string an in-app link carries', () => {
       fileURLToPath(new URL('../../../src/components/media-franchise.tsx', import.meta.url)),
       'utf-8',
     )
-    // built once in `Graph` and handed to each custom xyflow node through a context, so it reads a bare `uri`
+    // built once in `Graph` and handed to each custom xyflow node through a context, so it reads a bare `uri` and name
     expect(graph, 'and every node of the franchise graph carries it too')
-      .toContain('`${getRoutePath(route, { uri: asAggregatedUri(uri) })}${search}`')
+      .toContain('`${getRoutePath(route, { uri: asAggregatedUri(uri), name })}${search}`')
     expect(graph).toContain('carriedSearch(useSearch())')
     expect(graph, 'the control: this probe can miss too').not.toContain('carriedSearchThatIsNotThere')
   })

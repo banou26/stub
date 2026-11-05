@@ -130,7 +130,7 @@ test('a row\'s preview shares a short link to the work\'s title page', async () 
   expect(button?.closest('a')).toBeNull()
   const { link, opens } = await share(button, 'https://anime.fkn.app/?plugins=https:stub.plugins.banou.dev')
   expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
-  expect(opens).toBe('https://anime.fkn.app/title/anilist:21?plugins=https:stub.plugins.banou.dev')
+  expect(opens).toBe('https://anime.fkn.app/title/anilist:21/one-piece?plugins=https:stub.plugins.banou.dev')
 })
 
 test('the home page\'s category tabs read in English, each handing its category', () => {

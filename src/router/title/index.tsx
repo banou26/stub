@@ -1,4 +1,4 @@
-import type { RouteParams } from '../path'
+import type { MediaParams } from '../path'
 
 import { css } from '@emotion/react'
 import { Clapperboard, LucidePlay, Square } from 'lucide-react'
@@ -25,10 +25,10 @@ import { currentMedia, notKept } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { filmRelease } from '../home/episodes'
 import NotFound from '../not-found'
-import { getRoutePath, Route } from '../path'
+import { getRoutePath, movedAddress, Route } from '../path'
 import { seasonLabel } from '../search/params'
 import { ANIME_CATALOGUES } from '../../site'
-import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri, shouldRewriteAddress } from '../../utils/uri'
+import { AggregatedUri, matchAggregatedUris, originsOfUri, routeMediaUri } from '../../utils/uri'
 import { titleLanguage } from '../../utils/title-language'
 import { useCoverUrl } from '../../utils/use-cover-url'
 import { useDocumentTitle } from '../../utils/use-document-title'
@@ -686,7 +686,7 @@ const Themes = ({ themes }: { themes: Theme[] }) => {
 /** The full page for one title, at `/title/<address>`: what the modal shows, laid out as one long page. */
 const TitlePage = () => {
   const intl = useIntl()
-  const rawParams = useParams<RouteParams['TITLE']>()
+  const rawParams = useParams<MediaParams>()
   const routeUri = routeMediaUri(rawParams.uri)
   const [, navigate] = useLocation()
   const search = carriedSearch(useSearch())
@@ -716,16 +716,16 @@ const TitlePage = () => {
   // page again before the router moves on, which runs the waiting effect first, and it would grow the address over the
   // entry Back landed on
   const written = useRef<string | undefined>(undefined)
+  const title = media?.titles.at(0)
   useLayoutEffect(() => {
-    if (!firstSeasonRedirect(media?.seasons, currentUris) && shouldRewriteAddress(media?.uri, routeUri, written.current)) {
-      written.current = media!.uri
-      navigate(`${getRoutePath(Route.TITLE, { uri: media!.uri })}${location.search}`, { replace: true })
-    }
-  }, [media?.uri, routeUri])
+    const moved = movedAddress(Route.TITLE, rawParams, media && { uri: media.uri, name: title?.title }, written.current)
+    if (!moved || firstSeasonRedirect(media?.seasons, currentUris)) return
+    if (moved.grown) written.current = media!.uri
+    navigate(`${moved.path}${location.search}`, { replace: true })
+  }, [media?.uri, routeUri, title?.title, rawParams.slug])
 
   const bannerUrl = useCoverUrl(media?.banners, media)
   const coverUrl = useCoverUrl(media?.covers, media)
-  const title = media?.titles.at(0)
   useDocumentTitle(title?.title)
   const second = secondTitle(media?.titles)
   // drawn as HTML as it comes: the worker answers the HTML form sanitized (src/worker/resolvers/utils.ts)
@@ -806,7 +806,7 @@ const TitlePage = () => {
               ? (
                 <div className="buttons">
                   <MediaPlay media={media}/>
-                  <ShareButton className="icon" path={getRoutePath(Route.TITLE, { uri: media.uri })} title={title?.title}/>
+                  <ShareButton className="icon" path={getRoutePath(Route.TITLE, { uri: media.uri, name: title?.title })} title={title?.title}/>
                   {
                     trailer
                       ? <a className="icon" href={trailer} target="_blank" rel="noreferrer" aria-label={trailerLabel} title={trailerLabel}><Clapperboard size={20}/></a>

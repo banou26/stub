@@ -970,7 +970,7 @@ const Watch = () => {
             <div className="episode-main">
               <div className="episode-info">
                 <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri })}>{mediaTitle}</Link> : undefined}
+                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })}>{mediaTitle}</Link> : undefined}
                 <ShareButton className="share" path={getRoutePath(Route.WATCH, params)} title={mediaTitle}/>
               </div>
               <div className="tracking">

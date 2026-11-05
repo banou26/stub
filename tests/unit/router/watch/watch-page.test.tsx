@@ -994,7 +994,7 @@ test('the show\'s name under the episode\'s title opens the show\'s page', async
   hosts.push(host)
   await settle()
   const show = host.querySelector('.episode-info > a.media-title')
-  expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}`])
+  expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}/frieren`])
 })
 
 test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {

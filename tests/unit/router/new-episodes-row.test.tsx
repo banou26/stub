@@ -100,8 +100,8 @@ test("asks stub's merged data only about the show airing with no schedule, and d
   const heading = host.querySelector('section > .title')
   expect([heading?.textContent, heading?.getAttribute('href')], 'its heading opens its own page, as the season row\'s opens its search').toEqual(['New episodes', '/continue'])
   expect(cards(host)).toEqual([
-    ['/media/mal:21', 'One Piece', 'Episode 11002 new'],
-    ['/media/mal:48', '.hack//Sign', 'Episode 216 new'],
+    ['/media/mal:21/one-piece', 'One Piece', 'Episode 11002 new'],
+    ['/media/mal:48/hack-sign', '.hack//Sign', 'Episode 216 new'],
   ])
 })
 
@@ -114,7 +114,7 @@ test(`the row holds the newest ${MOST}, and its page every one, in the same orde
   expect(onRow).toHaveLength(MOST)
   expect(onPage).toHaveLength(25)
   expect(onPage.slice(0, MOST)).toEqual(onRow)
-  expect(onPage[24]).toEqual(['/media/mal:24', 'Show 24', 'Episode 49 new'])
+  expect(onPage[24]).toEqual(['/media/mal:24/show-24', 'Show 24', 'Episode 49 new'])
 })
 
 test('the page says there is none once the lists answer with nothing new, and nothing while they are read', () => {
@@ -152,7 +152,7 @@ test('on the device\'s own list, which names no status or schedule, the page wai
   expect(status(), 'a source joining later does not take the line away again').toBe('No new episodes')
   urql.media['stub:7'] = media(false, [1, 2])
   again()
-  expect([status(), cards(host)]).toEqual([null, [['/media/stub:7', 'Frieren', 'Episode 21 new']]])
+  expect([status(), cards(host)]).toEqual([null, [['/media/stub:7/frieren', 'Frieren', 'Episode 21 new']]])
 })
 
 // AniList's and MyAnimeList's lists name a format, a device's own does not

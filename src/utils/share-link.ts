@@ -22,6 +22,11 @@ const SEGMENTS = [[1, 1], [1, 2], [2, 3]] as const
 const MAX_PATH = 8_192
 const MAX_CODE = 16_384
 
+// a title or media address may end in its work's name (src/router/path.ts), a segment with no ':', which rides after
+// the code as it is: `/s/<code>/<name>`
+const NAMED = /^(\/(?:title|media)\/[^/?]+)\/([^/?:]+)(\?.*)?$/
+const NAME = /^(?:[\w.~-]|%[\dA-F]{2})+$/i
+
 const AGGREGATED = /^ag:\((.*)\)$/
 const NUMBER = /^(?:0|[1-9]\d{0,14})$/
 const UUID = /^(.*?)([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/
@@ -258,24 +263,35 @@ const fromCode = (code: string) => {
 }
 
 /**
- * The address `/title/`, `/media/` or `/watch/` `pathAndQuery` names, packed into a code for `/s/<code>`, or undefined
- * when stub's grammar cannot write it: another route, a query carrying anything but `plugins=`, a fragment, or a code
+ * The address `/title/`, `/media/` or `/watch/` `pathAndQuery` names, packed into a code for `/s/<code>` with a
+ * work's name after it as it is, or undefined when stub's grammar cannot write it: another route, a query carrying anything but `plugins=`, a fragment, or a code
  * that would not read back as exactly this address.
  */
 export const shortenPath = (pathAndQuery: string): string | undefined => {
   if (pathAndQuery.length > MAX_PATH || pathAndQuery.includes('#')) return undefined
+  const named = NAMED.exec(pathAndQuery)
   try {
-    const code = toCode(pack(pathAndQuery))
+    const code = named ? `${toCode(pack(`${named[1]}${named[3] ?? ''}`))}/${named[2]}` : toCode(pack(pathAndQuery))
     return expandPath(code) === pathAndQuery ? code : undefined
   } catch {
     return undefined
   }
 }
 
-/** The address a code from `shortenPath` packs, or undefined for anything else. Never throws, and never reads past its limits. */
+/**
+ * The address a code from `shortenPath` packs, or undefined for anything else, with the name after the code when it
+ * names a title or a media address and is one. Never throws, and never reads past its limits.
+ */
 export const expandPath = (code: string): string | undefined => {
+  const slash = code.indexOf('/')
+  const name = slash < 0 ? '' : code.slice(slash + 1)
   try {
-    return unpack(fromCode(code))
+    const address = unpack(fromCode(slash < 0 ? code : code.slice(0, slash)))
+    const query = address.indexOf('?')
+    const path = query < 0 ? address : address.slice(0, query)
+    return NAME.test(name) && name.length <= MAX_PATH && /^\/(?:title|media)\/[^/]+$/.test(path)
+      ? `${path}/${name}${address.slice(path.length)}`
+      : address
   } catch {
     return undefined
   }

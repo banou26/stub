@@ -80,9 +80,9 @@ test("draws AniList's picks for the shows on the lists under its heading, each o
   expect(host.querySelector('[data-recommendations] h2')?.textContent).toBe('Recommended for you')
   expect(host.querySelectorAll('a.relation-card')).toHaveLength(3)
   expect(cards(host)).toEqual([
-    ['/media/ag:(anilist:20954,mal:28851)', 'A Silent Voice'],
-    ['/media/ag:(anilist:153518,mal:52701)', 'Delicious in Dungeon'],
-    ['/media/ag:(anilist:128546,mal:46095)', 'Vivy -Fluorite Eye\'s Song-'],
+    ['/media/ag:(anilist:20954,mal:28851)/a-silent-voice', 'A Silent Voice'],
+    ['/media/ag:(anilist:153518,mal:52701)/delicious-in-dungeon', 'Delicious in Dungeon'],
+    ['/media/ag:(anilist:128546,mal:46095)/vivy-fluorite-eyes-song', 'Vivy -Fluorite Eye\'s Song-'],
   ])
   const kept = JSON.parse(storage.store.get(RECOMMENDED_KEY)!)
   expect(kept.seeds).toEqual([21827, 108465, 154587])
@@ -91,7 +91,7 @@ test("draws AniList's picks for the shows on the lists under its heading, each o
 
 test('serves the kept answer for the same shows, and asks again for others', async () => {
   await show([FRIEREN, VIOLET])
-  expect(cards(await show([FRIEREN, VIOLET]))[0]).toEqual(['/media/ag:(anilist:20954,mal:28851)', 'A Silent Voice'])
+  expect(cards(await show([FRIEREN, VIOLET]))[0]).toEqual(['/media/ag:(anilist:20954,mal:28851)/a-silent-voice', 'A Silent Voice'])
   expect(anilist.asked, 'one request for both').toHaveLength(1)
   await show([FRIEREN, VIOLET, MUSHOKU])
   expect(anilist.asked).toHaveLength(2)
