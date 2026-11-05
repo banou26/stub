@@ -988,9 +988,13 @@ const Watch = () => {
             )
             : undefined}
         </div>
-        {/* beside the stage, which takes no box of its own, so that a fullscreen stage still draws only the episode */}
+        {/*
+          Beside the stage, which takes no box of its own, so that a fullscreen stage still draws only the episode. The
+          kept box is keyed: unkeyed, Preact 11 takes the row's own div below for it in place of the loading one, and
+          Chrome counts the row's node moving up to the box's place as a shift.
+        */}
         {holding ? <Placeholder className="player-container holding"/>
-          : empty ? <div className="player-container still">{thumbnail ? <img src={thumbnail} alt=""/> : undefined}</div>
+          : empty ? <div key="still" className="player-container still">{thumbnail ? <img src={thumbnail} alt=""/> : undefined}</div>
           : undefined}
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 

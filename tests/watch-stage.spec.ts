@@ -319,16 +319,25 @@ for (const [where, options, fullscreen, waits] of [
 }
 
 // STUB-354: the player's box is drawn from the first frame, so the episode's row under it never moves as the player
-// comes in. The show is held back until the row is up, and the row's top is read on every frame from then on. The app's
-// header height and font are set, so the box and the row share the first screen as they do in the app, and Montserrat
-// comes with the show's text, after the placeholders were drawn in the fallback font.
+// comes in. The show is held back until the row is up, and the row's top is read on every frame from then on, beside
+// each layout shift Chrome counts on the box or the row, which also catches the page drawing one in the other's node.
+// The app's header height and font are set, so the box and the row share the first screen as they do in the app, and
+// Montserrat comes with the show's text, after the placeholders were drawn in the fallback font.
 const holdTheShow = async (page: Page) => {
   await serve(page)
   const app = PAGE.replace('font-size: 62.5%', 'font-size: 62.5%; --stub-header-height: 7rem; font-family: Montserrat, system-ui, sans-serif')
   await page.route(`${ORIGIN}/watch/**`, route => route.fulfill({ contentType: 'text/html', body: app }))
   await page.addInitScript(() => {
     const rows: number[] = []
-    Object.assign(window, { stageHoldMedia: true, rows })
+    const shifted: string[] = []
+    Object.assign(window, { stageHoldMedia: true, rows, shifted })
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        for (const { node } of (entry as unknown as { sources: { node: Node | null }[] }).sources) {
+          if (node instanceof Element && node.matches('.player-container, .watch-container > .watch-info')) shifted.push(node.className)
+        }
+      }
+    }).observe({ type: 'layout-shift', buffered: true })
     const tick = () => {
       const top = document.querySelector('.watch-container > .watch-info')?.getBoundingClientRect().top
       if (top !== undefined && rows.at(-1) !== Math.round(top)) rows.push(Math.round(top))
@@ -337,6 +346,7 @@ const holdTheShow = async (page: Page) => {
     requestAnimationFrame(tick)
   })
 }
+const shifted = (page: Page) => page.evaluate(() => (window as unknown as { shifted: string[] }).shifted)
 const box = (page: Page) => page.evaluate(() => {
   const rect = document.querySelector('.watch-container .player-container')?.getBoundingClientRect()
   return rect && [rect.top, rect.width, rect.height] as [top: number, width: number, height: number]
@@ -363,6 +373,7 @@ for (const [kind, path, player] of [
         expect(await box(page), 'the player takes the box as it was').toEqual(held)
         await page.locator(player).contentFrame().locator('body').waitFor()
         expect(await page.evaluate(() => (window as unknown as { rows: number[] }).rows), 'the row never moved, its player\'s document in').toEqual([Math.round(held![0] + held![2])])
+        expect(await shifted(page), 'no layout shift on the box or the row').toEqual([])
       } finally {
         await page.close()
       }
@@ -388,6 +399,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
       await page.evaluate(() => new Promise(requestAnimationFrame).then(() => new Promise(requestAnimationFrame)))
       expect(await page.evaluate(() => (window as unknown as { rows: number[] }).rows), 'the row never moved').toEqual([Math.round(held![0] + held![2])])
       expect(await box(page), 'the box as it was').toEqual(held)
+      expect(await shifted(page), 'no layout shift on the box or the row').toEqual([])
     } finally {
       await page.close()
     }
