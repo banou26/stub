@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
+import { addMontserrat } from './montserrat'
 import { PLAYER_ORIGIN, PLUGIN_ORIGIN, STAGE_PLUGIN, stageWatchPath, torrentWatchPath } from './watch-stage-media'
 
 // HOR-1014: fullscreen kept across episodes. The real watch page (./watch-stage.tsx, built with the app's own
@@ -316,6 +317,70 @@ for (const [where, options, fullscreen, waits] of [
     }
   })
 }
+
+// STUB-354: the player's box is drawn from the first frame, so the episode's row under it never moves as the player
+// comes in. The show is held back until the row is up, and the row's top is read on every frame from then on. The app's
+// header height and font are set, so the box and the row share the first screen as they do in the app, and Montserrat
+// comes with the show's text, after the placeholders were drawn in the fallback font.
+const holdTheShow = async (page: Page) => {
+  await serve(page)
+  const app = PAGE.replace('font-size: 62.5%', 'font-size: 62.5%; --stub-header-height: 7rem; font-family: Montserrat, system-ui, sans-serif')
+  await page.route(`${ORIGIN}/watch/**`, route => route.fulfill({ contentType: 'text/html', body: app }))
+  await page.addInitScript(() => {
+    const rows: number[] = []
+    Object.assign(window, { stageHoldMedia: true, rows })
+    const tick = () => {
+      const top = document.querySelector('.watch-container > .watch-info')?.getBoundingClientRect().top
+      if (top !== undefined && rows.at(-1) !== Math.round(top)) rows.push(Math.round(top))
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}
+const box = (page: Page) => page.evaluate(() => {
+  const rect = document.querySelector('.watch-container .player-container')?.getBoundingClientRect()
+  return rect && [rect.top, rect.width, rect.height] as [top: number, width: number, height: number]
+})
+
+for (const [kind, path, player] of [
+  ['stub\'s Crunchyroll player', stageWatchPath(1), '.stage .player-container > iframe'],
+  ['a source package\'s player', torrentWatchPath(1), '.stage .player-container iframe'],
+] as const) {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    test(`the player's box is there before ${kind}, and the row under it stays put as it comes, at ${viewport.width} px, in Chromium`, async ({ browser }) => {
+      test.setTimeout(60_000)
+      const page = await browser.newPage({ viewport })
+      try {
+        await holdTheShow(page)
+        await page.goto(`${ORIGIN}${path}`)
+        await expect(page.locator('.watch-container > .watch-info')).toBeVisible()
+        const held = await box(page)
+        expect(held?.[2], 'the box is held while the show loads').toBeGreaterThan(150)
+        await addMontserrat(page)
+        await page.evaluate(() => (window as unknown as { releaseMedia: () => void }).releaseMedia())
+        await expect(page.locator(player)).toBeAttached({ timeout: 30_000 })
+        await expect(page.locator('.watch-container .player-container')).toHaveCount(1)
+        expect(await box(page), 'the player takes the box as it was').toEqual(held)
+        await page.locator(player).contentFrame().locator('body').waitFor()
+        expect(await page.evaluate(() => (window as unknown as { rows: number[] }).rows), 'the row never moved, its player\'s document in').toEqual([Math.round(held![0] + held![2])])
+      } finally {
+        await page.close()
+      }
+    })
+  }
+}
+
+test('the player\'s box goes once the page knows no player is coming, in Chromium', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: VIEWPORT })
+  try {
+    await serve(page)
+    await page.goto(`${ORIGIN}${stageWatchPath(1).replace('cr:GSTAGE1', 'cr:GSTAGE9')}`)
+    await expect(page.locator('.media-title')).toHaveText('Spec Stage')
+    await expect(page.locator('.watch-container .player-container')).toHaveCount(0)
+  } finally {
+    await page.close()
+  }
+})
 
 const launchFirefox = async () => {
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH

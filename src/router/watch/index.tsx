@@ -266,6 +266,10 @@ const style = css`
     aspect-ratio: 16 / 9;
     min-height: 20rem;
     max-height: calc(100vh - var(--stub-header-height));
+
+    &.holding {
+      border-radius: 0;
+    }
   }
 
   /* The prompt in the player's place starts at the player's 16:9 and grows to fit what it holds where that is too
@@ -352,6 +356,8 @@ const style = css`
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.4rem 1rem;
+    /* Montserrat's own, set so that a line in a fallback font is as tall, and so is the 1lh of a line's placeholder */
+    line-height: 1.22;
 
     & > .share {
       grid-area: 1 / 2 / span 2;
@@ -364,7 +370,7 @@ const style = css`
 
     .episode-title > .pending {
       width: min(24rem, 60vw);
-      height: 1.2em;
+      height: 1lh;
     }
 
     .media-title {
@@ -376,6 +382,11 @@ const style = css`
         color: #fff;
         text-decoration: underline;
       }
+    }
+
+    .media-title.pending {
+      width: min(16rem, 40vw);
+      height: 1lh;
     }
   }
 
@@ -857,6 +868,9 @@ const Watch = () => {
   if (stuck) asked.current = params.episodeUri
   // on an episode that lists sources, as one not out yet often lists none
   const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
+  // the player's box from the first frame, until something is in it or the page knows nothing is coming
+  const holding = !noSource && !viaPlugin && !embedUrl && !needsExtension && !(media?.settled && !episode)
+    && (guest || !(selectedSourceUri ? everyAnswered : stuck))
   useAutoPick(pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
@@ -962,6 +976,8 @@ const Watch = () => {
             )
             : undefined}
         </div>
+        {/* beside the stage, which takes no box of its own, so that a fullscreen stage still draws only the episode */}
+        {holding ? <Placeholder className="player-container holding"/> : undefined}
         <PartyPlayback link={playbackLink} tracks={tracksLink}/>
 
         <div className="watch-info">
@@ -970,7 +986,7 @@ const Watch = () => {
             <div className="episode-main">
               <div className="episode-info">
                 <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })}>{mediaTitle}</Link> : undefined}
+                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })}>{mediaTitle}</Link> : media?.settled ? undefined : <Placeholder className="media-title pending"/>}
                 <ShareButton className="share" path={getRoutePath(Route.WATCH, params)} title={mediaTitle}/>
               </div>
               <div className="tracking">

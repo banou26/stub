@@ -3,7 +3,7 @@ import type { Exchange } from 'urql'
 import { render } from 'preact'
 import { RawIntlProvider } from 'react-intl'
 import { Client, Provider } from 'urql'
-import { filter, fromValue, mergeMap, never, pipe } from 'wonka'
+import { filter, fromPromise, fromValue, mergeMap, never, pipe } from 'wonka'
 import { Route, Router } from 'wouter'
 
 import { intl } from '../src/i18n'
@@ -14,7 +14,7 @@ import { CHAPTERLESS_ON_CRUNCHYROLL, CHAPTERLESS_TORRENT, STAGE_MEDIA, TORRENT_M
 // The watch page tests/watch-stage.spec.ts drives: the real page over a GraphQL client that answers a show of two
 // Crunchyroll episodes and a show of three torrents, all out, and nothing else; the second torrent's episode is on
 // Crunchyroll too. The embed it frames for the first is ./watch-stage-player.tsx, the package it mounts for the second
-// ./watch-stage-plugin.ts.
+// ./watch-stage-plugin.ts. With `stageHoldMedia` on the window, the shows are answered once `releaseMedia` is called.
 
 const show = (uri: string, count: number, episodeUri: (number: number) => string, handle: (number: number) => object[]) => ({
   uri,
@@ -52,6 +52,8 @@ const origins = {
   },
 }
 
+const held = 'stageHoldMedia' in window ? new Promise(resolve => Object.assign(window, { releaseMedia: resolve })) : undefined
+
 const answers: Exchange = () => operations => pipe(
   operations,
   filter(operation => operation.kind !== 'teardown'),
@@ -62,7 +64,8 @@ const answers: Exchange = () => operations => pipe(
     const data = media ? { media }
       : name === 'GetWatchOrigins' ? origins
       : undefined
-    return data ? fromValue({ operation, data, stale: false, hasNext: false }) : never
+    const result = { operation, data, stale: false, hasNext: false }
+    return !data ? never : media && held ? fromPromise(held.then(() => result)) : fromValue(result)
   }),
 )
 
