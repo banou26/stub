@@ -489,7 +489,10 @@ test.each([
   'vkShare; +http://vk.com/dev/Share',
   'Pinterest/0.2 (+https://www.pinterest.com/bot.html)',
   'Mozilla/5.0 (compatible; Pinterestbot/1.0; +https://www.pinterest.com/bot.html)',
-])('%s is a link-preview crawler', async userAgent => {
+  'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.165 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+])('%s gets the work\'s card', async userAgent => {
   expect(meta((await call('https://anime.fkn.app/title/ag:(anilist:195604)', userAgent)).html, 'og:title')).toEqual(['Black Clover Season 2'])
 })
 

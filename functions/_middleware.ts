@@ -17,7 +17,7 @@ type Env = { STUB_SOURCES?: Bucket }
 
 type Context = { request: Request, next: () => Promise<Response>, waitUntil: (promise: Promise<unknown>) => void, env: Env }
 
-const CRAWLER = /discordbot|slackbot|telegrambot|twitterbot|facebookexternalhit|whatsapp|linkedinbot|redditbot|mastodon|skypeuripreview|microsoftpreview|embedly|vkshare|pinterestbot|pinterest\/0\./i
+const CRAWLER = /googlebot|bingbot|discordbot|slackbot|telegrambot|twitterbot|facebookexternalhit|whatsapp|linkedinbot|redditbot|mastodon|skypeuripreview|microsoftpreview|embedly|vkshare|pinterestbot|pinterest\/0\./i
 const TITLE_PATH = /^\/(?:title|media|watch)\/([^/]+)/
 const WORK_PATH = /^\/(?:title|media)\/([^/]+)/
 const SITE_NAMES: Record<Site, string> = { anime: 'Stub Anime', movie: 'Stub Movies', series: 'Stub Series', stub: 'Stub' }
