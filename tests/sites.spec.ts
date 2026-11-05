@@ -474,7 +474,7 @@ test('the header keeps its floors in a wider font, on every site', async ({ page
       expect(search!.x + search!.width, `${host} at ${width}`).toBeLessThanOrEqual(actions!.x)
       expect(await page.evaluate(() => document.documentElement.scrollWidth), `${host} at ${width}: no sideways scroll`).toBeLessThanOrEqual(width)
     }
-    for (const width of [360, 379, 380, 479]) {
+    for (const width of [360, 375, 379, 380, 381, 479]) {
       await page.setViewportSize({ width, height: 800 })
       await expect(searchButton(page), `${host} at ${width}`).toBeVisible()
       // polled, since the icon buttons ease to their phone size
@@ -572,11 +572,11 @@ test('the wordmark is stub\'s icon then its word in one link, at the word\'s lef
     await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
     await page.goto(at('stub.localhost', '/settings'))
     await expect(page.locator('html')).toHaveAttribute('lang', language)
-    for (const width of [1440, 900, 769, 768, 410]) {
+    for (const width of [1440, 900, 769, 768, 410, 390, 375]) {
       await page.setViewportSize({ width, height: 800 })
       const [icon, word] = [wordmark(page).locator('svg'), wordmark(page).getByText('stub', { exact: true })]
       await expect(icon, `${language} at ${width}`).toBeVisible()
-      await expect(word, `${language} at ${width}`).toBeVisible()
+      await expect(word, `${language} at ${width}`).toHaveCSS('clip-path', 'none')
       const [left, right] = [(await icon.boundingBox())!, (await word.boundingBox())!]
       expect(left.x + left.width, `${language} at ${width}: the icon at the word's left`).toBeLessThanOrEqual(right.x)
       expect(left.y < right.y + right.height && right.y < left.y + left.height, `${language} at ${width}: on the word's line`).toBe(true)
@@ -585,34 +585,39 @@ test('the wordmark is stub\'s icon then its word in one link, at the word\'s lef
 })
 
 // STUB-347 (below about 350 px the search button sat over the wordmark)
-test('below 410 px the wordmark is its icon alone, still named stub, and down to 320 px the search button clears it', async ({ page }) => {
+test('the wordmark keeps its word from 375 px beside the site arrow and 350 px without it, then is its icon alone, a 24 px link named stub, clear of the search button down to 320 px', async ({ page }) => {
   for (const host of ['stub.localhost', 'anime.localhost', 'series.localhost', 'movies.localhost', '127.0.0.1']) {
+    const wordFrom = host === '127.0.0.1' ? 350 : 375
     await page.setViewportSize({ width: 409, height: 800 })
     await page.goto(at(host, '/settings'))
     await expect(searchButton(page), host).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
-    for (const width of [409, 360, 340, 320]) {
+    for (const width of [409, 390, 375, 374, 360, 350, 349, 320]) {
       await page.setViewportSize({ width, height: 800 })
-      await expect(wordmark(page).locator('svg'), `${host} at ${width}`).toBeVisible()
-      await expect(wordmark(page).getByText('stub', { exact: true }), `${host} at ${width}`).toHaveCSS('clip-path', 'inset(50%)')
-      // no text is left beside the arrow and the icon, so this room is the same in every font
+      const where = `${host} at ${width}`
+      await expect(wordmark(page).locator('svg'), where).toBeVisible()
+      await expect(wordmark(page).getByText('stub', { exact: true }), `${where}: the word ${width >= wordFrom ? 'shows' : 'is hidden'}`)
+        .toHaveCSS('clip-path', width >= wordFrom ? 'none' : 'inset(50%)')
+      if (width < wordFrom) expect((await wordmark(page).boundingBox())!.width, `${where}: a 24 px target`).toBeGreaterThanOrEqual(24)
       await expect.poll(async () => {
         const start = (await page.locator('header .start').boundingBox())!
         const button = (await searchButton(page).boundingBox())!
         return button.x - (start.x + start.width)
-      }, `${host} at ${width}: room between the wordmark and the button`).toBeGreaterThanOrEqual(4)
-      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${host} at ${width}: no sideways scroll`).toBeLessThanOrEqual(width)
+      }, `${where}: room between the wordmark and the button`).toBeGreaterThanOrEqual(4)
+      const actions = (await page.locator('header .actions').boundingBox())!
+      expect(actions.x + actions.width, `${where}: the account in view`).toBeLessThanOrEqual(width)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${where}: no sideways scroll`).toBeLessThanOrEqual(width)
     }
   }
 })
 
 // HOR-1066 (FKN's logo beside the wordmark)
-test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, its card opens on hover, and it leaves the search its room', async ({ page }) => {
+test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, its card opens on hover, and it leaves the search its room, first beside the site arrow', async ({ page }) => {
   const mark = page.getByRole('button', { name: 'Powered by FKN' })
   const card = page.getByRole('group', { name: 'Powered by FKN' })
-  for (const [width, height] of [[1440, 900], [1024, 800], [390, 844], [360, 800]] as const) {
+  for (const [host, width, height] of [['movies.localhost', 1440, 900], ['movies.localhost', 1024, 800], ['movies.localhost', 410, 844], ['movies.localhost', 390, 844], ['127.0.0.1', 390, 844], ['127.0.0.1', 360, 800]] as const) {
     await page.setViewportSize({ width, height })
-    await page.goto(at('movies.localhost'))
+    await page.goto(at(host))
     await expect(width < 480 ? searchButton(page) : searchField(page), `${width}: the control, the row is drawn`).toBeVisible()
     const { start, search } = await page.evaluate(() => ({
       start: document.querySelector('header .start')!.getBoundingClientRect().right,
@@ -621,8 +626,8 @@ test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, it
     }))
     expect(start, `${width}: clear of the search`).toBeLessThanOrEqual(search)
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}`).toBeLessThanOrEqual(width)
-    if (width < 380) {
-      await expect(mark, `${width}`).toBeHidden()
+    if (width < (host === '127.0.0.1' ? 380 : 410)) {
+      await expect(mark, `${host} at ${width}`).toBeHidden()
       continue
     }
     const { svg, line } = await mark.evaluate(button => {

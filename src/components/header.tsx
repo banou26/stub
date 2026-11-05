@@ -46,6 +46,24 @@ const LONG_PRESS = 500
 // 1220, in tests/sites.spec.ts's WIDER_FONT (2026-11-06)
 const LINKS_FROM = 1220
 
+// the word stays the link's name, and the link a 24 px target, as wide as the site arrow beside it
+const ICON_ALONE = `
+  min-width: 2.4rem;
+  text-align: center;
+
+  .icon {
+    margin-inline-end: 0;
+  }
+
+  .word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+`
+
 const style = css`
   position: fixed;
   /* the FKN broker's docked bar reserves the page's top strip with a root margin, which cannot
@@ -369,8 +387,8 @@ const style = css`
   /* below this the row has no room for a field beside the wordmark and the actions, so the field
      waits behind a button and opens over the whole row */
   @media (max-width: 479px) {
-    /* not 0.4rem: at 320 that left the search button 3 px from the site arrow and the icon, against 5 (measured
-       2026-11-05) */
+    /* not 0.4rem: at 320 that left the search button 4 px from the site arrow and the icon, against 6 (measured
+       2026-11-06) */
     gap: 0.2rem;
     padding: 0 0.8rem;
 
@@ -439,19 +457,11 @@ const style = css`
     }
   }
 
-  /* below this the row holds the icon or the word, not both: in tests/sites.spec.ts's WIDER_FONT the lockup left the
-     search button 11.5 px at 400 and ran under it at 380 (measured 2026-11-05). The word stays the link's name. */
+  /* beside the site arrow FKN's mark gives way first, so the row keeps stub's word: with all three, the search button
+     had 1.5 px at 390 in tests/sites.spec.ts's WIDER_FONT (measured 2026-11-06) */
   @media (max-width: 409px) {
-    .logo .icon {
-      margin-inline-end: 0;
-    }
-
-    .logo .word {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
+    .wordmark + .powered {
+      display: none;
     }
   }
 
@@ -459,6 +469,27 @@ const style = css`
   @media (max-width: 379px) {
     .powered {
       display: none;
+    }
+  }
+
+  /* the row's ends give stub's word its room beside the site arrow: with them at 0.8rem the search button had 11.3 px at
+     380 in tests/sites.spec.ts's WIDER_FONT, under the 12 that spec holds, and 6.3 at 375 (measured 2026-11-06) */
+  @media (max-width: 380px) {
+    padding: 0 0.4rem;
+  }
+
+  /* below these the row holds stub's icon or its word, not both: in tests/sites.spec.ts's WIDER_FONT the lockup left
+     the search button 14.3 px at 375 beside the site arrow and 15.3 px at 350 without it, and under the 12 that spec
+     holds at 370 and 345 (measured 2026-11-06) */
+  @media (max-width: 374px) {
+    .wordmark .logo {
+      ${ICON_ALONE}
+    }
+  }
+
+  @media (max-width: 349px) {
+    .logo {
+      ${ICON_ALONE}
     }
   }
 `
