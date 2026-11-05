@@ -6,7 +6,7 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-vi.mock('lucide-react', () => ({ Camera: () => null, ChevronDown: () => null, Search: () => null, Settings: () => null, X: () => null }))
+vi.mock('lucide-react', () => ({ ChevronDown: () => null, ScanSearch: () => null, Search: () => null, Settings: () => null, X: () => null }))
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
 // the real mark needs a browser's CSS and popover API, which lib's own browser tests cover

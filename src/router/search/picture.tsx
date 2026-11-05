@@ -1,6 +1,6 @@
 import type { RefObject } from 'preact'
 
-import { Camera } from 'lucide-react'
+import { ScanSearch } from 'lucide-react'
 import { useEffect, useRef, useSyncExternalStore } from 'preact/compat'
 import { useIntl } from 'react-intl'
 import { useLocation, useSearch } from 'wouter'
@@ -90,8 +90,8 @@ export const usePictureInput = (onPicture: (file: File) => void, enabled: boolea
   }, [enabled])
 }
 
-/** The search field's button that picks a picture to search by. */
-export const PictureButton = ({ onPicture }: { onPicture: (file: File) => void }) => {
+/** The search field's button that picks a picture to search by, its icon at `size` to match the icons beside it. */
+export const PictureButton = ({ onPicture, size }: { onPicture: (file: File) => void, size: number }) => {
   const label = useIntl().formatMessage({ id: 'Search by picture', defaultMessage: 'Search by picture' })
   const input = useRef<HTMLInputElement>(null)
   return (
@@ -105,7 +105,7 @@ export const PictureButton = ({ onPicture }: { onPicture: (file: File) => void }
         onPointerDown={event => event.preventDefault()}
         onClick={() => input.current?.click()}
       >
-        <Camera size={17}/>
+        <ScanSearch size={size}/>
       </button>
       <input
         ref={input}

@@ -507,7 +507,7 @@ const Search = () => {
                 setFilters({ query: value })
               }}
             />
-            {LIVE_ACTION_SITE ? undefined : <PictureButton onPicture={searchPicture}/>}
+            {LIVE_ACTION_SITE ? undefined : <PictureButton onPicture={searchPicture} size={17}/>}
           </div>
         </FilterField>
         <FilterSelect

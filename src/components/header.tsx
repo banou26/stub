@@ -741,7 +741,7 @@ export const Header = () => {
             inputRef.current?.blur()
           }}
         />
-        {scenes ? <PictureButton onPicture={searchPicture}/> : undefined}
+        {scenes ? <PictureButton onPicture={searchPicture} size={20}/> : undefined}
         <button
           type="button"
           className="search-close"

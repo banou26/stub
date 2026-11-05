@@ -35,7 +35,7 @@ vi.mock('urql', async () => {
     },
   }
 })
-vi.mock('lucide-react', () => ({ Search: () => null, X: () => null, Camera: () => null, LucidePlay: () => null }))
+vi.mock('lucide-react', () => ({ Search: () => null, X: () => null, ScanSearch: () => null, LucidePlay: () => null }))
 // trace.moe as the worker answers it, and the picture's code as the browser computes it
 const scenes = vi.hoisted(() => ({ search: undefined as unknown as Mock<(code: string) => Promise<unknown>> }))
 vi.mock('../../../src/worker', async () => {

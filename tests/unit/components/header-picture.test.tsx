@@ -6,7 +6,10 @@ import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-vi.mock('lucide-react', () => Object.fromEntries(['Camera', 'ChevronDown', 'ListVideo', 'Search', 'Settings', 'X'].map(name => [name, () => null])))
+vi.mock('lucide-react', async () => {
+  const { h } = await import('preact')
+  return Object.fromEntries(['ChevronDown', 'ListVideo', 'ScanSearch', 'Search', 'Settings', 'X'].map(name => [name, (props: object) => h('svg', { ...props, 'data-icon': name })]))
+})
 vi.mock('../../../src/components/account-widget', () => ({ default: () => null, menuStyle: [] }))
 vi.mock('../../../src/components/party-widget', () => ({ default: () => null }))
 vi.mock('@fkn/lib/react', () => ({ PoweredByFkn: () => null }))
@@ -85,6 +88,11 @@ describe('the header bar\'s picture button', () => {
     bar.picker()!.click = opened
     act(() => { bar.button()!.click() })
     expect(opened).toHaveBeenCalledOnce()
+  })
+
+  test('draws a lens in a scan frame, not a camera, at the size of the header\'s other icons', () => {
+    const icons = [...open('/').button()!.querySelectorAll('svg')].map(svg => `${svg.getAttribute('data-icon')} ${svg.getAttribute('size')}`)
+    expect(icons).toEqual(['ScanSearch 20'])
   })
 
   test('a picked picture opens its scene search as a new step', async () => {
