@@ -71,7 +71,7 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
     if (!link || !party.following() || busy()) return
     const now = Date.now()
     const local = last.current && advance(last.current, last.current.at, now)
-    // what a source package's player does with `apply`, by the same tolerance
+    // what a link with `apply` alone does with the state, by the same tolerance
     const predicted = local && playbackCorrection(local, target, now, true)
     // play() on an ended player starts it over from 0: it follows the host only somewhere else
     if (link.ended?.() && predicted?.seek === undefined) return

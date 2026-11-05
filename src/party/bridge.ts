@@ -27,8 +27,8 @@ export type PlaybackLink = {
   /**
    * Keep the player with a host whose player is at `state`, `state.at` on this clock, as a follower does on every
    * state it hears and every report of its own (see `followCorrection`), and say what it did; `exact` puts it where
-   * the host is at once, as on following again or Catch up. Absent where the player keeps up by a rule of its own
-   * with each state `apply` hands it.
+   * the host is at once, as on following again or Catch up. Optional: a link without it is handed each state through
+   * `apply` and keeps up by the player's own rule.
    */
   follow?: (state: PlaybackState, exact?: boolean) => PlaybackCorrection
   /** every report the player makes; returns the unsubscribe */
