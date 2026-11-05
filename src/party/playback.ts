@@ -121,14 +121,18 @@ const median = (values: number[]) => {
  * closed by a catch-up: a speed scaled to the drift, held until dead reckoning says the gap is closed, then the
  * host's speed again, with nothing measured in between. Only past CATCH_UP_LIMIT_S does it seek. A new speed from
  * the host is taken at once and starts the reading over; a paused player is never caught up.
+ *
+ * Drifts and limits are in seconds of the host playing, not of media: what a reading is off by is time (a mirror's
+ * last `timeupdate`, a message's delay), which at 2x is twice the media.
  */
 export const followCorrection = (follow: Follow | undefined, local: LocalPlayback, wanted: PlaybackState, now: number, exact = false): { correction: PlaybackCorrection, follow: Follow } => {
   const target = expectedTime(wanted, now, true)
-  const drift = target - local.time
+  const drift = (target - local.time) / wanted.rate
+  const slack = SEEK_TOLERANCE_S * wanted.rate
   const heard = { ...wanted, time: target, at: now }
   // a stall stands still, so it never reads as this player jumping
-  const moved = exact || !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > SEEK_TOLERANCE_S ||
-    local.time < follow.played.time - RUNS_BACK_S || local.time > expectedTime(follow.played, now, true) + SEEK_TOLERANCE_S
+  const moved = exact || !follow || follow.heard.paused !== wanted.paused || Math.abs(expectedTime(follow.heard, now, true) - target) > slack ||
+    local.time < follow.played.time - RUNS_BACK_S || local.time > expectedTime(follow.played, now, true) + slack
   const correction = playbackCorrection(local, wanted, now, true)
   if (Math.abs(drift) <= (moved ? SEEK_TOLERANCE_S : CATCH_UP_LIMIT_S)) delete correction.seek
 
@@ -142,7 +146,7 @@ export const followCorrection = (follow: Follow | undefined, local: LocalPlaybac
       // behind the host runs fast, ahead of it runs slow, either side of the host's own speed
       const speed = Math.min(Math.abs(filtered) / CATCH_UP_S, NUDGE_RATE - 1)
       const rate = wanted.rate * (filtered > 0 ? 1 + speed : 1 / (1 + speed))
-      next = { heard, drifts: [], catchUp: { rate, until: now + Math.abs(filtered / (rate - wanted.rate)) * 1000 } }
+      next = { heard, drifts: [], catchUp: { rate, until: now + Math.abs(filtered * wanted.rate / (rate - wanted.rate)) * 1000 } }
     } else next = { heard, drifts }
   }
 

@@ -61,4 +61,9 @@ describe('a follower kept with the host', () => {
       expect(run.lastMinuteMax).toBeLessThan(0.1)
     }
   })
+
+  // what a reading is off by is time, which at 2x is twice the media
+  test('at 2x takes the host\'s speed and is left alone through five minutes of jitter', async () => {
+    for (const run of await runs({ minutes: 5, rate: 2 })) expect(run).toMatchObject({ rates: [2], seeks: 0 })
+  })
 })

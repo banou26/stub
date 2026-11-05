@@ -106,6 +106,17 @@ describe('followCorrection', () => {
     expect(run(120, [...jitter, ...jitter.map(change => ({ ...change, at: change.at + 40 }))]).done).toEqual([])
   })
 
+  // a reading is off by time, so at 2x the same quarter second stale is half a second of media
+  test('the same jitter at 2x changes nothing either', () => {
+    const jitter = [0.4, -0.3, 0.2, -0.4, 0.9, 0.4, -0.2, 0.3, -0.4, 0.1].map((misread, index) => ({ at: 10 + index * 2, misread }))
+    expect(run(120, [...jitter, ...jitter.map(change => ({ ...change, at: change.at + 40 }))], { rate: 2 }).done).toEqual([])
+  })
+
+  test('at 2x, a host report 0.4 s off is no jump of the host\'s, as at 1x', () => {
+    expect(run(120, [{ at: 10, stall: 0.6 }, { at: 12, misread: 0.4 }]).done).toEqual([{ rate: NUDGE_RATE }, { rate: 1 }])
+    expect(run(120, [{ at: 10, stall: 1.2 }, { at: 12, misread: 0.8 }], { rate: 2 }).done).toEqual([{ rate: 2 * NUDGE_RATE }, { rate: 2 }])
+  })
+
   test('a steady 2 s drift is closed by one gentle catch-up, then the host\'s speed', () => {
     const { done, drift } = run(180, [{ at: 10, stall: 2 }])
     expect(done).toEqual([{ rate: NUDGE_RATE }, { rate: 1 }])

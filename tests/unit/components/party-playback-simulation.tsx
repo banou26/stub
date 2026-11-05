@@ -36,6 +36,8 @@ export type Scenario = {
   stalls?: [at: number, seconds: number][]
   /** When the host seeks, and by how much. */
   hostSeeks?: [at: number, by: number][]
+  /** The host's speed throughout. */
+  rate?: number
 }
 
 /** What the guest's player went through, and how far it was from the host's, sampled every 100 ms. */
@@ -150,6 +152,7 @@ export const simulate = async (scenario: Scenario, useStore: (store: PartyStore)
 
   const host = player(rand)
   const guest = player(rand, scenario.decoderDrift)
+  if (scenario.rate) host.media.playbackRate = scenario.rate
   const hostLink = linkMedia(host.media)
   const guestLink = linkMedia(guest.media)
   let last: PlaybackState | undefined
