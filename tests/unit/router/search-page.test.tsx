@@ -351,9 +351,10 @@ describe('the scene search', () => {
     for (const listener of stream.listeners) listener()
   })
   const flush = () => act(async () => { await Promise.resolve() })
-  const pasted = (file?: File, types = file ? ['Files'] : ['text/plain']) => {
+  const pasted = (file?: File, types = file ? ['Files'] : ['text/plain'], text = '') => {
     const event = new Event('paste', { bubbles: true, cancelable: true })
-    Object.defineProperty(event, 'clipboardData', { value: { files: file ? [file] : [], types } })
+    const getData = (type: string) => type === 'text/plain' ? text : ''
+    Object.defineProperty(event, 'clipboardData', { value: { files: file ? [file] : [], types, getData } })
     act(() => { document.dispatchEvent(event) })
     return event
   }
@@ -448,10 +449,20 @@ describe('the scene search', () => {
 
   test('a paste of text with a picture beside it, as Word and Excel copy, is the field\'s', async () => {
     const page = open('/search?q=mushoku')
-    const event = pasted(picture(), ['text/plain', 'text/html', 'Files'])
-    await flush()
-    expect(event.defaultPrevented).toBe(false)
+    for (const text of ['Mushoku Tensei', 'Frieren\r\n', 'see https://example.com/shot.png']) {
+      const event = pasted(picture(), ['text/plain', 'text/html', 'Files'], text)
+      await flush()
+      expect(event.defaultPrevented, text).toBe(false)
+    }
     expect(page.history).toEqual(['/search?q=mushoku'])
+  })
+
+  test('a picture copied in Firefox or Safari, its address the text beside it, opens its scene address', async () => {
+    const page = open('/search?q=mushoku')
+    const event = pasted(picture(), ['text/plain', 'text/html', 'Files'], 'https://example.com/shot.png')
+    await flush()
+    expect(event.defaultPrevented).toBe(true)
+    expect(page.history).toEqual(['/search?q=mushoku', `/search?scene=${CODE}`])
   })
 
   test('a new code draws placeholders until its own answer, never the last code\'s', async () => {

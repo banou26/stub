@@ -52,9 +52,13 @@ export const usePictureSearch = () => {
   return { searchPicture, unreadable }
 }
 
+// Firefox's and Safari's Copy Image put the picture's address beside it as its text, where Word and Excel put words
+const words = (data: DataTransfer) =>
+  data.types.includes('text/plain') && !/^(https?|data|blob|file):\S+$/.test(data.getData('text/plain').trim())
+
 /**
  * Calls `onPicture` with a file pasted or dropped on `area`, the whole page when there is none, while `enabled`. A
- * paste that carries text is left to the field, even with a file beside it: Word and Excel copy a picture of the
+ * paste that carries words is left to the field, even with a file beside it: Word and Excel copy a picture of the
  * selection next to its text.
  */
 export const usePictureInput = (onPicture: (file: File) => void, enabled: boolean, area?: RefObject<HTMLElement | null>) => {
@@ -65,7 +69,7 @@ export const usePictureInput = (onPicture: (file: File) => void, enabled: boolea
     if (!enabled || !target) return
     const paste = (event: ClipboardEvent) => {
       const file = event.clipboardData?.files[0]
-      if (!file || event.clipboardData!.types.includes('text/plain')) return
+      if (!file || words(event.clipboardData!)) return
       event.preventDefault()
       latest.current(file)
     }
