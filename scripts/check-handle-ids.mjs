@@ -46,7 +46,8 @@ for (const path of PAGES) {
   await page.waitForTimeout(15000)
   const hrefs = await page.evaluate(() => [...document.querySelectorAll('a[href*="/media/"]')].map(a => a.getAttribute('href')))
   for (const href of hrefs) {
-    const inner = decodeURIComponent(href ?? '').replace(/^\/media\/ag:\(|\)$/g, '').replace(/^\/media\//, '')
+    // the uri is the second segment, and the work's name may follow it
+    const inner = (decodeURIComponent(href ?? '').split('?')[0].split('/')[2] ?? '').replace(/^ag:\(|\)$/g, '')
     for (const handle of inner.split(',')) {
       const [origin, ...rest] = handle.split(':')
       const id = rest.join(':')

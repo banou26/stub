@@ -170,7 +170,8 @@ const main = async () => {
       const landed = decodeURIComponent(new URL(page.url()).pathname)
       // Not equality: the store folds more sources in and the address grows to name them, which is the
       // point of linking to a cluster. What matters is that it MOVED, and moved to the work clicked.
-      const asked = wanted.replace(/^\/media\/ag:\(|\)$/g, '')
+      // the uri alone, without the work's name after it
+      const asked = wanted.split('/')[2].replace(/^ag:\(|\)$/g, '')
       check(landed !== here, 'clicking a work in the graph actually goes there', `${here.slice(0, 34)} -> ${landed.slice(0, 46)}`)
       check(landed.includes(asked), 'and lands on the work that was clicked', `asked ${asked}, landed ${landed.slice(0, 60)}`)
       check(landed.startsWith('/media/ag:('), 'as a cluster the store can keep growing', landed.slice(0, 60))
