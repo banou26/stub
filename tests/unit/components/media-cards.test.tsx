@@ -153,6 +153,13 @@ describe('in German', () => {
     expect([row.text('.score .secondary'), row.text('.airing')]).toEqual([['115.797 Nutzer'], ['Bis Folge 1180: 2 Tage']])
   })
 
+  test('a card\'s and a row\'s genres read German, and are no links of their own', () => {
+    const card = draw(<MediaCard media={AIRING as never} to="/media/anilist:21"/>)
+    const row = draw(<MediaRow media={AIRING as never} to="/media/anilist:21"/>)
+    expect([card.text('.chips > span.genre'), row.text('.chips > span.genre')]).toEqual([['Action', 'Abenteuer'], ['Action', 'Abenteuer', 'Komödie']])
+    expect([card.host.querySelector('.chips a'), row.host.querySelector('.chips a')]).toEqual([null, null])
+  })
+
   test('the home page\'s category tabs read German', () => {
     expect(draw(<CategoryTabs value={null} onChange={() => {}}/>).text('.tab')).toEqual(['Alle', 'Anime', 'Serien', 'Filme'])
   })
