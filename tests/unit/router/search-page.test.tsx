@@ -449,7 +449,7 @@ describe('the scene search', () => {
 
   test('a paste of text with a picture beside it, as Word and Excel copy, is the field\'s', async () => {
     const page = open('/search?q=mushoku')
-    for (const text of ['Mushoku Tensei', 'Frieren\r\n', 'see https://example.com/shot.png']) {
+    for (const text of ['Mushoku Tensei', 'Frieren\r\n', 'see https://example.com/shot.png', 'https://example.com/shot.png the cover']) {
       const event = pasted(picture(), ['text/plain', 'text/html', 'Files'], text)
       await flush()
       expect(event.defaultPrevented, text).toBe(false)
@@ -457,11 +457,19 @@ describe('the scene search', () => {
     expect(page.history).toEqual(['/search?q=mushoku'])
   })
 
-  test('a picture copied in Firefox or Safari, its address the text beside it, opens its scene address', async () => {
+  test('a picture copied in Safari, its address the text beside it, opens its scene address', async () => {
     const page = open('/search?q=mushoku')
-    const event = pasted(picture(), ['text/plain', 'text/html', 'Files'], 'https://example.com/shot.png')
-    await flush()
-    expect(event.defaultPrevented).toBe(true)
+    for (const text of [
+      'https://example.com/shot.png',
+      'http://example.com/shot.png',
+      'data:image/png;base64,iVBORw0KGgo=',
+      'blob:https://example.com/0c4f8a2e-7d1b-4f3a-9b6e-2a5c8d1e3f40',
+      'file:///home/me/shot.png',
+    ]) {
+      const event = pasted(picture(), ['text/plain', 'text/uri-list', 'Files'], text)
+      await flush()
+      expect(event.defaultPrevented, text).toBe(true)
+    }
     expect(page.history).toEqual(['/search?q=mushoku', `/search?scene=${CODE}`])
   })
 
