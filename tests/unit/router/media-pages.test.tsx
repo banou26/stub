@@ -289,14 +289,14 @@ describe('the preview', () => {
   })
 
   // STUB-362: the owner, "Genre tags on media-preview/details should be clickable and redirect on genre search"
-  test('draws each genre as a link to the search for it, in the page\'s language, which leaves the preview for the search page', async () => {
+  test('draws each genre the site lists by as a link to the search for it, in the page\'s language, which leaves the preview for the search page', async () => {
     const frieren = { ...work(1, 'Frieren'), genres: ['Comedy', 'Award Winning'] }
     const { answer, history } = preview(frieren.uri)
     try {
       await startLanguage({ language: 'de', languages: ['de-DE'] })
       answer(frieren)
-      expect(pills(modal().querySelector('.side')!), 'a genre a site offers, one it does not as its source writes it, and a tag').toEqual([
-        ['Komödie', '/search?genre=Comedy'], ['Award Winning', '/search?genre=Award+Winning'], ['Travel', null],
+      expect(pills(modal().querySelector('.side')!), 'a genre a site lists by, one no source lists by outside a season, and a tag').toEqual([
+        ['Komödie', '/search?genre=Comedy'], ['Award Winning', null], ['Travel', null],
       ])
     } finally {
       await startLanguage({ language: 'en', languages: ['en-US'] })
@@ -479,19 +479,21 @@ describe('the title page', () => {
   })
 
   // STUB-362
-  test('draws each genre as a link to the search for it, in the page\'s language, and each tag as no link', async () => {
-    const frieren = { ...work(1, 'Frieren'), genres: ['Comedy', 'Award Winning'] }
+  test('draws each genre the site lists by as a link to the search for it, in the page\'s language, and each tag as no link', async () => {
+    const frieren = { ...work(1, 'Frieren'), genres: ['Comedy', 'Sport', 'Award Winning'] }
     const { host, answer, history } = titlePage(frieren.uri)
     try {
       await startLanguage({ language: 'de', languages: ['de-DE'] })
       answer(frieren)
-      expect(pills(host.querySelector('.facts')!)).toEqual([['Komödie', '/search?genre=Comedy'], ['Award Winning', '/search?genre=Award+Winning'], ['Travel', null]])
+      expect(pills(host.querySelector('.facts')!), 'JustWatch\'s Sport by stub.fkn.app\'s spelling').toEqual([
+        ['Komödie', '/search?genre=Comedy'], ['Sport', '/search?genre=Sports'], ['Award Winning', null], ['Travel', null],
+      ])
     } finally {
       await startLanguage({ language: 'en', languages: ['en-US'] })
     }
 
     click(host.querySelectorAll('.facts a.genre')[1]!)
-    expect(history.at(-1)).toBe('/search?genre=Award+Winning')
+    expect(history.at(-1)).toBe('/search?genre=Sports')
   })
 
   test('holds a line for each fact every anime has in its place, until it arrives or every source has answered without it', () => {

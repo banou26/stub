@@ -161,6 +161,10 @@ export const SITE_GENRES: Record<Site, readonly string[]> = {
   stub: BOTH_GENRES.filter((genre, index) => BOTH_GENRES.findIndex(other => genreKey(other) === genreKey(genre)) === index),
 }
 
+/** A genre as `SITE_GENRES` spells it, so stub.fkn.app's Sports for JustWatch's Sport; nothing when the site does not list by it. */
+export const siteGenre = (genre: string, current: Site = site): string | undefined =>
+  SITE_GENRES[current].find(own => genreKey(own) === genreKey(genre.trim()))
+
 // each genre of SITE_GENRES by its name in the url and in its sources' answers
 const GENRE_LABELS: Readonly<Record<string, MessageDescriptor>> = defineMessages({
   Action: { id: 'Action#genre', defaultMessage: 'Action', description: 'genre' },
@@ -256,8 +260,6 @@ const parseYear = (raw: string | null, now = new Date()): number | null => {
  */
 export const parseSearchFilters = (search: string, now = new Date(), current: Site = site): SearchFilters => {
   const params = new URLSearchParams(search)
-  // a genre as the site spells it, so an old stub.fkn.app link's `genre=Sport` reads as its Sports
-  const siteGenre = (genre: string) => SITE_GENRES[current].find(own => genreKey(own) === genreKey(genre.trim())) ?? genre
   return {
     query: (params.get(SEARCH_PARAMS.query) ?? '').trim(),
     category: memberOf(CATEGORY_VALUES, params.get(SEARCH_PARAMS.category)),
@@ -265,7 +267,8 @@ export const parseSearchFilters = (search: string, now = new Date(), current: Si
     season: memberOf(SEASON_VALUES, params.get(SEARCH_PARAMS.season)),
     year: parseYear(params.get(SEARCH_PARAMS.year), now),
     formats: membersOf(FORMAT_VALUES, params.getAll(SEARCH_PARAMS.format)),
-    genres: dedupeLabels(params.getAll(SEARCH_PARAMS.genre).map(siteGenre)),
+    // an old stub.fkn.app link's `genre=Sport` reads as its Sports
+    genres: dedupeLabels(params.getAll(SEARCH_PARAMS.genre).map(genre => siteGenre(genre, current) ?? genre)),
     tags: dedupeLabels(params.getAll(SEARCH_PARAMS.tag)),
   }
 }

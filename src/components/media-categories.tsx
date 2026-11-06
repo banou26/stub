@@ -1,7 +1,7 @@
 import { css } from '@emotion/react'
 import { Link } from 'wouter'
 
-import { genreLabel, searchPath } from '../router/search/params'
+import { genreLabel, searchPath, siteGenre } from '../router/search/params'
 
 /**
  * The look of `MediaCategories`, which the page drawing it carries in its own style. A style a component inserts itself
@@ -39,16 +39,19 @@ export const categoriesStyle = css`
 
 /**
  * A title's genres, then its tags, as pills, the genres brighter and in the page's language, drawn as `categoriesStyle`
- * says; nothing when it has neither. With `linked` each genre links to the search for it, so never inside another link,
- * as a card and a row are.
+ * says; nothing when it has neither. With `linked` each genre the site lists by (`siteGenre`) links to the search for
+ * it, so never inside another link, as a card and a row are; any other would open a search no source answers.
  */
 const MediaCategories = ({ genres = [], tags = [], linked = false }: { genres?: readonly string[], tags?: readonly string[], linked?: boolean }) =>
   genres.length || tags.length
     ? (
       <div className="chips">
-        {genres.map(genre => linked
-          ? <Link key={genre} className="chip genre" href={searchPath({ genres: [genre] })}>{genreLabel(genre)}</Link>
-          : <span key={genre} className="chip genre">{genreLabel(genre)}</span>)}
+        {genres.map(genre => {
+          const listed = linked && siteGenre(genre)
+          return listed
+            ? <Link key={genre} className="chip genre" href={searchPath({ genres: [listed] })}>{genreLabel(genre)}</Link>
+            : <span key={genre} className="chip genre">{genreLabel(genre)}</span>
+        })}
         {tags.map(tag => <span key={tag} className="chip tag">{tag}</span>)}
       </div>
     )
