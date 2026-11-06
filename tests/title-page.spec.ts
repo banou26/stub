@@ -1416,6 +1416,7 @@ test('a genre on a title\'s page and in its preview opens the search for it, the
   const drama = modal(page).locator('.columns > .side .chip.genre', { hasText: 'Drama' })
   const fill = () => drama.evaluate(element => getComputedStyle(element).backgroundColor)
   await expect(drama).toBeVisible({ timeout: 30_000 })
+  await expect(drama, 'no underline').toHaveCSS('text-decoration-line', 'none')
   const rest = await fill()
   await drama.hover()
   await expect.poll(fill, 'lighter under the pointer').not.toBe(rest)

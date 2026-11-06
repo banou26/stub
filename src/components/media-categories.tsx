@@ -32,7 +32,6 @@ export const categoriesStyle = css`
   & > .genre { background: rgba(255, 255, 255, 0.12); color: #fff; }
   & > .tag { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); }
 
-  & > a.genre { text-decoration: none; }
   & > a.genre:hover { background: rgba(255, 255, 255, 0.2); }
   /* inside the pill: the title page's row of them scrolls, which clips anything drawn around one */
   & > a.genre:focus-visible { outline: 0.2rem solid rgba(255, 255, 255, 0.8); outline-offset: -0.2rem; }
