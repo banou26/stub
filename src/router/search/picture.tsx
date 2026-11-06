@@ -52,9 +52,10 @@ export const usePictureSearch = () => {
   return { searchPicture, unreadable }
 }
 
-// Firefox's and Safari's Copy Image put the picture's address beside it as its text, where Word and Excel put words
+// Safari's Copy Image puts the picture's address beside it as its text (WebKit's writableTypesForImage), where Word and
+// Excel put words. Chrome's and Firefox's put no text.
 const words = (data: DataTransfer) =>
-  data.types.includes('text/plain') && !/^(https?|data|blob|file):\S+$/.test(data.getData('text/plain').trim())
+  data.types.includes('text/plain') && !/^(https?|data|blob|file):\S+$/.test(data.getData('text/plain'))
 
 /**
  * Calls `onPicture` with a file pasted or dropped on `area`, the whole page when there is none, while `enabled`. A
