@@ -346,8 +346,8 @@ test('a picture search takes over the field its words were typed in, picked with
 })
 
 /**
- * Fills the browser's clipboard as a copy does: a picture with its markup beside it, as Chrome's Copy Image hands it,
- * and `text` as the text beside it, which Firefox's and Safari's Copy Image make the picture's address and Excel the
+ * Fills the browser's clipboard as a copy does: a picture with its markup beside it, as Chrome's and Firefox's Copy
+ * Image hand it, and `text` as the text beside it, which Safari's Copy Image makes the picture's address and Excel the
  * words of its cells. Words alone when there is no `bytes`.
  */
 const copy = (page: Page, bytes: Buffer | undefined, text?: string) =>
@@ -367,8 +367,8 @@ test('a picture pasted in the bar from the keyboard opens its scene search, its 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     for (const [how, bytes, text] of [
-      ['as Chrome copies it', FRAME, undefined],
-      ['as Firefox and Safari copy it', FRAME, 'https://example.com/shot.png'],
+      ['as Chrome and Firefox copy it', FRAME, undefined],
+      ['as Safari copies it', FRAME, 'https://example.com/shot.png'],
       ['words beside a picture, as Excel copies them', FRAME, 'Spec Rated'],
       ['words alone', undefined, 'Spec Rated'],
     ] as const) {
