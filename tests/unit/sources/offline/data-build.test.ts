@@ -7,6 +7,7 @@ import { HISTORY_SOURCES, buildExtract, historySets, refusal } from '../../../..
 import { decodeHistory, encodeHistory, encodePicks, withPicks } from '../../../../scripts/history-files.mjs'
 import * as offlinePick from '../../../../scripts/offline-pick'
 import { historyPicks, historyShards, type AnidbTitle, type HistoryRecord } from '../../../../scripts/offline-pick'
+import { seasonMedia, type ManamiRecord } from '../../../../src/sources/offline/normalize'
 
 const BEBOP = {
   title: 'Cowboy Bebop',
@@ -26,6 +27,25 @@ test('a record outside the bundled seasons reaches the history with its ids, Ani
   const { history, seasons } = buildExtract({ entries: [BEBOP], meta: { lastUpdate: '2026-10-19' }, tag: '2026-43' })
   expect(history).toEqual([{ t: 'Cowboy Bebop', ty: 'TV', p: '4/19644.jpg', ml: 1, al: 1, ku: 1, ad: 23 }])
   expect(seasons).toEqual({})
+})
+
+// The three the 2026-44 dump carries, as it writes them.
+const PLACEHOLDERS = [
+  'https://raw.githubusercontent.com/cedya77/anime-offline-database/main/pics/no_pic.png',
+  'https://cdn.anime-planet.com/images/anime/default/default-anime-fall.png',
+  'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg',
+]
+
+// Mutation: keep the dump's picture whatever it is.
+test('a placeholder picture is no poster in the bundle, so a card draws another source\'s from its first paint', () => {
+  const show = (ml: number, picture: string) =>
+    ({ ...BEBOP, title: `Show ${ml}`, picture, sources: [`https://myanimelist.net/anime/${ml}`], animeSeason: { year: 2026, season: 'FALL' } })
+  const entries = [...PLACEHOLDERS.map((picture, index) => show(index + 1, picture)), show(4, BEBOP.picture)]
+  const { seasons, history } = buildExtract({ entries, meta: { lastUpdate: '2026-10-19' }, tag: '2026-43' })
+  const pictures = [[1, ''], [2, ''], [3, ''], [4, '4/19644.jpg']]
+  expect(seasons['2026-FALL'].map(({ ml, p }: { ml: number, p: string }) => [ml, p])).toEqual(pictures)
+  expect(history.map(({ ml, p }: { ml: number, p: string }) => [ml, p])).toEqual(pictures)
+  expect(seasons['2026-FALL'].map((record: ManamiRecord) => seasonMedia(record, '2026-FALL')!.covers.length)).toEqual([0, 0, 0, 1])
 })
 
 // Mutations: rename a source; drop TVmaze's licence or its link back.

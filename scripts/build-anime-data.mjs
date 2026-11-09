@@ -72,7 +72,6 @@ import { DOWNLOAD, MANIFEST, decodeHistory, downloadAssets, downloadManifest, lo
 
 const require = createRequire(import.meta.url)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const DATA_DIR = resolve(ROOT, 'data')
 const OUT_DIR = resolve(ROOT, 'src/generated')
 
 // A build cache, never a checked-in artifact. Nothing generated is committed: `data/` holds only the
@@ -164,6 +163,13 @@ const idIn = (sources, host) => {
   const id = /(\d+)\/?$/.exec(matches[0])?.[1]
   return id ? Number(id) : 0
 }
+
+// The offline database's stand-ins for a show it has no picture of, counted in the 2026-44 dump: its no_pic.png (234
+// records), anime-planet's default-anime-<season>.png (46) and AniList's cover/medium/default.jpg (12). Kept as a poster,
+// no_pic.png, once any card has loaded it, is drawn first by every card carrying it, ahead of a better ranked cover still
+// loading, and at 225x318 a card keeps it over any poster less than 1.25 times sharper (src/utils/use-cover-url.ts),
+// AniList's 230x307 among them.
+const PLACEHOLDER = /\/pics\/no_pic\.png$|\/\/cdn\.anime-planet\.com\/images\/anime\/default\/|\/anilistcdn\/media\/anime\/cover\/\w+\/default\.jpg$/
 
 /* --------------------------------------------------------------------------------------------- */
 /* manami: fetch, trim, cache                                                                       */
@@ -373,7 +379,7 @@ export const buildExtract = ({ entries, meta, tag, sha256: dumpSha256 }) => {
       // prefix is 42 of its roughly 70 bytes. The replace is a NO-OP for the many entries whose
       // picture manami took from somewhere else (anidb, kitsu, anisearch, ANN and five more), so
       // those stay absolute and the client tells the two apart rather than prefixing blindly.
-      p: entry.picture?.replace('https://cdn.myanimelist.net/images/anime/', '') ?? '',
+      p: PLACEHOLDER.test(entry.picture ?? '') ? '' : entry.picture?.replace('https://cdn.myanimelist.net/images/anime/', '') ?? '',
     }
     if (entry.episodes) record.ep = entry.episodes
     if (ids.mal) record.ml = ids.mal
