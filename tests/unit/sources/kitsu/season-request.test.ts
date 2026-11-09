@@ -1,7 +1,8 @@
 // The season LISTING, from the resolver down: which season the walk asks Kitsu for, and what the rows
 // it hands back are allowed to claim. season-paging.test.ts pins the url builder on its own; this file
 // pins the two decisions above it, the ones a season-filtered `mediaPage` input can get wrong.
-import { describe, expect, test } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/kitsu/extractor'
 import { SEASON_PAGE_SIZE, seasonPageNumbers } from '../../../../src/sources/kitsu/season-paging'
@@ -147,5 +148,33 @@ describe('what a row may claim about its season', () => {
     expect(nodes.length).toBe(1)
     expect(nodes[0]!.season).toBeUndefined()
     expect(nodes[0]!.seasonYear).toBeUndefined()
+  })
+})
+
+// Kitsu's Summer 2026 walk of 2026-10-16: Saga of Tanya the Evil II leads page 1 with 4,841 users, and BAKI-DOU
+// Part 2, which no other source counts, is on page 4 with 195
+describe('a season walk\'s popularity', () => {
+  const pages = JSON.parse(readFileSync(new URL('./__fixtures__/kitsu-season-summer-2026.json', import.meta.url), 'utf8'))
+  const ctx = {
+    fetch: async (url: string) => ({ json: async () => pages[Number(new URL(url, 'https://kitsu.io').searchParams.get('page[number]')) - 1] }),
+  } as never
+
+  test('is each show\'s users over the most any show of the walk has, on whichever page', async () => {
+    const nodes = await pageNodes({ season: 'SUMMER', seasonYear: 2026 }, ctx) as (Node & { followers?: number, popularity?: number })[]
+
+    expect(nodes.map(node => [node.uri, node.followers, node.popularity])).toEqual([
+      ['kitsu:44778', 4841, 1],
+      ['kitsu:49002', 3689, 3689 / 4841],
+      ['kitsu:50635', 195, 195 / 4841],
+      ['kitsu:48693', 28, 28 / 4841],
+      ['kitsu:50931', 9, 9 / 4841],
+    ])
+  })
+
+  test('a search is no season, so it sets none', async () => {
+    const nodes = await pageNodes({ search: 'youjo senki' }, { fetch: async () => ({ json: async () => pages[0] }) } as never) as { popularity?: number }[]
+
+    expect(nodes.length).toBe(2)
+    expect(nodes.map(node => node.popularity)).toEqual([undefined, undefined])
   })
 })

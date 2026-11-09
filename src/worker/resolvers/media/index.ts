@@ -256,7 +256,7 @@ export const resolvers = {
             aggregated = thinLast(
               scored
                 .filter(entry => entry.score >= SEARCH_RELEVANCE_THRESHOLD)
-                .sort((a, b) => b.score - a.score || (b.media.popularity ?? 0) - (a.media.popularity ?? 0))
+                .sort((a, b) => b.score - a.score || (b.media.followers ?? 0) - (a.media.followers ?? 0))
                 .map(entry => entry.media)
             )
           }
@@ -265,7 +265,7 @@ export const resolvers = {
           // carries everywhere else, this app's own AniList calls included. Both members pointed the
           // other way until 2026-09-12. The home row and the search page ask for `POPULARITY_DESC` and
           // render the list in the order given, so this is what puts the most popular card first.
-          return applyMediaSorts(aggregated, args.input.sorts)
+          return applyMediaSorts(aggregated, args.input)
         }
 
         const getPage = async () => {

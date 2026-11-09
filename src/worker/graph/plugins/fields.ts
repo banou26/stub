@@ -162,6 +162,7 @@ export type ClusterCard = {
   banners: unknown[]
   trailers: unknown[]
   popularity: number | null
+  followers: number | null
   averageScore: number | null
   episodeCount: number | null
   nextAiringEpisode: Record<string, unknown> | null
@@ -387,9 +388,14 @@ const nodeOf = (member: MemberRow): Record<string, unknown> => ({
 })
 
 const SCALARS = [
-  'url', 'type', 'status', 'averageScore', 'popularity', 'startDate', 'endDate', 'isAdult', 'nextAiringEpisode',
-  'airingSchedule', 'duration', 'sourceMaterial',
+  'url', 'type', 'status', 'averageScore', 'popularity', 'followers', 'popularityRank', 'startDate', 'endDate', 'isAdult',
+  'nextAiringEpisode', 'airingSchedule', 'duration', 'sourceMaterial',
 ] as const
+
+// kitsu counts its own, smaller following: its user count is about 80 times smaller than MyAnimeList's for the same
+// show (measured on Fall 2026, 2026-10-17) and its rank is out of another catalogue, so they stand in only when no
+// other member has one
+const KITSU_LAST = new Set<string>(['popularity', 'followers', 'popularityRank'])
 
 /**
  * ONE HANDLE PER RELATION AND TARGET, which the narrative axis already does and this side did not.
@@ -463,9 +469,7 @@ export const aggregateFields = (options: {
   // origin that does not coerce one
   for (const field of SCALARS) {
     const present = owned.filter(member => member.raw[field] !== null && member.raw[field] !== undefined)
-    // kitsu's count is its user count, about 80 times smaller than the bundle's laid count for the same show
-    // (measured on Fall 2026, 2026-10-17), so it only stands in when no other member has a count
-    if (field === 'popularity') present.sort((a, b) => Number(a.origin === 'kitsu') - Number(b.origin === 'kitsu'))
+    if (KITSU_LAST.has(field)) present.sort((a, b) => Number(a.origin === 'kitsu') - Number(b.origin === 'kitsu'))
     const first = present[0]
     const supplier = first && (field === 'startDate' || field === 'endDate')
       ? present.reduce((best, member) =>
@@ -639,6 +643,7 @@ export const cardOf = (media: AggregatedMedia, members: readonly string[]): Clus
   averageScore: (media.averageScore as number | null) ?? null,
   nextAiringEpisode: (media.nextAiringEpisode as Record<string, unknown> | null) ?? null,
   popularity: (media.popularity as number | null) ?? null,
+  followers: (media.followers as number | null) ?? null,
   episodeCount: (media.episodeCount as number | null) ?? null,
   type: (media.type as string | null) ?? null,
   status: (media.status as string | null) ?? null,

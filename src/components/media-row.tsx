@@ -91,7 +91,7 @@ const style = css`
 /**
  * One media as a row, with every column aligned down the page.
  *
- * The densest of the three modes and the only one that shows popularity: a reader comparing twenty
+ * The densest of the three modes and the only one that shows followers: a reader comparing twenty
  * results down a column is the reader for whom "82%, 115,797 users" says more than either half does.
  */
 const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
@@ -114,8 +114,8 @@ const MediaRow = ({ media, to }: { media: ListedMedia, to: Path }) => {
       <div className="column score">
         {media.averageScore != null && <StarScore percent={media.averageScore}/>}
         {
-          media.popularity != null
-            && <span className="secondary">{intl.formatMessage({ id: '{count, plural, one {# user} other {# users}}', defaultMessage: '{count, plural, one {# user} other {# users}}' }, { count: media.popularity })}</span>
+          media.followers != null
+            && <span className="secondary">{intl.formatMessage({ id: '{count, plural, one {# user} other {# users}}', defaultMessage: '{count, plural, one {# user} other {# users}}' }, { count: media.followers })}</span>
         }
       </div>
       <div className="column format">

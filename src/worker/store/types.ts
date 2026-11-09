@@ -125,6 +125,8 @@ export type Media = {
   banners: Banner[]
   averageScore: number | null
   popularity: number | null
+  followers: number | null
+  popularityRank: number | null
   startDate: string | null
   endDate: string | null
   isAdult: boolean | null

@@ -62,6 +62,7 @@ export const SEARCH_CARD_FRAGMENT = gql(`
       thumbnail
     }
     popularity
+    followers
     genres
     tags
     averageScore

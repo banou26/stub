@@ -9,6 +9,7 @@ import { parseMalCredits } from './credits-page'
 import { malLargeImage } from '../mal-image'
 import { animeSeasonOf, lowerSeason, upperSeason, type AnimeSeason } from '../season'
 import { percentScore } from '../average-score'
+import { withSeasonPopularity } from '../popularity'
 
 export const icon = 'https://cdn.myanimelist.net/images/favicon.ico'
 export const originUrl = 'https://myanimelist.net'
@@ -111,7 +112,8 @@ const pageMedia = (id: string, page: MalAnime) => {
     ],
     covers: page.cover ? [{ language: 'en', url: page.cover, score: SCORE }] : [],
     episodeCount: page.episodes,
-    popularity: page.members,
+    followers: page.members,
+    popularityRank: page.popularityRank,
     genres: page.genres,
     status: page.status ? STATUSES[page.status] : undefined,
     season: season ? upperSeason(season) : undefined,
@@ -171,7 +173,7 @@ const seasonMedia = (entry: MalSeasonEntry, { season, year }: { season: AnimeSea
     genres: entry.genres ?? [],
     ...desc(entry.synopsis, DESCRIPTION_SCORE),
     episodeCount: entry.episodes,
-    popularity: entry.members,
+    followers: entry.members,
     averageScore: percentScore(entry.score, 10),
     startDate: entry.startDate,
     season: upperSeason(season),
@@ -198,9 +200,9 @@ const getSeason = async ({ season, year }: { season: AnimeSeason, year: number }
     if (!entries.some(entry => entry.section)) {
       console.error('MyAnimeList season page has no section headings, so carried-over shows cannot be told apart')
     }
-    return entries
+    return withSeasonPopularity(entries
       .filter(entry => !isContinuing(entry) && !entry.adult)
-      .map(entry => seasonMedia(entry, { season, year }))
+      .map(entry => seasonMedia(entry, { season, year })))
   } catch (error) {
     console.error(`MyAnimeList ${season} ${year} failed`, error)
     return []

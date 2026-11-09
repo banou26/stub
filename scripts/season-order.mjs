@@ -15,10 +15,10 @@
  * paint was the alphabet: "Kimi o Aisuru Ki wa Nai", "Adventure Time: Side Quests", "Aware!
  * Meisaku-kun" (measured on the shipped bundle, SUMMER 2026, 2026-09-05).
  *
- * MEMBER COUNTS FIRST (`pop`), which is MyAnimeList's popularity, read at build time off its season
- * page (./season-popularity.mjs). That is the order the owner asked for and the one the live listing
- * settles into, because the live `mal` source publishes the same number at score 0.9 and wins the
- * aggregate.
+ * SHARE OF THE SEASON FIRST (`pp`), then the count (`pp` ties, and a bucket laid before the shares
+ * are worked out), both read at build time off the season sources the live listing reads
+ * (./season-popularity.mjs). That is the order the live listing settles into, since it sorts a season
+ * on the same share.
  *
  * The 1 to 10 RATING (`sc`) only breaks ties among records the count does not cover, and is the whole
  * order when the fetch failed. It is a poor proxy on its own: 37 of 219 SUMMER 2026 records carry one
@@ -26,9 +26,9 @@
  * page painted before the counts arrived. The tail with neither keeps its arrival order, so the
  * bundle stays byte-deterministic for a given dump.
  *
- * @template {{ sc?: number, pop?: number }} T
+ * @template {{ sc?: number, pop?: number, pp?: number }} T
  * @param {readonly T[]} records
  * @returns {T[]}
  */
 export const orderSeasonBucket = records =>
-  [...records].sort((a, b) => (b.pop ?? -1) - (a.pop ?? -1) || (b.sc ?? -1) - (a.sc ?? -1))
+  [...records].sort((a, b) => (b.pp ?? -1) - (a.pp ?? -1) || (b.pop ?? -1) - (a.pop ?? -1) || (b.sc ?? -1) - (a.sc ?? -1))

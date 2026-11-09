@@ -205,7 +205,7 @@ test('a show MyAnimeList lists for a season that its bucket lacks is added from 
   const media = seasonMedia(added!, '2026-SUMMER')
   expect(media?.handles.map(handle => handle.node.uri), 'the uri the live MyAnimeList source answers with').toEqual(['mal:61469'])
   expect(media?.covers[0]?.url).toBe('https://cdn.myanimelist.net/images/anime/1065/158884l.webp')
-  expect([media?.season, media?.seasonYear, media?.popularity]).toEqual(['SUMMER', 2026, 247_199])
+  expect([media?.season, media?.seasonYear, media?.followers]).toEqual(['SUMMER', 2026, 247_199])
 })
 
 // Measured 2026-10-16 on the Fall 2026 page: asked in English (`en`, `en-US`) its cards carry 89 English

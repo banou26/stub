@@ -7,7 +7,7 @@
 // file pins the third path: the show goes out as PART_OF, a container edge the store never unions on,
 // and the WORKER asks the owning origin for the precise run on the run's own page, with the whole
 // cluster's evidence (worker/similar-consumer.ts). Nothing here asks, and nothing here claims.
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/kitsu/extractor'
 
@@ -18,8 +18,8 @@ const CR_SHOW_URL = 'https://www.crunchyroll.com/series/G24H1N3MP/mushoku-tensei
 const NF_TITLE_URL = 'https://www.netflix.com/title/81006261'
 
 const context = (
-  { subtype, startDate, streams = [CR_SHOW_URL] }:
-  { subtype: string, startDate: string | null, streams?: string[] }
+  { subtype, startDate, streams = [CR_SHOW_URL], counts = {} }:
+  { subtype: string, startDate: string | null, streams?: string[], counts?: { userCount?: number, popularityRank?: number } }
 ) => ({
   fetch: async (url: string) => {
     const body =
@@ -35,6 +35,7 @@ const context = (
             canonicalTitle: 'Mushoku Tensei: Jobless Reincarnation Season 3',
             titles: { en: 'Mushoku Tensei: Jobless Reincarnation Season 3' },
             episodeCount: 14,
+            ...counts,
           },
           relationships: { mappings: { data: [] } },
         },
@@ -127,4 +128,13 @@ test('a cour record carries its netflix title as a container rather than minting
 
   expectContainerOnly(edges, 'nf', '81006261')
   expect(edges.map(handle => handle.node.uri)).toEqual(['nf:81006261'])
+})
+
+// kitsu:49002 answered 3,843 users and rank 3,292 on 2026-11-09
+test('a title carries its users and its all-time rank, and no share of a season', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const ctx = context({ subtype: 'TV', startDate: '2026-07-06', counts: { userCount: 3843, popularityRank: 3292 } })
+  const { value } = await subscribe(undefined, { input: { uri: 'kitsu:49002' } }, ctx).next()
+
+  expect([value.media.followers, value.media.popularityRank, value.media.popularity]).toEqual([3843, 3292, undefined])
 })

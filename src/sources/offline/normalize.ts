@@ -60,6 +60,8 @@ export type ManamiRecord = {
   sc?: number
   /** The count the live season page settles on, read at build time: see `withSeasonSources` in scripts/season-popularity.mjs */
   pop?: number
+  /** The `popularity` the live season page settles on, from the same build-time read */
+  pp?: number
   /** MyAnimeList's synopsis, current season only: what the homepage hero selects on */
   sy?: string
   // No genres and no tags: the measurement that keeps them out of the bundle is in `seasonMedia`.
@@ -130,13 +132,11 @@ const handles = (record: ManamiRecord): GQLMedia[] => {
  * (the 2026-07-04 dump calls 192 of its 219 SUMMER 2026 entries UPCOMING, and every one was airing
  * six weeks later).
  *
- * `popularity` IS published now, and manami still has none: it is the count the live season page
- * settles on (MyAnimeList's members, else AniList's or Kitsu's count), read at build time
- * (scripts/season-popularity.mjs). Without it the listing, which sorts on popularity, swept every
- * bundled row to the tail and painted whatever order the bundle happened to ship in. The live source
- * it came from publishes the same count above this score, but so does Kitsu (0.3) on its own scale,
- * about 80 times smaller: a show Kitsu lists takes Kitsu's count until MyAnimeList or AniList answers.
- * A row no source counted carries none, which sorts it behind the counted ones.
+ * `followers` and `popularity` ARE published now, and manami has neither: they are the count and the
+ * share of the season the live season page settles on (MyAnimeList's, else AniList's, else Kitsu's),
+ * read at build time (scripts/season-popularity.mjs). Without them the listing, which sorts on
+ * popularity, swept every bundled row to the tail and painted whatever order the bundle happened to
+ * ship in. A row no source counted carries neither, which sorts it behind the counted ones.
  *
  * `season` and `seasonYear` come from the BUCKET KEY, which is the only place the bundle states them:
  * the records themselves carry no season, so a caller that has lost the key gets null for both rather
@@ -169,7 +169,8 @@ export const seasonMedia = (record: ManamiRecord, key?: string): GQLMedia | unde
     titles: [{ language: 'en', title: record.t, score: SCORE }],
     covers: record.p ? [{ url: coverUrl(record.p), score: SCORE }] : [],
     episodeCount: record.ep || undefined,
-    popularity: record.pop || undefined,
+    followers: record.pop || undefined,
+    popularity: record.pp || undefined,
     // The hero keeps only media carrying titles AND shortDescriptions (utils/theater.ts), and manami
     // has no synopsis, so the homepage rendered an empty hero until a live source answered. It rides
     // the same build-time read of MyAnimeList's season page as the member counts, current season only.

@@ -27,11 +27,11 @@ const HOUR = 3_600_000
 // One Piece's 1180th episode two days and three hours out, as the search page's card and list modes read it
 const AIRING = {
   _id: 'cl:anilist:21', uri: 'anilist:21', titles: [{ title: 'One Piece' }], covers: [], genres: ['Action', 'Adventure', 'Comedy'],
-  shortDescriptions: [{ shortDescription: 'A pirate.' }], averageScore: 82, popularity: 115797, episodeCount: 1180,
+  shortDescriptions: [{ shortDescription: 'A pirate.' }], averageScore: 82, popularity: 0.315, followers: 115797, episodeCount: 1180,
   type: 'TV', status: 'RELEASING', season: 'FALL', seasonYear: 1999,
   nextAiringEpisode: { episodeNumber: 1180, airingAt: new Date(NOW + 51 * HOUR).toUTCString() },
 }
-const FINISHED = { ...AIRING, status: 'FINISHED', nextAiringEpisode: null, episodeCount: 1, popularity: 1 }
+const FINISHED = { ...AIRING, status: 'FINISHED', nextAiringEpisode: null, episodeCount: 1, followers: 1 }
 
 // A film, a live-action show TVmaze lists with no format, an anime show, and the shelf an anime
 // catalogue files a work under when it could not type it

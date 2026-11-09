@@ -8,6 +8,7 @@
 
 import { MAL_TYPE, isContinuing, parseMalSeason } from '../src/sources/jikan/season-scrape.ts'
 import { seasonPageNumbers, seasonQuery } from '../src/sources/kitsu/season-paging.ts'
+import { shareOf } from '../src/sources/popularity.ts'
 import { mediaSeasonNow } from '../src/sources/season.ts'
 import { COLUMNS, mergeIds } from './merge-ids.mjs'
 import { orderSeasonBucket } from './season-order.mjs'
@@ -316,9 +317,10 @@ const pairing = (index, seasons) => {
  *
  * A record takes the count, the cover and the title the live page settles on, from the highest scored
  * source giving one this season: for the count MyAnimeList (0.9), AniList (0.8), Kitsu (0.3), else its
- * own; for the cover MyAnimeList's, AniList's `extraLarge`, Kitsu's original, else its own; for the
- * title MyAnimeList's English one (0.9), AniList's (0.8), MyAnimeList's romaji one (0.4), Kitsu's
- * (0.3), else its own (0.2). A source's record keeps its own id and only the ids it claims that agree
+ * own, which is MyAnimeList's off another season's page; for the cover MyAnimeList's, AniList's
+ * `extraLarge`, Kitsu's original, else its own; for the title MyAnimeList's English one (0.9),
+ * AniList's (0.8), MyAnimeList's romaji one (0.4), Kitsu's (0.3), else its own (0.2). Its `pp` is the
+ * live `popularity`: that count over the most the same source counts for the season. A source's record keeps its own id and only the ids it claims that agree
  * with every other show's (see `pairing`). It joins the bundled records of its season those ids
  * name, which become one record when there are several (the offline database holds some shows as two
  * records with no id in common): the first in the bucket's order, keeping its fields and taking the
@@ -352,13 +354,19 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
         listed.set(record, { [own]: row, ...listed.get(record) })
       }
     }
+    const most = {
+      ml: Math.max(0, ...[...malPages.get(key)?.values() ?? []].map(card => card.adult ? 0 : card.members ?? 0)),
+      ...Object.fromEntries(answers.map(({ own, pages }) => [own, Math.max(0, ...(pages.get(key) ?? []).map(row => row.pop ?? 0))])),
+    }
     laid[key] = orderSeasonBucket(records.map(record => {
       const listedCard = malPages.get(key)?.get(record.ml)
       const card = listedCard?.adult ? undefined : listedCard
       const { al, ku } = listed.get(record) ?? {}
-      const pop = card?.members || al?.pop || ku?.pop || record.pop
+      const [pop, source] = card?.members ? [card.members, 'ml'] : al?.pop ? [al.pop, 'al'] : ku?.pop ? [ku.pop, 'ku'] : [record.pop, 'ml']
+      const pp = shareOf(pop, most[source])
       const p = card?.cover?.replace(COVER_PREFIX, '') || al?.p || ku?.p || record.p
-      return { ...record, t: card?.englishTitle ?? al?.t ?? card?.title ?? ku?.t ?? record.t, p, ...pop && { pop } }
+      // three figures keep a season's order: the shares cost the 2026-11-09 bundle 6.7 KB raw, 1.2 KB brotli
+      return { ...record, t: card?.englishTitle ?? al?.t ?? card?.title ?? ku?.t ?? record.t, p, ...pop && { pop }, ...pp && { pp: Number(pp.toPrecision(3)) } }
     }))
   }
   return laid

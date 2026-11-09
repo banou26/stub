@@ -27,6 +27,8 @@ export const normalizeToStoreMedia = (media: Media): StoreMedia => ({
   banners: media.banners ?? [],
   averageScore: media.averageScore ?? null,
   popularity: media.popularity ?? null,
+  followers: media.followers ?? null,
+  popularityRank: media.popularityRank ?? null,
   startDate: media.startDate ?? null,
   endDate: media.endDate ?? null,
   isAdult: media.isAdult ?? null,

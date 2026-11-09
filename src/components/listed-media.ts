@@ -11,7 +11,7 @@ import { isMovieMedia } from '../router/home/movie'
  */
 export type ListedMedia = Pick<Media,
   '_id' | 'uri' | 'titles' | 'covers' | 'genres' | 'shortDescriptions'
-  | 'averageScore' | 'popularity' | 'episodeCount' | 'type' | 'categories' | 'status' | 'season' | 'seasonYear'
+  | 'averageScore' | 'popularity' | 'followers' | 'episodeCount' | 'type' | 'categories' | 'status' | 'season' | 'seasonYear'
   | 'nextAiringEpisode'
 >
 

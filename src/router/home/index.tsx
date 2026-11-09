@@ -53,6 +53,7 @@ const GET_RELEASING_MEDIA_PAGE = gql(`
           thumbnail
         }
         popularity
+        followers
       }
     }
   }

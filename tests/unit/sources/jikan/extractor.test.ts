@@ -59,7 +59,8 @@ test('a title is read off its myanimelist.net page, with every field Jikan answe
     startDate: '1998-04-03',
     endDate: '1999-04-24',
     episodeCount: 26,
-    popularity: 2091002,
+    followers: 2091002,
+    popularityRank: 41,
     averageScore: 88,
     genres: ['Action', 'Award Winning', 'Sci-Fi', 'Adult Cast', 'Space'],
     titles: [
@@ -81,6 +82,8 @@ test('a title is read off its myanimelist.net page, with every field Jikan answe
   // every platform the page lists to watch on, whatever country, which a view picks from
   expect(media.streamingLinks).toHaveLength(8)
   expect(media.streamingLinks[0]).toEqual({ site: 'Netflix', url: 'https://www.netflix.com/title/80001305', icon: 'https://images.justwatch.com/icon/207360008/s100', country: 'JP' })
+  // a title page is one show, with no season beside it to take a share of
+  expect(media.popularity).toBeUndefined()
 })
 
 test('a film is a movie with no season, and a show not yet aired keeps its partial start', async () => {
@@ -302,9 +305,19 @@ test('a season card carries its type, title, cover, genres, members and start', 
     titles: [{ language: 'jp-en', title: 'Mahou Shoujo Ikusei Keikaku: Restart', score: 0.4 }],
     covers: [{ language: 'en', url: 'https://cdn.myanimelist.net/images/anime/1518/160127l.webp', score: 0.9 }],
     genres: ['Action', 'Suspense', 'Gore', 'High Stakes Game', 'Mahou Shoujo', 'Survival'],
-    popularity: 13337,
+    followers: 13337,
     startDate: '2026-10-06',
   })
+})
+
+// Fall 2026's page holds Mahou Shoujo Ikusei Keikaku: Restart at 13,337 members and Tanuki to Kitsune at 325, beside
+// a carried-over show at 3,285 and an R18+ card at 8,068 that this source leaves out
+test('a season card\'s popularity is its members over the most any show of the season has', async () => {
+  const { ctx } = routed(() => html(FALL_2026))
+
+  const nodes = await pageFor({ season: 'FALL', seasonYear: 2026 }, ctx)
+
+  expect(nodes.map(node => [node.uri, node.followers, node.popularity])).toEqual([['mal:54344', 13337, 1], ['mal:64028', 325, 325 / 13337]])
 })
 
 test('a season card keeps its synopsis paragraphs, and the no-synopsis line is no description', async () => {

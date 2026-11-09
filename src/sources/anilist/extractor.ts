@@ -1,6 +1,7 @@
 import type { ExtractorServerContext } from '../../worker/extractor'
 import { airedDate } from '../aired-date'
 import { percentScore } from '../average-score'
+import { withSeasonPopularity } from '../popularity'
 import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } from '../../generated/schema/types.generated'
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
@@ -479,13 +480,16 @@ const fetchBrowsePage = (variables: BrowseVariables, page: number, context: Extr
  * since its own ranking already puts the answer on the first page.
  *
  * A season listed without a search leaves out what AniList marks adult, after the read, as the bundled
- * season does with the same 150 (scripts/season-popularity.mjs).
+ * season does with the same 150 (scripts/season-popularity.mjs). Only a season nothing else narrows
+ * sets `popularity`, since its first page holds the season's most followed work.
  */
 const browse = async (variables: BrowseVariables, context: ExtractorServerContext) => {
   const data = await fetchBrowsePage(variables, 1, context)
   const lastPage = data?.Page?.pageInfo?.lastPage
+  const { season, seasonYear, search, format_in, status, genre_in, tag_in } = variables
+  const wholeSeason = Boolean(season && seasonYear) && !search && !format_in && !status && !genre_in && !tag_in
 
-  return normalizePage(
+  const rows = await normalizePage(
     [
       ...data?.Page?.media ?? [],
       ...!variables.search && lastPage
@@ -497,6 +501,7 @@ const browse = async (variables: BrowseVariables, context: ExtractorServerContex
     media => normalizeMedia(media as Media),
     'AniList browse'
   )
+  return wholeSeason ? withSeasonPopularity(rows) : rows
 }
 
 const externalLinkHasSiteId =
@@ -767,7 +772,7 @@ const normalizeMedia = (media: Media & { upcoming?: Media['airingSchedule'] }, e
     sourceMaterial: media.source,
     ...media.studios ? { studios: (media.studios.nodes ?? []).flatMap(studio => studio?.name ? [studio.name] : []) } : {},
     ...credits ? { credits } : {},
-    popularity: media.popularity,
+    followers: media.popularity,
     status:
       media.status === MediaStatus.NotYetReleased ? GQLMediaStatus.NotYetReleased
       : media.status === MediaStatus.Releasing ? GQLMediaStatus.Releasing

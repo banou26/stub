@@ -8,6 +8,7 @@ import { animeSeasonOf, lowerSeason, upperSeason, type AnimeSeason } from '../se
 import { seasonPageNumbers, seasonQuery } from './season-paging'
 import { mintableAsFilmHandle, streamPointers, type StreamPointer } from './stream-id'
 import { percentScore } from '../average-score'
+import { withSeasonPopularity } from '../popularity'
 
 const SCORE = 0.3
 const API = 'https://kitsu.io/api/edge'
@@ -35,6 +36,7 @@ interface KitsuAnime {
   status?: string | null
   episodeCount?: number | null
   userCount?: number | null
+  popularityRank?: number | null
   youtubeVideoId?: string | null
   posterImage?: KitsuImage | null
   coverImage?: KitsuImage | null
@@ -150,8 +152,8 @@ export const normalizeMedia = (resource: KitsuResource<KitsuAnime>, handles: (GQ
     startDate: attr.startDate || undefined,
     endDate: attr.endDate || undefined,
     episodeCount: attr.episodeCount ?? undefined,
-    // the homepage sorts on this, so a season list without it renders in arbitrary order
-    popularity: attr.userCount ?? undefined,
+    followers: attr.userCount ?? undefined,
+    popularityRank: attr.popularityRank ?? undefined,
     status:
       attr.status === 'current' ? MediaStatus.Releasing
       : attr.status === 'upcoming' ? MediaStatus.NotYetReleased
@@ -274,7 +276,7 @@ const getSeason = async (
   // showing one twice.
   const byUri = new Map<string, GQLMedia>()
   for (const media of pages.flat()) if (!byUri.has(media.uri)) byUri.set(media.uri, media)
-  return [...byUri.values()]
+  return withSeasonPopularity([...byUri.values()])
 }
 
 /**

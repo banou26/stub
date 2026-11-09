@@ -65,8 +65,6 @@ const sources = ({ mal = {}, anilist = {}, kitsu = {} }: { mal?: Record<string, 
   return { get, asked, of: (source: string) => asked.filter(line => line.startsWith(`${source} `)) }
 }
 
-const titlesAndCounts = (records: { t: string, pop?: number }[]) => records.map(entry => [entry.t, entry.pop])
-
 test('AniList\'s season is read as the live source asks it, its 150 most popular, without its adult titles', async () => {
   const bodies: { query: string, variables: Record<string, unknown> }[] = []
   const get = async (url: string, init?: RequestInit) => {
@@ -189,18 +187,20 @@ test('every season source\'s shows are in the bundled season, each with the coun
 
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
 
-  expect(titlesAndCounts(laid.seasons['2026-SUMMER'])).toEqual([
+  // each count's share is over the most its own source counts this season: MyAnimeList's 367,295, AniList's 171,252
+  // and Kitsu's 4,841, so BAKI-DOU's 195 Kitsu users (4% of Kitsu's top) come before Echo's 345 AniList users (0.2%)
+  expect(laid.seasons['2026-SUMMER'].map(entry => [entry.t, entry.pop, entry.pp])).toEqual([
     // this page was read with no English titles, so the page settles on AniList's
-    ['Mushoku Tensei: Jobless Reincarnation Season 3', 367_295],
-    ['Steel Ball Run: JoJo no Kimyou na Bouken', 247_199],
+    ['Mushoku Tensei: Jobless Reincarnation Season 3', 367_295, 1],
+    ['Steel Ball Run: JoJo no Kimyou na Bouken', 247_199, 0.673],
     // MyAnimeList's Summer page does not list it, so the page settles on AniList's count and title, not Kitsu's
-    ['Saga of Tanya the Evil Season 2', 97_874],
+    ['Saga of Tanya the Evil Season 2', 97_874, 0.572],
     // R18+ on MyAnimeList, ordinary on AniList
-    ['KAMUI ---He\'s behind you', 21_883],
-    ['Echo', 345],
-    ['BAKI-DOU: The Invincible Samurai Part 2', 195],
-    ['Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!', 28],
-    ['FBKingdom Story', 9],
+    ['KAMUI ---He\'s behind you', 21_883, 0.128],
+    ['BAKI-DOU: The Invincible Samurai Part 2', 195, 0.0403],
+    ['Shin Keroro Gunsou Movie: Fukkatsushite Sokkou Chikyuu Metsubou no Kiki de Arimasu!', 28, 0.00578],
+    ['Echo', 345, 0.00201],
+    ['FBKingdom Story', 9, 0.00186],
   ])
   const added = laid.seasons['2026-SUMMER'].find(entry => entry.ku === 50635)!
   expect(seasonMedia(added, '2026-SUMMER')?.handles.map(handle => handle.node.uri), 'the ids Kitsu\'s answer joins on').toEqual(['anilist:210032', 'kitsu:50635'])
@@ -448,7 +448,13 @@ test('a season source that is down leaves the seasons as MyAnimeList alone lays 
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
   const alone = withMalSeasons(seasons, (await malSeasons(['2026-FALL', '2026-SUMMER'], sources({ mal: { '2026/summer': malPage('mal-season-summer-2026.html') } }).get, 0)).pages, '2026-FALL', anilistPairs([], []))
 
-  expect(laid.seasons).toEqual(alone)
+  const unshared = Object.fromEntries(Object.entries(laid.seasons as Record<string, { pp?: number }[]>).map(([key, records]) => [key, records.map(({ pp: _, ...record }) => record)]))
+  expect(unshared).toEqual(alone)
+  expect(laid.seasons['2026-SUMMER'].map(entry => [entry.t, entry.pp]), 'each count over MyAnimeList\'s most followed show').toEqual([
+    ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 1],
+    ['Steel Ball Run: JoJo no Kimyou na Bouken', 0.673],
+    ['Youjo Senki II', undefined],
+  ])
   expect(of('anilist')).toEqual(['anilist 2026-FALL 1'])
   expect(of('kitsu')).toEqual(seasonPageNumbers().map(page => `kitsu 2026-FALL ${page}`))
   expect([...laid.reads.anilist.failed.keys()]).toEqual(['2026-FALL', '2026-SUMMER'])

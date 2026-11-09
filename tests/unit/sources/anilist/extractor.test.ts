@@ -343,6 +343,32 @@ test('a season leaves out what AniList marks adult, and a search or a listing wi
   expect(uris(await browsedNodes(shows, { seasonYear: 2026 }))).toEqual(['anilist:1', 'anilist:2'])
 })
 
+// AniList's Summer 2026 browse of 2026-10-16: Mushoku Tensei III leads with 171,252 users, Saga of Tanya the Evil II
+// has 97,874 and Echo 345
+const SUMMER = [[178789, 171_252], [135865, 97_874], [214068, 345]].map(([id, popularity]) => ({ ...PAGE_MEDIA, id, popularity }))
+
+test('a whole season\'s browse gives each show its users over the most any show of the season has', async () => {
+  const nodes = await browsedNodes(SUMMER)
+
+  expect(nodes.map((node: { followers: number, popularity: number }) => [node.followers, node.popularity]))
+    .toEqual([[171_252, 1], [97_874, 97_874 / 171_252], [345, 345 / 171_252]])
+})
+
+// a narrowed browse's most followed show is the narrowed list's, so a share of it would overstate every show
+test('a browse anything narrows, or that names no whole season, gives its counts and no share', async () => {
+  for (const input of [
+    { season: 'SUMMER', seasonYear: 2026, genres: ['Action'] },
+    { season: 'SUMMER', seasonYear: 2026, formats: ['TV'] },
+    { season: 'SUMMER', seasonYear: 2026, status: 'FINISHED' },
+    { season: 'SUMMER', seasonYear: 2026, search: 'echo' },
+    { seasonYear: 2026 },
+  ]) {
+    const nodes = await browsedNodes(SUMMER, input)
+    expect(nodes.map((node: { followers: number, popularity?: number }) => [node.followers, node.popularity]), JSON.stringify(input))
+      .toEqual([[171_252, undefined], [97_874, undefined], [345, undefined]])
+  }
+})
+
 // Three fields the search page's card and list modes lead with, all of them already inside the query
 // AniList was answering, all of them dropped on the floor by the normalizer until 2026-09-06.
 describe('what the card and list modes read', () => {

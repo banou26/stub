@@ -367,7 +367,29 @@ type Media {
   covers: [MediaCover!]!
   banners: [MediaBanner!]!
   averageScore: Int
-  popularity: Int
+  """
+  How popular the work is in its broadcast season, from 0 to 1: its follower count over the largest
+  count the same source gives any work of that season, so 1 is that source's most followed work of the
+  season. Shares from different sources compare where their counts do not (MyAnimeList counts about 90
+  times what Kitsu does for the same show).
+
+  Set only by an answer holding a whole season (or its most followed works), and taken from the first
+  source in the merge order that set one, Kitsu last. Null for a work no such answer listed: one with no
+  season, or one only reached through a search, a title page or a narrowed browse.
+  """
+  popularity: Float
+  """
+  How many people follow the work on one source, as that source counts them: MyAnimeList's members,
+  AniList's users with it on a list, Kitsu's users. Taken from the first source in the merge order that
+  has one, Kitsu last, so two works' counts can come from different sources.
+  """
+  followers: Int
+  """
+  The work's place among every work on one source by followers, all time, 1 the most followed:
+  MyAnimeList's title page, Kitsu's answers. Taken like `followers`, so two works' ranks can come from
+  catalogues of different sizes.
+  """
+  popularityRank: Int
   startDate: Date
   endDate: Date
   isAdult: Boolean
@@ -636,6 +658,10 @@ suffix carries in every enum of this shape, AniList's `MediaSort` included, whic
 are borrowed from. A media the sources give no value for sorts LAST in both directions.
 
 Naming more than one member runs them in order and the last one decides.
+
+Within one season (the input names both `season` and `seasonYear`) popular means `popularity`, ties and
+works without one by `followers`; across seasons it means `followers`, since a share of one season says
+nothing about another.
 """
 enum MediaSort {
   """Least popular first."""

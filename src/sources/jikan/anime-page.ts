@@ -25,6 +25,8 @@ export type MalAnime = {
   year?: number
   score?: number
   members?: number
+  /** Its place among every show on the site by members, `#41` on the page. */
+  popularityRank?: number
   genres: string[]
   /** The YouTube id of the page's promotional video. */
   trailer?: string
@@ -121,6 +123,7 @@ export const parseMalAnime = (html: string, id: string): MalAnime | undefined =>
     year: num(premiered?.[2]),
     score: num(one(html, /<span itemprop="ratingValue"[^>]*>([\d.]+)</)),
     members: num(row(html, 'Members')),
+    popularityRank: num(row(html, 'Popularity')?.replace(/^#/, '')),
     // the Genres, Themes and Demographic rows are the only genre links on a title page, measured on
     // 57 pages on 2026-10-13, so the whole page reads as those three in order
     genres: genresOf(html),

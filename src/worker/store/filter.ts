@@ -142,9 +142,9 @@ export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categorie
 ): T[] => applyMediaFilters(isListing(input) ? inAnswerOrder(rows, answered) : rows, input, current)
 
 // Nulls are decided BEFORE the direction, so reversing the order does not reverse where an unranked
-// row lands. A media with no popularity is unranked rather than unpopular, so it sorts last either
-// way, the same call `relation-labels.ts` makes for a relation the list does not name.
-const comparePopularity = (a: number | null | undefined, b: number | null | undefined, direction: 1 | -1) => {
+// row lands. A media with no count is unranked rather than unpopular, so it sorts last either way, the
+// same call `relation-labels.ts` makes for a relation the list does not name.
+const compareCount = (a: number | null | undefined, b: number | null | undefined, direction: 1 | -1) => {
   if (a == null) return b == null ? 0 : 1
   if (b == null) return -1
   return (a - b) * direction
@@ -157,18 +157,27 @@ const comparePopularity = (a: number | null | undefined, b: number | null | unde
  * means everywhere it appears, AniList's own `MediaSort` included: this enum holds two of its members
  * and `sources/anilist/extractor.ts` sends `POPULARITY_DESC` upstream to get the most popular first.
  *
- * A media with no popularity sorts LAST in both directions.
+ * On a page of one season (the input names `season` and `seasonYear`) popular means `popularity`, the
+ * share of the season, which ranks a show only Kitsu counts beside one MyAnimeList counts; ties and the
+ * media with none go by `followers`.
+ * Across seasons it means `followers` alone: a share of one season says nothing about another, and a
+ * genre listing would put the few shows an earlier season page shared out above every other.
+ *
+ * A media with no value sorts LAST in both directions.
  *
  * Returns a new array. The input is left alone so a caller can keep the unsorted page.
  */
-export const applyMediaSorts = <T extends Pick<GQLMedia, 'popularity'>>(
+export const applyMediaSorts = <T extends Pick<GQLMedia, 'popularity' | 'followers'>>(
   medias: readonly T[],
-  sorts: readonly string[] | null | undefined
+  { sorts, season, seasonYear }: { sorts?: readonly string[] | null, season?: string | null, seasonYear?: number | null }
 ): T[] => {
+  const oneSeason = Boolean(season && seasonYear)
   const sorted = [...medias]
+  const by = (direction: 1 | -1) => (a: T, b: T) =>
+    (oneSeason ? compareCount(a.popularity, b.popularity, direction) : 0) || compareCount(a.followers, b.followers, direction)
   for (const sort of sorts ?? []) {
-    if (sort === 'POPULARITY') sorted.sort((a, b) => comparePopularity(a.popularity, b.popularity, 1))
-    else if (sort === 'POPULARITY_DESC') sorted.sort((a, b) => comparePopularity(a.popularity, b.popularity, -1))
+    if (sort === 'POPULARITY') sorted.sort(by(1))
+    else if (sort === 'POPULARITY_DESC') sorted.sort(by(-1))
   }
   return sorted
 }
