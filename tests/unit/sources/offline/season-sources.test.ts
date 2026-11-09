@@ -505,13 +505,16 @@ test('a bundled record takes the cover of the highest scored source that lists i
 })
 
 // Mutation: take Kitsu's original poster whatever it is.
-test('a poster Kitsu signs for minutes is none, so the record keeps its lasting one', async () => {
+test('a poster Kitsu signs for minutes is never bundled: a show only Kitsu lists has none, a bundled one keeps its own', async () => {
   // as Kitsu answered Reincarnated as a Sword Season 2 on 2026-11-09, its signature cut short
-  const signed = 'https://kitsu-production-media.s3.us-west-002.backblazeb2.com/anime/46917/poster_image/62d80ea23405b08b1ac812ac8d1215df.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261109T122226Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=b54f6a74'
-  const page = { data: [{ id: '46917', type: 'anime', attributes: { canonicalTitle: 'Tensei Shitara Ken Deshita 2nd Season', subtype: 'TV', userCount: 50, posterImage: { original: signed } } }], included: [] }
-  const seasons = { '2027-WINTER': [{ ...record('Tensei shitara Ken deshita II', { ml: 53913, ku: 46917 }), p: '1539/159559.jpg' }] }
+  const signed = (id: number) => `https://kitsu-production-media.s3.us-west-002.backblazeb2.com/anime/${id}/poster_image/62d80ea23405b08b1ac812ac8d1215df.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261109T122226Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=b54f6a74`
+  const show = (id: number, canonicalTitle: string) => ({ id: String(id), type: 'anime', attributes: { canonicalTitle, subtype: 'TV', userCount: 50, posterImage: { original: signed(id) } } })
+  const page = { data: [show(46917, 'Tensei Shitara Ken Deshita 2nd Season'), show(50001, 'A bundled show')], included: [] }
+  const seasons = { '2027-WINTER': [{ ...record('A bundled show', { ku: 50001 }), p: '1539/159559.jpg' }] }
 
   const laid = await seasonData(seasons, [], { now: '2027-WINTER', get: sources({ kitsu: { '2027-WINTER': [page] } }).get, pauseMs: 0 })
+  const poster = (id: number) => laid.seasons['2027-WINTER'].find(entry => entry.ku === id)?.p
 
-  expect(laid.seasons['2027-WINTER'].map(entry => [entry.ku, entry.p])).toEqual([[46917, '1539/159559.jpg']])
+  expect(poster(46917), 'only Kitsu lists it').toBe('')
+  expect(poster(50001), 'the dump has a lasting one').toBe('1539/159559.jpg')
 })
