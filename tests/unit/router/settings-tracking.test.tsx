@@ -6,10 +6,11 @@ import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
 // STUB-58 (publish what you watch to your FKN Social profile): Settings, Tracking holds the switch that asks FKN
 // Social to take stub's posts, and says where the viewer stands there. FKN Social's package is faked behind fkn.app's
-// broker: `installed` says whether stub installed it, `state` what it answers.
+// broker: `installed` says whether stub installed it, `state` what it answers, `down` makes each call throw.
 
 const social = vi.hoisted(() => ({
   installed: false,
+  down: false,
   state: { state: 'off' } as { state: string, kinds?: string[] },
   installs: 0,
   read: 0,
@@ -28,6 +29,7 @@ vi.mock('@fkn/lib/packages', () => ({
       remote: {
         hello: async () => ({ protocol: 2, min: 1 }),
         publishing: async () => {
+          if (social.down) throw new Error('down')
           social.read++
           return social.state
         },
@@ -47,11 +49,13 @@ vi.mock('@fkn/lib/packages', () => ({
 }))
 
 const { TrackingSection } = await import('../../../src/router/settings/tracking')
+const { social: publishing } = await import('../../../src/social')
 
-beforeEach(() => {
-  social.read = 0
-  social.asks = []
-  social.stops = 0
+beforeEach(async () => {
+  // a call that throws drops the one connection the page keeps, so each test connects afresh
+  social.down = true
+  await publishing.publishing()
+  Object.assign(social, { installed: false, down: false, state: { state: 'off' }, installs: 0, read: 0, asks: [], stops: 0 })
 })
 
 const hosts: HTMLElement[] = []
@@ -79,7 +83,6 @@ const render = async () => {
   }
 }
 
-// first, while nothing is installed: the module keeps the one connection a page makes once it is
 test('shown, it reads off and installs nothing; only a press installs FKN Social and asks for the three kinds', async () => {
   const { toggle, on, press, line } = await render()
   expect(toggle.closest('label')!.textContent).toBe('Post to FKN Social')
@@ -94,6 +97,7 @@ test('shown, it reads off and installs nothing; only a press installs FKN Social
 })
 
 test('reads where the viewer stands each time it is shown or comes back into view, asking nothing', async () => {
+  social.installed = true
   social.state = { state: 'asked' }
   const { on, line } = await render()
   expect([on(), line()]).toEqual([true, [['A', 'Allow it on FKN Social.', 'https://social.fkn.app/']]])
@@ -110,6 +114,7 @@ test('each answer that stops it reads its own line, with the switch off', async 
     ...['unavailable', 'not-here', 'outdated', 'unsupported'].map((state): [string, (string | null)[]] =>
       [state, ['P', 'FKN Social is not available right now. Try again later.', null]]),
   ]
+  social.installed = true
   for (const [state, shown] of lines) {
     social.state = { state }
     const { on, line } = await render()
@@ -119,6 +124,7 @@ test('each answer that stops it reads its own line, with the switch off', async 
 })
 
 test('turning it off stops the posts', async () => {
+  social.installed = true
   social.state = { state: 'allowed', kinds: ['started', 'watched', 'completed'] }
   const { on, press } = await render()
   expect(on()).toBe(true)
