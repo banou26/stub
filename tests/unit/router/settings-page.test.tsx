@@ -24,6 +24,11 @@ vi.mock('../../../src/plugins', () => ({
   installPlugin: async () => null,
   disablePlugin: async () => {},
 }))
+// FKN Social's package, which stub never installed here
+vi.mock('@fkn/lib/packages', () => ({
+  connect: async () => { throw Object.assign(new Error('not installed'), { code: 'not-installed' }) },
+  install: async () => null,
+}))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => ({ ChevronDown: () => null, ChevronUp: () => null, GripVertical: () => null }))
 
@@ -81,7 +86,7 @@ const shown = (host: HTMLElement) => ({
 
 test('lists every category as a link whose fragment picks it', async () => {
   const host = await open()
-  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Playback', '#playback'], ['Language', '#language']])
+  expect([...host.querySelectorAll('nav a')].map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Sources', '#sources'], ['Tracking', '#tracking'], ['Playback', '#playback'], ['Language', '#language']])
 })
 
 test('names the page and its list of categories', async () => {
@@ -116,6 +121,14 @@ test('#playback shows Playback, autoplay on until turned off, and the audio and 
   expect(stored.get('stub.player.autoplay')).toBe('off')
   unmount(hosts.pop()!)
   expect(isOn((await open('#playback')).querySelector<HTMLInputElement>('input[role="switch"]')!), 'kept').toBe(false)
+})
+
+test('#tracking shows Tracking and its one switch, off while FKN Social is not installed', async () => {
+  const host = await open('#tracking')
+  expect(shown(host)).toEqual({ panels: ['tracking'], heading: 'Tracking', current: ['Tracking'], accountRows: 0 })
+  const toggles = [...host.querySelectorAll<HTMLInputElement>('input[role="switch"]')]
+  expect(toggles.map(input => [input.closest('label')?.textContent, isOn(input)])).toEqual([['Post to FKN Social', false]])
+  expect(host.querySelector('[data-section] p, [data-section] .line'), 'labels only').toBeNull()
 })
 
 test('#language shows Language and its one select, labelled by the heading', async () => {
@@ -251,7 +264,7 @@ test('a merge move is kept as the whole order, leaves the play order, and anothe
   expect(mergeOrder(followed).slice(0, 2)).toEqual(['Kitsu', 'MyAnimeList'])
 })
 
-for (const removed of ['#accounts', '#data', '#tracking']) {
+for (const removed of ['#accounts', '#data']) {
   test(`${removed}, a category that is gone, shows Sources`, async () => {
     expect(shown(await open(removed))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
   })

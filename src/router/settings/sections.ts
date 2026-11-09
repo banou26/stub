@@ -2,6 +2,7 @@ import { defineMessages } from 'react-intl'
 
 const TITLES = defineMessages({
   sources: { id: 'Sources', defaultMessage: 'Sources' },
+  tracking: { id: 'Tracking', defaultMessage: 'Tracking' },
   playback: { id: 'Playback', defaultMessage: 'Playback' },
   language: { id: 'Language', defaultMessage: 'Language' },
 })
@@ -9,6 +10,7 @@ const TITLES = defineMessages({
 /** The settings page's categories, in the order its list shows them, each titled by its message. */
 export const SETTINGS_SECTIONS = [
   { id: 'sources', title: TITLES.sources },
+  { id: 'tracking', title: TITLES.tracking },
   { id: 'playback', title: TITLES.playback },
   { id: 'language', title: TITLES.language },
 ] as const

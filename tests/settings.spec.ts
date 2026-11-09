@@ -70,7 +70,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(url => !url.href.startsWith(origin), route => route.abort())
 })
 
-const CATEGORIES = ['Sources', 'Playback', 'Language']
+const CATEGORIES = ['Sources', 'Tracking', 'Playback', 'Language']
 const HOUR = 3_600_000
 
 // what stub keeps in this browser, the API keys an older stub kept, and one key that belongs to nobody
@@ -101,7 +101,7 @@ const overflowX = (page: Page) => page.evaluate(() => document.documentElement.s
 const headerBottom = (page: Page) => page.locator('header').first().evaluate(header => header.getBoundingClientRect().bottom)
 
 // the owner, 2026-10-25 (HOR-1019): "I think we can completely remove that Accounts category and also merge it with the Sources category"
-test('the page lists its three categories and shows Sources alone, its cards holding the sign-ins, without the FKN row, Data or Tracking', async ({ page }) => {
+test('the page lists its four categories and shows Sources alone, its cards holding the sign-ins, without the FKN row or Data', async ({ page }) => {
   await page.goto(`${origin}/settings`)
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
   await expect(categories(page).getByRole('link')).toHaveText(CATEGORIES)
@@ -176,10 +176,10 @@ test('a keyboard reaches the categories and switches between them', async ({ pag
   await page.goto(`${origin}/settings`)
   await categories(page).getByRole('link', { name: 'Sources' }).focus()
   await page.keyboard.press('Tab')
-  await expect(categories(page).getByRole('link', { name: 'Playback' })).toBeFocused()
+  await expect(categories(page).getByRole('link', { name: 'Tracking' })).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(panel(page)).toHaveAttribute('data-section', 'playback')
-  await expect(categories(page).getByRole('link', { name: 'Playback' })).toHaveAttribute('aria-current', 'true')
+  await expect(panel(page)).toHaveAttribute('data-section', 'tracking')
+  await expect(categories(page).getByRole('link', { name: 'Tracking' })).toHaveAttribute('aria-current', 'true')
 })
 
 test('a link or a reload on #playback lands on Playback, and the header link or a category that is gone lands on Sources', async ({ page }) => {
@@ -191,7 +191,7 @@ test('a link or a reload on #playback lands on Playback, and the header link or 
   await expect(page, 'the header\'s Settings link drops the fragment').toHaveURL(/\/settings(\?[^#]*)?$/)
   await expect(panel(page), 'and so shows Sources').toHaveAttribute('data-section', 'sources')
   await expect(categories(page).locator('a[aria-current="true"]')).toHaveText(['Sources'])
-  for (const gone of ['accounts', 'data', 'tracking']) {
+  for (const gone of ['accounts', 'data']) {
     await page.goto(`${origin}/legal`)
     await page.goto(`${origin}/settings#${gone}`)
     await expect(panel(page), gone).toHaveAttribute('data-section', 'sources')

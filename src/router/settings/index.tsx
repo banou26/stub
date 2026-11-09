@@ -11,6 +11,7 @@ import { LanguageSection } from './language'
 import { PlaybackSection } from './playback'
 import { SETTINGS_SECTIONS, sectionFromHash } from './sections'
 import { SourcesSection } from './sources'
+import { TrackingSection } from './tracking'
 import { sectionStyle } from './style'
 import { crunchyroll, prime, settingsSaved, sites, status } from './wiring'
 
@@ -106,6 +107,7 @@ const Settings = () => {
       <section css={sectionStyle} data-section={current.id} aria-labelledby="settings-section-title">
         <h2 id="settings-section-title">{intl.formatMessage(current.title)}</h2>
         {current.id === 'sources' ? <SourcesSection backend={backend} crunchyroll={crunchyroll} prime={prime} sites={sites} status={status}/>
+          : current.id === 'tracking' ? <TrackingSection/>
           : current.id === 'playback' ? <PlaybackSection/>
           : <LanguageSection saved={settingsSaved}/>}
       </section>

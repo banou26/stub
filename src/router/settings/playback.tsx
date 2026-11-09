@@ -15,7 +15,8 @@ import {
 } from '../../utils/track-languages'
 import { languageName } from './language'
 
-const style = css`
+/** A settings category of switches and selects, one row each. */
+export const switchesStyle = css`
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -40,7 +41,8 @@ const style = css`
   }
 `
 
-const Switch = ({ children, on, set }: { children: ComponentChildren, on: boolean, set: (on: boolean) => void }) => (
+/** A setting's row: its label and an on and off switch, which `set` hears turned. */
+export const Switch = ({ children, on, set, disabled }: { children: ComponentChildren, on: boolean, set: (on: boolean) => void, disabled?: boolean }) => (
   <label className="switch">
     {children}
     <input
@@ -48,6 +50,7 @@ const Switch = ({ children, on, set }: { children: ComponentChildren, on: boolea
       role="switch"
       css={switchStyle}
       checked={on}
+      disabled={disabled}
       onChange={event => set((event.target as HTMLInputElement).checked)}
     />
   </label>
@@ -109,7 +112,7 @@ export const PlaybackSection = () => {
   const subtitles = useSetting(() => settings.getItem(SUBTITLE_LANGUAGE_KEY), watchTrackLanguages)
   const always = useSetting(() => settings.getItem(ALWAYS_SUBTITLES_KEY) === ON, watchTrackLanguages)
   return (
-    <div css={style}>
+    <div css={switchesStyle}>
       <Switch on={autoplay} set={setAutoplay}>
         {intl.formatMessage({ id: 'Autoplay next episode', defaultMessage: 'Autoplay next episode' })}
       </Switch>

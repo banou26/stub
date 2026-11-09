@@ -6,8 +6,8 @@ same change, using the terms below, and runs `npm run i18n:check`.
 
 ## Every language
 
-- **Never translated:** Stub, FKN, AniList, MyAnimeList, Crunchyroll, Nyaa, Netflix, Prime Video, JustWatch, IMDb,
-  TMDB, Rotten Tomatoes, AnimeThemes, trace.moe, and the format codes TV, OVA, ONA.
+- **Never translated:** Stub, FKN, FKN Social, AniList, MyAnimeList, Crunchyroll, Nyaa, Netflix, Prime Video, JustWatch,
+  IMDb, TMDB, Rotten Tomatoes, AnimeThemes, trace.moe, and the format codes TV, OVA, ONA.
 - **No em or en dash** (U+2014, U+2013), even where the language's typography uses one: restructure, or use a comma,
   a colon, a plain hyphen or the language's own range mark (`～` in Japanese, `~` in Korean, `至` in Chinese).
 - **French and Italian** write the typographic apostrophe `’`. French puts a no-break space (U+00A0) before `?` and `:`.
