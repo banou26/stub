@@ -177,14 +177,15 @@ vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async
 type Report = { paused: boolean, ended?: boolean, time?: number, rate?: number }
 // each player the page attaches, which a test makes report as a person or the browser would; with
 // `greets`, a new listener hears the last report at once, after dispose too, as the real link does
-const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, apply: Mock<(state: { time: number }) => void> }[], greets: false, duration: 1000 }))
+const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, seek: Mock<(time: number) => void> }[], greets: false, duration: 1000 }))
 vi.mock('../../../../src/party/bridge', () => ({
   attachPlaybackBridge: () => {
     const listeners = new Set<(state: object) => void>()
     let last = { paused: true, time: 0, rate: 1 }
     let ended = false
     const link = {
-      apply: vi.fn<(state: { time: number }) => void>(),
+      apply: () => {},
+      seek: vi.fn<(time: number) => void>(),
       onReport: (listener: (state: object) => void) => {
         listeners.add(listener)
         if (bridge.greets) queueMicrotask(() => listener({ ...last, at: Date.now() }))
@@ -1324,7 +1325,7 @@ describe('an address names an episode with few of its rows', () => {
     stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nyaa:f1', 600, 1000]]))
     await open('ag:(anilist:1-2)')
     await report({ paused: false, time: 2 })
-    expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
+    expect(bridge.links.at(-1)!.seek.mock.calls.flat()).toEqual([600])
   })
 })
 
@@ -2330,7 +2331,7 @@ test('the page\'s player resumes where the viewer stopped on any source of the e
     hosts.push(page())
     await settle()
     await report({ paused: false, time: 2 })
-    expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time), member.status).toEqual(seeks)
+    expect(bridge.links.at(-1)!.seek.mock.calls.flat(), member.status).toEqual(seeks)
     await report({ paused: false, time: 700 })
     expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!), member.status).toEqual([['nf:81', 600, 1000, 0], ['cr:GX1', 700, 1000, expect.any(Number)]])
     unmount(hosts.pop()!)
@@ -2345,7 +2346,7 @@ test('Next episode keeps no point of the last one for the next one, and seeks no
   await rerenderLive()
   expect(bridge.links).toHaveLength(2)
   expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX2', 700, 1000, expect.any(Number)]])
-  expect(bridge.links.at(-1)!.apply).not.toHaveBeenCalled()
+  expect(bridge.links.at(-1)!.seek).not.toHaveBeenCalled()
 })
 
 test('Next episode once the last one ended keeps the next one\'s own point, and resumes there', async () => {
@@ -2357,7 +2358,7 @@ test('Next episode once the last one ended keeps the next one\'s own point, and 
   await rerenderLive()
   expect(bridge.links).toHaveLength(2)
   expect(JSON.parse(stored.get(WATCH_POSITIONS_KEY)!)).toEqual([['cr:GX3', 600, 1000, 0], ['cr:GX2', expect.any(Number)]])
-  expect(bridge.links.at(-1)!.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
+  expect(bridge.links.at(-1)!.seek.mock.calls.flat()).toEqual([600])
 })
 
 test('another media gets its own tracking: what was played of the first is never written to the second', async () => {

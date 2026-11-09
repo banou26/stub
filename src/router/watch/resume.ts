@@ -45,7 +45,7 @@ export const useResume = (link: PlaybackLink | undefined, sourceUri: string | un
         const { uris, guest, start } = latest.current
         const time = start ?? newestPosition(uris)?.[1]
         if (time !== undefined && !guest && (start !== undefined || state.time < RESUME_FROM) && (!duration || time < duration)) {
-          link.apply({ ...state, time, at: Date.now() })
+          link.seek(time)
         }
       }
       const ended = link.ended?.()

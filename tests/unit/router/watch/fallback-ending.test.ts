@@ -177,6 +177,7 @@ const player = (length: number) => {
   const listeners = new Set<(state: PlaybackState) => void>()
   const link: PlaybackLink = {
     apply: () => {},
+    seek: () => {},
     onReport: listener => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }

@@ -34,6 +34,7 @@ const fakeLink = (duration?: number) => {
   let length = duration
   return {
     apply: vi.fn<PlaybackLink['apply']>(),
+    seek: vi.fn<PlaybackLink['seek']>(),
     onReport: (listener: (state: PlaybackState) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     ended: () => ended,
     ...duration === undefined ? {} : { duration: () => length! },
@@ -48,15 +49,29 @@ const fakeLink = (duration?: number) => {
   }
 }
 
-// a source plugin's player, through the link the watch page makes of it; `duration` only where the package says it
-const pluginLink = () => {
+// a source plugin's player, through the link the watch page makes of it; `duration` only where the package says it.
+// Its package moves the player as stub-plugin's does: `exact` as told, else to the state beside it, as an older one does.
+const pluginLink = ({ exact = true } = {}) => {
   let ear: Parameters<NonNullable<PlaybackSource['onPlayback']>>[0] = () => {}
   const applied: number[] = []
-  const link = pluginPlaybackLink({ onPlayback: async listener => { ear = listener }, applyPlayback: async ({ time }) => { applied.push(time) } })!
+  const told: Parameters<NonNullable<PlaybackSource['applyPlayback']>>[0][] = []
+  const player = { paused: true, time: 0 }
+  const link = pluginPlaybackLink({
+    onPlayback: async listener => { ear = listener },
+    applyPlayback: async state => {
+      applied.push(state.time)
+      told.push(state)
+      const command = exact ? state.exact : undefined
+      if (!command) Object.assign(player, { paused: state.paused, time: state.time })
+      if (command?.seek !== undefined) player.time = command.seek
+      if (command?.pause) player.paused = true
+      if (command?.play) player.paused = false
+    },
+  })!
   const report = (...states: Omit<Report, 'ended'>[]) => act(() => {
     for (const { paused = false, time, duration } of states) ear({ paused, time, rate: 1, at: Date.now(), ...duration === undefined ? {} : { duration } })
   })
-  return { link, applied, report }
+  return { link, applied, told, player, report }
 }
 
 const Resume = ({ link, uri, uris, guest, start }: { link: PlaybackLink, uri: string, uris: string[], guest: boolean, start?: number }) => {
@@ -69,14 +84,14 @@ const page = ({ link = fakeLink(1400), uri = 'nf:1', uris = ['nf:1', 'cr:1'], gu
 }
 const keep = (...points: [string, number, number][]) => stored.set(WATCH_POSITIONS_KEY, JSON.stringify(points))
 const kept = () => JSON.parse(stored.get(WATCH_POSITIONS_KEY) ?? 'null')
-const seeks = (link: ReturnType<typeof fakeLink>) => link.apply.mock.calls.map(([state]) => state.time)
+const seeks = (link: ReturnType<typeof fakeLink>) => link.seek.mock.calls.flat()
 
 test('the first report with a length, 2 s in, seeks once to the point kept', async () => {
   keep(['nf:1', 600, 1400])
   const link = page()
   await link.report({ time: 2 })
-  expect(link.apply).toHaveBeenCalledTimes(1)
-  expect(link.apply.mock.calls[0]![0]).toMatchObject({ paused: false, time: 600, rate: 1 })
+  expect(seeks(link)).toEqual([600])
+  expect(link.apply, 'the time alone').not.toHaveBeenCalled()
   await link.report({ time: 600 }, { time: 3 })
   expect(seeks(link), 'once per player').toEqual([600])
 })
@@ -85,7 +100,7 @@ test('a player that says its length only at its first heartbeat, 5.5 s in, still
   keep(['nf:1', 600, 1400])
   const link = page({ link: fakeLink(0) })
   await link.report({ paused: true, time: 0 }, { time: 0 })
-  expect(link.apply, 'no length yet').not.toHaveBeenCalled()
+  expect(link.seek, 'no length yet').not.toHaveBeenCalled()
   await link.report({ time: 5.5, duration: 1400 })
   expect(seeks(link)).toEqual([600])
 })
@@ -94,14 +109,14 @@ test('a player already 300 s in resumed by itself, and is left there', async () 
   keep(['nf:1', 600, 1400])
   const link = page()
   await link.report({ time: 300 }, { time: 2 })
-  expect(link.apply).not.toHaveBeenCalled()
+  expect(link.seek).not.toHaveBeenCalled()
 })
 
 test('a party guest follows the host and never seeks on its own', async () => {
   keep(['nf:1', 600, 1400])
   const link = page({ guest: true })
   await link.report({ time: 2 })
-  expect(link.apply).not.toHaveBeenCalled()
+  expect(link.seek).not.toHaveBeenCalled()
 })
 
 test('a point kept on another source of the episode resumes this one; one past this length does not', async () => {
@@ -113,7 +128,7 @@ test('a point kept on another source of the episode resumes this one; one past t
   keep(['cr:1', 1420, 1450])
   const shorter = page()
   await shorter.report({ time: 2 })
-  expect(shorter.apply).not.toHaveBeenCalled()
+  expect(shorter.seek).not.toHaveBeenCalled()
 })
 
 test('a player that never says its length resumes on its first report', async () => {
@@ -181,6 +196,30 @@ test('a source plugin\'s player that never says its length resumes on its first 
   expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
 })
 
+// the report a player makes as it loads says paused, and can reach the page after the viewer's Play started it
+test('a source plugin\'s player started since the report that said it was paused plays on from the point kept', async () => {
+  keep(['nyaa:a', 600, 0])
+  const { link, player, report } = pluginLink()
+  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  player.paused = false
+  await report({ paused: true, time: 0 })
+  expect(player).toEqual({ paused: false, time: 600 })
+})
+
+test('a source plugin\'s paused player is put at the point kept and left paused, by a package from before exact too', async () => {
+  keep(['nyaa:a', 600, 0])
+  const { link, player, report } = pluginLink()
+  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  await report({ paused: true, time: 0 })
+  expect(player).toEqual({ paused: true, time: 600 })
+
+  const older = pluginLink({ exact: false })
+  hosts.push(mount(<Resume link={older.link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  await older.report({ paused: true, time: 0 })
+  expect(older.told, 'the state it was always told').toEqual([expect.objectContaining({ paused: true, time: 600, rate: 1 })])
+  expect(older.player).toEqual({ paused: true, time: 600 })
+})
+
 // a scene search's link opens the episode at the scene
 test('a start the address names seeks there in place of the point kept, even past where the site resumed', async () => {
   keep(['nf:1', 600, 1400])
@@ -196,10 +235,10 @@ test('a start the address names seeks there in place of the point kept, even pas
 test('a start is not for a party guest, nor past the episode\'s end', async () => {
   const guest = page({ start: 272, guest: true })
   await guest.report({ time: 2 })
-  expect(guest.apply).not.toHaveBeenCalled()
+  expect(guest.seek).not.toHaveBeenCalled()
   const past = page({ start: 1500 })
   await past.report({ time: 2 })
-  expect(past.apply).not.toHaveBeenCalled()
+  expect(past.seek).not.toHaveBeenCalled()
 })
 
 test('the start rides in the address as whole seconds, and anything else is no start', () => {

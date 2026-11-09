@@ -65,6 +65,19 @@ describe('linkMedia', () => {
     link.dispose()
   })
 
+  // the watch page's resume (router/watch/resume.ts) moves the time alone
+  test('a seek puts the player at a time and leaves it paused or playing', () => {
+    const link = linkMedia(media)
+    link.seek(600)
+    expect(media).toMatchObject({ currentTime: 600, paused: true })
+    media.paused = false
+    link.seek(30)
+    expect(media).toMatchObject({ currentTime: 30, paused: false })
+    expect(media.play).not.toHaveBeenCalled()
+    expect(media.pause).not.toHaveBeenCalled()
+    link.dispose()
+  })
+
   test('a new ear is told where the player is, then every event', async () => {
     const link = linkMedia(media)
     const heard = vi.fn()

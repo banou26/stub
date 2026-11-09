@@ -24,6 +24,8 @@ export type PlaybackLink = {
    * trusted in full or capped, and nothing else.
    */
   apply: (state: PlaybackState, measured?: boolean) => void
+  /** Put the player at `time` and change nothing else: a paused player stays paused and a playing one plays on. */
+  seek: (time: number) => void
   /**
    * Keep the player with a host whose player is at `state`, `state.at` on this clock, as a follower does on every
    * state it hears and every report of its own (see `followCorrection`), and say what it did; `exact` puts it where
@@ -100,6 +102,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
   let caughtUp: ReturnType<typeof setTimeout> | undefined
   return {
     apply: (wanted, measured) => { move(playbackCorrection(stateOf(media), wanted, Date.now(), measured)) },
+    seek: time => { media.currentTime = time },
     follow: (wanted, exact) => {
       const now = Date.now()
       const { correction, follow } = followCorrection(following, { ...stateOf(media), seeking: media.seeking }, wanted, now, exact)

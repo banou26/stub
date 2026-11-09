@@ -48,7 +48,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const fakeLink = () => {
   const listeners = new Set<(state: PlaybackState) => void>()
   return {
-    apply: vi.fn<PlaybackLink['apply']>(),
+    apply: () => {},
+    seek: vi.fn<PlaybackLink['seek']>(),
     onReport: (listener: (state: PlaybackState) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     ended: () => false,
     duration: () => 1400,
@@ -81,13 +82,13 @@ test('a point another device saved on the account resumes the player here, once 
   holds([['cr:1', 600, 1400, 1_000]])
   const before = page('nf:1')
   await before.report({ time: 2 })
-  expect(before.apply, 'the control: not before the check').not.toHaveBeenCalled()
+  expect(before.seek, 'the control: not before the check').not.toHaveBeenCalled()
   unmount(hosts.pop()!)
 
   await checkPositions()
   const link = page('nf:1')
   await link.report({ time: 2 })
-  expect(link.apply.mock.calls.map(([state]) => state.time)).toEqual([600])
+  expect(link.seek.mock.calls.flat()).toEqual([600])
 })
 
 test('a point played here reaches the account at a pause, when the page is hidden and when the player goes, sooner than its pace', async () => {

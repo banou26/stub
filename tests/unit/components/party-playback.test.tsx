@@ -33,6 +33,7 @@ const fakeLink = (buffer?: PlayerBuffer) => {
   let ended = false
   const link = {
     apply: vi.fn<(state: PlaybackState, measured?: boolean) => void>(),
+    seek: () => {},
     onReport: (next: (state: PlaybackState) => void) => { listener = next; return () => { listener = undefined } },
     ended: () => ended,
     ...buffer ? { buffer: async () => structuredClone(buffer) } : {},

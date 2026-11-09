@@ -47,6 +47,7 @@ const fakeLink = (duration?: number) => {
   let ended = false
   return {
     apply: () => {},
+    seek: () => {},
     onReport: (listener: (state: PlaybackState) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     ended: () => ended,
     ...duration ? { duration: () => duration } : {},
