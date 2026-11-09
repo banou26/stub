@@ -153,6 +153,10 @@ export const anilistSeason = async (key, get = fetch) => {
 // one id, or none: two mappings to one catalogue, or a slug, name no entry to pair with
 const onlyId = ids => ids.length === 1 ? Number(ids[0]) || undefined : undefined
 
+// Kitsu answers some posters only as a link it signs for 15 minutes (`X-Amz-Expires=900`, 2 bundled records on
+// 2026-11-09), broken long before a deploy is opened, so a card painted it blank until Kitsu answered again
+const lastingPoster = image => [image?.original, image?.large, image?.medium].find(url => url && !url.includes('X-Amz-Expires')) ?? ''
+
 /**
  * Kitsu's season (`2026-SUMMER`) as bundle records keyed by their Kitsu id, off the pages the live
  * `kitsu` source asks, with the MyAnimeList and AniList ids its mappings name, each named by its English
@@ -179,7 +183,7 @@ export const kitsuSeason = async (key, get = fetch) => {
       return {
         t: anime.titles?.en || anime.canonicalTitle,
         ty: anime.subtype?.toUpperCase() ?? 'UNKNOWN',
-        p: anime.posterImage?.original ?? anime.posterImage?.large ?? anime.posterImage?.medium ?? '',
+        p: lastingPoster(anime.posterImage),
         ...anime.episodeCount && { ep: anime.episodeCount },
         ku: Number(id),
         ...ml && { ml },

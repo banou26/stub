@@ -503,3 +503,15 @@ test('a bundled record takes the cover of the highest scored source that lists i
   expect(cover('ku', 48693), 'only Kitsu lists it').toBe('https://media.kitsu.app/anime/48693/poster_image/1c76ba671262bed223765b8cb719b49a.jpg')
   expect(cover('ml', 1), 'the control: no source lists it').toBe('1000/100003.jpg')
 })
+
+// Mutation: take Kitsu's original poster whatever it is.
+test('a poster Kitsu signs for minutes is none, so the record keeps its lasting one', async () => {
+  // as Kitsu answered Reincarnated as a Sword Season 2 on 2026-11-09, its signature cut short
+  const signed = 'https://kitsu-production-media.s3.us-west-002.backblazeb2.com/anime/46917/poster_image/62d80ea23405b08b1ac812ac8d1215df.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261109T122226Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=b54f6a74'
+  const page = { data: [{ id: '46917', type: 'anime', attributes: { canonicalTitle: 'Tensei Shitara Ken Deshita 2nd Season', subtype: 'TV', userCount: 50, posterImage: { original: signed } } }], included: [] }
+  const seasons = { '2027-WINTER': [{ ...record('Tensei shitara Ken deshita II', { ml: 53913, ku: 46917 }), p: '1539/159559.jpg' }] }
+
+  const laid = await seasonData(seasons, [], { now: '2027-WINTER', get: sources({ kitsu: { '2027-WINTER': [page] } }).get, pauseMs: 0 })
+
+  expect(laid.seasons['2027-WINTER'].map(entry => [entry.ku, entry.p])).toEqual([[46917, '1539/159559.jpg']])
+})
