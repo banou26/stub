@@ -153,9 +153,13 @@ export const anilistSeason = async (key, get = fetch) => {
 // one id, or none: two mappings to one catalogue, or a slug, name no entry to pair with
 const onlyId = ids => ids.length === 1 ? Number(ids[0]) || undefined : undefined
 
-// Kitsu answers some posters only as a link it signs for 15 minutes (`X-Amz-Expires=900`, 2 bundled records on
-// 2026-11-09), broken long before a deploy is opened, so a card painted it blank until Kitsu answered again
-const lastingPoster = image => [image?.original, image?.large, image?.medium].find(url => url && !url.includes('X-Amz-Expires')) ?? ''
+/**
+ * Whether `url` is a link Kitsu signs for 15 minutes (`X-Amz-Expires=900`), as it answers some images: dead long before
+ * a build is opened. On 2026-11-09, 2 season posters, and 67 banners and 7 posters of the history's picks.
+ */
+export const signedLink = url => url.includes('X-Amz-Expires')
+
+const lastingPoster = image => [image?.original, image?.large, image?.medium].find(url => url && !signedLink(url)) ?? ''
 
 /**
  * Kitsu's season (`2026-SUMMER`) as bundle records keyed by their Kitsu id, off the pages the live

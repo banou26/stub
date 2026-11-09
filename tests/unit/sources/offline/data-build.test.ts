@@ -118,3 +118,14 @@ test('picks of the same inputs as the build\'s cut to the same shards, byte for 
   const { picks } = historyPicks([GUNDAM], TITLES, new Map())
   expect(JSON.stringify(historySets(BUILD, withJob(picks), MANAMI).sets)).toBe(JSON.stringify(historyShards([GUNDAM], picks)))
 })
+
+// Mutation: ship the picks' images as they are.
+test('an image Kitsu signed for minutes is none in the history, so a record draws the dump\'s picture', () => {
+  // as the job's picks held Kitsu's banners for the 2026-44 dump
+  const signed = (kind: string) => `https://kitsu-production-media.s3.us-west-002.backblazeb2.com/anime/${kind}/77caf9278cd8d42507318d08f7db6239.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261101T120155Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=b54f6a74`
+  const picks = new Map<string, offlinePick.PickEntry>([['mal-80', { t: 'Mobile Suit Gundam 0079', p: signed('poster_image'), b: signed('cover_image') }]])
+  const lasting = new Map<string, offlinePick.PickEntry>([['mal-80', { t: 'Mobile Suit Gundam 0079', b: 'cover_image/77caf9278cd8d42507318d08f7db6239.png' }]])
+
+  expect(historySets(BUILD, withJob(picks), MANAMI).sets.stub[80]).toEqual({ 'mal-80': { t: 'Mobile Suit Gundam 0079' } })
+  expect(historySets(BUILD, withJob(lasting), MANAMI).sets.stub[80], 'the control: a lasting banner').toEqual({ 'mal-80': lasting.get('mal-80') })
+})

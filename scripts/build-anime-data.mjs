@@ -67,7 +67,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { COLUMNS, encodeIndex, mergeIds } from './merge-ids.mjs'
-import { errorText, seasonData } from './season-popularity.mjs'
+import { errorText, seasonData, signedLink } from './season-popularity.mjs'
 import { DOWNLOAD, MANIFEST, decodeHistory, downloadAssets, downloadManifest, loadMerge, picksFor, readManifest, sha256 } from './history-files.mjs'
 
 const require = createRequire(import.meta.url)
@@ -560,6 +560,9 @@ export default JSON.parse(${JSON.stringify(json)})
   }
 }
 
+// a pick's image Kitsu signed for minutes is none, so a record draws the dump's picture, and a link preview its poster
+const unsigned = picks => new Map([...picks].map(([key, entry]) => [key, Object.fromEntries(Object.entries(entry).filter(([, value]) => !signedLink(value)))]))
+
 /**
  * The history's shards: of the job's picks when they are this merge's and this dump's, which carry every source the
  * private store keeps, else of this build's own merge of the public assets. Its `counts` are that build's merge's either
@@ -569,7 +572,7 @@ export const historySets = ({ module: pick, version }, history, manami) => {
   const { picks, counts } = pick.historyPicks(manami.history, history.anidb.titles, history.kitsu, history.previews)
   const job = picksFor(history, { merge: version, dump: { tag: manami.tag, sha256: manami.sha256 } })
   return {
-    sets: pick.historyShards(manami.history, job.picks ?? picks),
+    sets: pick.historyShards(manami.history, unsigned(job.picks ?? picks)),
     counts,
     picked: job.picks ? `the job's picks of ${job.picks.size} shows, merge ${version}, dump ${manami.tag}` : `this build's own merge, as ${job.why}`,
   }
