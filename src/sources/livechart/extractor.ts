@@ -162,9 +162,11 @@ export const parseSeasonPage = (html: string, type?: MediaType): LiveChartAnime[
   })
 
 /**
- * One season, as the cards of its three tabs, asked at once. LiveChart offers no public API, and its page answers with
- * no allow-origin, so it goes through the relay. robots.txt allows these paths when they carry no query string, and
- * asks for 5 seconds between requests.
+ * One season, as the cards of its three tabs. LiveChart offers no public API, and its page answers with no
+ * allow-origin, so it goes through the relay. robots.txt allows these paths when they carry no query string, and asks
+ * for 5 seconds between requests, yet the three are asked at once, since spacing them would hold LiveChart's rows back
+ * 10 seconds on every view, cached or not. The All tab (`/fall-2026/all`) holds the same cards in one request, but
+ * nothing on it says which format a card is.
  */
 const getSeason = async (ctx: ExtractorServerContext, asked = animeSeasonOf()): Promise<GQLMedia[]> => {
   const tabs = await Promise.all(Object.entries(TABS).map(async ([tab, type]) => {
