@@ -294,10 +294,11 @@ test('a show in two seasons carries in each the title that season\'s page settle
   }
 
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
-  const titles = (key: string) => [64913, 65079].map(ml => laid.seasons[key].find(entry => entry.ml === ml)?.t)
+  const titles = (key: string) => [64913, 65079].map(ml => laid.seasons[key].find(entry => entry.ml === ml)).map(entry => [entry?.t, entry?.ts])
 
-  expect(titles('2026-SUMMER')).toEqual(['Detective Conan: The Counterfeit Case of Ultra 30', 'Delivery Kitten Unyan'])
-  expect(titles('2026-FALL')).toEqual(['Detective Conan: The Counterfeit Case of Ultra 30', 'Delivery Kitten Unyan (2026)'])
+  // each with the source it was taken from, so the card ranks it as that source's (TITLE_SOURCES)
+  expect(titles('2026-SUMMER')).toEqual([['Detective Conan: The Counterfeit Case of Ultra 30', 'ml'], ['Delivery Kitten Unyan', 'ml']])
+  expect(titles('2026-FALL')).toEqual([['Detective Conan: The Counterfeit Case of Ultra 30', 'ku'], ['Delivery Kitten Unyan (2026)', 'al']])
 })
 
 // Measured 2026-10-16: MyAnimeList's Summer card shows this show in romaji only and AniList does not list
@@ -306,11 +307,14 @@ test('a show in two seasons carries in each the title that season\'s page settle
 test('a show AniList does not list takes MyAnimeList\'s romaji title over Kitsu\'s and its own', async () => {
   const kitsu = { '2026-SUMMER': [kitsuPage([51100, 'Bao Ke Meng Donghua Tujian 5', { 'myanimelist/anime': '65178' }])] }
   const seasons = { '2026-SUMMER': [record('Bao Ke Meng Donghua Tujian: Bu Qi Er Yu', { ml: 65178 })] }
-  const title = async (mal: Record<string, string>) =>
-    (await seasonData(seasons, [], { now: '2026-FALL', get: sources({ mal, kitsu }).get, pauseMs: 0 })).seasons['2026-SUMMER'].find(entry => entry.ml === 65178)?.t
+  const title = async (mal: Record<string, string>, kitsuPages: Answers = kitsu) => {
+    const entry = (await seasonData(seasons, [], { now: '2026-FALL', get: sources({ mal, kitsu: kitsuPages }).get, pauseMs: 0 })).seasons['2026-SUMMER'].find(entry => entry.ml === 65178)
+    return [entry?.t, entry?.ts]
+  }
 
-  expect(await title({ '2026/summer': malPage('mal-season-summer-2026-english.html') })).toBe('Bao Ke Meng Donghua Tujian: Buqi Eryu')
-  expect(await title({}), 'the control: with no MyAnimeList card, Kitsu\'s').toBe('Bao Ke Meng Donghua Tujian 5')
+  expect(await title({ '2026/summer': malPage('mal-season-summer-2026-english.html') })).toEqual(['Bao Ke Meng Donghua Tujian: Buqi Eryu', 'mr'])
+  expect(await title({}), 'the control: with no MyAnimeList card, Kitsu\'s').toEqual(['Bao Ke Meng Donghua Tujian 5', 'ku'])
+  expect(await title({}, {}), 'and with no source listing it, its own, from no source').toEqual(['Bao Ke Meng Donghua Tujian: Bu Qi Er Yu', undefined])
 })
 
 // Real rows and records of 2026-10-16, Summer 2026: the offline database holds each of the two shorts as
@@ -452,7 +456,7 @@ test('a season source that is down leaves the seasons as MyAnimeList alone lays 
   const laid = await seasonData(seasons, [], { now: '2026-FALL', get, pauseMs: 0 })
   const alone = withMalSeasons(seasons, (await malSeasons(['2026-FALL', '2026-SUMMER'], sources({ mal: { '2026/summer': malPage('mal-season-summer-2026.html') } }).get, 0)).pages, '2026-FALL', anilistPairs([], []))
 
-  const unshared = Object.fromEntries(Object.entries(laid.seasons as Record<string, { pp?: number }[]>).map(([key, records]) => [key, records.map(({ pp: _, ...record }) => record)]))
+  const unshared = Object.fromEntries(Object.entries(laid.seasons as Record<string, { pp?: number, ts?: string }[]>).map(([key, records]) => [key, records.map(({ pp: _, ts: __, ...record }) => record)]))
   expect(unshared).toEqual(alone)
   expect(laid.seasons['2026-SUMMER'].map(entry => [entry.t, entry.pp]), 'each count over MyAnimeList\'s most followed show').toEqual([
     ['Mushoku Tensei III: Isekai Ittara Honki Dasu', 1],

@@ -319,7 +319,9 @@ const pairing = (index, seasons) => {
  * source giving one this season: for the count MyAnimeList (0.9), AniList (0.8), Kitsu (0.3), else its
  * own, which is MyAnimeList's off another season's page; for the cover MyAnimeList's, AniList's
  * `extraLarge`, Kitsu's original, else its own; for the title MyAnimeList's English one (0.9),
- * AniList's (0.8), MyAnimeList's romaji one (0.4), Kitsu's (0.3), else its own (0.2). Its `pp` is the
+ * AniList's (0.8), MyAnimeList's romaji one (0.4), Kitsu's (0.3), else its own (0.2), with `ts` naming
+ * the source it took it from, so the title ranks as that source's (`TITLE_SOURCES` in
+ * src/sources/offline/normalize.ts). Its `pp` is the
  * live `popularity`: that count over the most the same source counts for the season. A source's record keeps its own id and only the ids it claims that agree
  * with every other show's (see `pairing`). It joins the bundled records of its season those ids
  * name, which become one record when there are several (the offline database holds some shows as two
@@ -365,8 +367,9 @@ const withSeasonSources = (seasons, malPages, answers, index = []) => {
       const [pop, source] = card?.members ? [card.members, 'ml'] : al?.pop ? [al.pop, 'al'] : ku?.pop ? [ku.pop, 'ku'] : [record.pop, 'ml']
       const pp = shareOf(pop, most[source])
       const p = card?.cover?.replace(COVER_PREFIX, '') || al?.p || ku?.p || record.p
+      const [t, ts] = [[card?.englishTitle, 'ml'], [al?.t, 'al'], [card?.title, 'mr'], [ku?.t, 'ku']].find(([title]) => title) ?? [record.t]
       // three figures keep a season's order: the shares cost the 2026-11-09 bundle 6.7 KB raw, 1.2 KB brotli
-      return { ...record, t: card?.englishTitle ?? al?.t ?? card?.title ?? ku?.t ?? record.t, p, ...pop && { pop }, ...pp && { pp: Number(pp.toPrecision(3)) } }
+      return { ...record, t, ...ts && { ts }, p, ...pop && { pop }, ...pp && { pp: Number(pp.toPrecision(3)) } }
     }))
   }
   return laid

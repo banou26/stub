@@ -6,7 +6,7 @@ export type TheaterCandidate = {
   _id?: string | null
   uri?: string | null
   titles?: readonly { title?: string | null, score?: number | null }[] | null
-  shortDescriptions?: readonly unknown[] | null
+  shortDescriptions?: readonly { shortDescription?: string | null, score?: number | null }[] | null
   trailers?: readonly unknown[] | null
   handles?: readonly { relation: string, node: { uri: string } }[] | null
 }
@@ -86,7 +86,7 @@ export const SOURCES_WAIT_MS = 10_000
 /** How many of the candidates the hero picks between. Kept small so it stays a highlight reel. */
 export const THEATER_POOL_SIZE = 10
 
-/** Kitsu's score. Above it in the listing are AniList (0.8) and Jikan (0.9, its romaji 0.4), below it the bundle (0.2). */
+/** Kitsu's score. Above it in the listing are AniList (0.8) and MyAnimeList (0.9), below it the bundle (0.2). */
 const KITSU_SCORE = 0.3
 
 /**
@@ -94,15 +94,16 @@ const KITSU_SCORE = 0.3
  * "good quality source" to mean. Kitsu and the bundle often answer first, Kitsu with a one-line
  * placeholder synopsis ("The second season of ...") and an announcement trailer that YouTube may
  * refuse to embed where AniList's trailer for the same show plays (measured 2026-10-10). A source
- * answers a show's title, description and trailer together, so the leading title's score stands for all three.
- * Jikan's romaji (0.4) sits below its description (0.9), and still above Kitsu. The score is the one the viewer's
- * merge order weighs it at (Settings): a source moved into the first five places reads above Kitsu, Kitsu included
- * (at the top its title reads at MyAnimeList's 0.9), and one moved down to Kitsu's 0.3 reads as Kitsu does, as
- * Crunchyroll does once Simkl is moved above it.
+ * answers a show's description and trailer together, so the leading description's score stands for both. Not the
+ * title's: the bundle's title ranks as the source the build took it from (src/sources/offline/normalize.ts
+ * `TITLE_SOURCES`), while its synopsis stays at the bundle's 0.2. The score is the one the viewer's merge order weighs
+ * it at (Settings): a source moved into the first five places reads above Kitsu, Kitsu included (at the top its
+ * description reads at MyAnimeList's 0.9), and one moved down to Kitsu's 0.3 reads as Kitsu does, as Crunchyroll does
+ * once Simkl is moved above it.
  *
  * It decides when what the hero shows is final, and only for `THEATER_WAIT_MS` whether it shows anything.
  */
-export const fromGoodSource = (media: TheaterCandidate): boolean => (media.titles?.[0]?.score ?? 0) > KITSU_SCORE
+export const fromGoodSource = (media: TheaterCandidate): boolean => (media.shortDescriptions?.[0]?.score ?? 0) > KITSU_SCORE
 
 /**
  * How long after it mounts the hero picks only among shows `fromGoodSource` accepts, rather than show

@@ -89,7 +89,7 @@ const show = (id: string, { title = `${id} title`, description = `${id} descript
   _id: `cl:${id}`,
   uri: `ag:(anilist:${id},kitsu:${id})`,
   titles: [{ language: 'en', title, score }],
-  shortDescriptions: [{ language: 'en', shortDescription: description }],
+  shortDescriptions: [{ language: 'en', shortDescription: description, score }],
   trailers: trailers.map(trailer => ({ uri: `yt:${trailer}`, origin: 'yt', id: trailer, url: `https://www.youtube.com/watch?v=${trailer}` })),
   banners: banners.map(url => ({ language: 'en', url })),
   covers: [{ language: 'en', url: `https://img.test/${id}-cover.jpg` }],

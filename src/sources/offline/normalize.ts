@@ -26,9 +26,24 @@ export const origin = 'offline'
  * it looks. Titles at 0.9 would tie with anilist, jikan and anizip and push this dump's titles into
  * the six-slot profile the fuzzy merge compares clusters on, changing which titles every merge
  * decision sees. That is the exact mechanism behind the digit-residue regression that once welded
- * 68 unrelated shows into one component.
+ * 68 unrelated shows into one component. A season record's title the build took from a live source is that source's
+ * title, and ranks as it (`TITLE_SOURCES`).
  */
 export const SCORE = 0.2
+
+/**
+ * The live source a season record's title is taken from, as its `ts` names it (`withSeasonSources` in
+ * scripts/season-popularity.mjs): MyAnimeList's English title, its romaji one, AniList's or Kitsu's. The title ranks
+ * at the score that source gives it, and as that source in the viewer's merge order (`rankedAs`, read by
+ * src/worker/graph/plugins/fields.ts), so a card paints the title its page settles on before the source answers.
+ * Equal to the source's own, it changes no title profile the fuzzy merge compares once the source has answered.
+ */
+export const TITLE_SOURCES = {
+  ml: { rankedAs: 'mal', score: 0.9 },
+  mr: { rankedAs: 'mal', score: 0.4 },
+  al: { rankedAs: 'anilist', score: 0.8 },
+  ku: { rankedAs: 'kitsu', score: 0.3 },
+} as const
 
 const COVER_PREFIX = 'https://cdn.myanimelist.net/images/anime/'
 
@@ -51,6 +66,8 @@ export const coverUrl = (picture: string) =>
 
 export type ManamiRecord = {
   t: string
+  /** The source `t` was taken from, at build time, when one was (`TITLE_SOURCES`) */
+  ts?: keyof typeof TITLE_SOURCES
   ty: string
   p: string
   ep?: number
@@ -166,7 +183,7 @@ export const seasonMedia = (record: ManamiRecord, key?: string): GQLMedia | unde
     seasonYear: season?.year ?? null,
     categories: type === MediaType.Movie ? ['ANIME', 'MOVIE'] : ['ANIME', 'SERIES'],
     type,
-    titles: [{ language: 'en', title: record.t, score: SCORE }],
+    titles: [{ language: 'en', title: record.t, score: SCORE, ...record.ts && TITLE_SOURCES[record.ts] }],
     covers: record.p ? [{ url: coverUrl(record.p), score: SCORE }] : [],
     episodeCount: record.ep || undefined,
     followers: record.pop || undefined,

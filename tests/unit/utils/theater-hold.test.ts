@@ -6,7 +6,7 @@ const media = (id: string, title = 't', score = 0.8) => ({
   _id: id,
   uri: `ag:(anilist:${id})`,
   titles: [{ title, score }],
-  shortDescriptions: ['d'],
+  shortDescriptions: [{ shortDescription: 'd', score }],
   trailers: ['v'],
   handles: [{ relation: 'SAME_AS', node: { uri: `anilist:${id}` } }],
 })
@@ -100,7 +100,7 @@ test('a show the listing draws as its season is kept as it was picked', () => {
   }
 
   expect(holdTheaterPick([media('first', 't', 0.2), season], show, always(0))).toBe(show)
-  const filled = { ...show, titles: [{ title: "Widow's Bay", score: 0.8 }] }
+  const filled = { ...show, titles: [{ title: "Widow's Bay", score: 0.8 }], shortDescriptions: [{ shortDescription: 'd', score: 0.8 }] }
   expect(holdTheaterPick([media('first'), season], filled, always(0)), 'a pick a good source filled').toBe(filled)
   const ahead = Array.from({ length: THEATER_POOL_SIZE }, (_, index) => media(`new-${index}`, 't', 0.2))
   expect(holdTheaterPick([...ahead, season], show, always(0)), 'a season drawn past the pool').toBe(show)

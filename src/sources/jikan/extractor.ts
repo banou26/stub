@@ -28,8 +28,7 @@ const SCORE = 0.9
 const DESCRIPTION_SCORE = 0.9
 // the romaji and Japanese titles, which every page carries and the search box answers alone: below the
 // sources that lead with an English title (AniList 0.8, LiveChart 0.6, Crunchyroll 0.5), so a card
-// shows MyAnimeList's English title, else theirs; above Kitsu's 0.3, the bar the home hero holds a
-// leading title to (utils/theater.ts)
+// shows MyAnimeList's English title, else theirs; above Kitsu's 0.3
 const JAPANESE_TITLE_SCORE = 0.4
 // below AniList's credits (0.8), as the first source read sets each shared character's name, face and
 // url and each language's whole cast, and this page lists staff by job, producers first; above Anime

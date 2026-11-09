@@ -36,6 +36,7 @@ const GET_RELEASING_MEDIA_PAGE = gql(`
         shortDescriptions(input: $shortDescriptionInput) {
           language
           shortDescription
+          score
         }
         covers {
           language

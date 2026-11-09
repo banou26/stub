@@ -153,10 +153,21 @@ test('a source moved down leads the characters only after the sources above it',
   expect(pick(merged(pair, last), 'characters', 'image')).toEqual(['https://mal.test/spike.jpg'])
 })
 
-test('the leading title reads at its place in the order, so the home hero takes a show the first source titled', () => {
-  const titles = (media: ReturnType<typeof merged>) => media.titles as { title: string, score: number }[]
-  expect(fromGoodSource({ titles: titles(merged(SHOW.filter(({ origin }) => origin === 'kitsu'))) }), 'Kitsu is no good source by default').toBe(false)
-  const first = titles(merged(SHOW, ['kitsu']))
-  expect(first[0]).toEqual({ language: 'en', title: 'Kitsu English', score: 0.9 })
-  expect(fromGoodSource({ titles: first })).toBe(true)
+test('the leading description reads at its place in the order, so the home hero takes a show the first source described', () => {
+  const kitsu = [member('kitsu:1', 0.3, { titles: [text('title', 'Kitsu English', 0.3)], shortDescriptions: [text('shortDescription', 'Kitsu synopsis', 0.3)] })]
+  const descriptions = (media: ReturnType<typeof merged>) => media.shortDescriptions as { shortDescription: string, score: number }[]
+  expect(fromGoodSource({ shortDescriptions: descriptions(merged(kitsu)) }), 'Kitsu is no good source by default').toBe(false)
+  const first = descriptions(merged(kitsu, ['kitsu']))
+  expect(first[0]).toEqual({ language: 'en', shortDescription: 'Kitsu synopsis', score: 0.9 })
+  expect(fromGoodSource({ shortDescriptions: first })).toBe(true)
+})
+
+// A bundled season title is the one a live source gives (src/sources/offline/normalize.ts `TITLE_SOURCES`).
+test('a bundled title ranks as the source the build took it from, wherever the viewer puts that source', () => {
+  const card = [
+    member('offline:mal-7', 0.2, { titles: [{ ...text('title', 'AniList English', 0.8), rankedAs: 'anilist' }] }),
+    member('kitsu:7', 0.3, { titles: [text('title', 'Kitsu English', 0.3)] }),
+  ]
+  expect(pick(merged(card), 'titles', 'title')).toEqual(['AniList English', 'Kitsu English'])
+  expect(pick(merged(card, ['mal', 'anizip', 'livechart', 'cr', 'kitsu']), 'titles', 'title'), 'Kitsu put above AniList').toEqual(['Kitsu English', 'AniList English'])
 })

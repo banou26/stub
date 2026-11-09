@@ -6,10 +6,11 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/jikan/extractor'
+import { seasonMedia } from '../../../../src/sources/offline/normalize'
 import { fromGoodSource } from '../../../../src/utils/theater'
 import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 
-type Row = { uri: string, origin: string, score: number, titles: { language: string, title: string, score: number }[] }
+type Row = { uri: string, origin: string, score: number, titles: { language: string, title: string, score: number }[], shortDescriptions?: { shortDescription: string, score: number }[] }
 
 const fixture = (name: string) => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8')
 
@@ -26,8 +27,8 @@ const answered = (uri: string, score: number, ...titles: [string, string][]): Ro
   titles: titles.map(([language, title]) => ({ language, title, score })),
 })
 
-// the aggregated titles of a cluster of these members, in the order a card reads them
-const titlesOf = (...members: (Row | undefined)[]) => aggregateFields({
+// a cluster of these members as the listing reads it
+const aggregateOf = (...members: (Row | undefined)[]) => aggregateFields({
   cluster: { id: 'cl', aggUri: 'ag:()', scope: 'RUN', runLength: null, runLengthTier: null, runLengthWitnesses: 0, runLengthFrom: [], anomalies: [] },
   members: members.map(raw => {
     if (!raw) throw new Error('a member the fixture does not answer')
@@ -36,7 +37,10 @@ const titlesOf = (...members: (Row | undefined)[]) => aggregateFields({
   related: [],
   relations: [],
   locationOrigin: '',
-}).titles as Row['titles']
+})
+
+// the aggregated titles of a cluster of these members, in the order a card reads them
+const titlesOf = (...members: (Row | undefined)[]) => aggregateOf(...members).titles as Row['titles']
 
 const cardTitle = (...members: (Row | undefined)[]) => titlesOf(...members)[0]?.title
 
@@ -82,12 +86,30 @@ test('a season card leads with the English title another source answers, as MyAn
   )).toBe('Raccoon Dog & Fox')
 })
 
-// The home hero takes a leading title scored above Kitsu's 0.3 as a show a good source described.
-test('a show only MyAnimeList describes, with no English title, still clears the hero\'s bar', async () => {
+// The bundled season record carries the title its page settles on, and which source gave it (`ts`). Measured
+// 2026-11-09: cards painted before AniList answered showed MyAnimeList's romaji, here "Tanuki to Kitsune (TV)", and
+// switched a second or two later.
+const bundled = (t: string, ts: 'al' | 'ml' | 'mr' | 'ku', ml = 64028) =>
+  seasonMedia({ t, ts, ty: 'TV', p: '', ml, sy: 'The synopsis the build read.' }, '2026-FALL') as unknown as Row
+
+test('a bundled season card paints the title its page settles on before AniList answers, over MyAnimeList\'s romaji', async () => {
   const mal = await malRows({ season: 'FALL', seasonYear: 2026 }, fixture('mal-season-fall-2026.html'))
+  const anilist = answered('anilist:218011', 0.8, ['en', 'Raccoon Dog & Fox'], ['jp-en', 'Tanuki to Kitsune (TV)'], ['jp', 'タヌキとキツネ'])
 
-  const titles = titlesOf(mal.get('mal:64028'), answered('offline:mal-64028', 0.2, ['en', 'Tanuki to Kitsune (TV)']))
+  expect(cardTitle(mal.get('mal:64028'), bundled('Raccoon Dog & Fox', 'al'))).toBe('Raccoon Dog & Fox')
+  expect(cardTitle(mal.get('mal:64028'), bundled('Raccoon Dog & Fox', 'al'), anilist)).toBe('Raccoon Dog & Fox')
+  expect(cardTitle(answered('kitsu:1', 0.3, ['en', 'Tanuki and Fox']), bundled('Tanuki to Kitsune (TV)', 'mr')), 'MyAnimeList\'s romaji over Kitsu\'s')
+    .toBe('Tanuki to Kitsune (TV)')
+})
 
-  expect(titles[0]?.title).toBe('Tanuki to Kitsune (TV)')
-  expect(fromGoodSource({ titles })).toBe(true)
+// The home hero holds a show as final once a source better than Kitsu has described it (`fromGoodSource`).
+test('the home hero takes a bundled card for a good source only once a live one has described it', async () => {
+  const mal = await malRows({ season: 'FALL', seasonYear: 2026 }, fixture('mal-season-fall-2026.html'))
+  const good = (...members: (Row | undefined)[]) => fromGoodSource({ shortDescriptions: aggregateOf(...members).shortDescriptions as { score: number }[] })
+  const card = bundled('MAGICAL GIRL RAISING PROJECT restart', 'al', 54344)
+  const kitsu = { ...answered('kitsu:1', 0.3, ['en', 'Magical Girl Raising Project: Restart']), shortDescriptions: [{ shortDescription: 'The second season of Magical Girl Raising Project.', score: 0.3 }] }
+
+  expect(good(card), 'the bundle alone, at AniList\'s title').toBe(false)
+  expect(good(card, kitsu), 'with Kitsu').toBe(false)
+  expect(good(card, kitsu, mal.get('mal:54344')), 'with MyAnimeList, which names it in romaji alone').toBe(true)
 })

@@ -238,13 +238,15 @@ const byWeight = <T extends { origin: string, score: number | null }>(rows: read
 
 /**
  * Every member's values of `field`, each carrying its weighted score, by that score, then by place, then in member
- * order. The home hero reads the leading title's score (src/utils/theater.ts `fromGoodSource`). A value the order
- * leaves at its own score is the member's own object, which scripts/offline-pick.ts finds its source by.
+ * order. The home hero reads the leading description's score (src/utils/theater.ts `fromGoodSource`). A value naming
+ * the source it ranks as (`rankedAs`, a bundled season title's: src/sources/offline/normalize.ts `TITLE_SOURCES`) is
+ * weighed as that source's. A value the order leaves at its own score is the member's own object, which
+ * scripts/offline-pick.ts finds its source by.
  */
 const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): unknown[] =>
   members
     .flatMap(member => listOf(member.raw[field]).map(value => {
-      const { place, scaled } = weigh(member.origin)
+      const { place, scaled } = weigh(isRecord(value) && typeof value.rankedAs === 'string' ? value.rankedAs : member.origin)
       return { value, place, score: scaled(scoreOf(value)) }
     }))
     .sort((a, b) => b.score - a.score || a.place - b.place)
