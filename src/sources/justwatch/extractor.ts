@@ -894,6 +894,11 @@ const normalizeMedia = async (
   return withTranslation(media, node, ctx, (opts.seasonNumber ?? 1) === 1 && title === node.content.title)
 }
 
+// A name in Latin letters alone is a romanization in a language written in another script: JustWatch's Arabic and Hebrew
+// for Frieren are "Sôsô No Furîren" (2026-11-10)
+const romanized = (title: string, language: string) =>
+  localeOf(language)?.maximize().script !== 'Latn' && !/(?!\p{Script=Latin})\p{L}/u.test(title)
+
 /**
  * `media` with JustWatch's title and synopsis in the language `translationOf` asked, each only where it differs from
  * the English, when `theShow` says the media is the show, or its first season under the show's name: what is translated
@@ -903,7 +908,9 @@ const normalizeMedia = async (
 const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, theShow: boolean): GQLMedia => {
   const language = translationOf(ctx)
   if (!language || !translated || !theShow) return media
-  const title = translated.title && translated.title !== content.title ? [translatedTitle(language, translated.title, SCORE)] : []
+  const title = translated.title && translated.title !== content.title && !romanized(translated.title, language)
+    ? [translatedTitle(language, translated.title, SCORE)]
+    : []
   const { descriptions = [], shortDescriptions = [] } = translated.shortDescription !== content.shortDescription ? desc(translated.shortDescription, SCORE, language) : {}
   return {
     ...media,

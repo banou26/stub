@@ -69,3 +69,13 @@ test('the show\'s translation is its first season\'s, and no later season\'s', a
   expect(shown(await season('jw:320458-329115'))).toEqual(['Severance', 'Dissociation', 'en', 'fr'])
   expect(shown(await season('jw:320458-350405'))).toEqual(['Severance', 'en'])
 })
+
+// Mutation: drop `romanized` from `withTranslation`, and an Arabic viewer's page leads with JustWatch's romanization
+test('a romanization is no translation into a language written in another script', async () => {
+  viewerIn('America/New_York')
+  const titlesIn = async (title: string, language: string) =>
+    ((await open({ title, shortDescription: DUNE.data.node.content.shortDescription }, language)).media as Texts).titles.map(({ title }) => title)
+  expect(await titlesIn('Dyun: Al-Juz Al-Thani', 'ar')).toEqual(['Dune: Part Two'])
+  expect(await titlesIn('كثيب: الجزء الثاني', 'ar')).toEqual(['Dune: Part Two', 'كثيب: الجزء الثاني'])
+  expect(await titlesIn('Diuna: Część druga', 'pl'), 'the control, a language written in Latin letters').toEqual(['Dune: Part Two', 'Diuna: Część druga'])
+})
