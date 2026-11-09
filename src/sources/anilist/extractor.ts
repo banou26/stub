@@ -99,6 +99,9 @@ const MEDIA_FIELDS = `
  *
  * `type: ANIME` is fixed rather than a variable: the season query this replaces omitted it, and a
  * Page with no type argument answers manga formats too.
+ *
+ * `top`, asked with `$top`, is the season's most followed work AniList does not mark adult, whatever
+ * else the browse narrows on, in the same request so it costs none of the per minute budget.
  */
 const BROWSE_QUERY = `
   query (
@@ -111,6 +114,7 @@ const BROWSE_QUERY = `
     $tag_in: [String]
     $sort: [MediaSort]
     $page: Int
+    $top: Boolean = false
   ) {
     Page(page: $page) {
       pageInfo {
@@ -131,6 +135,11 @@ const BROWSE_QUERY = `
       ) {
         isAdult
         ${MEDIA_FIELDS.split('\n').join('\n      ')}
+      }
+    }
+    top: Page(perPage: 1) @include(if: $top) {
+      media(type: ANIME, season: $season, seasonYear: $seasonYear, isAdult: false, sort: POPULARITY_DESC) {
+        popularity
       }
     }
   }
@@ -468,7 +477,7 @@ const fetchMedia = async (
 }
 
 const fetchBrowsePage = (variables: BrowseVariables, page: number, context: ExtractorServerContext) =>
-  fetchAnilist<{ Page: Page }>({ query: BROWSE_QUERY, variables: { ...variables, page } }, context)
+  fetchAnilist<{ Page: Page, top?: Page }>({ query: BROWSE_QUERY, variables: { ...variables, page } }, context)
 
 /**
  * One browse, paged.
@@ -480,14 +489,14 @@ const fetchBrowsePage = (variables: BrowseVariables, page: number, context: Extr
  * since its own ranking already puts the answer on the first page.
  *
  * A season listed without a search leaves out what AniList marks adult, after the read, as the bundled
- * season does with the same 150 (scripts/season-popularity.mjs). Only a season nothing else narrows
- * sets `popularity`, since its first page holds the season's most followed work.
+ * season does with the same 150 (scripts/season-popularity.mjs). A browse of one season sets
+ * `popularity` over the season's `top`, never over its own first row: a genre's or a format's most
+ * followed work is not the season's, and a share of it would overstate every row.
  */
 const browse = async (variables: BrowseVariables, context: ExtractorServerContext) => {
-  const data = await fetchBrowsePage(variables, 1, context)
+  const data = await fetchBrowsePage({ ...variables, top: Boolean(variables.season && variables.seasonYear) }, 1, context)
   const lastPage = data?.Page?.pageInfo?.lastPage
-  const { season, seasonYear, search, format_in, status, genre_in, tag_in } = variables
-  const wholeSeason = Boolean(season && seasonYear) && !search && !format_in && !status && !genre_in && !tag_in
+  const most = data?.top?.media?.[0]?.popularity
 
   const rows = await normalizePage(
     [
@@ -501,7 +510,7 @@ const browse = async (variables: BrowseVariables, context: ExtractorServerContex
     media => normalizeMedia(media as Media),
     'AniList browse'
   )
-  return wholeSeason ? withSeasonPopularity(rows) : rows
+  return most ? withSeasonPopularity(rows, most) : rows
 }
 
 const externalLinkHasSiteId =
@@ -816,6 +825,7 @@ type BrowseVariables = {
   genre_in?: string[]
   tag_in?: string[]
   sort?: string[]
+  top?: boolean
 }
 
 /**

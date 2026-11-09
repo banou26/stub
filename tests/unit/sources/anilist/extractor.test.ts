@@ -148,12 +148,15 @@ test('AniList\'s streaming links are the media\'s, and its other links and a dis
 // The browse path, driven through the real `mediaPage` subscription. Every request body is kept, so a
 // test reads the exact variables the resolver built rather than a helper's idea of them: the argument
 // NAMES are AniList's (`format_in`, `genre_in`), and a wrong one costs the whole document.
-const browseContext = (pageInfo: { lastPage?: number }, media: unknown[] = []) => {
+// `top` is the season's most followed count, answered only to a request that asks for it
+const browseContext = (pageInfo: { lastPage?: number }, media: unknown[] = [], top?: number) => {
   const requests: { query: string, variables: Record<string, unknown> }[] = []
   const fetch = async (url: string, init?: { body?: string }) => {
     if (url !== ANILIST) throw new Error(`fixture has no route for ${url}`)
-    requests.push(JSON.parse(init?.body ?? '{}'))
-    return { status: 200, json: async () => ({ data: { Page: { pageInfo, media } } }) }
+    const request = JSON.parse(init?.body ?? '{}')
+    requests.push(request)
+    const asked = request.variables?.top && top ? { top: { media: [{ popularity: top }] } } : {}
+    return { status: 200, json: async () => ({ data: { Page: { pageInfo, media }, ...asked } }) }
   }
   return { ctx: { fetch } as never, requests }
 }
@@ -161,8 +164,8 @@ const browseContext = (pageInfo: { lastPage?: number }, media: unknown[] = []) =
 const openMediaPage = (ctx: never, input: Record<string, unknown>) =>
   (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input }, ctx).next()
 
-const browsedNodes = async (media: unknown[], input: Record<string, unknown> = { season: 'SUMMER', seasonYear: 2026 }) => {
-  const { ctx } = browseContext({ lastPage: 1 }, media)
+const browsedNodes = async (media: unknown[], input: Record<string, unknown> = { season: 'SUMMER', seasonYear: 2026 }, top?: number) => {
+  const { ctx } = browseContext({ lastPage: 1 }, media, top)
   const { value } = await openMediaPage(ctx, input)
   return value.mediaPage.nodes
 }
@@ -213,6 +216,7 @@ test('a filtered browse carries anilist own argument names, and drops the format
     tag_in: ['Isekai'],
     sort: ['POPULARITY_DESC'],
     page: 1,
+    top: true,
   })
   expect(requests[0]!.query, 'a Page with no type argument answers manga formats too').toContain('type: ANIME')
 })
@@ -348,22 +352,24 @@ test('a season leaves out what AniList marks adult, and a search or a listing wi
 const SUMMER = [[178789, 171_252], [135865, 97_874], [214068, 345]].map(([id, popularity]) => ({ ...PAGE_MEDIA, id, popularity }))
 
 test('a whole season\'s browse gives each show its users over the most any show of the season has', async () => {
-  const nodes = await browsedNodes(SUMMER)
+  const nodes = await browsedNodes(SUMMER, undefined, 171_252)
 
   expect(nodes.map((node: { followers: number, popularity: number }) => [node.followers, node.popularity]))
     .toEqual([[171_252, 1], [97_874, 97_874 / 171_252], [345, 345 / 171_252]])
 })
 
-// a narrowed browse's most followed show is the narrowed list's, so a share of it would overstate every show
-test('a browse anything narrows, or that names no whole season, gives its counts and no share', async () => {
-  for (const input of [
-    { season: 'SUMMER', seasonYear: 2026, genres: ['Action'] },
-    { season: 'SUMMER', seasonYear: 2026, formats: ['TV'] },
-    { season: 'SUMMER', seasonYear: 2026, status: 'FINISHED' },
-    { season: 'SUMMER', seasonYear: 2026, search: 'echo' },
-    { seasonYear: 2026 },
-  ]) {
-    const nodes = await browsedNodes(SUMMER, input)
+// a narrowed browse's own most followed show is only the narrowed list's, so a share of it would overstate every show
+test('a browse anything narrows measures each show against the season\'s most followed, not its own', async () => {
+  for (const narrowed of [{ genres: ['Action'] }, { tags: ['Isekai'] }, { formats: ['TV'] }, { status: 'FINISHED' }, { search: 'tanya' }]) {
+    const nodes = await browsedNodes(SUMMER.slice(1), { season: 'SUMMER', seasonYear: 2026, ...narrowed }, 171_252)
+    expect(nodes.map((node: { followers: number, popularity?: number }) => [node.followers, node.popularity]), JSON.stringify(narrowed))
+      .toEqual([[97_874, 97_874 / 171_252], [345, 345 / 171_252]])
+  }
+})
+
+test('a browse that names no whole season gives its counts and no share', async () => {
+  for (const input of [{ seasonYear: 2026 }, { season: 'SUMMER' }, { genres: ['Action'] }]) {
+    const nodes = await browsedNodes(SUMMER, input, 171_252)
     expect(nodes.map((node: { followers: number, popularity?: number }) => [node.followers, node.popularity]), JSON.stringify(input))
       .toEqual([[171_252, undefined], [97_874, undefined], [345, undefined]])
   }
@@ -587,5 +593,5 @@ test('the details query goes out only when asked, and the modal and listing bodi
 
   const browse = browseContext({ lastPage: 1 })
   await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
-  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('75c4edd6d344fdfabcb3cb3a5ff85c34105e4262b9a46b696277f563f2f78804')
+  expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('ef9fa082a7a73bf96b995763b0e88e40b67baebd95775a832a40f4d56887b726')
 })

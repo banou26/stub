@@ -373,9 +373,10 @@ type Media {
   season. Shares from different sources compare where their counts do not (MyAnimeList counts about 90
   times what Kitsu does for the same show).
 
-  Set only by an answer holding a whole season (or its most followed works), and taken from the first
-  source in the merge order that set one, Kitsu last. Null for a work no such answer listed: one with no
-  season, or one only reached through a search, a title page or a narrowed browse.
+  Set only by an answer that knows the season's most followed work (a whole season, or AniList's
+  browse of one, which asks for that work beside it), and taken from the first source in the merge
+  order that set one, Kitsu last. Null for a work no such answer listed: one with no season, or one
+  only reached through a search naming no season, or a title page.
   """
   popularity: Float
   """

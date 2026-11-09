@@ -15,14 +15,16 @@ export const shareOf = (followers: number | null | undefined, most: number | nul
   followers && most ? Math.min(1, followers / most) : undefined
 
 /**
- * One source's whole season with `popularity` set on each row it counts. Only an answer holding the
- * season's every work, or at least its most followed, may pass through here: a narrower one (a genre,
- * a format) would measure against a smaller top and overstate every row.
+ * One source's rows of a season with `popularity` set on each row it counts, over `most`, the season's
+ * top count on that source. Left out, `most` is the largest among `rows`, so only an answer holding the
+ * season's every work, or at least its most followed, may leave it out: a narrower one (a genre, a
+ * format) would measure against a smaller top and overstate every row.
  */
-export const withSeasonPopularity = <T extends { followers?: number | null, popularity?: number | null }>(rows: T[]): T[] => {
-  const most = Math.max(0, ...rows.map(row => row.followers ?? 0))
-  return rows.map(row => {
+export const withSeasonPopularity = <T extends { followers?: number | null, popularity?: number | null }>(
+  rows: T[],
+  most = Math.max(0, ...rows.map(row => row.followers ?? 0))
+): T[] =>
+  rows.map(row => {
     const popularity = shareOf(row.followers, most)
     return popularity === undefined ? row : { ...row, popularity }
   })
-}
