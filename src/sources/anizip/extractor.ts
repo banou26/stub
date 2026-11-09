@@ -3,6 +3,8 @@ import type { Resolvers, Media as GQLMedia, MediaHandle as GQLMediaHandle } from
 import { fromAggregatedUri, isAggregatedUri } from '../../utils/uri'
 import { decodeEntities } from '../entities'
 import { dropCredit, makeMedia, makeEpisode, partOf, tmdbLink } from '../utils'
+import { translatedTitle } from '../translations'
+import { bestLanguage } from '../../i18n/best-language'
 
 export const originUrl = 'https://api.ani.zip/' as const
 export const origin = 'anizip' as const
@@ -35,6 +37,14 @@ const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
   ...ja ? [{ language: 'ja', title: anidbTitle(ja), score: SCORE }] : [],
 ]
 
+// AniDB's title in `language`, which api.ani.zip keys by BCP 47 tag (`fr`, `pt-BR`, `zh-Hant`), when it is not one of
+// the two above
+const translationOf = (titles: AnimeSeries['titles'], language: string) => {
+  const tag = bestLanguage([language], Object.keys(titles))
+  const title = tag && titles[tag] && anidbTitle(titles[tag])
+  return title && !titlesOf(titles).some(main => main.title === title) ? [translatedTitle(tag, title, SCORE)] : []
+}
+
 const DAY_MS = 86_400_000
 
 // An episode not dated yet carries `airdate: ''`, which as a date would hide every other source's. TheTVDB's
@@ -47,7 +57,8 @@ const airedAt = ({ airDateUtc, airdate }: Episode) =>
     ? airdate
     : airDateUtc || airdate || undefined
 
-export const normalizeMedia = (media: AnimeSeries) => {
+/** The media for one answer, with the title in `language`, the viewer's, beside its own when AniDB has one. */
+export const normalizeMedia = (media: AnimeSeries, language?: string) => {
   const id = media.mappings.anidb_id.toString()
   const uri = `${origin}:${id}`
 
@@ -77,7 +88,7 @@ export const normalizeMedia = (media: AnimeSeries) => {
     categories: ['ANIME', media.mappings.type === 'MOVIE' ? 'MOVIE' : 'SERIES'],
     url: `https://api.ani.zip/mappings?anidb_id=${id}`,
     handles,
-    titles: titlesOf(media.titles),
+    titles: [...titlesOf(media.titles), ...language ? translationOf(media.titles, language) : []],
     covers: media.images
       ?.filter(image => image.coverType === 'Poster')
       .map(image => ({ url: image.url, score: SCORE }))
@@ -150,7 +161,7 @@ const fetchAnizipJsonMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: st
 const fetchAnizipMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: string, context: ExtractorServerContext) =>
   fetchAnizipJsonMappings(providerId, id, context)
     // api.ani.zip answers unknown ids with a 200 "Not Found" string rather than an AnimeSeries
-    .then(animeData => animeData?.mappings?.anidb_id != null ? normalizeMedia(animeData) : null)
+    .then(animeData => animeData?.mappings?.anidb_id != null ? normalizeMedia(animeData, context.language) : null)
 
 const fetchMALMappings = (id: string, context: ExtractorServerContext) => fetchAnizipMappings('mal', id, context)
 

@@ -436,3 +436,19 @@ test('a short profiles for the merge exactly as the TV it used to be spelled', (
   // name one, so a short profiling as nothing would stop refusing anything
   expect(short.types.size).toBe(1)
 })
+
+// STUB-374, behind `?store=legacy`. Mutation: read every title in `selectTitles` or the seasons, and the French title
+// and the Chinese one's season join the profile.
+test('a translation is in no cluster profile', () => {
+  const profile = profileCluster([{
+    uri: 'anizip:18886', origin: 'anizip', id: '18886', type: 'TV', categories: ['ANIME', 'SERIES'], startDate: SPRING_2026,
+    titles: [
+      { language: 'en', title: 'Frieren: Beyond Journey\'s End (2026)', score: 0.9 },
+      { language: 'fr', title: 'Frieren saison 2', score: 0.09, class: 'TRANSLATED' },
+      { language: 'zh-Hans', title: '葬送的芙莉莲 第二季', score: 0.09, class: 'TRANSLATED' },
+    ],
+  }] as any)
+
+  expect(profile.titles).toHaveLength(1)
+  expect([...profile.seasons]).toEqual([])
+})

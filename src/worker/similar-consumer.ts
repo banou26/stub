@@ -47,6 +47,7 @@ import {
 } from '../sources/similar'
 import { isOnlySeasonLabel } from '../sources/season'
 import { simplifyTitle, TITLE_MATCH_THRESHOLD } from '../sources/utils'
+import { mainTitles } from '../sources/translations'
 import { policyFor } from './request-context'
 
 export type SimilarAsk = { runUri: string, origin: string, showId: string, containerUri: string }
@@ -306,7 +307,7 @@ const agreeingRows = async (cluster: Media[], runUri: string): Promise<Media[]> 
     .flatMap(title => [title, ...simplifyTitle(title)])
   const agrees = await Promise.all(cluster.map(async media => {
     if (claimed.has(media.uri)) return true
-    const named = [media, ...findClaimedShows([media])].flatMap(row => (row.titles ?? []).map(title => title.title))
+    const named = [media, ...findClaimedShows([media])].flatMap(row => mainTitles(row.titles).map(title => title.title))
     return (await answerNamesOurShow(titles, named, TITLE_MATCH_THRESHOLD)).ok
   }))
   const shows = findClaimedShows(cluster.filter((_, index) => agrees[index]))
@@ -365,7 +366,7 @@ const byScoreDescending = (a: Media, b: Media) => {
 export const runEvidence = (cluster: Media[], episodeTitles: readonly string[]): RunEvidence => {
   const sorted = [...cluster].sort(byScoreDescending)
   return {
-    titles: dedupe(sorted.flatMap(media => (media.titles ?? []).map(title => title.title))).filter(title => !isOnlySeasonLabel(title)),
+    titles: dedupe(sorted.flatMap(media => mainTitles(media.titles).map(title => title.title))).filter(title => !isOnlySeasonLabel(title)),
     startDate: bestRunStartDate(sorted.map(media => media.startDate)),
     // the same number the aggregate publishes, so a source is asked against what the page shows
     // rather than a second opinion assembled here (store/consensus.ts)
@@ -486,7 +487,7 @@ const drive = async (start: AskRecord, context: RequestContext, deps: SimilarDep
         return
       }
       const runTitles = evidence.titles ?? []
-      const answerTitles = (result.media.titles ?? []).map(title => title.title)
+      const answerTitles = mainTitles(result.media.titles).map(title => title.title)
       const verdict = await answerNamesOurShow(runTitles, answerTitles)
       if (!verdict.ok) {
         record.refusedTitles.add(question.titles)

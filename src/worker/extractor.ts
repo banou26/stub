@@ -47,6 +47,12 @@ export type ExtractorServerContext = YogaInitialContext & {
    * `similarMediaFrom` below for what it costs and what it refuses.
    */
   similarMedia: (origin: string, input: SimilarMediaInput) => Promise<Media | undefined>
+  /**
+   * The language the viewer wants content in, a BCP 47 tag (src/i18n/languages.ts `contentLanguage`), for a source
+   * that has a title or synopsis in it. Handed here rather than read, as scripts/offline-pick.ts runs extractors at
+   * build time, which has no viewer.
+   */
+  language: string
 }
 
 export type ExtractorUserContext = {
@@ -582,7 +588,8 @@ export const makeExtractor = (
           fetch: fetchWithBackoff,
           findAggregatedMedia: (uri: string) => findAggregatedMediaForContext(uri),
           listenForMediaChanges: listenForMediaChangesForContext,
-          similarMedia: similarMediaFrom(extractor.origin)
+          similarMedia: similarMediaFrom(extractor.origin),
+          language: heldViewerLanguages().language,
         }
       )
   })

@@ -2,7 +2,7 @@
 // BanG Dream! It's MyGO!!!!! on 2026-10-13, Nine: Original-ban, Happy-Go-Lucky Days, Full Dive and Monster on 2026-10-24.
 import { expect, test } from 'vite-plus/test'
 
-import { resolvers } from '../../../../src/sources/anizip/extractor'
+import { normalizeMedia, resolvers } from '../../../../src/sources/anizip/extractor'
 import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
 import { descriptionText } from '../../../../src/worker/resolvers/utils'
 import FRIEREN from '../../../fixtures/anizip/frieren.json'
@@ -12,9 +12,10 @@ import NINE from '../../../fixtures/anizip/nine-original-ban.json'
 import HAPPY_GO_LUCKY_DAYS from '../../../fixtures/anizip/happy-go-lucky-days.json'
 import FULL_DIVE from '../../../fixtures/anizip/full-dive.json'
 import MONSTER from '../../../fixtures/anizip/monster.json'
+import PENGUIN_HIGHWAY from '../../../fixtures/anizip/penguin-highway.json'
 
-const normalized = async (answer: { mappings: { mal_id: number } }) => {
-  const context = { fetch: async () => ({ json: async () => answer }) }
+const normalized = async (answer: { mappings: { mal_id: number } }, language = 'en-US') => {
+  const context = { fetch: async () => ({ json: async () => answer }), language }
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri: `ag:(mal:${answer.mappings.mal_id})` } }, context).next()
   return value.media
@@ -183,6 +184,35 @@ test('an episode TheTVDB times 2 or more days from AniDB\'s day goes by that day
 
   expect(dates[27], 'a day and a half apart').toBe('2026-10-13T12:00:00Z')
   expect(dates[28]).toBe('2026-10-12')
+})
+
+type Titled = { titles: { language: string, title: string, score: number, class?: string }[] }
+
+// STUB-374. Mutation: drop the language `fetchAnizipMappings` hands `normalizeMedia`, and no translation arrives.
+test('a viewer reading another language gets AniDB\'s title in it, at a tenth of AniZip\'s score, after its own', async () => {
+  expect(((await normalized(PENGUIN_HIGHWAY, 'fr-CA')) as Titled).titles).toEqual([
+    { language: 'en', title: 'Penguin Highway', score: 0.9 },
+    { language: 'ja', title: 'ペンギン・ハイウェイ', score: 0.9 },
+    { language: 'fr', title: 'Le mystère des pingouins', score: 0.09, class: 'TRANSLATED' },
+  ])
+  expect(((await normalized(FRIEREN, 'pt-BR')) as Titled).titles.at(-1), 'its own tag before the language\'s').toEqual(
+    { language: 'pt-BR', title: 'Frieren e a Jornada para o Além', score: 0.09, class: 'TRANSLATED' },
+  )
+})
+
+// Mutation: drop the check against AniZip's own titles, and an English or Japanese viewer gets one of them twice, as
+// does a German one MyGO's English title.
+test('the build, an English viewer and a Japanese one get AniZip\'s titles as before, and a translation equal to them is none', async () => {
+  const own = (answer: Parameters<typeof normalizeMedia>[0]) => normalizeMedia(answer).titles
+  expect(own(PENGUIN_HIGHWAY as never)).toEqual([
+    { language: 'en', title: 'Penguin Highway', score: 0.9 },
+    { language: 'ja', title: 'ペンギン・ハイウェイ', score: 0.9 },
+  ])
+  for (const language of ['en-US', 'en-GB', 'ja']) {
+    expect(((await normalized(PENGUIN_HIGHWAY, language)) as Titled).titles, language).toEqual(own(PENGUIN_HIGHWAY as never))
+  }
+  expect(MYGO.titles.de, 'the control: AniDB has a German title').toBe(MYGO.titles.en)
+  expect(((await normalized(MYGO, 'de-DE')) as Titled).titles).toEqual(own(MYGO as never))
 })
 
 test('a work\'s banner is its 16:9 TheTVDB fanart, never the thin TheTVDB banner strip', async () => {

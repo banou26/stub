@@ -5,6 +5,7 @@ import initFrizbee, { Matcher } from 'frizbee'
 import initSacha, { parse as parseMediaName } from 'sacha'
 import { fromAggregatedUri, toUri } from '../utils/uri'
 import { SEASON_MARKER } from './season'
+import { mainTitles } from './translations'
 
 /**
  * A handle, or the media to make a SAME_AS handle out of.
@@ -550,13 +551,21 @@ export const mergeHandles = (media: GQLMedia, aggregatedUri: string) => {
   ]
 }
 
+/**
+ * What `extract` takes from the media `uri` names, once it takes something, or undefined after `timeoutMs`. The media
+ * carries its main titles alone, so what a source compares and searches its catalogue with is every viewer's.
+ */
 export const waitForMedia = async <T>(
   uri: string,
   ctx: ExtractorServerContext,
   extract: (media: any) => T | undefined,
   timeoutMs = 15_000
 ): Promise<T | undefined> => {
-  const result = extract(await ctx.findAggregatedMedia(uri))
+  const read = async () => {
+    const media = await ctx.findAggregatedMedia(uri)
+    return extract(media && { ...media, titles: mainTitles(media.titles) })
+  }
+  const result = await read()
   if (result) return result
   const ac = new AbortController()
   const timeout = setTimeout(() => ac.abort(), timeoutMs)
@@ -570,7 +579,7 @@ export const waitForMedia = async <T>(
     for await (const _ of ctx.listenForMediaChanges({ uri }, { abortSignal: ac.signal })) {
       // the changes are listened for only after their first read, and an abort before then reaches no listener
       if (ac.signal.aborted) break
-      const r = extract(await ctx.findAggregatedMedia(uri))
+      const r = await read()
       if (r) return r
     }
   } finally {

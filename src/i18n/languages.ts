@@ -4,7 +4,10 @@
 // worker and src/viewer-languages.ts share it.
 
 import OFFERED_LANGUAGES from './offered.json'
+import { bestLanguage, localeOf } from './best-language'
 import { settings, type Settings } from '../settings-store'
+
+export { bestLanguage }
 
 /** The setting holding the language picked in Settings, an offered tag. No value is Automatic. */
 export const LANGUAGE_KEY = 'stub.language'
@@ -17,36 +20,8 @@ const RIGHT_TO_LEFT = new Set(['ar', 'ckb', 'dv', 'fa', 'he', 'ps', 'sd', 'ug', 
 
 const browserLanguages = (): readonly string[] => globalThis.navigator?.languages ?? []
 
-const localeOf = (tag: string) => {
-  try { return new Intl.Locale(tag) } catch { return undefined }
-}
-
 /** Whether `tag`'s language is written right to left. */
 export const isRightToLeft = (tag: string) => RIGHT_TO_LEFT.has(localeOf(tag)?.language ?? '')
-
-/**
- * The offered tag serving the first of `wanted` that any serves: matched exactly, else by language and script once
- * maximized (`zh-TW` finds `zh-Hant`, `pt-PT` finds `pt-BR`, `es-MX` finds `es-419`), else by language alone.
- * Undefined when none is served.
- */
-export const bestLanguage = (wanted: readonly string[], offered: readonly string[]): string | undefined => {
-  const candidates = offered.flatMap(tag => {
-    const locale = localeOf(tag)
-    if (!locale) return []
-    const { language, script } = locale.maximize()
-    return [{ tag, exact: locale.baseName, language, script }]
-  })
-  for (const tag of wanted) {
-    const locale = localeOf(tag)
-    if (!locale) continue
-    const { language, script } = locale.maximize()
-    const hit = candidates.find(candidate => candidate.exact === locale.baseName)
-      ?? candidates.find(candidate => candidate.language === language && candidate.script === script)
-      ?? candidates.find(candidate => candidate.language === language)
-    if (hit) return hit.tag
-  }
-  return undefined
-}
 
 /** The language picked in Settings, or undefined for Automatic, a language not offered, or no storage. */
 export const readPickedLanguage = (): string | undefined => {

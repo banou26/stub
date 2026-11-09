@@ -360,4 +360,17 @@ describe('a wait for the media', () => {
     ask.abort()
     expect(await within(waitForMedia('ag:(none:0)', asked(ask.signal), media => media, 60_000), 1_000)).toBeUndefined()
   })
+
+  // STUB-374. Mutation: hand `extract` the media as read, and a source reads the French title a French viewer's page
+  // holds, so what it searches and links would differ by viewer.
+  test('hands a source the main titles alone, never a translation', async () => {
+    const titles = [
+      { language: 'en', title: 'Penguin Highway', score: 0.9 },
+      { language: 'fr', title: 'Le mystère des pingouins', score: 0.09, class: 'TRANSLATED' },
+      { language: 'jp-en', title: 'Pengin Haiuei', score: 0.4, class: 'MAIN' },
+    ]
+    const context = { findAggregatedMedia: async () => ({ uri: 'ag:(anilist:101249)', titles }) } as unknown as ExtractorServerContext
+    expect((await waitForMedia('ag:(anilist:101249)', context, media => media))?.titles.map(({ title }: { title: string }) => title))
+      .toEqual(['Penguin Highway', 'Pengin Haiuei'])
+  })
 })

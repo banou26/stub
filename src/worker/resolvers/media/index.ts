@@ -13,6 +13,8 @@ import { askAddressOf, createMediaReader, createPageReader, episodesOf, followed
 import { listen, listenIterator, listenMultipleIterator, debouncedListenIterator } from '../../store/events'
 import { createSettling } from '../../fanout'
 import { descriptionAs } from '../utils'
+import { heldViewerLanguages } from '../../../viewer-languages'
+import { synopsesIn, translationFirst } from '../../../sources/translations'
 import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../../sources/utils'
 import { decodeRouteUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
 
@@ -369,11 +371,14 @@ export const resolvers = {
         .map(group => aggregateEpisode(group, location.origin))
         .sort((a, b) => (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0))
     },
+    // The viewer's language first, and only here: the stored order, which merges, links and every source read, is every
+    // viewer's. A synopsis in it replaces the others, which the title page would otherwise outweigh with a longer one.
+    titles: (parent) => translationFirst(parent.titles ?? [], heldViewerLanguages().language),
     descriptions: (parent, args) =>
-      parent.descriptions?.slice(0, args.input?.count || undefined)
+      parent.descriptions && synopsesIn(parent.descriptions, heldViewerLanguages().language).slice(0, args.input?.count || undefined)
         .map(item => ({ ...item, description: descriptionAs(item.description, args.input?.type) })),
     shortDescriptions: (parent, args) =>
-      parent.shortDescriptions?.slice(0, args.input?.count || undefined)
+      parent.shortDescriptions && synopsesIn(parent.shortDescriptions, heldViewerLanguages().language).slice(0, args.input?.count || undefined)
         .map(item => ({ ...item, shortDescription: descriptionAs(item.shortDescription, args.input?.type) })),
     handles: (parent) => parent.handles ?? [],
   }

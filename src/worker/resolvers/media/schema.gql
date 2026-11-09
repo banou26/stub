@@ -551,10 +551,22 @@ type MediaCharacter {
   voiceActors: [MediaPerson!]!
 }
 
+"""What a title is to its source. No class is MAIN."""
+enum MediaTitleClass {
+  """The source's own name for the work, the only kind matching, merges and searching a catalogue read."""
+  MAIN
+  """
+  The work's name in another language, at a tenth of its source's score so it never leads the stored titles. The
+  `titles` field puts the viewer's language first; nothing compares it.
+  """
+  TRANSLATED
+}
+
 type MediaTitle {
   language: String!
   title: String!
   score: Float
+  class: MediaTitleClass
 }
 
 input MediaShortDescriptionInput {

@@ -476,6 +476,30 @@ test('a container-only cluster asks nothing, and so does a run with no evidence'
   expect(ask).not.toHaveBeenCalled()
 })
 
+// STUB-374. Mutation: read every title of an answer, and a translation in it vouches for it.
+test('an answer named like the run only by a translation is refused by title', async () => {
+  await upsertMedia(
+    [media('kitsu:49002', 'RUN', { score: 0.3, titles: [ROMAJI], startDate: '2026-07-04', episodeCount: 14 }), media('cr:G24H1N3MP', 'CONTAINER')],
+    [{ mediaUri: 'kitsu:49002', handleUri: 'cr:G24H1N3MP' }]
+  )
+  const titles = [...CR_SEASON_3.titles, { title: ROMAJI, language: 'fr', class: 'TRANSLATED' }]
+  const ask = vi.fn(async (): Promise<SimilarOutcome> => answered({ ...CR_SEASON_3, titles }))
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+  await resolveSimilarRuns(await findAggregatedMedia('kitsu:49002'), root, { ask, implemented })
+  expect(warn.mock.calls.map(call => String(call[0])).filter(text => text.startsWith('similarMedia: consumer refused-by-title '))).toHaveLength(1)
+  warn.mockRestore()
+})
+
+// STUB-374. Mutation: read every title in `runEvidence`, and a French viewer's page asks with the French one too.
+test('a run\'s evidence names its main titles alone, never a translation', () => {
+  const run = { ...media('anizip:13853', 'RUN'), titles: [
+    { language: 'en', title: 'Penguin Highway', score: 0.9 },
+    { language: 'fr', title: 'Le mystère des pingouins', score: 0.09, class: 'TRANSLATED' },
+  ] }
+  expect(runEvidence([run], []).titles).toEqual(['Penguin Highway'])
+})
+
 test('a refusal claims nothing', async () => {
   const cluster = await storeRun()
   await resolveSimilarRuns(cluster, root, { ask: refuser(), implemented })

@@ -28,6 +28,7 @@ import type { Plugin, PluginContext, PluginOutput, PluginRow } from './contract'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../../../sources/season'
 import { namesAPart, PART_MARKER } from '../../../sources/similar'
 import { stripTitle } from '../../../sources/utils'
+import { mainTitles } from '../../../sources/translations'
 import { COMPANION_MARKERS, mergeType, WORK_KINDS } from '../../store/fuzzy-merge'
 import {
   DECLARED_COUNT_ORIGINS, FOLDING_ORIGINS, NUMBER_SPACE_ORIGINS, RETRANSLATING_ORIGINS, SHOW_LEVEL_ORIGINS,
@@ -76,8 +77,8 @@ const declaredText = (raw: Record<string, unknown>, field: string): string | und
  * to any comparison made on titles alone (`season.ts:113-129`). Only `titles` is read, never a
  * synonym field: `minna no uta` sits on 23 unrelated shows (2026-08-29).
  *
- * MAIN is the only class any extractor emits today (`MediaTitle` carries no `class` at all, 4.6), so
- * a title with no class is MAIN and one that declares another class is dropped.
+ * A title with no class is MAIN, and one that declares another class is dropped: a translation
+ * (src/sources/translations.ts) is the viewer's, and a match is every viewer's.
  */
 export const titleKeysOf = (titles: unknown): TitleKeyEntry[] => {
   const entries = new Map<string, TitleKeyEntry>()
@@ -574,7 +575,9 @@ const mediaProfileRow = (
   ownEpisodes: number
 ): { profile: PluginRow, keys: TitleKeyEntry[] } => {
   const raw = asRecord(parseJson(row.raw))
-  const titles = parseJson(row.titles) ?? raw.titles
+  // a translation is one viewer's, so it names no season or part of the row either (`titleKeysOf`)
+  const listed = parseJson(row.titles) ?? raw.titles
+  const titles = mainTitles(Array.isArray(listed) ? listed as RawTitle[] : [])
   const showLevel = SHOW_LEVEL_ORIGINS.has(row.origin)
   const format = formatOf(row.type ?? raw.type, row.categories ?? raw.categories)
   const { scope, scopeFrom } = scopeReadingOf({

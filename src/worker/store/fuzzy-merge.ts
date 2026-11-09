@@ -2,6 +2,7 @@ import type { Media, MediaScope, MediaType } from './types'
 
 import { stripTitle, titleSimilarity } from '../../sources/utils'
 import { isOnlySeasonLabel, parseSeasonNumber } from '../../sources/season'
+import { mainTitles } from '../../sources/translations'
 import { findAggregatedMedia, linkPartOfPairs, linkSameContainerPairs, linkSameMediaPairs } from './db'
 
 // exported for `plugin:title` (5.4 P3), which scores a pair against the same threshold
@@ -261,7 +262,7 @@ const orderWithinTier = (titles: string[]) => [...titles].sort(compareStrings)
 const selectTitles = (cluster: Media[]): string[] => {
   const bestScore = new Map<string, number>()
   for (const media of cluster) {
-    for (const { title, score } of media.titles ?? []) {
+    for (const { title, score } of mainTitles(media.titles)) {
       const normalized = normalizeTitle(title)
       if (!carriesIdentity(normalized)) continue
       const value = score ?? -1
@@ -342,7 +343,7 @@ export const profileCluster = (cluster: Media[]): ClusterProfile => {
   const seasons =
     new Set(
       cluster
-        .flatMap(media => media.titles ?? [])
+        .flatMap(media => mainTitles(media.titles))
         .map(({ title }) => parseSeasonNumber(title))
         .filter((season): season is number => season !== undefined)
     )
