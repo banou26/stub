@@ -34,6 +34,7 @@ export type LiveChartAnime = {
   avg_rating?: number | string | null
   poster_image_large?: string | null
   mal_url?: string | null
+  anilist_url?: string | null
 }
 
 /**
@@ -53,20 +54,26 @@ const categoriesOf = (type: MediaType | undefined): MediaCategory[] =>
   type === undefined ? ['ANIME'] : type === MediaType.Movie ? ['ANIME', 'MOVIE'] : ['ANIME', 'SERIES']
 
 /**
- * The ONE handle a row mints: its MyAnimeList id, read off the only shape LiveChart links
- * (`myanimelist.net/anime/<id>`, numeric, or nothing).
+ * The ONE handle a row mints: its MyAnimeList id, or its AniList id on a card with no MyAnimeList link, read off the
+ * only shape LiveChart links (`myanimelist.net/anime/<id>`, `anilist.co/anime/<id>`, numeric, or nothing).
  *
- * Not its AniList, Kitsu or AniDB link as well, though it carries them. A row naming two catalogues
+ * Never both, nor its Kitsu or AniDB link as well, though it carries them. A row naming two catalogues
  * unions their runs for good, and on some entries LiveChart's own links disagree about which part they
  * name: on 2026-10-10 its `Girls und Panzer das Finale` Part 5 entry linked Part 5 on MyAnimeList and
  * Part 1 on Kitsu, Kitsu answered for that id with Part 1's MyAnimeList id, and the season walk welded
  * the two parts. One id cannot join two runs. Nothing is lost by it: AniList, Kitsu, AniZip and the
- * bundled index already link MyAnimeList ids to the other three, and 175 of the 176 kept fall and
- * summer 2026 rows that carry any id carry a MyAnimeList one.
+ * bundled index already link MyAnimeList ids to the other three.
+ *
+ * The AniList link stands in only where MyAnimeList's is missing, so `Sekiro: No Defeat` (winter 2027, AniList only)
+ * joins AniList's row rather than showing as a second card. Measured 2026-11-10 on fall 2026 and winter 2027: of the
+ * 160 kept rows, 10 link no MyAnimeList entry and 2 of those an AniList one; all 140 AniList links name their card's
+ * work, and AniList's own MyAnimeList id matches LiveChart's on all 134 rows where both are known.
  */
-const malHandle = (anime: LiveChartAnime): GQLMedia[] => {
-  const id = /^https?:\/\/myanimelist\.net\/anime\/(\d+)$/.exec(anime.mal_url ?? '')?.[1]
-  return id ? [makeMedia({ origin: 'mal', id, url: `https://myanimelist.net/anime/${id}` })] : []
+const catalogueHandle = (anime: LiveChartAnime): GQLMedia[] => {
+  const mal = /^https?:\/\/myanimelist\.net\/anime\/(\d+)$/.exec(anime.mal_url ?? '')?.[1]
+  if (mal) return [makeMedia({ origin: 'mal', id: mal, url: `https://myanimelist.net/anime/${mal}` })]
+  const anilist = /^https?:\/\/anilist\.co\/anime\/(\d+)$/.exec(anime.anilist_url ?? '')?.[1]
+  return anilist ? [makeMedia({ origin: 'anilist', id: anilist, url: `https://anilist.co/anime/${anilist}` })] : []
 }
 
 const JST_MS = 9 * 60 * 60 * 1000
@@ -99,7 +106,7 @@ export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season
     origin,
     id: String(anime.id),
     url: `https://www.livechart.me/anime/${anime.id}`,
-    handles: malHandle(anime),
+    handles: catalogueHandle(anime),
     score: SCORE,
     categories: categoriesOf(anime.type),
     type: anime.type,
@@ -158,6 +165,7 @@ export const parseSeasonPage = (html: string, type?: MediaType): LiveChartAnime[
       avg_rating: /title="([\d.]+) out of 10\b/.exec(card)?.[1],
       poster_image_large: /\s(https:\/\/u\.livechart\.me\/\S+\/large\.jpg) 2x"/.exec(card)?.[1],
       mal_url: /<a href="([^"]*)"[^>]*\bclass="mal logo\b/.exec(card)?.[1],
+      anilist_url: /<a href="([^"]*)"[^>]*\bclass="anilist logo\b/.exec(card)?.[1],
     }]
   })
 

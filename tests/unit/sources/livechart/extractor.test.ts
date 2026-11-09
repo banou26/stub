@@ -10,6 +10,8 @@ const FALL_2026 = { season: 'fall', year: 2026 } as const
 
 // https://www.livechart.me/fall-2026/tv on 2026-11-09, trimmed to seven cards
 const PAGE = readFileSync(new URL('../../../fixtures/livechart/fall-2026-tv.html', import.meta.url), 'utf8')
+// https://www.livechart.me/winter-2027/tv on 2026-11-09, trimmed to two cards that link no MyAnimeList entry
+const WINTER = readFileSync(new URL('../../../fixtures/livechart/winter-2027-tv.html', import.meta.url), 'utf8')
 
 // a row may carry more than the source reads
 const anime = (fields: Partial<LiveChartAnime> & Record<string, unknown> = {}): LiveChartAnime => ({
@@ -92,7 +94,7 @@ describe('a season page', () => {
     expect(cards.map(card => card.id)).toEqual([13508, 13631, 13514, 12991, 319, 13383, 12611])
   })
 
-  test("a card's titles, synopsis without its credit, poster, count, rating, premiere and MyAnimeList link", () => {
+  test("a card's titles, synopsis without its credit, poster, count, rating, premiere and catalogue links", () => {
     expect(card(13508)).toEqual({
       id: 13508,
       type: 'TV',
@@ -106,6 +108,7 @@ describe('a season page', () => {
       avg_rating: '7.78',
       poster_image_large: 'https://u.livechart.me/anime/13508/poster_image/9ab193bca2aae2d30fc7eb493442892c.webp/large.jpg',
       mal_url: 'https://myanimelist.net/anime/63409',
+      anilist_url: 'https://anilist.co/anime/207191',
     })
     expect(normalizeAnime(card(13508), FALL_2026).averageScore).toBe(78)
   })
@@ -152,6 +155,17 @@ describe('the handle a row mints', () => {
       anidb_url: 'http://anidb.net/a19001',
     }), FALL_2026)
     expect(handles.map(handle => handle.node.uri)).toEqual(['mal:61005'])
+    expect(normalizeAnime(parseSeasonPage(PAGE)[0]!, FALL_2026).handles.map(handle => handle.node.uri), 'a card linking both').toEqual(['mal:63409'])
+  })
+
+  // Sekiro: No Defeat links AniList alone, and with no handle it stood as a second card beside AniList's anilist:197620
+  test('its AniList id on a card with no MyAnimeList link, and nothing on a card with neither', async () => {
+    const nodes = await pageNodes({ season: 'WINTER', seasonYear: 2027 }, rig({ tv: WINTER }).ctx)
+
+    expect(nodes.map(node => [node.uri, node.handles.map(handle => [handle.relation, handle.node.uri, handle.node.scope, handle.node.url])])).toEqual([
+      ['livechart:13819', [['SAME_AS', 'anilist:197620', 'RUN', 'https://anilist.co/anime/197620']]],
+      ['livechart:13799', []],
+    ])
   })
 
   // An id read off the wrong shape is a string every record carrying that shape shares, and a
@@ -165,6 +179,9 @@ describe('the handle a row mints', () => {
       null,
     ]) {
       expect(normalizeAnime(anime({ mal_url }), FALL_2026).handles, String(mal_url)).toEqual([])
+    }
+    for (const anilist_url of ['https://anilist.co/anime/197620/SEKIRO-NO-DEFEAT', 'https://anilist.co/manga/197620', null]) {
+      expect(normalizeAnime(anime({ mal_url: null, anilist_url }), FALL_2026).handles, String(anilist_url)).toEqual([])
     }
   })
 })
