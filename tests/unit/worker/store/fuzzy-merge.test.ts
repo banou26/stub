@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test } from 'vite-plus/test'
 
 import { upsertMedia, findAggregatedMedia, findAllAggregatedMedia, findPartOfMedia } from '../../../../src/worker/store/db'
 import { fuzzyMergeMediaClusters, profileCluster } from '../../../../src/worker/store/fuzzy-merge'
