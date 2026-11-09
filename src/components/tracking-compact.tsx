@@ -9,13 +9,13 @@ import { defineMessages, useIntl, type IntlShape } from 'react-intl'
 import type { Said } from '../i18n/said'
 import type { WindowSignIn } from '../sources/login-window'
 import type { CompactPrefs } from '../tracking/compact-prefs'
-import type { CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
+import type { Activity, CompactAnswer, CompactTracking, Fields, Row, Settled, Target, TrackerOutcome } from '../tracking/compact'
 import type { Watched } from '../tracking/watched'
 
 import { NAME_LIST, wordsOf } from '../i18n'
 import { forPage } from '../i18n/said'
 import {
-  LIST_STATUSES, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
+  LIST_STATUSES, activityOf, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import { WATCHED_AT, watchedPatches } from '../tracking/watched'
@@ -500,9 +500,12 @@ const Chip = (
  * same episode make one save, and a progress the viewer lowers stays where they put it. Nothing is
  * raised while the row reads Completed, the viewer's own pick included. A checked tracker that cannot
  * write shows the save it missed, and is written once it can.
+ *
+ * Once a save of the row's own changes, or of an episode watched, lands on its first tracker, `onActivity`
+ * hears the strongest change since the last one it heard (`activityOf`): a burst of + presses is one.
  */
 const TrackingCompact = (
-  { tracking, episodeCount, movie = false, watched, counted: kept, onSaveFields, onRemove, signIns = {}, prefs, onPrefs }:
+  { tracking, episodeCount, movie = false, watched, counted: kept, onSaveFields, onRemove, onActivity, signIns = {}, prefs, onPrefs }:
   {
     tracking: CompactTracking | null | undefined
     episodeCount?: number | null
@@ -514,6 +517,7 @@ const TrackingCompact = (
     counted?: Map<string, number | null | undefined>
     onSaveFields: (targets: string[], entry: Fields) => Promise<TrackerOutcome[]>
     onRemove: (targets: string[]) => Promise<TrackerOutcome[]>
+    onActivity?: (activity: Activity) => void
     signIns?: SignIns
     prefs: CompactPrefs
     onPrefs: (prefs: CompactPrefs) => void
@@ -529,8 +533,10 @@ const TrackingCompact = (
   // one card at a time: a card holding focus stays open when the pointer leaves, so a second card
   // opened beside it would be drawn under it
   const [openCard, setOpenCard] = useState<string>()
-  const latest = useRef({ onSaveFields, onRemove, tracking, episodeCount })
-  latest.current = { onSaveFields, onRemove, tracking, episodeCount }
+  const latest = useRef({ onSaveFields, onRemove, onActivity, tracking, episodeCount })
+  latest.current = { onSaveFields, onRemove, onActivity, tracking, episodeCount }
+  // the row before the changes no save has landed yet, and after them
+  const unsaid = useRef<{ from: Row, to: Row }>(undefined)
 
   const queue = useMemo(() => createSaveQueue({
     send: async (tracker, fields) => {
@@ -549,6 +555,11 @@ const TrackingCompact = (
       if (!settled) return
       const name = latest.current.tracking?.answers.find(answer => answer.tracker.id === settled.tracker)?.tracker.name ?? settled.tracker
       setAnnounced({ ...settled, name })
+      if (saved(settled) && unsaid.current) {
+        const activity = activityOf(unsaid.current.from, unsaid.current.to)
+        unsaid.current = undefined
+        if (activity) latest.current.onActivity?.(activity)
+      }
       // a save that did not land falls back to what the trackers hold, beside its note
       if (!saved(settled) && queue.idle()) setOverrides({})
     },
@@ -586,6 +597,7 @@ const TrackingCompact = (
   }, [tracking])
 
   const shown = shownOf(row, overrides[ROW])
+  const tell = (to: Row) => { unsaid.current = { from: unsaid.current?.from ?? shown, to } }
   const auto = watched && tracking && shown.status !== 'COMPLETED' ? watchedPatches({ ...watched, movie }, tracking, prefs.targets, episodeCount) : {}
   const decided = (id: string) => counted.has(id) && counted.get(id) === watched?.episode
   const due = tracking?.answers.filter(({ tracker: { id } }) => auto[id] && !decided(id) && auto[id].progress! > (staged.current.get(id) ?? 0)) ?? []
@@ -597,7 +609,10 @@ const TrackingCompact = (
         if (target.kind === 'check' && target.sendable) counted.set(answer.tracker.id, watched.episode)
       }
     }
-    if (ready.length) stage(Object.fromEntries(ready.map(({ tracker: { id } }) => [id, auto[id]!])), true)
+    if (ready.length) {
+      tell({ ...shown, ...auto[ready[0]!.tracker.id] })
+      stage(Object.fromEntries(ready.map(({ tracker: { id } }) => [id, auto[id]!])), true)
+    }
   }, [watched, tracking, prefs])
 
   // a tracker with no id for the media can never track it, so it is left out rather than shown greyed
@@ -617,6 +632,7 @@ const TrackingCompact = (
   const change = (fields: Fields, immediate: boolean) => {
     remember(ROW, fields)
     const next: Row = { ...shown, ...fields }
+    tell(next)
     const patches: Record<string, Fields> = {}
     for (const { answer, target } of targets) {
       if (target.kind !== 'check' || !target.checked) continue

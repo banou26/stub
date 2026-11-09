@@ -61,6 +61,16 @@ export type Row = {
   differs: string[]
 }
 
+/** What a save of the row tells the viewer's FKN Social page, `episode` being the count a raise reached. */
+export type Activity = { kind: 'started' | 'watched' | 'completed', episode?: number }
+
+/** The strongest change from `from` to `to`: Completed, else progress up, else Watching; or nothing to tell. */
+export const activityOf = (from: Pick<Row, 'status' | 'progress'>, to: Pick<Row, 'status' | 'progress'>): Activity | undefined =>
+  to.status === 'COMPLETED' && from.status !== 'COMPLETED' ? { kind: 'completed' }
+  : to.progress > from.progress ? { kind: 'watched', episode: to.progress }
+  : to.status === 'WATCHING' && from.status !== 'WATCHING' ? { kind: 'started' }
+  : undefined
+
 const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
 /** A tracker that can write, and has answered with its entry or its lack of one. */
 export const writable = (answer: CompactAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)

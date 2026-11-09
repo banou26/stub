@@ -61,6 +61,24 @@ const remembered = vi.hoisted(() => ({ recordTrackerAnswers: vi.fn(), siteStatus
 vi.mock('../../../src/tracking/site-status', () => remembered)
 // the page's worker, which Unlock asks to check the account again
 vi.mock('../../../src/worker', () => ({ trackerCheck: async () => {} }))
+// FKN Social's package, installed for stub and answering as `state` says
+const social = vi.hoisted(() => ({ state: { state: 'off' } as { state: string, kinds?: string[] }, posted: [] as object[], asked: 0 }))
+vi.mock('@fkn/lib/packages', () => ({
+  install: async () => { throw new Error('no install here') },
+  connect: async () => ({
+    remote: {
+      hello: async () => ({ protocol: 2, min: 1 }),
+      publishing: async () => {
+        social.asked++
+        return social.state
+      },
+      publish: async (post: object) => {
+        social.posted.push(post)
+        return { ok: true, id: 'entry' }
+      },
+    },
+  }),
+}))
 
 const { default: MediaTracking } = await import('../../../src/components/media-tracking')
 const { useMediaKey } = await import('../../../src/components/media-tracking-query')
@@ -480,5 +498,50 @@ describe('a title opened from another title', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
     expect(saves()).toEqual([[A, { progress: 4 }], [A, { progress: 5 }]])
+  })
+})
+
+// STUB-58 (publish what you watch to your FKN Social profile)
+describe("posting to the viewer's FKN Social page", () => {
+  const FRIEREN = 'ag:(mal:52991,anilist:154587)'
+  beforeEach(() => {
+    answered.set(FRIEREN, tracking)
+    social.posted.length = 0
+    social.asked = 0
+    vi.stubGlobal('location', { origin: 'https://anime.fkn.app' })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  const raise = async () => {
+    vi.useFakeTimers()
+    const { host } = render({ work: FRIEREN, uri: FRIEREN })
+    await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="One episode more"]')!.click() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(sent.map(({ operation }) => operation)).toEqual(['SaveListEntry'])
+    await vi.waitFor(() => expect(social.asked).toBe(1))
+    await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+  }
+
+  test('a raised episode count posts once while allowed, with its episode, the show and the id stub keeps it under', async () => {
+    social.state = { state: 'allowed', kinds: ['started', 'watched', 'completed'] }
+    await raise()
+    expect(social.posted).toStrictEqual([{
+      kind: 'watched',
+      title: 'A show',
+      link: 'https://anime.fkn.app/title/ag:(anilist:154587)',
+      detail: 'Episode 4',
+      subject: 'anilist:154587',
+    }])
+  })
+
+  test('nothing while off or asked', async () => {
+    for (const state of [{ state: 'off' }, { state: 'asked' }]) {
+      social.state = state
+      await raise()
+      expect(social.posted, state.state).toEqual([])
+      while (hosts.length) unmount(hosts.pop()!)
+      sent.length = 0
+      social.asked = 0
+    }
   })
 })

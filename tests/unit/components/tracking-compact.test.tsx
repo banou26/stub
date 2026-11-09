@@ -986,3 +986,56 @@ describe('before the trackers have answered at all', () => {
     expect(draw({ summary: null, disagreements: [], answers: [] }).querySelector('.tracking-compact')).toBeNull()
   })
 })
+
+// STUB-58 (publish what you watch to your FKN Social profile): FKN Social hears a save of the row once it lands
+describe("what a save tells the viewer's FKN Social page", () => {
+  const long: CompactTracking = {
+    ...tracking,
+    summary: { ...tracking.summary!, episodeCount: 28 },
+    answers: [{ ...anilist, entry: { ...anilist.entry!, episodeCount: 28 } }, mal, stub],
+  }
+
+  test('a burst of + presses is one save, which tells its raise once, when the first tracker saves it', async () => {
+    vi.useFakeTimers()
+    const onActivity = vi.fn()
+    const { host, onSaveFields } = render({ tracking: long, onActivity })
+    for (let index = 0; index < 3; index++) {
+      await click(named(host, 'One episode more'))
+      await settle(300)
+    }
+    expect(onActivity).not.toHaveBeenCalled()
+    await settle(1000)
+    expect(onSaveFields, 'two trackers saved it').toHaveBeenCalledTimes(2)
+    expect(onActivity.mock.calls).toEqual([[{ kind: 'watched', episode: 16 }]])
+  })
+
+  test('Mark completed tells completed, and Watching picked tells started', async () => {
+    const completed = vi.fn()
+    const atTotal = render({ tracking: { ...tracking, summary: { ...tracking.summary!, progress: 14 } }, onActivity: completed })
+    await click(button(atTotal.host, 'Mark completed')!)
+    expect(completed.mock.calls).toEqual([[{ kind: 'completed' }]])
+
+    const started = vi.fn()
+    const planned = render({ tracking: { ...tracking, summary: { ...tracking.summary!, status: 'PLANNING' } }, onActivity: started })
+    await pickStatus(planned.host, 'WATCHING')
+    expect(started.mock.calls).toEqual([[{ kind: 'started' }]])
+  })
+
+  test('a save that lands nowhere tells nothing', async () => {
+    const onActivity = vi.fn()
+    const { host, onSaveFields } = render({ onActivity })
+    onSaveFields.mockImplementation(async targets => targets.map(tracker => ({ tracker, outcome: 'FAILED', error: 'down' })))
+    await pickStatus(host, 'COMPLETED')
+    await act(async () => {})
+    expect(onSaveFields).toHaveBeenCalled()
+    expect(onActivity).not.toHaveBeenCalled()
+  })
+
+  test('an episode watched tells its raise once its save lands', async () => {
+    const onActivity = vi.fn()
+    const { onSaveFields } = render({ tracking: long, watched: { played: 0.9, episode: 14 }, onActivity })
+    await act(async () => {})
+    expect(onSaveFields).toHaveBeenCalledWith(['anilist'], { progress: 14, status: 'WATCHING' })
+    expect(onActivity.mock.calls).toEqual([[{ kind: 'watched', episode: 14 }]])
+  })
+})

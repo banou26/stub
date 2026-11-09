@@ -1,14 +1,16 @@
 import type { MediaTrackingSubscription } from '../generated/graphql'
 import type { PlaybackLink } from '../party/bridge'
-import type { TrackerOutcome } from '../tracking/compact'
+import type { Activity, TrackerOutcome } from '../tracking/compact'
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { useMutation, useSubscription } from 'urql'
 
 import { gql } from '../generated'
 import { forPage } from '../i18n/said'
 import { MediaType, TrackerState } from '../generated/graphql'
 import { namesSameWork } from '../router/home/modal-media'
+import { postActivity } from '../social'
 import { MEDIA_TRACKING, useMediaKey, useSaveEntry } from './media-tracking-query'
 import { viewerPrefs, watchCompactPrefs, type CompactPrefs, type CompactPrefsStore } from '../tracking/compact-prefs'
 import { trackingId } from '../tracking/aggregate'
@@ -137,6 +139,7 @@ const WorkTracking = (
   { work, address, uri, title, cover, episodeCount, movie, prefsStore = viewerPrefs, notice = true, link, episode, sameWork, counted }:
   Props & { sameWork: boolean, counted: Map<string, number | null | undefined> }
 ) => {
+  const intl = useIntl()
   const asked = uri ?? work
   const [{ data }] = useSubscription({ query: MEDIA_TRACKING, variables: { input: { uri: asked! } }, pause: !asked })
   const latest = useMemo(() => askedOn(data?.tracking, asked!), [data?.tracking, asked])
@@ -166,6 +169,12 @@ const WorkTracking = (
     return result.data?.deleteListEntry ?? failed(result.error?.message)
   }
 
+  const onActivity = ({ kind, episode }: Activity) => {
+    if (!uri) return
+    const detail = episode === undefined ? undefined : intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: episode })
+    void postActivity({ kind, detail, title, uri, cover })
+  }
+
   // the key card opens from this click, and only from it; the worker then checks the account again
   const onUnlock = async () => { if (await unlockTracker()) await trackerCheck() }
 
@@ -179,6 +188,7 @@ const WorkTracking = (
         counted={counted}
         onSaveFields={onSaveFields}
         onRemove={onRemove}
+        onActivity={onActivity}
         signIns={trackerSignIns}
         prefs={prefs}
         onPrefs={onPrefs}
