@@ -15,7 +15,7 @@ import type { Watched } from '../tracking/watched'
 import { NAME_LIST, wordsOf } from '../i18n'
 import { forPage } from '../i18n/said'
 import {
-  LIST_STATUSES, activityOf, canRemove, countDiffers, createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
+  LIST_STATUSES, activityOf, canRemove, countDiffers, createSaveQueue, holds, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import { WATCHED_AT, watchedPatches } from '../tracking/watched'
@@ -501,7 +501,7 @@ const Chip = (
  * raised while the row reads Completed, the viewer's own pick included. A checked tracker that cannot
  * write shows the save it missed, and is written once it can.
  *
- * Once a save of the row's own changes, or of an episode watched, lands on its first tracker, `onActivity`
+ * Once the first save that holds the row's own change, or an episode watched, lands (`holds`), `onActivity`
  * hears the strongest change since the last one it heard (`activityOf`): a burst of + presses is one.
  */
 const TrackingCompact = (
@@ -557,8 +557,11 @@ const TrackingCompact = (
       setAnnounced({ ...settled, name })
       if (saved(settled) && unsaid.current) {
         const activity = activityOf(unsaid.current.from, unsaid.current.to)
-        unsaid.current = undefined
-        if (activity) latest.current.onActivity?.(activity)
+        // not told by a slower tracker's earlier save, nor by a card's save after every tracker refused the change
+        if (!activity || holds(settled.fields, activity)) {
+          unsaid.current = undefined
+          if (activity) latest.current.onActivity?.(activity)
+        }
       }
       // a save that did not land falls back to what the trackers hold, beside its note
       if (!saved(settled) && queue.idle()) setOverrides({})

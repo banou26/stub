@@ -71,6 +71,11 @@ export const activityOf = (from: Pick<Row, 'status' | 'progress'>, to: Pick<Row,
   : to.status === 'WATCHING' && from.status !== 'WATCHING' ? { kind: 'started' }
   : undefined
 
+/** Whether a save's fields hold `activity`'s change, so that the save landing is the change landing. */
+export const holds = (fields: Fields, activity: Activity) =>
+  activity.kind === 'watched' ? fields.progress === activity.episode
+  : fields.status === (activity.kind === 'completed' ? 'COMPLETED' : 'WATCHING')
+
 const WRITABLE_STATES = new Set(['LISTED', 'NOT_LISTED'])
 /** A tracker that can write, and has answered with its entry or its lack of one. */
 export const writable = (answer: CompactAnswer) => answer.tracker.canWrite && WRITABLE_STATES.has(answer.state)

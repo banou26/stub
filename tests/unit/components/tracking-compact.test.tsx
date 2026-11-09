@@ -1021,6 +1021,54 @@ describe("what a save tells the viewer's FKN Social page", () => {
     expect(started.mock.calls).toEqual([[{ kind: 'started' }]])
   })
 
+  test('a change made before its save goes is told against the row before both', async () => {
+    vi.useFakeTimers()
+    const onActivity = vi.fn()
+    const { host } = render({ tracking: long, onActivity })
+    await click(named(host, 'One episode more'))
+    await settle(200)
+    await pickStatus(host, 'PAUSED')
+    await settle(1500)
+    expect(onActivity.mock.calls).toEqual([[{ kind: 'watched', episode: 14 }]])
+  })
+
+  test("a slower tracker's earlier save does not tell a raise whose own save has not gone", async () => {
+    vi.useFakeTimers()
+    const onActivity = vi.fn()
+    const { host, onSaveFields } = render({ tracking: long, onActivity })
+    onSaveFields.mockImplementation(async ([tracker], { progress }) => {
+      if (tracker === 'anilist') await new Promise(resolve => setTimeout(resolve, 1000))
+      return [{ tracker: tracker!, outcome: progress === 15 ? 'FAILED' : 'SAVED' }]
+    })
+    await click(named(host, 'One episode more'))
+    await settle(1000)
+    expect(onActivity.mock.calls, 'Stub saved 14').toEqual([[{ kind: 'watched', episode: 14 }]])
+    await settle(500)
+    await click(named(host, 'One episode more'))
+    await settle(2500)
+    expect(onSaveFields.mock.calls.map(([[tracker], { progress }]) => `${tracker} ${progress}`).sort())
+      .toEqual(['anilist 14', 'anilist 15', 'stub 14', 'stub 15'])
+    expect(onActivity.mock.calls).toEqual([[{ kind: 'watched', episode: 14 }]])
+  })
+
+  test('a change every tracker refused is not told by a card save that does not hold it', async () => {
+    vi.useFakeTimers()
+    const onActivity = vi.fn()
+    const { host, onSaveFields } = render({ tracking: long, episodeCount: 28, onActivity })
+    const ok = onSaveFields.getMockImplementation()!
+    onSaveFields.mockImplementation(async targets => targets.map(tracker => ({ tracker, outcome: 'REFUSED', error: 'no' })))
+    await pickStatus(host, 'COMPLETED')
+    await settle(1000)
+    onSaveFields.mockImplementation(ok)
+    await click(q(await hover(host, 'anilist'), '.more'))
+    await settle(1500)
+    expect(onSaveFields).toHaveBeenLastCalledWith(['anilist'], { progress: 14 })
+    await pickStatus(await hover(host, 'anilist'), 'WATCHING')
+    await settle(1500)
+    expect(onSaveFields).toHaveBeenLastCalledWith(['anilist'], { status: 'WATCHING' })
+    expect(onActivity).not.toHaveBeenCalled()
+  })
+
   test('a save that lands nowhere tells nothing', async () => {
     const onActivity = vi.fn()
     const { host, onSaveFields } = render({ onActivity })
