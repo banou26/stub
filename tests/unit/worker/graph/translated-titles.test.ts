@@ -21,6 +21,7 @@ import { ingestAnswers } from '../../../../src/worker/graph/ingest'
 import { resetPassState, runPlugins } from '../../../../src/worker/graph/plugins/runner'
 import { DEFAULT_PLUGINS } from '../../../../src/worker/graph/scheduler'
 import { pageClusters, resolveMedia, setReadStore } from '../../../../src/worker/graph/read'
+import { fromGoodSource } from '../../../../src/utils/theater'
 import PENGUIN_HIGHWAY from '../../../fixtures/anizip/penguin-highway.json'
 import FRIEREN_SEASON_2 from '../../../fixtures/anizip/frieren-season-2.json'
 import { answer, media, rowsOf, title } from './plugins/fixtures'
@@ -74,7 +75,7 @@ const execute = async (document: string, variables: Record<string, unknown>) => 
   return payload?.data
 }
 
-type Shown = { titles: { title: string }[], descriptions?: { description: string }[], shortDescriptions?: { shortDescription: string }[] }
+type Shown = { titles: { title: string }[], descriptions?: { description: string }[], shortDescriptions?: { shortDescription: string, score: number }[] }
 
 /** The title page's titles and synopses, and the card's, as a viewer reading `language` is answered them. */
 const shownTo = async (language: string) => {
@@ -85,6 +86,7 @@ const shownTo = async (language: string) => {
     heading: page.titles.map(({ title }) => title).slice(0, 2),
     synopses: page.descriptions!.map(({ description }) => description.trim()),
     card: [card!.titles[0]!.title, card!.shortDescriptions![0]!.shortDescription.trim()],
+    hero: fromGoodSource(card!),
   }
 }
 
@@ -163,12 +165,14 @@ test('a translation naming a season leaves the stored first title and an English
 })
 
 // Mutation: drop `translationFirst` from the `titles` resolver, or `synopsesIn` from `descriptions` or
-// `shortDescriptions`, and the French viewer reads English there.
+// `shortDescriptions`, and the French viewer reads English there. Leave JustWatch's French synopsis at its own score,
+// and the home hero takes the show AniList filled for one only Kitsu or the bundle has.
 test('a French viewer\'s title page and card lead with the French title and show the French synopsis', async () => {
   expect(await shownTo('fr-FR')).toEqual({
     heading: ['Le mystère des pingouins', 'Penguin Highway'],
     synopses: [FRENCH],
     card: ['Le mystère des pingouins', FRENCH],
+    hero: true,
   })
 })
 
@@ -177,5 +181,6 @@ test('an English viewer\'s title page and card are as before', async () => {
     heading: ['Penguin Highway', 'ペンギン・ハイウェイ'],
     synopses: [LONGER, ENGLISH],
     card: ['Penguin Highway', LONGER],
+    hero: true,
   })
 })

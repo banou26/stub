@@ -25,8 +25,11 @@ export const translationFirst = <T extends { language: string }>(titles: T[], la
   return first ? [first, ...titles.filter(title => title !== first)] : titles
 }
 
-/** The synopses in `language` when any is, else every one. */
-export const synopsesIn = <T extends { language: string }>(synopses: T[], language: string): T[] => {
-  const own = inLanguage(synopses, language)
-  return own.length ? own : synopses
+/**
+ * The synopses in `language` when any is, else every one. The first stands in for the synopsis leading every language,
+ * at its score, which the home hero reads as how well sourced the show is (src/utils/theater.ts `fromGoodSource`).
+ */
+export const synopsesIn = <T extends { language: string, score?: number | null }>(synopses: T[], language: string): T[] => {
+  const [first, ...rest] = inLanguage(synopses, language)
+  return first ? [{ ...first, score: synopses[0]!.score }, ...rest] : synopses
 }
