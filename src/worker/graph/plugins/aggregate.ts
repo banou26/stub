@@ -45,6 +45,7 @@ import type { Plugin, PluginContext, PluginOutput, PluginRow } from './contract'
 
 import { isRoutableUri } from '../../../utils/uri'
 import { heldMergeOrder } from '../../../sources/merge-order'
+import { disabledOrigins } from '../../disabled-origins'
 import { STREAMING_ORIGINS } from '../../../sources/justwatch/id'
 import { tieredConsensus } from '../../store/consensus'
 import { readAnomalies } from './anomalies'
@@ -1077,6 +1078,7 @@ export const aggregatePlugin: Plugin = {
         relations: relations.filter(edge => inside.has(edge.fromUri)),
         locationOrigin,
         order: heldMergeOrder(),
+        off: disabledOrigins(),
       })
       const owns = members.some(member => member.owned)
 

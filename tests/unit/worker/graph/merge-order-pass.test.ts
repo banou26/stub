@@ -1,7 +1,10 @@
 // A merge order handed to the worker re-merges every cluster in a pass of its own, which ends in the `view:changed`
-// that redraws what is on screen; the clustering and the length vote do not move with it.
+// that redraws what is on screen; the clustering and the length vote do not move with it. The merge also reads the
+// sources turned off in Settings.
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
 
+import { TITLE_SOURCES } from '../../../../src/sources/offline/normalize'
+import { setDisabledOrigins } from '../../../../src/worker/disabled-origins'
 import { enableGraph, setMergeOrder } from '../../../../src/worker/graph'
 import { closeGraph } from '../../../../src/worker/graph/engine'
 import { ingestAnswers } from '../../../../src/worker/graph/ingest'
@@ -9,9 +12,9 @@ import { passSettled, schedulePass, schedulerStats, startScheduler, stopSchedule
 import { listen } from '../../../../src/worker/store/events'
 import { answer, media, rowsOf, sameAs, title } from './plugins/fixtures'
 
-const cluster = async () => {
-  const [row] = await rowsOf(`MATCH (m:Media {uri: 'mal:1030'})-[:MEMBER_OF]->(c:Cluster)
-    RETURN c.id AS id, c.media AS media, c.card AS card, c.runLength AS runLength, c.runLengthTier AS tier, c.aggUri AS aggUri`)
+const cluster = async (uri = 'mal:1030') => {
+  const [row] = await rowsOf(`MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster)
+    RETURN c.id AS id, c.media AS media, c.card AS card, c.runLength AS runLength, c.runLengthTier AS tier, c.aggUri AS aggUri`, { uri })
   const parse = (value: unknown) => JSON.parse(String(value)) as { titles: { title: string }[] }
   return {
     id: row?.id,
@@ -61,4 +64,25 @@ test('a new order re-merges in a pass that wakes the cluster\'s readers, and the
   await setMergeOrder([])
   expect((await cluster()).titles[0]).toBe('Merge Show MyAnimeList')
   stop()
+}, 120_000)
+
+// Mutation: drop `off` from the plugin's aggregateFields call, and the card keeps AniList's title with AniList off.
+test('a bundled title the build took from a source the viewer turned off ranks as the bundle\'s own', async () => {
+  try {
+    setDisabledOrigins(['anilist'])
+    await ingestAnswers([
+      await answer('media', media('mal:2030', { score: 0.9, titles: [title('jp-en', 'Bundle Show Romaji', 0.4)] })),
+      await answer('media', media('offline:mal-2030', {
+        score: 0.2, titles: [{ ...title('en', 'Bundle Show AniList', 0.2), rankedAs: TITLE_SOURCES.al }], handles: [sameAs(media('mal:2030'))],
+      })),
+    ])
+    await schedulePass('manual')
+    expect((await cluster('mal:2030')).cardTitles).toEqual(['Bundle Show Romaji', 'Bundle Show AniList'])
+
+    setDisabledOrigins([])
+    await schedulePass('manual')
+    expect((await cluster('mal:2030')).cardTitles).toEqual(['Bundle Show AniList', 'Bundle Show Romaji'])
+  } finally {
+    setDisabledOrigins([])
+  }
 }, 120_000)

@@ -7,9 +7,9 @@
  * into `Cluster.card`, `Cluster.media`, `Cluster.episodes` and `Slot.episode`. No read chooses a
  * field value; a read is a lookup of what these wrote.
  *
- * WHAT THEY PROMISE. Same rows and merge order, same output, whatever order the rows arrived in. The
- * members are sorted once, by score descending and then by uri, weighed by the viewer's merge order
- * (`mergeWeights`), and every rule below reads that one order:
+ * WHAT THEY PROMISE. Same rows, merge order and turned off sources, same output, whatever order the
+ * rows arrived in. The members are sorted once, by score descending and then by uri, weighed by the
+ * viewer's merge order (`mergeWeights`), and every rule below reads that one order:
  * `aggregate.ts:379-381` records today's reduce as "non-deterministic between loads" because a tie
  * inside one score tier fell to arrival order, and that is the one behaviour change 6.3 asks for.
  *
@@ -236,18 +236,27 @@ const byWeight = <T extends { origin: string, score: number | null }>(rows: read
   [...rows].sort((a, b) =>
     weigh(b.origin).scaled(b.score ?? -1) - weigh(a.origin).scaled(a.score ?? -1) || weigh(a.origin).place - weigh(b.origin).place)
 
+/** The source a value ranks as and its score there (`rankedAs`), unless the viewer turned that source off. */
+const rankedAs = (value: unknown, off: ReadonlySet<string>): { origin: string, score: number } | undefined => {
+  const ranked = isRecord(value) && isRecord(value.rankedAs) ? value.rankedAs : undefined
+  return typeof ranked?.origin === 'string' && typeof ranked.score === 'number' && !off.has(ranked.origin)
+    ? { origin: ranked.origin, score: ranked.score }
+    : undefined
+}
+
 /**
  * Every member's values of `field`, each carrying its weighted score, by that score, then by place, then in member
  * order. The home hero reads the leading description's score (src/utils/theater.ts `fromGoodSource`). A value naming
  * the source it ranks as (`rankedAs`, a bundled season title's: src/sources/offline/normalize.ts `TITLE_SOURCES`) is
- * weighed as that source's. A value the order leaves at its own score is the member's own object, which
- * scripts/offline-pick.ts finds its source by.
+ * weighed as that source's, at its score there, unless the viewer turned that source off. A value the order leaves at
+ * its own score is the member's own object, which scripts/offline-pick.ts finds its source by.
  */
-const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh): unknown[] =>
+const valuesOf = (members: readonly MemberRow[], field: string, weigh: Weigh, off: ReadonlySet<string>): unknown[] =>
   members
     .flatMap(member => listOf(member.raw[field]).map(value => {
-      const { place, scaled } = weigh(isRecord(value) && typeof value.rankedAs === 'string' ? value.rankedAs : member.origin)
-      return { value, place, score: scaled(scoreOf(value)) }
+      const ranked = rankedAs(value, off)
+      const { place, scaled } = weigh(ranked?.origin ?? member.origin)
+      return { value, place, score: scaled(ranked?.score ?? scoreOf(value)) }
     }))
     .sort((a, b) => b.score - a.score || a.place - b.place)
     .map(({ value, score }) => (isRecord(value) && typeof value.score === 'number' && value.score !== score ? { ...value, score } : value))
@@ -441,10 +450,13 @@ export const aggregateFields = (options: {
   locationOrigin: string
   /** The viewer's merge order as kept (src/sources/merge-order.ts). None is the default order. */
   order?: readonly string[]
+  /** The sources the viewer turned off (src/worker/disabled-origins.ts): no value ranks as one of them. */
+  off?: Iterable<string>
 }): AggregatedMedia => {
   const { cluster, locationOrigin } = options
   const members = byScoreThenUri(options.members)
   const weigh = mergeWeights(options.order)
+  const off = new Set(options.off)
   const owned = byWeight(members, weigh).filter(member => member.owned)
   const provenance: FieldProvenance[] = []
   const identity = aggregatedIdentity(members.map(member => member.uri))
@@ -516,7 +528,7 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.titles = dedupeByField('title', seasonNamesFirst(valuesOf(owned, 'titles', weigh) as { title?: string }[]))
+  row.titles = dedupeByField('title', seasonNamesFirst(valuesOf(owned, 'titles', weigh, off) as { title?: string }[]))
   for (const member of owned) {
     if (listOf(member.raw.titles).length) {
       provenance.push({ field: 'titles', uri: member.uri, answerSeq: member.fieldSeq.titles ?? null, rule: 'concat' })
@@ -526,7 +538,7 @@ export const aggregateFields = (options: {
   // sorted by score and NOT deduped: two catalogues describing the same work in two languages are two
   // descriptions, and two covers are two covers
   for (const field of ['descriptions', 'shortDescriptions', 'covers', 'banners'] as const) {
-    row[field] = valuesOf(owned, field, weigh)
+    row[field] = valuesOf(owned, field, weigh, off)
     for (const member of owned) {
       if (listOf(member.raw[field]).length) {
         provenance.push({ field, uri: member.uri, answerSeq: member.fieldSeq[field] ?? null, rule: 'concat' })
@@ -534,7 +546,7 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.trailers = dedupeByField('uri', valuesOf(owned, 'trailers', weigh))
+  row.trailers = dedupeByField('uri', valuesOf(owned, 'trailers', weigh, off))
 
   const credits = mergeCredits(owned, (member, score) => weigh(member.origin).scaled(score))
   if (credits) {

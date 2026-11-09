@@ -7,6 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
 import { DEFAULT_MERGE_ORDER } from '../../../../../src/sources/merge-order'
+import { TITLE_SOURCES } from '../../../../../src/sources/offline/normalize'
 import { aggregateFields, type MemberRow } from '../../../../../src/worker/graph/plugins/fields'
 import { fromGoodSource } from '../../../../../src/utils/theater'
 
@@ -84,13 +85,14 @@ const SHOW = [
   member('nyaa:1', 0.85, { titles: [text('title', 'Nyaa English', 0.85)] }),
 ]
 
-const merged = (members: MemberRow[], order?: readonly string[]) => aggregateFields({
+const merged = (members: MemberRow[], order?: readonly string[], off?: readonly string[]) => aggregateFields({
   cluster: { id: 'cl', aggUri: 'ag:()', scope: 'RUN', runLength: 12, runLengthTier: 0.8, runLengthWitnesses: 2, runLengthFrom: [], anomalies: [] },
   members,
   related: [],
   relations: [],
   locationOrigin: '',
   order,
+  off,
 })
 const pick = (media: ReturnType<typeof merged>, field: string, key: string) => (media[field] as Record<string, string>[]).map(entry => entry[key])
 
@@ -163,11 +165,13 @@ test('the leading description reads at its place in the order, so the home hero 
 })
 
 // A bundled season title is the one a live source gives (src/sources/offline/normalize.ts `TITLE_SOURCES`).
-test('a bundled title ranks as the source the build took it from, wherever the viewer puts that source', () => {
+test('a bundled title ranks as the source the build took it from, wherever the viewer puts that source, unless it is off', () => {
+  const bundled = { ...text('title', 'AniList English', 0.2), rankedAs: TITLE_SOURCES.al }
   const card = [
-    member('offline:mal-7', 0.2, { titles: [{ ...text('title', 'AniList English', 0.8), rankedAs: 'anilist' }] }),
+    member('offline:mal-7', 0.2, { titles: [bundled] }),
     member('kitsu:7', 0.3, { titles: [text('title', 'Kitsu English', 0.3)] }),
   ]
   expect(pick(merged(card), 'titles', 'title')).toEqual(['AniList English', 'Kitsu English'])
   expect(pick(merged(card, ['mal', 'anizip', 'livechart', 'cr', 'kitsu']), 'titles', 'title'), 'Kitsu put above AniList').toEqual(['Kitsu English', 'AniList English'])
+  expect(merged(card, [], ['anilist']).titles, 'AniList turned off').toEqual([text('title', 'Kitsu English', 0.3), bundled])
 })

@@ -12,6 +12,9 @@ export const setDisabledOrigins = (origins: readonly string[]) => {
   for (const origin of origins) disabled.add(origin)
 }
 
+/** The turned off origins, as the merge reads them (src/worker/graph/plugins/fields.ts `aggregateFields`). */
+export const disabledOrigins = (): ReadonlySet<string> => disabled
+
 /**
  * The entries a question may be put to: every one but a source that is turned off, built in or added,
  * and a built-in source this site never asks (src/site.ts).
