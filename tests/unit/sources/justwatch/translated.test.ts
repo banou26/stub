@@ -5,6 +5,7 @@ import { expect, test } from 'vite-plus/test'
 
 import { resolvers } from '../../../../src/sources/justwatch/extractor'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
+import SEVERANCE from '../../../fixtures/justwatch/severance.json'
 import { viewerIn } from './viewer'
 
 const FRENCH = {
@@ -12,9 +13,9 @@ const FRENCH = {
   shortDescription: 'Paul Atreides s\'unit à Chani et aux Fremen pour venger sa famille.',
 }
 
-const open = async (translated: { title: string, shortDescription: string }, language: string) => {
+const open = async (translated: { title: string, shortDescription: string }, language: string, node: object = DUNE.data.node, uri = 'jw:1133934') => {
   const bodies: string[] = []
-  const answer = { data: { node: { ...DUNE.data.node, translated } } }
+  const answer = { data: { node: { ...node, translated } } }
   const context = {
     language,
     findAggregatedMedia: async () => ({ categories: ['MOVIE'] }),
@@ -22,11 +23,11 @@ const open = async (translated: { title: string, shortDescription: string }, lan
     fetch: async (_: string, init: { body: string }) => (bodies.push(init.body), { json: async () => answer }),
   }
   const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri: 'jw:1133934', details: true } }, context).next()
+  const { value } = await subscribe(undefined, { input: { uri, details: true } }, context).next()
   return { media: value.media, body: JSON.parse(bodies[0]!) }
 }
 
-type Texts = { titles: object[], descriptions: { language: string, description: string }[], episodes: { titles: { title: string }[], descriptions: { description: string }[] }[] }
+type Texts = { titles: { title: string }[], descriptions: { language: string, description: string }[], episodes: { titles: { title: string }[], descriptions: { description: string }[] }[] }
 
 // Mutation: hand `withTranslation` the media before a film's episode copies it, and the episode carries the French
 // title as one of its own, which pairs it with other sources' episodes.
@@ -56,4 +57,15 @@ test('the English JustWatch answers where it has no translation is no translatio
   const titleOnly = await open({ ...english, title: 'Dune: Teil Zwei' }, 'de-DE')
   expect((titleOnly.media as Texts).titles).toHaveLength(2)
   expect((titleOnly.media as Texts).descriptions, 'the synopsis still English').toHaveLength(1)
+})
+
+// Mutation: hand `withTranslation` every season as the show, and Severance's second season, which JustWatch names only
+// "Season 2", carries the show's French name and the synopsis of the show's start.
+test('the show\'s translation is its first season\'s, and no later season\'s', async () => {
+  viewerIn('America/New_York')
+  const french = { title: 'Dissociation', shortDescription: 'Mark dirige une équipe dont les souvenirs ont été séparés.' }
+  const season = async (uri: string) => (await open(french, 'fr-FR', SEVERANCE.ts320458, uri)).media as Texts
+  const shown = ({ titles, descriptions }: Texts) => [...titles.map(({ title }) => title), ...descriptions.map(({ language }) => language)]
+  expect(shown(await season('jw:320458-329115'))).toEqual(['Severance', 'Dissociation', 'en', 'fr'])
+  expect(shown(await season('jw:320458-350405'))).toEqual(['Severance', 'en'])
 })

@@ -887,18 +887,19 @@ const normalizeMedia = async (
     media.episodeCount = 1
   }
 
-  return withTranslation(media, node, ctx, title === node.content.title)
+  return withTranslation(media, node, ctx, (opts.seasonNumber ?? 1) === 1 && title === node.content.title)
 }
 
 /**
  * `media` with JustWatch's title and synopsis in the language `translationOf` asked, each only where it differs from
- * the English. The title only on a media `titled` with the show's own, the one translated. Added after a film's episode
- * copies the media's, as an episode's title and synopsis are what pairs it with another source's.
+ * the English, when `theShow` says the media is the show, or its first season under the show's name: what is translated
+ * is the show's, so a later season, or one with a name of its own, gets none. Added after a film's episode copies the
+ * media's, as an episode's title and synopsis are what pairs it with another source's.
  */
-const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, titled: boolean): GQLMedia => {
+const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, theShow: boolean): GQLMedia => {
   const language = translationOf(ctx)
-  if (!language || !translated) return media
-  const title = titled && translated.title && translated.title !== content.title ? [translatedTitle(language, translated.title, SCORE)] : []
+  if (!language || !translated || !theShow) return media
+  const title = translated.title && translated.title !== content.title ? [translatedTitle(language, translated.title, SCORE)] : []
   const { descriptions = [], shortDescriptions = [] } = translated.shortDescription !== content.shortDescription ? desc(translated.shortDescription, SCORE, language) : {}
   return {
     ...media,
