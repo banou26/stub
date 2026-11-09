@@ -138,7 +138,6 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
     // not need to be told. What reaches it here already carries a local `at` (party-playback.tsx
     // converts before applying), so the package's own cap on a report's age never binds.
     apply: state => { applyPlayback(state).catch(() => {}) },
-    // a package from before `exact` applies the state beside it, as it always did
     seek: time => { if (!disposed && last) tell({ paused: last.paused, time, rate: last.rate, at: Date.now() }, { seek: time }) },
     follow: (wanted, atOnce) => {
       const now = Date.now()

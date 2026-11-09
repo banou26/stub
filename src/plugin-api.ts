@@ -88,9 +88,11 @@ export type StubSource = {
   /**
    * Make the player match `state`. Nothing playing is nothing to do, not an error.
    *
-   * With `exact`, stub has decided what a follower's player does and it does that alone: it seeks to `exact.seek`,
-   * plays at `exact.rate`, plays or pauses, each only when present, and nothing when `exact` is empty. `state` is then
-   * where the host's player is, for a package from before `exact`, which keeps its own rule.
+   * With `exact`, stub has decided what the player does and it does that alone: it seeks to `exact.seek`, plays at
+   * `exact.rate`, plays or pauses, each only when present, and nothing when `exact` is empty. Stub sends it to keep a
+   * follower's player with the host, and to put a player at the time a resume restores. `state` is then where stub
+   * wants the player, for a package from before `exact`, which keeps its own rule: where the host's player is, or this
+   * player's last report moved to the restored time.
    */
   applyPlayback?: (state: PlaybackState & { exact?: PlaybackCorrection }) => Promise<void>
   /**

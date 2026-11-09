@@ -24,7 +24,11 @@ export type PlaybackLink = {
    * trusted in full or capped, and nothing else.
    */
   apply: (state: PlaybackState, measured?: boolean) => void
-  /** Put the player at `time` and change nothing else: a paused player stays paused and a playing one plays on. */
+  /**
+   * Put the player at `time` and change nothing else: a paused player stays paused and a playing one plays on. A source
+   * package from before `exact` (see `applyPlayback`) is handed its player's last report at `time` instead, and applies
+   * that whole.
+   */
   seek: (time: number) => void
   /**
    * Keep the player with a host whose player is at `state`, `state.at` on this clock, as a follower does on every
