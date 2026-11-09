@@ -27,6 +27,9 @@ export type MediaPageFilters = {
   tags?: readonly string[] | null
 }
 
+/** A season and its year, as one answer named them for a row. */
+export type SeasonPair = { season: string | null, seasonYear: number | null }
+
 const labelSet = (labels: readonly string[] | null | undefined, key = (label: string) => label.toLowerCase()): Set<string> =>
   new Set((labels ?? []).map(key))
 
@@ -55,10 +58,13 @@ const labelSet = (labels: readonly string[] | null | undefined, key = (label: st
  * every row only that catalogue describes. That is the honest answer to "which of these is airing" and
  * it is why status is a filter rather than a default.
  *
+ * A season and a year match the row's own pair or any pair in `seasonPairs`, every season a member was
+ * listed in: a run two seasons list is on both pages, whichever of them a tab opened first (STUB-371).
+ *
  * The SITE comes first (src/site.ts), and it is a parameter rather than a field of `filters` because a
  * field is something any caller could widen: no page and no address can ask this past it.
  */
-export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'>>(
+export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'> & { seasonPairs?: readonly SeasonPair[] }>(
   medias: readonly T[],
   filters: MediaPageFilters,
   current: Site = site
@@ -74,8 +80,8 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
     if (categories.length && !(media.categories ?? []).some(category => categories.includes(category))) return false
     if (formats.length && !(media.type && formats.includes(media.type))) return false
     if (status && media.status !== status) return false
-    if (season && media.season !== season) return false
-    if (seasonYear && media.seasonYear !== seasonYear) return false
+    if ((season || seasonYear) && ![media, ...media.seasonPairs ?? []].some(pair =>
+      (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))) return false
     if (genres.size) {
       const carried = labelSet(media.genres, genreKey)
       for (const genre of genres) if (!carried.has(genre)) return false

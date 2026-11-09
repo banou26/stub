@@ -102,6 +102,18 @@ describe('applyMediaFilters', () => {
     expect(uris(applyMediaFilters(page, { seasonYear: 2026 }))).toEqual(['anilist:1', 'tmdb:3'])
     expect(uris(applyMediaFilters(page, { season: 'SUMMER', seasonYear: 2026 }))).toEqual(['anilist:1'])
   })
+
+  // Mutation: test the season and the year each against any pair, and Fall 2026 lists `mal:2`, which no
+  // source placed there.
+  test('a row listed in two seasons matches either, each pair as one', () => {
+    const page = [
+      media('mal:1', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [{ season: 'FALL', seasonYear: 2026 }, { season: 'SUMMER', seasonYear: 2026 }] }),
+      media('mal:2', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [{ season: 'FALL', seasonYear: 2025 }, { season: 'SUMMER', seasonYear: 2026 }] }),
+    ]
+    expect(uris(applyMediaFilters(page, { season: 'FALL', seasonYear: 2026 }))).toEqual(['mal:1'])
+    expect(uris(applyMediaFilters(page, { season: 'SUMMER', seasonYear: 2026 }))).toEqual(['mal:1', 'mal:2'])
+    expect(uris(applyMediaFilters(page, { season: 'FALL' }))).toEqual(['mal:1', 'mal:2'])
+  })
 })
 
 // The four tests below are one rule seen from four sides, and it is the rule most likely to be

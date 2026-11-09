@@ -329,6 +329,23 @@ const mergeEpisodeFields = (
   return merged
 }
 
+/**
+ * The same merge for a media, which also keeps every season an answer named in `seasonPairs`.
+ *
+ * One row can sit in two seasons' listings: MyAnimeList's Summer and Fall 2026 pages both list Steel Ball
+ * Run (2026-11-10), and each answer stamps the season it was asked for. The last pair alone then decides
+ * which page draws the row, and the log never folds a re-fetch it already holds, so the home row's Fall
+ * answer followed by Summer's kept the show off the Fall page (STUB-371). `store/filter.ts` matches a
+ * season on any of these pairs.
+ */
+const mergeMediaFields: typeof mergeFields = (existing, incoming, seq, fieldSeq) => {
+  const merged = mergeFields(existing, incoming, seq, fieldSeq)
+  const pairs = Array.isArray(existing?.seasonPairs) ? existing.seasonPairs as { season: unknown, seasonYear: unknown }[] : []
+  const { season, seasonYear = null } = incoming
+  if (typeof season !== 'string' || pairs.some(pair => pair.season === season && pair.seasonYear === seasonYear)) return merged
+  return { ...merged, seasonPairs: [...pairs, { season, seasonYear }] }
+}
+
 const foldContributions = (
   contributions: Contribution[],
   existing: Record<string, unknown> | undefined,
@@ -843,7 +860,7 @@ const ingestBatch = async (rows: AnswerRow[]): Promise<IngestReport> => {
     }
     const previous = existing?.raw ? JSON.parse(existing.raw) as Record<string, unknown> : undefined
     const fieldSeq: Record<string, number> = { ...existing?.fieldSeq }
-    const merged = foldContributions(draft.contributions, previous, fieldSeq)
+    const merged = foldContributions(draft.contributions, previous, fieldSeq, mergeMediaFields)
     const hash = await contentHash(merged)
     if (existing?.hash === hash && existing.owned) continue
     const projection = mediaProjection(merged)

@@ -23,6 +23,8 @@
  * materialized row is deliberately typed here rather than as `src/generated/schema`'s `Media`. The
  * field NAMES are the schema's, so the read path of step 3 selects them unchanged.
  */
+import type { SeasonPair } from '../../store/filter'
+
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
 import { seasonNamesFirst } from '../../../sources/season'
@@ -170,6 +172,8 @@ export type ClusterCard = {
   status: string | null
   season: string | null
   seasonYear: number | null
+  /** Every season a member was listed in, read by the season filter and selected by no document. */
+  seasonPairs: SeasonPair[]
   genres: string[]
   tags: string[]
   categories: string[]
@@ -515,6 +519,10 @@ export const aggregateFields = (options: {
   row.season = named ? named.raw.season : null
   row.seasonYear = (named ? named.raw.seasonYear : yearOnly?.raw.seasonYear) ?? null
   if (named || yearOnly) provenance.push({ field: 'season', uri: (named ?? yearOnly)!.uri, rule: 'season-pair' })
+  // and every pair a member was listed in, which a season page matches on (`store/filter.ts`)
+  const pairs = new Map(owned.flatMap(member => listOf(member.raw.seasonPairs))
+    .filter(isRecord).map(pair => [JSON.stringify([pair.season, pair.seasonYear]), pair]))
+  if (pairs.size) row.seasonPairs = [...pairs.values()]
 
   const categories = owned.flatMap(member => stringsOf(member.raw.categories))
   const liveAction = owned.some(nonAnimeFilm) && !owned.some(member => ANIME_CATALOGUES.has(member.origin))
@@ -663,6 +671,7 @@ export const cardOf = (media: AggregatedMedia, members: readonly string[]): Clus
   status: (media.status as string | null) ?? null,
   season: (media.season as string | null) ?? null,
   seasonYear: (media.seasonYear as number | null) ?? null,
+  seasonPairs: listOf(media.seasonPairs) as SeasonPair[],
   genres: stringsOf(media.genres),
   tags: stringsOf(media.tags),
   categories: stringsOf(media.categories),
