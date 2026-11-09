@@ -171,6 +171,28 @@ describe('a season walk\'s popularity', () => {
     ])
   })
 
+  // page 1 holds the season's top, and without it BAKI-DOU's 195 users read as a share of 1
+  test('a walk with a page that failed keeps its counts and sets no share', async () => {
+    const failing = (failed: () => Promise<unknown>) => ({
+      fetch: async (url: string) => {
+        const page = Number(new URL(url, 'https://kitsu.io').searchParams.get('page[number]'))
+        return page === 1 ? failed() : { json: async () => pages[page - 1] }
+      },
+    }) as never
+
+    for (const [reason, failed] of [
+      ['unreachable', () => Promise.reject(new TypeError('fetch failed'))],
+      ['an error answer', async () => ({ json: async () => ({ errors: [{ status: '503' }] }) })],
+    ] as const) {
+      const nodes = await pageNodes({ season: 'SUMMER', seasonYear: 2026 }, failing(failed)) as (Node & { followers?: number, popularity?: number })[]
+      expect(nodes.map(node => [node.uri, node.followers, node.popularity]), reason).toEqual([
+        ['kitsu:50635', 195, undefined],
+        ['kitsu:48693', 28, undefined],
+        ['kitsu:50931', 9, undefined],
+      ])
+    }
+  })
+
   test('a search is no season, so it sets none', async () => {
     const nodes = await pageNodes({ search: 'youjo senki' }, { fetch: async () => ({ json: async () => pages[0] }) } as never) as { popularity?: number }[]
 

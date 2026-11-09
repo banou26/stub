@@ -228,11 +228,13 @@ const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQ
 const seasonPage = async (
   { season, year, page }: { season: AnimeSeason, year: number, page: number },
   ctx: ExtractorServerContext
-): Promise<GQLMedia[]> => {
+): Promise<GQLMedia[] | undefined> => {
   try {
     const res = await api<KitsuAnime>(seasonQuery({ season, year, page }), ctx)
-    const list = Array.isArray(res?.data) ? res.data : []
-    const map = includedMappings(res ?? {})
+    // a page past the end answers an empty list; an answer with no list at all is a failed page
+    if (!Array.isArray(res?.data)) throw new Error('no list in the answer')
+    const list = res.data
+    const map = includedMappings(res)
     // Kitsu's anime attributes carry no season, but the REQUEST filtered on one, so every row that
     // came back is in it. Stamped here and nowhere else: nothing on the search path establishes one.
     return list.map(resource => ({
@@ -242,7 +244,7 @@ const seasonPage = async (
     }))
   } catch (error) {
     console.error(`Kitsu season page ${page} failed`, error)
-    return []
+    return undefined
   }
 }
 
@@ -275,8 +277,10 @@ const getSeason = async (
   // assume here. If the working form ever drifts the same way, the page loses titles rather than
   // showing one twice.
   const byUri = new Map<string, GQLMedia>()
-  for (const media of pages.flat()) if (!byUri.has(media.uri)) byUri.set(media.uri, media)
-  return withSeasonPopularity([...byUri.values()])
+  for (const media of pages.flatMap(page => page ?? [])) if (!byUri.has(media.uri)) byUri.set(media.uri, media)
+  // `sort=-userCount` is only a hint, so the season's most followed show can be on any page: a walk
+  // missing one has no top to measure a share against
+  return pages.every(Boolean) ? withSeasonPopularity([...byUri.values()]) : [...byUri.values()]
 }
 
 /**
