@@ -8,7 +8,7 @@
 // resolver that never runs and an `episodeInserter` that never fires, while `mediaInserter` drops
 // `media.episodes` on the floor. A source reaching the app only through this document therefore landed
 // its media and none of its episodes, which is what left every Netflix episode row without a source.
-import type { FieldNode, OperationDefinitionNode } from 'graphql'
+import type { FieldNode, GraphQLObjectType, OperationDefinitionNode } from 'graphql'
 
 import { buildASTSchema, parse, validate } from 'graphql'
 import { expect, test } from 'vite-plus/test'
@@ -35,7 +35,8 @@ test('the answer\'s titles are selected whole, so an attached handle writes comp
   const titles = fieldsOf(similar).find(field => field.name.value === 'titles')!
 
   expect(names(similar), 'the identity, the scope the answer is checked against, the titles, the episodes').toEqual(['uri', 'origin', 'id', 'url', 'scope', 'titles', 'episodes'])
-  expect(names(titles).sort(), 'every field of MediaTitle').toEqual(['language', 'score', 'title'])
+  const fields = (buildASTSchema(typeDefs).getType('MediaTitle') as GraphQLObjectType).getFields()
+  expect(names(titles).sort(), 'every field of MediaTitle, a translation\'s class with them').toEqual(Object.keys(fields).sort())
 })
 
 // The list is `normalizeToStoreEpisode` in worker/extractor.ts, which is what an inserted row keeps.

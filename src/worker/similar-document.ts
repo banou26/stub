@@ -30,7 +30,8 @@
  * The titles are selected WHOLE. A caller that attaches the answer as a handle writes the node back to
  * the store as a row, where an array of equal length replaces the one it finds, so titles selected as
  * `{ title }` alone cost crunchyroll's rows their language and score (2026-09-05). Every field of
- * `MediaTitle` is here so that row is complete whoever writes it.
+ * `MediaTitle` is here so that row is complete whoever writes it, and so a translation keeps the class
+ * that keeps it out of every match (src/sources/translations.ts).
  */
 const ANSWER_SELECTION = `
       uri
@@ -38,7 +39,7 @@ const ANSWER_SELECTION = `
       id
       url
       scope
-      titles { language title score }
+      titles { language title score class }
       episodes {
         uri
         origin
