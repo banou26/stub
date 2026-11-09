@@ -38,7 +38,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 31 October 2026</div>
+    <div className="updated">Last updated 10 November 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -84,6 +84,15 @@ const Privacy = () => (
     <p>
       With the extension, stub uses your browser's own sessions for these sites and for Netflix. Those stay
       in your browser, and you sign in and out of them on the sites themselves.
+    </p>
+
+    <h2>FKN Social</h2>
+    <p>
+      If you turn on Post to FKN Social in <Link to="/settings#tracking">Settings, under Tracking</Link>, and allow
+      it on FKN Social, stub posts to your FKN Social page each time a save in a title's tracking row starts it, raises
+      its episode count or completes it: the title, its cover, the episode and a link to its page on stub. FKN Social
+      keeps these posts and shows them to the people you chose there, where you can delete them. Turning the switch off
+      stops new posts.
     </p>
 
     <h2>Network requests &amp; third parties</h2>

@@ -44,6 +44,13 @@ test('names everything stub keeps, from the list the completeness test pins', ()
   for (const item of STORED) expect(page, item.id).toContain(item.title)
 })
 
+// STUB-58 (publish what you watch to your FKN Social profile)
+test('says what Post to FKN Social sends, to whom, and where it is turned off', () => {
+  const { host, text: page } = text()
+  expect(page).toContain('stub posts to your FKN Social page each time a save in a title\'s tracking row starts it, raises its episode count or completes it: the title, its cover, the episode and a link to its page on stub.')
+  expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).toContain('/settings#tracking')
+})
+
 test('says the site sign-ins are kept by FKN for every fkn.app app, and where to sign out', () => {
   const { host, text: page } = text()
   expect(page).toContain('every fkn.app app')
