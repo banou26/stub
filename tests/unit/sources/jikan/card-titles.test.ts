@@ -105,7 +105,7 @@ test('a bundled season card paints the title its page settles on before AniList 
 // The home hero holds a show as final once a source better than Kitsu has described it (`fromGoodSource`).
 test('the home hero takes a bundled card for a good source only once a live one has described it', async () => {
   const mal = await malRows({ season: 'FALL', seasonYear: 2026 }, fixture('mal-season-fall-2026.html'))
-  const good = (...members: (Row | undefined)[]) => fromGoodSource({ shortDescriptions: aggregateOf(...members).shortDescriptions as { score: number }[] })
+  const good = (...members: (Row | undefined)[]) => fromGoodSource(aggregateOf(...members) as never)
   const card = bundled('MAGICAL GIRL RAISING PROJECT restart', 'al', 54344)
   const kitsu = { ...answered('kitsu:1', 0.3, ['en', 'Magical Girl Raising Project: Restart']), shortDescriptions: [{ shortDescription: 'The second season of Magical Girl Raising Project.', score: 0.3 }] }
 
