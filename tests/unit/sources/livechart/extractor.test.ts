@@ -8,7 +8,7 @@ import { animeSeasonOf } from '../../../../src/sources/season'
 
 const FALL_2026 = { season: 'fall', year: 2026 } as const
 
-// https://www.livechart.me/fall-2026/tv on 2026-11-09, trimmed to five cards
+// https://www.livechart.me/fall-2026/tv on 2026-11-09, trimmed to seven cards
 const PAGE = readFileSync(new URL('../../../fixtures/livechart/fall-2026-tv.html', import.meta.url), 'utf8')
 
 // a row may carry more than the source reads
@@ -89,7 +89,7 @@ describe('a season page', () => {
   const card = (id: number) => cards.find(card => card.id === id)!
 
   test('reads every card, and not the tutorial card after them', () => {
-    expect(cards.map(card => card.id)).toEqual([13508, 13631, 13514, 12991, 319])
+    expect(cards.map(card => card.id)).toEqual([13508, 13631, 13514, 12991, 319, 13383, 12611])
   })
 
   test("a card's titles, synopsis without its credit, poster, count, rating, premiere and MyAnimeList link", () => {
@@ -117,6 +117,11 @@ describe('a season page', () => {
   test('a card with no synopsis, no rating and no episode count says nothing for them', () => {
     expect(card(13631)).toMatchObject({ synopsis: undefined, avg_rating: undefined, episode_count: undefined })
     expect(card(13631).english_title).toBe('With Vengeance, Sincerely, Your Broken Saintess Season 2')
+  })
+
+  test("an editor's note above the synopsis is no part of it", () => {
+    expect(card(13383).synopsis).toMatch(/^Victory over the Demon King [^]* her story’s just begun\.$/)
+    expect(card(12611).synopsis, 'a note and no synopsis').toBeUndefined()
   })
 
   // Detective Conan's card prints "Began Winter 1996" and holds October 3, 2026, its first episode of the season, as
@@ -178,7 +183,7 @@ describe('which titles a season keeps', () => {
 
   test('the season page drops the rest before they become rows', async () => {
     const nodes = await pageNodes({ season: 'FALL', seasonYear: 2026 }, rig().ctx)
-    expect(nodes.map(node => node.uri), 'not the late-September premiere, nor Detective Conan').toEqual(['livechart:13508', 'livechart:13631', 'livechart:13514'])
+    expect(nodes.map(node => node.uri), 'not the late-September premiere, nor Detective Conan').toEqual(['livechart:13508', 'livechart:13631', 'livechart:13514', 'livechart:13383', 'livechart:12611'])
   })
 
   test('the winter cut is January 1, in Japan', () => {
@@ -198,7 +203,7 @@ describe('what is asked', () => {
       'https://www.livechart.me/fall-2026/movies',
       'https://www.livechart.me/fall-2026/ovas',
     ])
-    expect(nodes.length).toBe(3)
+    expect(nodes.length).toBe(5)
   })
 
   test('RELEASING with no season named asks for the clock season', async () => {

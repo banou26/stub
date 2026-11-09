@@ -123,10 +123,11 @@ const attribute = (card: string, name: string) => {
   return value ? decodeEntities(value) : undefined
 }
 
-// the "[Source: ...]" credit is a `<p>` with a class, and an entry with no synopsis prints a `<div>` saying so
+// An editor's note ("※ NOTE: Split 2 cour") is a `<div>` above the paragraphs, as is the line an entry with no
+// synopsis prints, and the "[Source: ...]" credit is a `<p>` with a class.
 const synopsisOf = (card: string) => {
-  const body = /data-anime-item-target="synopsis">([\s\S]*?)<\/div>/.exec(card)?.[1] ?? ''
-  const paragraphs = [...body.matchAll(/<p>([\s\S]*?)<\/p>/g)].map(([, paragraph]) => decodeEntities(paragraph!.replace(/<[^>]*>/g, '')).trim())
+  const body = /data-anime-item-target="synopsis">([\s\S]*?)<div class="lc-anime-details-card__footer/.exec(card)?.[1] ?? ''
+  const paragraphs = [...body.replace(/<div\b[\s\S]*?<\/div>/g, '').matchAll(/<p>([\s\S]*?)<\/p>/g)].map(([, paragraph]) => decodeEntities(paragraph!.replace(/<[^>]*>/g, '')).trim())
   return paragraphs.filter(Boolean).join('\n\n') || undefined
 }
 
