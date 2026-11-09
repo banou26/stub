@@ -151,15 +151,17 @@ const BARE_YEAR = /\s\(\d{4}\)$/
 
 /**
  * A cluster's titles, best first, with a show name plus a bare year moved behind the rest whenever one
- * of them names a season.
+ * of its main titles names a season: a translation is one viewer's, so it never reorders the others.
  *
  * AniDB, and ani.zip with it, tells a later season apart by its year: anidb 19444 is "The Apothecary
  * Diaries (2026)" where AniList and MyAnimeList say "The Apothecary Diaries Season 3" (2026-10-13).
  * When nothing names a season the year is what tells a remake from the original, Berserk (2016), so it
  * keeps its place.
  */
-export const seasonNamesFirst = <T extends { title?: string | null }>(titles: T[]): T[] => {
-  if (!titles.some(({ title }) => title && parseSeasonNumber(title) !== undefined)) return titles
+export const seasonNamesFirst = <T extends { title?: string | null, class?: string | null }>(titles: T[]): T[] => {
+  // `mainTitles` (src/sources/translations.ts) inlined: scripts/season-popularity.mjs loads this file in plain node,
+  // which resolves no import without its extension
+  if (!titles.some(({ title, class: kind }) => (kind ?? 'MAIN') === 'MAIN' && title && parseSeasonNumber(title) !== undefined)) return titles
   const bareYear = ({ title }: T) => BARE_YEAR.test(title ?? '')
   return [...titles.filter(title => !bareYear(title)), ...titles.filter(bareYear)]
 }

@@ -151,6 +151,17 @@ test('a translation says nothing of which season a row is', async () => {
   expect(profile!.seasonOrdinal).toBeNull()
 })
 
+// Mutation: read every title in `seasonNamesFirst` (sources/season.ts), and the Chinese title, the only one naming a
+// season, moves AniZip's two behind it, so an English viewer's page leads with it.
+test('a translation naming a season leaves the stored first title and an English viewer\'s heading as they are', async () => {
+  const [cluster] = await rowsOf('MATCH (m:Media {uri: \'anizip:18886\'})-[:MEMBER_OF]->(c:Cluster) RETURN c.media AS media')
+  expect((JSON.parse(String(cluster!.media)) as Shown).titles.map(({ title }) => title))
+    .toEqual(['Frieren: Beyond Journey\'s End (2026)', '葬送のフリーレン (2026)', '葬送的芙莉莲 第二季'])
+  holdViewerLanguages({ language: 'en-US' })
+  const page = (await execute(TITLE_PAGE, { input: { uri: 'anizip:18886' }, descriptionInput: { type: 'TEXT' } })).media as Shown
+  expect(page.titles[0]!.title).toBe('Frieren: Beyond Journey\'s End (2026)')
+})
+
 // Mutation: drop `translationFirst` from the `titles` resolver, or `synopsesIn` from `descriptions` or
 // `shortDescriptions`, and the French viewer reads English there.
 test('a French viewer\'s title page and card lead with the French title and show the French synopsis', async () => {
