@@ -180,7 +180,13 @@ describe('the handle a row mints', () => {
     ]) {
       expect(normalizeAnime(anime({ mal_url }), FALL_2026).handles, String(mal_url)).toEqual([])
     }
-    for (const anilist_url of ['https://anilist.co/anime/197620/SEKIRO-NO-DEFEAT', 'https://anilist.co/manga/197620', null]) {
+    for (const anilist_url of [
+      'https://anilist.co/anime/197620/SEKIRO-NO-DEFEAT',
+      'https://anilist.co/manga/197620',
+      'https://anilist.co/anime/',
+      'https://x.test/?u=https://anilist.co/anime/197620',
+      null,
+    ]) {
       expect(normalizeAnime(anime({ mal_url: null, anilist_url }), FALL_2026).handles, String(anilist_url)).toEqual([])
     }
   })
