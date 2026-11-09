@@ -15,6 +15,8 @@ import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstT
 import { charactersByName, type SourceCredits } from '../credits'
 import { viewerCountry } from '../country'
 import { isViewersPrime } from '../amazon/session'
+import { translatedTitle } from '../translations'
+import { localeOf } from '../../i18n/best-language'
 
 const SCORE = 0.2
 // below every other source's banner but AniList's 1900x400 strip (0.05), so a backdrop only fills a gap
@@ -212,8 +214,8 @@ const POPULAR_QUERY = titlesQuery(titlesIn('popularTitles', '$country', `
               externalId
             }`))
 
-const nodeQuery = (details: string) => `
-  query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!) {
+const nodeQuery = (details: string, translated = '') => `
+  query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!${translated && ', $translation: Language!'}) {
     node(id: $nodeId) {
       ... on MovieOrShow {
         id
@@ -234,7 +236,7 @@ const nodeQuery = (details: string) => `
             translation(language: $language)
           }
           productionCountries${details}
-        }
+        }${translated}
         offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}${OFFER_FACTS}
         }
         extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}${OFFER_FACTS}
@@ -276,10 +278,18 @@ const nodeQuery = (details: string) => `
   }
 `
 
+// The title and synopsis in the viewer's language beside the US English every viewer is answered, asked only of a viewer
+// reading another, so an English viewer's body stays the one every viewer shared before. JustWatch answers its English
+// text where it has none.
+const TRANSLATED = `
+        translated: content(country: $country, language: $translation) {
+          title
+          shortDescription
+        }`
+
 // The relay caches on the whole body, so the modal's leaves out what only the title page's `details`
 // reads
-const NODE_QUERY = nodeQuery('')
-const NODE_DETAILS_QUERY = nodeQuery(`
+const DETAILS = `
           runtime
           backdrops(profile: S1920, format: JPG) {
             backdropUrl
@@ -298,7 +308,7 @@ const NODE_DETAILS_QUERY = nodeQuery(`
             name
             characterName
             personId
-          }`)
+          }`
 
 const _inflight = new Map<string, Promise<unknown>>()
 
@@ -380,14 +390,23 @@ const withoutCopiedDates = (seasons: JWSeason[]): JWSeason[] => {
       : season)
 }
 
-const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) =>
-  deduplicatedFetch(`node:${nodeId}:${Boolean(details)}`, async () => {
-    const response = await jwFetch<JWNodeResponse>(details ? NODE_DETAILS_QUERY : NODE_QUERY, {
-      nodeId, language: LANGUAGE, country: COUNTRY, ...offerCountries()
+// Not Japanese, until the owner decides whether a Japanese viewer sees anime titles in Japanese script (STUB-374):
+// JustWatch's Japanese title for Frieren is a kana reading, そうそうのフリーレン
+const translationOf = ({ language }: ExtractorServerContext) => {
+  const asked = language && localeOf(language)?.language
+  return asked && asked !== LANGUAGE && asked !== 'ja' ? asked : undefined
+}
+
+const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) => {
+  const translation = translationOf(ctx)
+  return deduplicatedFetch(`node:${nodeId}:${Boolean(details)}:${translation ?? ''}`, async () => {
+    const response = await jwFetch<JWNodeResponse>(nodeQuery(details ? DETAILS : '', translation ? TRANSLATED : ''), {
+      nodeId, language: LANGUAGE, country: COUNTRY, ...offerCountries(), ...translation ? { translation } : {}
     }, ctx)
     const node = response.data?.node
     return node?.seasons ? { ...response, data: { ...response.data, node: { ...node, seasons: withoutCopiedDates(node.seasons) } } } : response
   })
+}
 
 interface JWOffer {
   monetizationType: string
@@ -429,6 +448,8 @@ interface JWSearchNode {
     scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
     credits?: JWCredit[] | null
   }
+  /** `TRANSLATED`'s answer, only on a node asked for a viewer reading another language than English */
+  translated?: { title: string | null, shortDescription: string | null } | null
   offers: JWOffer[]
   /** the same offers read on the second country; see `offerCountries` */
   extraOffers?: JWOffer[]
@@ -732,7 +753,7 @@ export const showAsContainer = async (
   // its other containers and adds nothing a reader could act on. A listing's show is the card itself.
   if (!handles.length && !listed) return null
 
-  return makeMedia({
+  return withTranslation(makeMedia({
     origin,
     id: String(node.objectId),
     url: `https://www.justwatch.com${node.content.fullPath}`,
@@ -748,7 +769,7 @@ export const showAsContainer = async (
     trailers: trailersOf(node),
     // the SHOW's own day, which is the right subject here and only here: this media IS the show
     startDate: dayOrYear(node.content.originalReleaseDate, node.content.originalReleaseYear)
-  })
+  }), node, ctx, true)
 }
 
 // JustWatch's own names for a season that say only where it sits in its show, past the "Season 2" any catalogue
@@ -866,7 +887,25 @@ const normalizeMedia = async (
     media.episodeCount = 1
   }
 
-  return media
+  return withTranslation(media, node, ctx, title === node.content.title)
+}
+
+/**
+ * `media` with JustWatch's title and synopsis in the language `translationOf` asked, each only where it differs from
+ * the English. The title only on a media `titled` with the show's own, the one translated. Added after a film's episode
+ * copies the media's, as an episode's title and synopsis are what pairs it with another source's.
+ */
+const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, titled: boolean): GQLMedia => {
+  const language = translationOf(ctx)
+  if (!language || !translated) return media
+  const title = titled && translated.title && translated.title !== content.title ? [translatedTitle(language, translated.title, SCORE)] : []
+  const { descriptions = [], shortDescriptions = [] } = translated.shortDescription !== content.shortDescription ? desc(translated.shortDescription, SCORE, language) : {}
+  return {
+    ...media,
+    titles: [...media.titles ?? [], ...title],
+    descriptions: [...media.descriptions ?? [], ...descriptions],
+    shortDescriptions: [...media.shortDescriptions ?? [], ...shortDescriptions],
+  }
 }
 
 // what JustWatch writes for an episode it has no synopsis for (2026-10-16)

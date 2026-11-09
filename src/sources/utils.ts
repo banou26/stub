@@ -168,17 +168,17 @@ const ENDING_CREDIT = new RegExp(`${BREAKS}${CREDIT}(?:${BREAKS}$|(?=${BREAKS}<(
 /** The description without the source credit at its end, which may sit before AniList's closing note. A credit anywhere else stays. */
 export const dropCredit = (description: string) => description.replace(ENDING_CREDIT, '')
 
-export const desc = (description?: string | null, score?: number) => {
+export const desc = (description?: string | null, score?: number, language = 'en') => {
   const text = description && dropCredit(description)
   return text
     ? {
       descriptions: [{
-        language: 'en',
+        language,
         description: text,
         score
       }],
       shortDescriptions: [{
-        language: 'en',
+        language,
         shortDescription: text,
         score
       }]
