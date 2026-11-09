@@ -96,9 +96,9 @@ test('the details form goes out only when asked, and the modal and listing bodie
   const page = await open(DUNE, 'jw:1133934', true)
   expect(sha256(modal.bodies[0]!), 'the modal body').toBe('dde0b504ca822fc386678a2ea39ac5dcbbdf061ea0029c1081ec429d6a386f5c')
   expect(page.bodies[0], 'the page body').toContain('scoring {')
-  // STUB-374: the bodies an English viewer sent before a translation was asked of anyone, and a Japanese one's too
+  // STUB-374: the bodies an English viewer sent before a translation was asked of anyone, and a Japanese or Chinese one's
   expect(sha256(page.bodies[0]!), 'the page body').toBe('5db7693cd4d6e8b944168314a1c99ec4f72af06b57710281ae31b5b1b170814c')
-  for (const language of ['en-US', 'en-GB', 'ja-JP']) {
+  for (const language of ['en-US', 'en-GB', 'ja-JP', 'zh-Hans', 'zh-TW']) {
     expect((await open(DUNE, 'jw:1133934', undefined, language)).bodies, language).toEqual(modal.bodies)
     expect((await open(DUNE, 'jw:1133934', true, language)).bodies, language).toEqual(page.bodies)
   }
