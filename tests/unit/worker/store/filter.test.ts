@@ -13,6 +13,8 @@ const media = (uri: string, fields: Record<string, unknown> = {}) =>
 
 const uris = (medias: { uri: string }[]) => medias.map(m => m.uri)
 
+const pair = (season: string, seasonYear: number, popularity: number | null = null) => ({ season, seasonYear, popularity })
+
 describe('applyMediaFilters', () => {
   test('an empty filter passes every row through, in the order it was given', () => {
     const page = [media('anilist:1'), media('kitsu:2'), media('tmdb:3')]
@@ -107,8 +109,8 @@ describe('applyMediaFilters', () => {
   // source placed there.
   test('a row listed in two seasons matches either, each pair as one', () => {
     const page = [
-      media('mal:1', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [{ season: 'FALL', seasonYear: 2026 }, { season: 'SUMMER', seasonYear: 2026 }] }),
-      media('mal:2', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [{ season: 'FALL', seasonYear: 2025 }, { season: 'SUMMER', seasonYear: 2026 }] }),
+      media('mal:1', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [pair('FALL', 2026), pair('SUMMER', 2026)] }),
+      media('mal:2', { season: 'SUMMER', seasonYear: 2026, seasonPairs: [pair('FALL', 2025), pair('SUMMER', 2026)] }),
     ]
     expect(uris(applyMediaFilters(page, { season: 'FALL', seasonYear: 2026 }))).toEqual(['mal:1'])
     expect(uris(applyMediaFilters(page, { season: 'SUMMER', seasonYear: 2026 }))).toEqual(['mal:1', 'mal:2'])
@@ -229,4 +231,18 @@ describe('a listing', () => {
     expect(uris(pageRows(rows, { categories: ['MOVIE'], search: 'dune' }, ['jw:2', 'jw:1'], 'stub'))).toEqual(['jw:1', 'jw:2'])
     expect(uris(pageRows(rows, { categories: ['MOVIE'] }, ['jw:2', 'jw:1'], 'series')), 'and still keeps the site\'s rows only').toEqual([])
   })
+})
+
+// Mutation: draw a row with its own season and share rather than the pair it matched, and the Fall page labels it
+// Summer and ranks it by Summer's share; take the first pair a year matches, and the year page relabels it Fall.
+test('a season page draws a row two seasons list as listed in its own', () => {
+  const row = media('ag:(mal:1)', { categories: ['ANIME'], season: 'SUMMER', seasonYear: 2026, popularity: 0.67, seasonPairs: [pair('FALL', 2026, 1), pair('SUMMER', 2026, 0.67)] })
+  const drawn = (filters: MediaPageFilters) => pageRows([row], filters, [], 'anime')
+    .map(({ season, seasonYear, popularity }) => ({ season, seasonYear, popularity }))
+  expect(drawn({ season: 'FALL', seasonYear: 2026 })).toEqual([{ season: 'FALL', seasonYear: 2026, popularity: 1 }])
+  expect(drawn({ season: 'SUMMER', seasonYear: 2026 })).toEqual([{ season: 'SUMMER', seasonYear: 2026, popularity: 0.67 }])
+  expect(drawn({ seasonYear: 2026 }), 'a year page keeps its own of two').toEqual([{ season: 'SUMMER', seasonYear: 2026, popularity: 0.67 }])
+  expect(pageRows([row], {}, [], 'anime')[0], 'and a page of no season draws the row itself').toBe(row)
+  const legacy = media('anilist:1', { categories: ['ANIME'], season: 'FALL', seasonYear: 2026, popularity: 0.5 })
+  expect(pageRows([legacy], { season: 'FALL', seasonYear: 2026 }, [], 'anime')[0], 'as it does a row with no pairs').toBe(legacy)
 })

@@ -376,7 +376,8 @@ type Media {
   Set only by an answer that knows the season's most followed work (a whole season, or AniList's
   browse of one, which asks for that work beside it), and taken from the first source in the merge
   order that set one, Kitsu last. Null for a work no such answer listed: one with no season, or one
-  only reached through a search naming no season, or a title page.
+  only reached through a search naming no season, or a title page. On a page of one season it is the
+  share of that season, for a work sources list in two.
   """
   popularity: Float
   """
@@ -409,7 +410,10 @@ type Media {
   AniList has nothing scheduled.
   """
   airingSchedule: [MediaAiringEpisode!]
-  """The broadcast season this run aired in, as the source named it."""
+  """
+  The broadcast season this run aired in, as the source named it. On a page of a season or a year, the
+  one the page matched, for a run sources list in two.
+  """
   season: MediaSeason
   """
   The calendar year `season` belongs to.

@@ -172,7 +172,7 @@ export type ClusterCard = {
   status: string | null
   season: string | null
   seasonYear: number | null
-  /** Every season a member was listed in, read by the season filter and selected by no document. */
+  /** Every season a member was listed in with its share, which a season page draws the card by; selected by no document. */
   seasonPairs: SeasonPair[]
   genres: string[]
   tags: string[]
@@ -412,6 +412,9 @@ const SCALARS = [
 // other member has one
 const KITSU_LAST = new Set<string>(['popularity', 'followers', 'popularityRank'])
 
+const kitsuLast = (members: readonly MemberRow[]): MemberRow[] =>
+  [...members].sort((a, b) => Number(a.origin === 'kitsu') - Number(b.origin === 'kitsu'))
+
 /**
  * ONE HANDLE PER RELATION AND TARGET, which the narrative axis already does and this side did not.
  *
@@ -487,8 +490,7 @@ export const aggregateFields = (options: {
   // origin that does not coerce one
   for (const field of SCALARS) {
     const present = owned.filter(member => member.raw[field] !== null && member.raw[field] !== undefined)
-    if (KITSU_LAST.has(field)) present.sort((a, b) => Number(a.origin === 'kitsu') - Number(b.origin === 'kitsu'))
-    const first = present[0]
+    const first = (KITSU_LAST.has(field) ? kitsuLast(present) : present)[0]
     const supplier = first && (field === 'startDate' || field === 'endDate')
       ? present.reduce((best, member) =>
         !COERCING_ORIGINS.has(member.origin) && refinesDate(best.raw[field] as string, member.raw[field] as string) ? member : best, first)
@@ -519,9 +521,17 @@ export const aggregateFields = (options: {
   row.season = named ? named.raw.season : null
   row.seasonYear = (named ? named.raw.seasonYear : yearOnly?.raw.seasonYear) ?? null
   if (named || yearOnly) provenance.push({ field: 'season', uri: (named ?? yearOnly)!.uri, rule: 'season-pair' })
-  // and every pair a member was listed in, which a season page matches on (`store/filter.ts`)
-  const pairs = new Map(owned.flatMap(member => listOf(member.raw.seasonPairs))
-    .filter(isRecord).map(pair => [JSON.stringify([pair.season, pair.seasonYear]), pair]))
+  // and every pair a member was listed in, each with its share from the member `popularity` would take it from, which
+  // a season page reads as the card's (`store/filter.ts`)
+  const pairs = new Map<string, SeasonPair>()
+  for (const member of kitsuLast(owned)) {
+    for (const pair of listOf(member.raw.seasonPairs).filter(isRecord) as SeasonPair[]) {
+      const key = JSON.stringify([pair.season, pair.seasonYear])
+      const known = pairs.get(key)
+      if (!known) pairs.set(key, { ...pair })
+      else known.popularity ??= pair.popularity
+    }
+  }
   if (pairs.size) row.seasonPairs = [...pairs.values()]
 
   const categories = owned.flatMap(member => stringsOf(member.raw.categories))

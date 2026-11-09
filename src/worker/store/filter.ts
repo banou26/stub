@@ -27,8 +27,20 @@ export type MediaPageFilters = {
   tags?: readonly string[] | null
 }
 
-/** A season and its year, as one answer named them for a row. */
-export type SeasonPair = { season: string | null, seasonYear: number | null }
+/** A season and its year as an answer named them for a row, and the share of that season it gave the row. */
+export type SeasonPair = { season: string | null, seasonYear: number | null, popularity: number | null }
+
+type Seasoned = Pick<GQLMedia, 'season' | 'seasonYear' | 'popularity'> & { seasonPairs?: readonly SeasonPair[] }
+
+/**
+ * The pair a season or a year filter matches: on the graph store any a member was listed in, the row's own first when
+ * a year alone matches two, and else the row's own.
+ */
+const listedIn = (media: Seasoned, { season, seasonYear }: MediaPageFilters): Seasoned | SeasonPair | undefined => {
+  const own = (pair: { season?: string | null, seasonYear?: number | null }) => Number(pair.season === media.season && pair.seasonYear === media.seasonYear)
+  return (media.seasonPairs?.length ? [...media.seasonPairs].sort((a, b) => own(b) - own(a)) : [media]).find(pair =>
+    (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))
+}
 
 const labelSet = (labels: readonly string[] | null | undefined, key = (label: string) => label.toLowerCase()): Set<string> =>
   new Set((labels ?? []).map(key))
@@ -58,13 +70,13 @@ const labelSet = (labels: readonly string[] | null | undefined, key = (label: st
  * every row only that catalogue describes. That is the honest answer to "which of these is airing" and
  * it is why status is a filter rather than a default.
  *
- * A season and a year match the row's own pair or any pair in `seasonPairs`, every season a member was
- * listed in: a run two seasons list is on both pages, whichever of them a tab opened first (STUB-371).
+ * A season and a year match any pair in `seasonPairs`, every season a member was listed in, so a run two seasons
+ * list is on both pages whichever of them a tab opened first. A row with none matches on its own pair.
  *
  * The SITE comes first (src/site.ts), and it is a parameter rather than a field of `filters` because a
  * field is something any caller could widen: no page and no address can ask this past it.
  */
-export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'> & { seasonPairs?: readonly SeasonPair[] }>(
+export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type' | 'status' | 'genres' | 'tags'> & Seasoned>(
   medias: readonly T[],
   filters: MediaPageFilters,
   current: Site = site
@@ -80,8 +92,7 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
     if (categories.length && !(media.categories ?? []).some(category => categories.includes(category))) return false
     if (formats.length && !(media.type && formats.includes(media.type))) return false
     if (status && media.status !== status) return false
-    if ((season || seasonYear) && ![media, ...media.seasonPairs ?? []].some(pair =>
-      (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))) return false
+    if ((season || seasonYear) && !listedIn(media, filters)) return false
     if (genres.size) {
       const carried = labelSet(media.genres, genreKey)
       for (const genre of genres) if (!carried.has(genre)) return false
@@ -139,13 +150,20 @@ const isThin = (media: Hit): boolean =>
 export const thinLast = <T extends Hit>(medias: readonly T[]): T[] =>
   [...medias.filter(media => !isThin(media)), ...medias.filter(isThin)]
 
-/** The rows a page keeps, a listing's in the order its sources answered them. */
-export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categories' | 'type' | 'status' | 'season' | 'seasonYear' | 'genres' | 'tags'>>(
+/**
+ * The rows a page keeps, a listing's in the order its sources answered them. On a page of a season or a year each
+ * reads as listed there, with the season, year and share of the pair it matched: a show two seasons list is labelled
+ * and ranked as the page's own on both.
+ */
+export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categories' | 'type' | 'status' | 'genres' | 'tags'> & Seasoned>(
   rows: readonly T[],
   input: MediaPageFilters & { search?: string | null },
   answered: readonly string[],
   current: Site = site
-): T[] => applyMediaFilters(isListing(input) ? inAnswerOrder(rows, answered) : rows, input, current)
+): T[] => applyMediaFilters(isListing(input) ? inAnswerOrder(rows, answered) : rows, input, current).map(row => {
+  const pair = (input.season || input.seasonYear) && listedIn(row, input)
+  return pair && pair !== row ? { ...row, season: pair.season, seasonYear: pair.seasonYear, popularity: pair.popularity } : row
+})
 
 // Nulls are decided BEFORE the direction, so reversing the order does not reverse where an unranked
 // row lands. A media with no count is unranked rather than unpopular, so it sorts last either way, the

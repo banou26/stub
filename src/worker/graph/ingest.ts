@@ -46,6 +46,7 @@
  *   `map(<keys>, <values>)` over two split lists.
  */
 import type { AnswerRow } from './answers'
+import type { SeasonPair } from '../store/filter'
 
 import { emit } from '../store/events'
 import { contentHash, sha256Hex } from './hash'
@@ -330,20 +331,24 @@ const mergeEpisodeFields = (
 }
 
 /**
- * The same merge for a media, which also keeps every season an answer named in `seasonPairs`.
+ * The same merge for a media, which also keeps in `seasonPairs` every season and year an answer named, each with
+ * the last share of that season an answer gave (`popularity`).
  *
- * One row can sit in two seasons' listings: MyAnimeList's Summer and Fall 2026 pages both list Steel Ball
- * Run (2026-11-10), and each answer stamps the season it was asked for. The last pair alone then decides
- * which page draws the row, and the log never folds a re-fetch it already holds, so the home row's Fall
- * answer followed by Summer's kept the show off the Fall page (STUB-371). `store/filter.ts` matches a
- * season on any of these pairs.
+ * One row can sit in two seasons' listings: MyAnimeList's Summer and Fall 2026 pages both list Steel Ball Run
+ * (2026-11-10), and each answer stamps the season it was asked for and its share of it. The log never folds a
+ * re-fetch it already holds, so `season` and `popularity` are those of whichever season's answer was new last:
+ * the home row's Fall answer, then Summer's, left the Fall page reading Summer. A season page reads the pair of
+ * its own season instead (`store/filter.ts`).
  */
 const mergeMediaFields: typeof mergeFields = (existing, incoming, seq, fieldSeq) => {
   const merged = mergeFields(existing, incoming, seq, fieldSeq)
-  const pairs = Array.isArray(existing?.seasonPairs) ? existing.seasonPairs as { season: unknown, seasonYear: unknown }[] : []
-  const { season, seasonYear = null } = incoming
-  if (typeof season !== 'string' || pairs.some(pair => pair.season === season && pair.seasonYear === seasonYear)) return merged
-  return { ...merged, seasonPairs: [...pairs, { season, seasonYear }] }
+  const season = typeof incoming.season === 'string' ? incoming.season : null
+  const seasonYear = typeof incoming.seasonYear === 'number' ? incoming.seasonYear : null
+  if (season === null && seasonYear === null) return merged
+  const pairs = Array.isArray(existing?.seasonPairs) ? existing.seasonPairs as SeasonPair[] : []
+  const known = pairs.find(pair => pair.season === season && pair.seasonYear === seasonYear)
+  const pair = { season, seasonYear, popularity: typeof incoming.popularity === 'number' ? incoming.popularity : known?.popularity ?? null }
+  return { ...merged, seasonPairs: known ? pairs.map(each => each === known ? pair : each) : [...pairs, pair] }
 }
 
 const foldContributions = (
