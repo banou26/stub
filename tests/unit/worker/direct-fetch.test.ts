@@ -30,7 +30,6 @@ test('every host whose CORS lets a browser ask it is asked from the browser', ()
     'https://kitsu.io/api/edge/anime/1?include=mappings',
     'https://uts-api.itunes.apple.com/uts/v3/search?searchTerm=severance&caller=web&sf=143441&v=58&pfm=web&locale=en-US&utsk=0',
     'https://api.ani.zip/mappings?anilist_id=1&specials=1',
-    'https://www.livechart.me/api/v1/anime?season=fall&year=2026&limit=200',
     'https://apiz.trakt.tv/search/show?query=breaking%20bad',
     'https://api4.thetvdb.com/web/search/queries',
     'https://api.tvmaze.com/search/shows?q=breaking%20bad',
@@ -60,6 +59,7 @@ test('every host a browser cannot ask still goes through the relay', () => {
     'https://myanimelist.net/anime/1',
     'https://www.themoviedb.org/tv/1399',
     'https://unogs.com/api/title/episodes?netflixid=80987039',
+    'https://www.livechart.me/fall-2026/tv',
     'https://api.jikan.moe/v4/anime/1',
     // the trap a suffix match walks into: a host somebody else controls, ending in the allowed one
     'https://www.netflix.com.example.test/graphql',
@@ -87,7 +87,6 @@ test('the list is the hosts measured open, not a rule that grew', () => {
     'https://graphql.animethemes.moe',
     'https://kitsu.io',
     'https://uts-api.itunes.apple.com',
-    'https://www.livechart.me',
     'https://www.netflix.com',
   ])
 })

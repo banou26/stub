@@ -1,14 +1,20 @@
-// LiveChart's season list, on hand-written rows shaped like `/api/v1/anime` answered on 2026-10-10.
+// LiveChart's season pages: the cards of a saved copy of one (tests/fixtures/livechart), and hand-written rows.
+import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { normalizeAnime, premieredInSeason, resolvers, type LiveChartAnime } from '../../../../src/sources/livechart/extractor'
+import { MediaType } from '../../../../src/generated/graphql'
+import { normalizeAnime, parseSeasonPage, premieredInSeason, resolvers, type LiveChartAnime } from '../../../../src/sources/livechart/extractor'
 import { animeSeasonOf } from '../../../../src/sources/season'
 
 const FALL_2026 = { season: 'fall', year: 2026 } as const
 
-// the answer carries more than the source reads, so a row here may too
+// https://www.livechart.me/fall-2026/tv on 2026-11-09, trimmed to five cards
+const PAGE = readFileSync(new URL('../../../fixtures/livechart/fall-2026-tv.html', import.meta.url), 'utf8')
+
+// a row may carry more than the source reads
 const anime = (fields: Partial<LiveChartAnime> & Record<string, unknown> = {}): LiveChartAnime => ({
   id: 12001,
+  type: MediaType.Tv,
   romaji_title: 'Kousoku Hikousen',
   english_title: 'The Fast Airship',
   native_title: '高速飛行船',
@@ -16,20 +22,19 @@ const anime = (fields: Partial<LiveChartAnime> & Record<string, unknown> = {}): 
   premiere_date: '2026-10-08T15:00:00.000000000Z',
   premiere_date_precision: 3,
   episode_count: 12,
-  anime_type: 1,
   avg_rating: 8.2,
   poster_image_large: 'https://u.livechart.me/anime/12001/poster_image/0f.webp/large.jpg',
   mal_url: 'https://myanimelist.net/anime/61001',
   ...fields,
 })
 
-/** Every url asked for, answered with `items` (or the given status) on the season list. */
-const rig = (items: LiveChartAnime[] = [anime()], status = 200) => {
+/** Every url asked for, each tab answered with its page in `pages` (an empty grid otherwise), or with `status`. */
+const rig = (pages: Record<string, string> = { tv: PAGE }, status = 200) => {
   const urls: string[] = []
   const ctx = {
     fetch: async (url: string) => {
       urls.push(url)
-      return { ok: status === 200, status, json: async () => ({ has_more: false, items }) }
+      return { ok: status === 200, status, text: async () => pages[url.split('/').at(-1)!] ?? '<main></main>' }
     },
   } as never
   return { urls, ctx }
@@ -73,24 +78,52 @@ describe('a row', () => {
     }
   })
 
-  test('anime_type names the format, as measured against MyAnimeList', () => {
-    const shaped = (anime_type: number | null) => {
-      const { type, categories } = normalizeAnime(anime({ anime_type }), FALL_2026)
-      return { type, categories }
-    }
-    expect(shaped(1)).toEqual({ type: 'TV', categories: ['ANIME', 'SERIES'] })
-    expect(shaped(2)).toEqual({ type: 'MOVIE', categories: ['ANIME', 'MOVIE'] })
-    expect(shaped(4)).toEqual({ type: 'ONA', categories: ['ANIME', 'SERIES'] })
+  test('a row with no type claims no format at all', () => {
+    const { type, categories } = normalizeAnime(anime({ type: undefined }), FALL_2026)
+    expect({ type, categories }).toEqual({ type: undefined, categories: ['ANIME'] })
+  })
+})
+
+describe('a season page', () => {
+  const cards = parseSeasonPage(PAGE, MediaType.Tv)
+  const card = (id: number) => cards.find(card => card.id === id)!
+
+  test('reads every card, and not the tutorial card after them', () => {
+    expect(cards.map(card => card.id)).toEqual([13508, 13631, 13514, 12991, 319])
   })
 
-  // Type 5 was three films and one special on 2026-10-10, and type 3 one film. A row claiming SPECIAL
-  // or SERIES for those at 0.6 outranks Kitsu's MOVIE in a cluster with no AniList or MyAnimeList
-  // member, and moves the film to the Series tab. So they claim nothing and another member decides.
-  test('a type the measurement does not settle claims no format at all', () => {
-    for (const anime_type of [3, 5, 9, null]) {
-      const { type, categories } = normalizeAnime(anime({ anime_type }), FALL_2026)
-      expect({ type, categories }, String(anime_type)).toEqual({ type: undefined, categories: ['ANIME'] })
-    }
+  test("a card's titles, synopsis without its credit, poster, count, rating, premiere and MyAnimeList link", () => {
+    expect(card(13508)).toEqual({
+      id: 13508,
+      type: 'TV',
+      romaji_title: 'Doumo, Suki na Hito ni Horegusuri wo Irai sareta Majo desu.',
+      english_title: 'Hello, I Am a Witch and My Crush Wants Me to Make a Love Potion!',
+      native_title: 'どうも、好きな人に惚れ薬を依頼された魔女です。',
+      synopsis: expect.stringMatching(/^"I want you to make a love potion\."\n\nThe Good Witch of the Lake's four-year crush [^]*\n\nThis is the heartwarming story of a shut-in witch [^]* starts from a love potion\.$/),
+      premiere_date: '2026-10-05T12:30:00.000Z',
+      premiere_date_precision: 4,
+      episode_count: 12,
+      avg_rating: '7.78',
+      poster_image_large: 'https://u.livechart.me/anime/13508/poster_image/9ab193bca2aae2d30fc7eb493442892c.webp/large.jpg',
+      mal_url: 'https://myanimelist.net/anime/63409',
+    })
+    expect(normalizeAnime(card(13508), FALL_2026).averageScore).toBe(78)
+  })
+
+  test('an entity in an attribute is read as its character', () => {
+    expect(card(13514).romaji_title).toMatch(/ Arayuru Mono ni "Kyouka Point" wo Fuyo /)
+  })
+
+  test('a card with no synopsis, no rating and no episode count says nothing for them', () => {
+    expect(card(13631)).toMatchObject({ synopsis: undefined, avg_rating: undefined, episode_count: undefined })
+    expect(card(13631).english_title).toBe('With Vengeance, Sincerely, Your Broken Saintess Season 2')
+  })
+
+  // Detective Conan's card prints "Began Winter 1996" and holds October 3, 2026, its first episode of the season, as
+  // its premiere value. Read as a premiere, that puts a 1996 show on the fall 2026 row.
+  test('a run carried over from an earlier season has no date', () => {
+    expect(card(319).premiere_date).toBeUndefined()
+    expect(premieredInSeason(card(319), FALL_2026)).toBe(false)
   })
 })
 
@@ -143,13 +176,9 @@ describe('which titles a season keeps', () => {
     expect(at(null), 'no date says nothing about which season').toBe(false)
   })
 
-  test('the season list drops the rest before they become rows', async () => {
-    const { ctx } = rig([
-      anime({ id: 1, premiere_date: '1996-01-08T10:30:00.000000000Z' }),
-      anime({ id: 2 }),
-    ])
-    const nodes = await pageNodes({ season: 'FALL', seasonYear: 2026 }, ctx)
-    expect(nodes.map(node => node.uri)).toEqual(['livechart:2'])
+  test('the season page drops the rest before they become rows', async () => {
+    const nodes = await pageNodes({ season: 'FALL', seasonYear: 2026 }, rig().ctx)
+    expect(nodes.map(node => node.uri), 'not the late-September premiere, nor Detective Conan').toEqual(['livechart:13508', 'livechart:13631', 'livechart:13514'])
   })
 
   test('the winter cut is January 1, in Japan', () => {
@@ -160,19 +189,35 @@ describe('which titles a season keeps', () => {
 })
 
 describe('what is asked', () => {
-  test('a named season is one request for the whole of it', async () => {
+  test('a named season is its page, one request per tab', async () => {
     const { urls, ctx } = rig()
     const nodes = await pageNodes({ season: 'FALL', seasonYear: 2026, status: 'FINISHED' }, ctx)
 
-    expect(urls).toEqual(['https://www.livechart.me/api/v1/anime?season=fall&year=2026&limit=200'])
-    expect(nodes.length).toBe(1)
+    expect(urls).toEqual([
+      'https://www.livechart.me/fall-2026/tv',
+      'https://www.livechart.me/fall-2026/movies',
+      'https://www.livechart.me/fall-2026/ovas',
+    ])
+    expect(nodes.length).toBe(3)
   })
 
   test('RELEASING with no season named asks for the clock season', async () => {
-    const { urls, ctx } = rig([])
+    const { urls, ctx } = rig({})
     const now = animeSeasonOf()
     await pageNodes({ status: 'RELEASING' }, ctx)
-    expect(urls).toEqual([`https://www.livechart.me/api/v1/anime?season=${now.season}&year=${now.year}&limit=200`])
+    expect(urls).toEqual(['tv', 'movies', 'ovas'].map(tab => `https://www.livechart.me/${now.season}-${now.year}/${tab}`))
+  })
+
+  // OVAs holds ONAs, OVAs and specials together, a mix that once put a film on the Series tab, so it names nothing
+  test('each tab names the format of its cards, but OVAs', async () => {
+    for (const [tab, type, categories] of [
+      ['tv', 'TV', ['ANIME', 'SERIES']],
+      ['movies', 'MOVIE', ['ANIME', 'MOVIE']],
+      ['ovas', undefined, ['ANIME']],
+    ] as const) {
+      const [node] = await pageNodes({ season: 'FALL', seasonYear: 2026 }, rig({ [tab]: PAGE }).ctx)
+      expect({ type: node!.type, categories: node!.categories }, tab).toEqual({ type, categories })
+    }
   })
 
   test('half a season, or a search, asks nothing', async () => {
@@ -184,7 +229,6 @@ describe('what is asked', () => {
   })
 
   test('a refused request is an empty season, not an error', async () => {
-    const { ctx } = rig([anime()], 429)
-    expect(await pageNodes({ season: 'FALL', seasonYear: 2026 }, ctx)).toEqual([])
+    expect(await pageNodes({ season: 'FALL', seasonYear: 2026 }, rig({ tv: PAGE }, 429).ctx)).toEqual([])
   })
 })

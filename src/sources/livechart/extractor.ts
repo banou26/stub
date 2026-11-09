@@ -3,6 +3,7 @@ import type { Resolvers, Media as GQLMedia, MediaCategory } from '../../generate
 
 import { MediaType } from '../../generated/graphql'
 import { makeMedia, desc, img } from '../utils'
+import { decodeEntities } from '../entities'
 import { ANIME_SEASONS, animeSeasonOf, lowerSeason, upperSeason, type AnimeSeason } from '../season'
 import { percentScore } from '../average-score'
 
@@ -19,8 +20,10 @@ export const supportedUris = ['livechart']
 // (0.3) and the offline database (0.2).
 const SCORE = 0.6
 
+/** One card of a season page. */
 export type LiveChartAnime = {
   id: number
+  type?: MediaType
   romaji_title?: string | null
   english_title?: string | null
   native_title?: string | null
@@ -28,30 +31,29 @@ export type LiveChartAnime = {
   premiere_date?: string | null
   premiere_date_precision?: number | null
   episode_count?: number | null
-  anime_type?: number | null
-  avg_rating?: number | null
+  avg_rating?: number | string | null
   poster_image_large?: string | null
   mal_url?: string | null
 }
 
 /**
- * `anime_type` is an undocumented number. Measured 2026-10-10 over the fall and summer 2026 lists
- * against the bundled catalogue's type for the same MyAnimeList id: 1 is TV (156 of 162), 2 a movie
- * (19 of 20) and 4 an ONA (14 of 16). 5 is mixed (three MOVIE and one SPECIAL of the four the
- * catalogue places) and 3 is one title a season (Patlabor EZY, a MOVIE there), so those two, like any
- * value outside the table, claim no type and no format and leave both to the other members.
+ * The season page's tabs, which between them hold every card of its All tab, and the format each one names: a card
+ * carries no type of its own. Measured 2026-11-09 on fall 2026 against the bundled catalogue's type for the same
+ * MyAnimeList id: TV is a TV series for 81 of the 84 it places, Movies a film for 13 of 14. OVAs holds every other
+ * format, ONAs beside OVAs and specials, the old list's types 3 to 5, whose mix put a film on the Series tab. So it
+ * claims no type and no format and leaves both to the other members.
  */
-const TYPES: Record<number, MediaType> = {
-  1: MediaType.Tv,
-  2: MediaType.Movie,
-  4: MediaType.Ona,
+const TABS: Record<string, MediaType | undefined> = {
+  tv: MediaType.Tv,
+  movies: MediaType.Movie,
+  ovas: undefined,
 }
 
 const categoriesOf = (type: MediaType | undefined): MediaCategory[] =>
   type === undefined ? ['ANIME'] : type === MediaType.Movie ? ['ANIME', 'MOVIE'] : ['ANIME', 'SERIES']
 
 /**
- * The ONE handle a row mints: its MyAnimeList id, read off the only shape LiveChart published
+ * The ONE handle a row mints: its MyAnimeList id, read off the only shape LiveChart links
  * (`myanimelist.net/anime/<id>`, numeric, or nothing).
  *
  * Not its AniList, Kitsu or AniDB link as well, though it carries them. A row naming two catalogues
@@ -84,28 +86,23 @@ const japanDay = (anime: LiveChartAnime): string | undefined => {
 /**
  * Whether a title premiered in the season it was listed under rather than before it.
  *
- * LiveChart's season list carries every show still airing in it, back to 1969: on 2026-10-10 the fall
- * list held 148 titles of which 55 premiered before October, and summer 160 with 65 before July. No
- * field says which, and stamping those with the asked season would put Detective Conan on the season
- * row. The cut is the season's first day in Japan: read in UTC it drops the shows that premiere just
- * after midnight on that day, two of fall 2026's. Measured against the bundled catalogue, this keeps
- * 67 of fall's titles it files under fall and 1 it files elsewhere, and 84 of summer's against none,
- * at the cost of 10 late-September and late-June premieres the other sources list anyway. A week of
- * grace would win 7 of those back and add 3 films the catalogue files under the season before.
+ * A season page lists the runs still airing in it too, back to Sazae-san (1969): on 2026-11-09 fall 2026's held 45 of
+ * 156 that print "Began <an earlier season>" where a new title prints its premiere, and those have no date here. The
+ * cut is the season's first day in Japan, which also drops the September premieres it lists (12 that day, leaving 99):
+ * read in UTC it would drop the shows that premiere just after midnight on that day.
  */
 export const premieredInSeason = (anime: LiveChartAnime, { season, year }: { season: AnimeSeason, year: number }) =>
   Date.parse(anime.premiere_date ?? '') >= Date.UTC(year, ANIME_SEASONS.indexOf(season) * 3, 1) - JST_MS
 
-export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season: AnimeSeason, year: number }): GQLMedia => {
-  const type = anime.anime_type == null ? undefined : TYPES[anime.anime_type]
-  return makeMedia({
+export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season: AnimeSeason, year: number }): GQLMedia =>
+  makeMedia({
     origin,
     id: String(anime.id),
     url: `https://www.livechart.me/anime/${anime.id}`,
     handles: malHandle(anime),
     score: SCORE,
-    categories: categoriesOf(type),
-    type,
+    categories: categoriesOf(anime.type),
+    type: anime.type,
     titles: [
       ...anime.english_title ? [{ language: 'en', title: anime.english_title, score: SCORE }] : [],
       ...anime.romaji_title ? [{ language: 'jp-en', title: anime.romaji_title, score: SCORE }] : [],
@@ -115,37 +112,74 @@ export const normalizeAnime = (anime: LiveChartAnime, { season, year }: { season
     covers: img(anime.poster_image_large, SCORE),
     startDate: japanDay(anime),
     episodeCount: anime.episode_count ?? undefined,
-    // a title nobody has rated is a literal 0, on 99 of fall 2026's 148
     averageScore: percentScore(anime.avg_rating, 10),
-    // the list carries no season per title; the request asked for one and the filter above keeps
-    // only the titles that began in it
+    // a card carries no season of its own; the page is one, and the filter above keeps only the titles that began in it
     season: upperSeason(season),
     seasonYear: year,
   })
+
+const attribute = (card: string, name: string) => {
+  const value = new RegExp(` data-anime-item-${name}="([^"]*)"`).exec(card)?.[1]
+  return value ? decodeEntities(value) : undefined
+}
+
+// the "[Source: ...]" credit is a `<p>` with a class, and an entry with no synopsis prints a `<div>` saying so
+const synopsisOf = (card: string) => {
+  const body = /data-anime-item-target="synopsis">([\s\S]*?)<\/div>/.exec(card)?.[1] ?? ''
+  const paragraphs = [...body.matchAll(/<p>([\s\S]*?)<\/p>/g)].map(([, paragraph]) => decodeEntities(paragraph!.replace(/<[^>]*>/g, '')).trim())
+  return paragraphs.filter(Boolean).join('\n\n') || undefined
 }
 
 /**
- * One season, in ONE request. `limit=200` covers it (148 for fall 2026, 160 for summer) and paging is
- * no way round a longer one: `page=2` answered 2 items with `has_more` still true (2026-08-16). The
- * site's robots.txt asks for 5 seconds between requests, and nothing paces requests ACROSS seasons: a
- * viewer stepping through years on the search page asks once per year, from their own browser.
+ * Every card of one season page tab, as `https://www.livechart.me/fall-2026/tv` answered on 2026-11-09.
+ *
+ * Read by pattern, as the other page sources are, and attribute values hold a raw `>` (`data-action="click->..."`, a
+ * title with `<ITEM>` in it), so every pattern keys on an attribute name, never on a tag's end. A run carried over from
+ * an earlier season prints "Began <season>" where a premiere goes, and its `data-anime-item-premiere-value` is then its
+ * first episode of THIS season, so only a card that prints its premiere as a `<time>` keeps a date.
+ */
+export const parseSeasonPage = (html: string, type?: MediaType): LiveChartAnime[] =>
+  html.split('<article ').slice(1).flatMap(part => {
+    const card = part.split('</article>')[0]!
+    const id = Number(attribute(card, 'id'))
+    if (!Number.isSafeInteger(id) || id <= 0) return []
+    const premiere = /class="lc-anime-details-card__premiere[^"]*"><time\b/.test(card) ? Number(attribute(card, 'premiere-value')) : NaN
+    return [{
+      id,
+      type,
+      romaji_title: attribute(card, 'romanized-native-title'),
+      english_title: attribute(card, 'english-title'),
+      native_title: attribute(card, 'native-title'),
+      synopsis: synopsisOf(card),
+      premiere_date: premiere > 0 ? new Date(premiere * 1000).toISOString() : undefined,
+      premiere_date_precision: Number(attribute(card, 'premiere-precision')) || undefined,
+      episode_count: Number(/>(\d+) eps?\b/.exec(card)?.[1]) || undefined,
+      avg_rating: /title="([\d.]+) out of 10\b/.exec(card)?.[1],
+      poster_image_large: /\s(https:\/\/u\.livechart\.me\/\S+\/large\.jpg) 2x"/.exec(card)?.[1],
+      mal_url: /<a href="([^"]*)"[^>]*\bclass="mal logo\b/.exec(card)?.[1],
+    }]
+  })
+
+/**
+ * One season, as the cards of its three tabs, asked at once. LiveChart offers no public API, and its page answers with
+ * no allow-origin, so it goes through the relay. robots.txt allows these paths when they carry no query string, and
+ * asks for 5 seconds between requests.
  */
 const getSeason = async (ctx: ExtractorServerContext, asked = animeSeasonOf()): Promise<GQLMedia[]> => {
-  try {
-    const response = await ctx.fetch(`https://www.livechart.me/api/v1/anime?season=${asked.season}&year=${asked.year}&limit=200`)
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const { items, has_more } = await response.json() as { items?: LiveChartAnime[], has_more?: boolean }
-    if (has_more) console.warn(`LiveChart ${asked.season} ${asked.year} has more than one request holds; the rest is left out`)
-    return (items ?? []).filter(anime => premieredInSeason(anime, asked)).map(anime => normalizeAnime(anime, asked))
-  } catch (error) {
-    console.error(`LiveChart ${asked.season} ${asked.year} failed`, error)
-    return []
-  }
+  const tabs = await Promise.all(Object.entries(TABS).map(async ([tab, type]) => {
+    try {
+      const response = await ctx.fetch(`https://www.livechart.me/${asked.season}-${asked.year}/${tab}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return parseSeasonPage(await response.text(), type)
+    } catch (error) {
+      console.error(`LiveChart ${asked.season} ${asked.year} ${tab} failed`, error)
+      return []
+    }
+  }))
+  return tabs.flat().filter(anime => premieredInSeason(anime, asked)).map(anime => normalizeAnime(anime, asked))
 }
 
-// No `media` answer: `/api/v1/anime/<id>` answered 204 with no body (2026-10-10), so a LiveChart
-// record exists only as a row of a season list. No search either, though `?q=` works: this is a
-// season source.
+// No `media` answer and no search: a LiveChart record exists only as a card of a season page.
 export const resolvers: Resolvers = {
   Subscription: {
     mediaPage: {

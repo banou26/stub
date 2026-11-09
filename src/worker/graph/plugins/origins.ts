@@ -50,8 +50,8 @@ export const RETRANSLATING_ORIGINS = new Set(['nf'])
  * which is the rule that kept `foldVetoed` from refusing every candidate season (2026-09-09).
  *
  * mal `data.episodes`, anilist `episodes`, anizip `episodeCount`, offline `record.ep`, omdb (a single
- * season or a film), livechart `episode_count` (`livechart/extractor.ts:117`, it fetches no episode
- * list). NOT justwatch: its count is the episodes out in its own season, and its season can be one part
+ * season or a film), livechart the `12 eps` a season page card prints (it fetches no episode list).
+ * NOT justwatch: its count is the episodes out in its own season, and its season can be one part
  * of a run, so Lupin's season 1 read JustWatch's 5 episode Part 1 over TMDB's 10 (2026-11-02). A
  * Crunchyroll SEARCH row's `series_metadata.episode_count` is also a published figure while
  * Crunchyroll's own list is a length, and that distinction is per answer rather than per origin, so a

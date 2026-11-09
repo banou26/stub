@@ -23,6 +23,7 @@
 // | myanimelist.net          | no allow-origin                                                                       |
 // | www.themoviedb.org       | no allow-origin                                                                       |
 // | unogs.com                | no allow-origin, and it needs unogs.com as its referer                                |
+// | www.livechart.me         | no allow-origin on its season pages (measured 2026-11-09)                             |
 //
 // api.aniskip.com, which the watch page asks itself (src/router/watch/fallback-ending.ts), was measured the same way and
 // answered, 2026-10-26.
@@ -54,7 +55,6 @@ export const DIRECT_FETCH_ORIGINS: ReadonlySet<string> = new Set([
   'https://graphql.animethemes.moe',
   'https://kitsu.io',
   'https://uts-api.itunes.apple.com',
-  'https://www.livechart.me',
   'https://www.netflix.com',
 ])
 

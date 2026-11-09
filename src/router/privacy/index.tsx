@@ -119,7 +119,6 @@ const Privacy = () => (
       <li>AniZip <span className="host">api.ani.zip</span></li>
       <li>Apple TV <span className="host">uts-api.itunes.apple.com</span></li>
       <li>Kitsu <span className="host">kitsu.io</span></li>
-      <li>LiveChart <span className="host">www.livechart.me</span></li>
       <li>Netflix <span className="host">www.netflix.com</span>, whose catalogue depends on your country</li>
       <li>TheTVDB <span className="host">api4.thetvdb.com</span></li>
       <li>
