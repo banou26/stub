@@ -229,7 +229,11 @@ test('a record MyAnimeList lists only on another season\'s page takes the count 
 
   expect(live.seasons['2026-SUMMER'].find(entry => entry.ml === 49233)?.pop).toBe(97_874)
   expect(down.seasons['2026-SUMMER'].find(entry => entry.ml === 49233)?.pop, 'the control: MyAnimeList\'s Fall count').toBe(members)
-  expect(members).toBeGreaterThan(0)
+  expect(members).toBe(254_259)
+  // each share is over this season's top on the count's own source: AniList's 171,252, and for MyAnimeList's
+  // Fall count MyAnimeList's Summer top, Mushoku Tensei III's 367,295
+  expect(live.seasons['2026-SUMMER'].find(entry => entry.ml === 49233)?.pp).toBe(0.572)
+  expect(down.seasons['2026-SUMMER'].find(entry => entry.ml === 49233)?.pp).toBe(0.692)
 })
 
 // Measured 2026-10-16: AniList's Fall 2026 browse lists Steel Ball Run's 2nd & 3rd STAGE (210482) with
