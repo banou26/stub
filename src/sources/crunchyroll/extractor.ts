@@ -172,7 +172,7 @@ const fetchSeasons = (id: string, ctx: ExtractorServerContext) =>
 const fetchEpisodes = (seasonId: string, ctx: ExtractorServerContext) =>
   fetchList<CrEpisode>(`${CMS}/seasons/${seasonId}/episodes?preferred_audio_language=ja-JP&locale=en-US`, ctx)
 
-// The languages crunchyroll.com is offered in. A Spanish or Portuguese viewer naming no country is asked the first listed.
+// The languages crunchyroll.com is offered in
 const LOCALES = ['ar-SA', 'de-DE', 'es-419', 'es-ES', 'fr-FR', 'hi-IN', 'it-IT', 'pt-BR', 'pt-PT', 'ru-RU']
 
 /**

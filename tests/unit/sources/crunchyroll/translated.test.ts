@@ -81,6 +81,14 @@ test('Crunchyroll\'s English where it has no German is no translation, on the se
   }
 })
 
+// Crunchyroll is asked the Spanish TMDB and IMDb are, so the sources agree. Mutation: ask the viewer's language as it
+// comes, and a viewer naming no country is asked Latin America's, the first listed, where TMDB is asked Spain's.
+test('a Spanish viewer is asked Spain\'s Spanish, or Latin America\'s from there', async () => {
+  for (const [language, locale] of [['es', 'es-ES'], ['es-419', 'es-419'], ['es-AR', 'es-419']]) {
+    expect((await open('cr:GG5H5XQX4', language!)).asked, language).toEqual([`${CMS}/series/GG5H5XQX4?preferred_audio_language=ja-JP&locale=${locale}`])
+  }
+})
+
 // The relay caches on the whole request. Mutation: list `en-US` among LOCALES and take `en` out of the languages
 // `askedLocale` refuses, and an English viewer asks the series twice.
 test('an English viewer sends exactly the requests every viewer sent before', async () => {

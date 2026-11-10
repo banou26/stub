@@ -66,6 +66,15 @@ test('a language imdb.com is not offered in is not asked', async () => {
   expect((await open('pl', FRENCH)).requests).toHaveLength(1)
 })
 
+// IMDb is asked the Spanish TMDB is, so the sources agree. Mutation: ask the viewer's language as it comes, and a viewer
+// naming no country is asked Mexico's, the first listed, where TMDB is asked Spain's.
+test('a Spanish viewer is asked Spain\'s Spanish, or Mexico\'s from Latin America', async () => {
+  for (const [language, tag] of [['es', 'es-ES'], ['es-ES', 'es-ES'], ['es-419', 'es-MX'], ['es-AR', 'es-MX']]) {
+    const { requests } = await open(language!, FRENCH)
+    expect(requests.map(({ headers }) => headers['x-imdb-user-language']), language).toEqual([undefined, tag])
+  }
+})
+
 // The relay caches on the whole request, headers included. Mutation: list `en-US` among LANGUAGES and take `en` out of
 // the languages `askedLocale` refuses, and an English viewer sends a second request.
 test('an English viewer sends exactly the request every viewer sent before', async () => {

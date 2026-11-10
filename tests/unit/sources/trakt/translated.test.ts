@@ -1,6 +1,6 @@
 // Trakt's title and overview of a show in the viewer's language, from `/shows/{id}/translations/{language}`. The French
 // is what apiz.trakt.tv answered for Frieren on 2026-11-10, its overview trimmed; the show's `available_translations`
-// is that day's too. The Portuguese pair is made up.
+// is that day's too. The Portuguese and Spanish pairs are made up.
 import { createHash } from 'node:crypto'
 import { expect, test } from 'vite-plus/test'
 
@@ -19,6 +19,10 @@ const routes = (available: string[]): Record<string, unknown> => ({
   '/translations/pt': [
     { title: 'Frieren e a Jornada para o Além', overview: '', tagline: null, language: 'pt', country: 'br' },
     { title: 'Frieren: Para Além do Fim da Jornada', overview: '', tagline: null, language: 'pt', country: 'pt' },
+  ],
+  '/translations/es': [
+    { title: 'Frieren: Más allá del final del viaje', overview: '', tagline: null, language: 'es', country: 'es' },
+    { title: 'Frieren: Más allá del fin del viaje', overview: '', tagline: null, language: 'es', country: 'mx' },
   ],
 })
 
@@ -53,6 +57,12 @@ test('a viewer in Portugal gets Portugal\'s Portuguese over Brazil\'s, and an em
   const { media } = await open('pt-PT')
   expect(media.titles.at(-1)!.title).toBe('Frieren: Para Além do Fim da Jornada')
   expect(media.descriptions).toHaveLength(1)
+})
+
+// Mutation: drop Mexico for Latin America, and a Latin American viewer reads Spain's title
+test('a Latin American Spanish viewer gets Mexico\'s Spanish, and a viewer naming no country Spain\'s', async () => {
+  expect((await open('es-419')).media.titles.at(-1)!.title).toBe('Frieren: Más allá del fin del viaje')
+  expect((await open('es')).media.titles.at(-1)!.title).toBe('Frieren: Más allá del final del viaje')
 })
 
 // Mutation: drop the `available_translations` check, and a show Trakt has no French for is asked for it

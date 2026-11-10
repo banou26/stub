@@ -14,16 +14,22 @@ import { desc } from './utils'
 // Traditional (葬送者芙莉蓮) and its synopsis Simplified (2026-11-10).
 const UNASKED = new Set(['en', 'ja', 'zh'])
 
-/** The viewer's `language` when a source is asked for a translation into it, else undefined. */
-export const askedLocale = (language: string | undefined) => {
-  const locale = language ? localeOf(language) : undefined
-  return locale && !UNASKED.has(locale.language) ? locale : undefined
-}
+// The countries TMDB keeps a translation of a language for apart from its main one's. A viewer in any other is asked
+// the main one's: asked de-AT, fr-BE or es-AR, TMDB answered Breaking Bad in English though it has it in German, French
+// and Spanish (2026-11-10). Spanish outside Spain is asked Mexico's, which TMDB and IMDb keep as Latin America's.
+const APART: Record<string, string> = { fr: 'CA', pt: 'PT' }
 
-/** `locale` with a country, as TMDB and Trakt name a language: `fr-FR`, `pt-PT`, `es-ES` for `es-419`, which they lack. */
-export const regionalTag = (locale: Intl.Locale) => {
-  const { language, region = '' } = locale.maximize()
-  return `${language}-${/^[A-Z]{2}$/.test(region) ? region : localeOf(language)!.maximize().region}`
+/**
+ * The viewer's `language` as a source is asked a translation into it, with the country the source keeps it for:
+ * `fr-FR`, `fr-CA`, `de-DE` for `de-AT`, `es-MX` for `es-419`. Undefined when the language is not asked.
+ */
+export const askedLocale = (language: string | undefined) => {
+  const locale = language ? localeOf(language)?.maximize() : undefined
+  if (!locale || UNASKED.has(locale.language)) return undefined
+  const { language: asked, region } = locale
+  const main = localeOf(asked)!.maximize().region
+  const country = region === main || region === APART[asked] ? region : asked === 'es' ? 'MX' : main
+  return new Intl.Locale(asked, country ? { region: country } : {})
 }
 
 /**

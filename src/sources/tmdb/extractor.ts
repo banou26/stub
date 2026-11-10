@@ -7,7 +7,7 @@ import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeaso
 import { percentScore } from '../average-score'
 import { decodeEntities as decode } from '../entities'
 import { charactersByName, type SourceCredits } from '../credits'
-import { askedLocale, regionalTag, withTranslation } from '../translation-requests'
+import { askedLocale, withTranslation } from '../translation-requests'
 
 // TMDB (themoviedb.org) - the public API needs a licensed key, so instead we read TMDB's own server-rendered frontend pages through the FKN proxy, whose curl-impersonate gets past their WAF, same approach as the CR/NF sources.
 
@@ -147,7 +147,7 @@ const translationOf = async (html: string, id: string, ctx: ExtractorServerConte
   const locale = askedLocale(ctx.language)
   if (!locale) return undefined
   const path = meta(html, 'og:url')?.match(/^https:\/\/www\.themoviedb\.org(\/tv\/[^?#]+)$/)?.[1] ?? `/tv/${id}`
-  const page = await fetchHtml(`${path}?language=${regionalTag(locale)}`, ctx)
+  const page = await fetchHtml(`${path}?language=${locale.baseName}`, ctx)
   const show = page ? parseShow(page, id) : undefined
   return show && { language: locale.language, title: show.title, synopsis: show.overview }
 }

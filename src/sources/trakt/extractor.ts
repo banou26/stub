@@ -3,7 +3,7 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, desc } from '../utils'
-import { askedLocale, regionalTag, withTranslation } from '../translation-requests'
+import { askedLocale, withTranslation } from '../translation-requests'
 import { bestLanguage } from '../../i18n/best-language'
 
 const SCORE = 0.3
@@ -184,7 +184,7 @@ const translationOf = async (show: TraktShow, id: string, ctx: ExtractorServerCo
   const translations = Array.isArray(answer) ? answer : []
   // one per country the language is written in, Brazil's Portuguese apart from Portugal's
   const tags = translations.map(({ language, country }) => `${language}-${country?.toUpperCase()}`)
-  const translation = translations[tags.indexOf(bestLanguage([regionalTag(locale)], tags) ?? '')]
+  const translation = translations[tags.indexOf(bestLanguage([locale.baseName], tags) ?? '')]
   return translation && { language: locale.language, title: translation.title, synopsis: translation.overview }
 }
 

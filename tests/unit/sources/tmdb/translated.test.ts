@@ -20,7 +20,7 @@ const routes: Record<string, string> = {
   '/tv/1396/season/1?language=en-US': '',
   '/tv/1396/season/2?language=en-US': '',
   '/tv/1396-breaking-bad?language=fr-FR': page('Breaking Bad', FRENCH),
-  '/tv/1396-breaking-bad?language=es-ES': page('Breaking Bad: Química mortal', overviewOf(BREAKING_BAD)),
+  '/tv/1396-breaking-bad?language=es-MX': page('Breaking Bad: Química mortal', overviewOf(BREAKING_BAD)),
   '/tv/209867?language=en-US': FRIEREN,
   '/tv/209867/seasons?language=en-US': FRIEREN_SEASONS,
   '/tv/209867/season/1?language=en-US': '',
@@ -72,10 +72,16 @@ test('a name left in another script, and an overview equal to the English, are n
   expect(shown(media)).toEqual(['en Frieren: Beyond Journey\'s End', 'en After the pa'])
 })
 
-// TMDB names a language with a country, and none is Latin America: Spain's Spanish is asked for it
-test('a Latin American Spanish viewer is asked Spain\'s Spanish', async () => {
+// TMDB names a language with a country, and answers English for one it keeps no translation for: de-AT's, though it has
+// the show in German. Mutation: ask the viewer's own country, and de-AT, fr-BE and es-AR ask pages with no translation;
+// drop Mexico for Latin America, and es-419 is asked Spain's; drop the countries TMDB keeps apart, and fr-CA is asked
+// France's.
+test('a viewer is asked the country TMDB keeps their language for, Latin American Spanish Mexico\'s', async () => {
+  for (const [language, tag] of [['de-AT', 'de-DE'], ['fr-BE', 'fr-FR'], ['fr-CA', 'fr-CA'], ['es', 'es-ES'], ['es-AR', 'es-MX'], ['pt', 'pt-BR'], ['pt-PT', 'pt-PT']]) {
+    expect((await open('tmdb:1396', language!)).asked, language).toEqual([`/tv/1396-breaking-bad?language=${tag}`])
+  }
   const { media, asked } = await open('tmdb:1396', 'es-419')
-  expect(asked).toEqual(['/tv/1396-breaking-bad?language=es-ES'])
+  expect(asked).toEqual(['/tv/1396-breaking-bad?language=es-MX'])
   expect(media.titles.at(-1)).toEqual({ language: 'es', title: 'Breaking Bad: Química mortal', score: 0.03, class: 'TRANSLATED' })
 })
 
