@@ -18,9 +18,11 @@ const routes: Record<string, unknown> = {
   [`${CMS}/series/GG5H5XQX4/seasons?force_locale=&preferred_audio_language=ja-JP&locale=en-US`]: { data: [
     { id: 'GS1', title: SERIES.title, description: 'The first season.', season_number: 1, audio_locale: 'ja-JP' },
     { id: 'GS2', title: 'Frieren: Beyond Journey\'s End Season 2', description: 'The second season.', season_number: 2, audio_locale: 'ja-JP' },
+    { id: 'GS3', title: 'Season 3', description: 'The third season.', season_number: 3, audio_locale: 'ja-JP' },
   ] },
   [`${CMS}/seasons/GS1/episodes?preferred_audio_language=ja-JP&locale=en-US`]: { data: [] },
   [`${CMS}/seasons/GS2/episodes?preferred_audio_language=ja-JP&locale=en-US`]: { data: [] },
+  [`${CMS}/seasons/GS3/episodes?preferred_audio_language=ja-JP&locale=en-US`]: { data: [] },
 }
 
 type Texts = { titles: { language: string, title: string, score: number, class?: string }[], descriptions: { language: string, description: string }[] }
@@ -55,12 +57,18 @@ test('a French viewer gets the series\' French title and description, on the ser
   }
 })
 
-// Mutation: drop the `season_number` check, and season 2 asks the French series and carries its description, which
-// would stand alone as a French viewer's synopsis of season 2
-test('a later season asks no translation', async () => {
-  const { media, asked } = await open('cr:GG5H5XQX4-GS2', 'fr')
-  expect(asked).toEqual([])
-  expect(shown(media)).toEqual(['en Frieren: Beyond Journey\'s End Season 2', 'en The second season.'])
+// A season named only by its number is published under the series' name. Mutation: drop the `season_number` check, and
+// season 3 asks the French series and carries its description, which would stand alone as a French viewer's synopsis
+// of season 3.
+test('a later season asks no translation, a season named only by its number included', async () => {
+  for (const [uri, title, description] of [
+    ['cr:GG5H5XQX4-GS2', 'Frieren: Beyond Journey\'s End Season 2', 'The second season.'],
+    ['cr:GG5H5XQX4-GS3', SERIES.title, 'The third season.'],
+  ]) {
+    const { media, asked } = await open(uri!, 'fr')
+    expect(asked, uri).toEqual([])
+    expect(shown(media), uri).toEqual([`en ${title}`, `en ${description}`])
+  }
 })
 
 // A first season's row holds the season's description, not the series'. Mutation: compare Crunchyroll's answer with
