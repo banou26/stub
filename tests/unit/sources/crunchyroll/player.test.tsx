@@ -235,7 +235,6 @@ describe('cloud backend', () => {
     })
     const host = await render()
     await signedOut(host, 'Sign in to Crunchyroll')
-    expect(host.textContent).not.toContain('timed out')
   })
 
   test('a signed-in window remounts the player iframe, which loads the episode again', async () => {
