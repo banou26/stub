@@ -216,25 +216,28 @@ describe('attaching the Prime Video frame', () => {
       expect([...domains].sort()).toEqual([
         'a2z.com', 'aiv-cdn.net', 'aiv-delivery.net', 'amazon.co.jp', 'amazon.co.uk', 'amazon.com', 'amazon.de',
         'app.primevideo.com', 'media-amazon.com', 'prime-video.amazon.dev', 'primevideo.com', 'pv-cdn.net',
-        'ssl-images-amazon.com', 'www.amazon.co.jp', 'www.amazon.co.uk', 'www.amazon.com', 'www.amazon.de',
-        'www.primevideo.com',
+        'ssl-images-amazon.com', 'watch.amazon.co.jp', 'watch.amazon.co.uk', 'watch.amazon.com', 'watch.amazon.de',
+        'www.amazon.co.jp', 'www.amazon.co.uk', 'www.amazon.com', 'www.amazon.de', 'www.primevideo.com',
       ])
     })
   }
 
-  // FKN's card names the first domain as the site it asks for: "on amazon.co.jp" for a New York viewer read wrong
+  // FKN's card names the first domain as the site it asks for: "on amazon.co.jp" for a New York viewer read wrong.
+  // It keeps 16 hosts, the read page's own first: a read on watch.amazon.co.jp, past them, drew a second card.
   for (const [link, site] of [
     [DEEP_LINK, 'amazon.co.jp'],
     ['https://watch.amazon.com/watch?gti=amzn1.dv.gti.1', 'amazon.com'],
     ['https://watch.amazon.co.uk/watch?gti=amzn1.dv.gti.1', 'amazon.co.uk'],
+    ['https://watch.amazon.de/watch?gti=amzn1.dv.gti.1', 'amazon.de'],
     ['https://app.primevideo.com/watch?gti=amzn1.dv.gti.1', 'primevideo.com'],
-  ]) {
-    test(`a link on ${site} names ${site} first`, async () => {
+  ] as const) {
+    test(`a link on ${site} names ${site} first, and the pages it opens among the first 16`, async () => {
       lib.attachFrame.mockReturnValue(new Promise(() => {}))
       render(link)
       await vi.waitFor(() => expect(lib.attachFrame).toHaveBeenCalledTimes(1), { timeout: 5_000 })
       const [{ domains }] = lib.attachFrame.mock.calls[0]! as [{ domains: string[] }]
       expect(domains[0]).toBe(site)
+      expect(domains.slice(0, 16)).toEqual(expect.arrayContaining([new URL(link).hostname, `www.${site}`]))
       expect([...domains].sort()).toEqual([...PRIME_DOMAINS].sort())
     })
   }

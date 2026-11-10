@@ -7,16 +7,22 @@ import { viewerCountry } from '../country'
 
 // every host a Prime Video playback crossed in a signed-in Chrome on 2026-10-12, on amazon.co.jp, and
 // the other Prime Video sites, each page's own host by name, since a page is read only on a host named
-// exactly. JustWatch's primevideo.com links are on app.primevideo.com, which opens www.primevideo.com.
+// exactly. JustWatch's links are on watch.amazon.* and app.primevideo.com, which open the www pages.
+// The pages' hosts lead: FKN's cloud card keeps 16 hosts, the read page's own first, so a page whose
+// host is not among the first 16 is asked about on a card of its own, even right after a Not now.
 export const PRIME_DOMAINS = [
   'amazon.co.jp',
   'www.amazon.co.jp',
+  'watch.amazon.co.jp',
   'amazon.com',
   'www.amazon.com',
+  'watch.amazon.com',
   'amazon.co.uk',
   'www.amazon.co.uk',
+  'watch.amazon.co.uk',
   'amazon.de',
   'www.amazon.de',
+  'watch.amazon.de',
   'primevideo.com',
   'www.primevideo.com',
   'app.primevideo.com',
