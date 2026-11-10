@@ -274,12 +274,27 @@ test('the second title is in another language than the main one, not a second En
     { language: 'jp-en', title: 'Kidou Senshi Gundam: Tekketsu no Orphans' },
   ]
   expect(secondTitle(titles)).toEqual({ language: 'ja', title: '機動戦士ガンダム 鉄血のオルフェンズ' })
-  expect(titleFacts({ titles }).at(-1)).toEqual({
-    label: 'Also known as',
-    value: 'Mobile Suit Gundam: Iron Blooded Orphans, Kidou Senshi Gundam: Tekketsu no Orphans',
-  })
+  expect(titleFacts({ titles }).at(-1)).toEqual({ label: 'Also known as', value: 'Kidou Senshi Gundam: Tekketsu no Orphans' })
   expect(secondTitle([{ language: 'en', title: 'Monster' }, { language: 'jp-en', title: 'Monster' }, { language: 'en', title: 'MONSTER!' }])?.title, 'a title reading the same is never second')
     .toBe('MONSTER!')
+})
+
+test('Also known as leaves out a name the heading or an earlier one already reads, however it is cased, spaced or punctuated', () => {
+  const also = (titles: { language?: string, title: string }[]) => titleFacts({ titles }).find(({ label }) => label === 'Also known as')?.value
+  expect(also([
+    { language: 'en', title: 'Frieren: Beyond Journey\'s End' },
+    { language: 'ja', title: '葬送のフリーレン' },
+    { language: 'en', title: 'Frieren: Beyond Journey’s End' },
+    { language: 'jp-en', title: 'Sousou no Frieren' },
+    { language: 'en', title: 'Frieren: Beyond the Journey\'s End' },
+  ])).toBe('Sousou no Frieren, Frieren: Beyond the Journey\'s End')
+  expect(also([
+    { language: 'en', title: 'Attack on Titan Season 2' },
+    { language: 'jp-en', title: 'Shingeki no Kyojin Season 2' },
+    { language: 'ja', title: '進撃の巨人 Season２' },
+    { language: 'ja', title: '進撃の巨人 Season2' },
+    { language: 'ja', title: '進撃の巨人 Season 2' },
+  ]), 'full width and spacing').toBe('進撃の巨人 Season２')
 })
 
 test('Play follows the tracking: Rewatch once completed, Continue once watched, Play otherwise', () => {

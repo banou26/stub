@@ -102,6 +102,9 @@ export const titleChips = (media: TitleMedia): string[] =>
 /** The chips after the score: each site's rating, IMDb 8.0 or Rotten Tomatoes 92%. */
 export const ratingChips = (media: TitleMedia): string[] => media.ratings?.map(ratingLabel) ?? []
 
+// one name however a source cased, spaced or punctuated it, or wrote it full width: "Season２" and "Season 2"
+const nameKey = (title: string) => title.normalize('NFKC').toLowerCase().replace(/[\p{P}\p{Z}\s]/gu, '')
+
 /**
  * The labelled facts, in reading order. A fact no source gave is left out rather than shown empty, unless `held`
  * (an anime's sources still answering), where it stays with no value, its line kept. A start still ahead reads
@@ -114,7 +117,13 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   const airing = media.status === MediaStatus.Releasing || media.status === MediaStatus.NotYetReleased
   const end = airing ? undefined : releaseDateLabel(releaseDay(media.endDate), options)
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)?.title]
-  const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
+  const seen = new Set(named.flatMap(title => title === undefined ? [] : [nameKey(title)]))
+  const others: string[] = []
+  for (const { title } of media.titles ?? []) {
+    if (seen.has(nameKey(title))) continue
+    seen.add(nameKey(title))
+    others.push(title)
+  }
   const film = isMovieMedia(media)
   const ahead = film ? upcoming : filmRelease({ startDate: media.startDate, status: media.status }).upcoming
   const facts: Fact[] = [
