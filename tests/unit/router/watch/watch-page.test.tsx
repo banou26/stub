@@ -736,6 +736,50 @@ test('an address no source answered ends on a 404, and not while it is still ask
   expect(host.textContent).toBe('404 No page found')
 })
 
+// a link to another title's episode keeps the last title's answer on screen for a beat, and it names no such episode
+test('an episode no source names is no 404 while the last address\'s answer is still on screen', async () => {
+  vi.useFakeTimers()
+  plugins.statuses = []
+  const { host, rerender } = live()
+  await settle()
+  params = { mediaUri: 'ag:(anilist:2)', episodeUri: 'ag:(anilist:2-1)' }
+  media = undefined as unknown as object
+  await rerender()
+  expect(host.textContent).not.toContain('404')
+
+  media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }
+  await rerender()
+  expect(host.textContent).toBe('404 No page found')
+})
+
+test('an episode no source names is no 404 while an added source is still connecting', async () => {
+  vi.useFakeTimers()
+  plugins.statuses = [{ ...connectedNyaa, state: 'connecting' }]
+  media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }
+  const { host, rerender } = live()
+  await settle()
+  expect(host.textContent).not.toContain('404')
+
+  await pluginsChange(connectedNyaa)
+  // the worker answers again once the source has
+  media = { ...media }
+  await rerender()
+  expect(host.textContent).toBe('404 No page found')
+})
+
+test('an episode no source names is no 404 when the address names a Netflix episode, which plays from its id', async () => {
+  vi.useFakeTimers()
+  plugins.statuses = []
+  origins = ['nf']
+  backend = 'extension'
+  media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }
+  params = { ...params, sourceUri: 'nf:81726716' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.querySelector('iframe')?.getAttribute('src')).toContain(encodeURIComponent('https://www.netflix.com/watch/81726716'))
+})
+
 test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
@@ -3138,7 +3182,9 @@ test('a run that has not answered yet is never read from the one asked before it
   expect(host.querySelector('.episode-step')).toBeNull()
 })
 
-test('the episode title holds its place until the episode is known, and reads its address once every source has answered without naming it, the player\'s box kept', () => {
+// STUB-402: a Frieren address whose episode part was "garbage" read "garbage" over an empty black stage (2026-11-11)
+test('the episode title holds its place until the episode is known, and an episode no source names ends on a 404 once every source has answered', async () => {
+  vi.useFakeTimers()
   origins = undefined
   const { hook } = memoryLocation()
   const tree = () => withIntl(<Router hook={hook}><Watch/></Router>)
@@ -3155,8 +3201,8 @@ test('the episode title holds its place until the episode is known, and reads it
   expect(title().textContent, 'a source is still out').toBe('')
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }; render(tree(), host) })
-  expect(title().textContent).toBe(addressUri)
-  expect(box()?.contains('still'), 'the player\'s box kept, nothing coming').toBe(true)
+  await settle()
+  expect(host.textContent).toBe('404 No page found')
 
   act(() => { media = { uri: params.mediaUri, handles: [], episodes: [{ ...episode, episodeNumber: 3, titles: [{ title: 'Plan' }] }], settled: false }; render(tree(), host) })
   expect(title().textContent).toMatch(/^E3 - Plan$/)

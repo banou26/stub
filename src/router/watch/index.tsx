@@ -946,7 +946,9 @@ const Watch = () => {
   const listed = picked ? pickedRun : playing
   const tracked = useTrackingSummary(listed?.uri)
 
-  if (notKept(watchMedia, params.mediaUri)) return <NotFound/>
+  // an episode no source names ends there too, once every source has answered, unless the address names a source that
+  // plays without it
+  if (notKept(watchMedia, params.mediaUri) || (playing?.settled && !pending && !episode && !selected)) return <NotFound/>
 
   return (
     <div css={style}>
