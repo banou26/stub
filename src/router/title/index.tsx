@@ -556,7 +556,7 @@ type Credit = { name: string, image?: string | null, url?: string | null }
 /** A face and a name, linking to the source's page for the person when it has one. */
 const Person = ({ person, detail, actor }: { person: Credit, detail?: string, actor?: boolean }) => (
   <div className={actor ? 'person actor' : 'person'}>
-    {person.image ? <img className="face" src={person.image} alt="" loading="lazy"/> : <div className="face"/>}
+    {person.image ? <img className="face" src={person.image} alt="" loading="lazy"/> : undefined}
     <div>
       {person.url ? <a className="name" href={person.url} target="_blank" rel="noreferrer">{person.name}</a> : <div className="name">{person.name}</div>}
       {detail ? <div className="detail">{detail}</div> : undefined}

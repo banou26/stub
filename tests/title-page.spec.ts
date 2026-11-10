@@ -708,6 +708,9 @@ test('a live-action title draws its cast and staff with no language picker', asy
   await expect(heading(page)).toHaveText('Breaking Bad', { timeout: 30_000 })
   const characters = page.locator('[data-characters]')
   await expect(characters.locator('li').first()).toHaveText('Walter WhiteBryan Cranston')
+  // STUB-391: IMDb has a photo of the actor and none of the part, which draws no empty box
+  await expect(characters.locator('li').first().locator('.face')).toHaveCount(1)
+  await expect(characters.locator('li').first().locator('.person.actor img.face')).toHaveCount(1)
   await expect(characters.getByRole('combobox')).toHaveCount(0)
   await expect(page.locator('[data-staff] li').filter({ hasText: 'Vince Gilligan' })).toContainText('Creator')
 })
