@@ -745,7 +745,8 @@ const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) =>
   )
 }
 
-const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
+/** `closeTo` is the page under the preview, which closing it returns to. */
+const MediaModal = ({ mediaNodes, closeTo = '/' }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'], closeTo?: string }) => {
   const intl = useIntl()
   const rawParams = useParams<MediaParams>()
   const params = { ...rawParams, uri: routeMediaUri(rawParams.uri) }
@@ -884,7 +885,7 @@ const MediaModal = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   )
   const heading = title || settled ? <h2 className="title">{title}</h2> : <Placeholder className="title-pending"/>
 
-  if (!open) return <Redirect to="/" />
+  if (!open) return <Redirect to={closeTo} />
   if (notKept({ data, operation }, uri)) return <ModalBackdrop css={style} onClose={() => onOpenChange(false)}><NotFound/></ModalBackdrop>
 
   return (

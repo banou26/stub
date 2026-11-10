@@ -41,7 +41,6 @@ describe('resetsScroll', () => {
     ['a footer link', '/', '/legal'],
     ['an episode from the modal', MEDIA, WATCH],
     ['the party page', '/', '/party'],
-    ['a card from the listing, whose modal opens over the HOME page, not the listing', '/search?season=FALL', MEDIA],
     ['the wordmark from the listing', '/search?season=FALL', '/'],
   ]
   for (const [label, from, to] of elsewhere) {
@@ -70,6 +69,16 @@ describe('resetsScroll', () => {
       expect(resetsScroll(go(from, to, kind))).toBe(false)
     })
   }
+
+  test('a modal opened from the listing rides over the listing: opening it, closing it, another modal from it', () => {
+    const LISTING = '/search?genre=Action'
+    const preview = { ...at(MEDIA), under: LISTING }
+    expect(resetsScroll({ from: at(LISTING), to: preview, kind: 'push' }), 'opening it').toBe(false)
+    expect(resetsScroll({ from: preview, to: at(LISTING), kind: 'push' }), 'closing it').toBe(false)
+    expect(resetsScroll({ from: preview, to: { ...at('/media/other'), under: LISTING }, kind: 'push' }), 'a relation in it').toBe(false)
+    expect(resetsScroll({ from: preview, to: at('/search?genre=Drama'), kind: 'push' }), 'a genre in it, another listing').toBe(true)
+    expect(resetsScroll({ from: at('/search?genre=Drama'), to: preview, kind: 'push' }), 'a modal over another listing').toBe(true)
+  })
 
   test('a replace on the same page is the url as state and moves nothing: the search filters, the header typing', () => {
     expect(resetsScroll(go('/search?season=FALL', '/search?season=FALL&format=TV', 'replace'))).toBe(false)

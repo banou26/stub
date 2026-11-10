@@ -159,7 +159,7 @@ describe('what the modal does with that answer', () => {
   test('and the only way out of the modal is the person closing it', () => {
     const redirects = component.match(/<Redirect[^/]*/g) ?? []
     expect(redirects, 'no redirect was found, so this test read nothing').toHaveLength(1)
-    expect(component).toContain('if (!open) return <Redirect to="/" />')
+    expect(component).toContain('if (!open) return <Redirect to={closeTo} />')
   })
 })
 

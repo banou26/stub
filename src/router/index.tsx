@@ -6,12 +6,14 @@ import { useEffect } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { getRouterRoutePath, Route } from './path'
+import { useAppLocation, usePageLocation, usePageSearch, usePageUnder } from './page-under'
 import { legacySearchTerm, searchPath } from './search/params'
 import { pluginHref } from '../plugin-url'
 import Header from '../components/header'
 import Footer from '../components/footer'
 import PluginNotice from '../components/plugin-notice'
 import Home from './home'
+import MediaModal from './home/media-modal'
 import Title from './title'
 import Search from './search'
 import Legal from './legal'
@@ -45,6 +47,12 @@ const LoginCallback = () => {
   return <div>{intl.formatMessage({ id: 'Logging in...', defaultMessage: 'Logging in...' })}</div>
 }
 
+// a preview opened from a search, drawn over its results; home draws every other one
+const PreviewOver = () => {
+  const under = usePageUnder()
+  return under ? <WRoute path={getRouterRoutePath(Route.MEDIA)}><MediaModal mediaNodes={[]} closeTo={under}/></WRoute> : null
+}
+
 const shellStyle = css`
   display: flex;
   flex-direction: column;
@@ -56,29 +64,32 @@ const shellStyle = css`
 `
 
 const RouterRoot = () => (
-  <Router hrefs={pluginHref}>
+  <Router hook={useAppLocation} hrefs={pluginHref}>
     <div css={shellStyle}>
       {/* first in stub's page, so Tab reaches it before the header: it stays until answered, and paints where it is fixed */}
       <PluginNotice/>
       <Header/>
       <div className="content">
-        <Switch>
-          <WRoute path={getRouterRoutePath(Route.HOME)} component={Home}/>
-          <WRoute path={getRouterRoutePath(Route.MEDIA)} component={Home}/>
-          <WRoute path={getRouterRoutePath(Route.TITLE)} component={Title}/>
-          <WRoute path={getRouterRoutePath(Route.SEARCH)} component={Search}/>
-          <WRoute path={getRouterRoutePath(Route.SEARCH_LEGACY)} component={LegacySearch}/>
-          <WRoute path={getRouterRoutePath(Route.LEGAL)} component={Legal}/>
-          <WRoute path={getRouterRoutePath(Route.PRIVACY)} component={Privacy}/>
-          <WRoute path={getRouterRoutePath(Route.SETTINGS)} component={Settings}/>
-          <WRoute path={getRouterRoutePath(Route.LIST)} component={List}/>
-          <WRoute path={getRouterRoutePath(Route.CONTINUE)} component={Continue}/>
-          <WRoute path={getRouterRoutePath(Route.WATCH)} component={Watch}/>
-          <WRoute path={getRouterRoutePath(Route.PARTY)} component={Party}/>
-          <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)}><Debug/></WRoute>
-          <WRoute path={getRouterRoutePath(Route.LOGIN_CALLBACK)} component={LoginCallback}/>
-          <WRoute component={NotFound}/>
-        </Switch>
+        <Router hook={usePageLocation} searchHook={usePageSearch} hrefs={pluginHref}>
+          <Switch>
+            <WRoute path={getRouterRoutePath(Route.HOME)} component={Home}/>
+            <WRoute path={getRouterRoutePath(Route.MEDIA)} component={Home}/>
+            <WRoute path={getRouterRoutePath(Route.TITLE)} component={Title}/>
+            <WRoute path={getRouterRoutePath(Route.SEARCH)} component={Search}/>
+            <WRoute path={getRouterRoutePath(Route.SEARCH_LEGACY)} component={LegacySearch}/>
+            <WRoute path={getRouterRoutePath(Route.LEGAL)} component={Legal}/>
+            <WRoute path={getRouterRoutePath(Route.PRIVACY)} component={Privacy}/>
+            <WRoute path={getRouterRoutePath(Route.SETTINGS)} component={Settings}/>
+            <WRoute path={getRouterRoutePath(Route.LIST)} component={List}/>
+            <WRoute path={getRouterRoutePath(Route.CONTINUE)} component={Continue}/>
+            <WRoute path={getRouterRoutePath(Route.WATCH)} component={Watch}/>
+            <WRoute path={getRouterRoutePath(Route.PARTY)} component={Party}/>
+            <WRoute path={getRouterRoutePath(Route.DEBUG_TRACE)}><Debug/></WRoute>
+            <WRoute path={getRouterRoutePath(Route.LOGIN_CALLBACK)} component={LoginCallback}/>
+            <WRoute component={NotFound}/>
+          </Switch>
+        </Router>
+        <PreviewOver/>
       </div>
       <Footer/>
       <PartySync/>

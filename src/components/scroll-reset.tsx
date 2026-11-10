@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'preact/hooks'
 
 import { cancelReset, resetsScroll, scheduleReset, takeAskedTop } from '../router/scroll-reset'
+import { pageUnder } from '../router/page-under'
 import type { Navigation, NavigationKind, Place } from '../router/scroll-reset'
 
 // Applies router/scroll-reset.ts to the document. Mounted once at the router root, so it hears every
 // navigation whichever page made it.
 
-const here = (): Place => ({ pathname: location.pathname, search: location.search })
+const here = (): Place => ({ pathname: location.pathname, search: location.search, under: pageUnder(location.pathname, history.state) })
 
 /**
  * wouter patches `pushState` and `replaceState` to dispatch an event of the same name once the url has

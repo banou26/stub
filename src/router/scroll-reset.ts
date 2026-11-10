@@ -9,7 +9,12 @@
 /** How the document reached its current url. Back and forward are `pop`. */
 export type NavigationKind = 'push' | 'replace' | 'pop'
 
-export type Place = { pathname: string, search: string }
+export type Place = {
+  pathname: string
+  search: string
+  /** The search a preview was opened over, if any: see `pageUnder` in ./page-under.ts. */
+  under?: string
+}
 
 export type Navigation = {
   from: Place
@@ -35,7 +40,8 @@ const isTitle = (pathname: string) => pathname.startsWith('/title/')
  *
  * - Back and forward are the browser's. It restores the position the entry had, and a reset on top
  *   of that would send every back button to the top of a page the person had already read.
- * - Anything within the home family stays: the modal rides over the page, see `isHomeFamily`.
+ * - Anything within the home family stays: the modal rides over the page, see `isHomeFamily`. So does
+ *   opening a modal over a search, or closing it back to that search.
  * - A replace is the url as state (the search filters, the header's typing, a canonical media uri)
  *   rather than the person going somewhere, so it resets only when it changes the page. The title
  *   page growing its address as sources merge is the same page.
@@ -46,6 +52,7 @@ export const resetsScroll = ({ from, to, kind, asked = false }: Navigation): boo
   if (asked) return true
   if (kind === 'pop') return false
   if (isHomeFamily(from.pathname) && isHomeFamily(to.pathname)) return false
+  if (to.under === `${from.pathname}${from.search}` || from.under === `${to.pathname}${to.search}`) return false
   if (kind === 'replace') return from.pathname !== to.pathname && !(isTitle(from.pathname) && isTitle(to.pathname))
   return true
 }
