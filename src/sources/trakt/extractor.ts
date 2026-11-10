@@ -3,6 +3,8 @@ import type { Resolvers, Media as GQLMedia, Episode as GQLEpisode } from '../../
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, makeEpisode, desc } from '../utils'
+import { askedLocale, regionalTag, withTranslation } from '../translation-requests'
+import { bestLanguage } from '../../i18n/best-language'
 
 const SCORE = 0.3
 const BASE = 'https://apiz.trakt.tv'
@@ -38,7 +40,11 @@ type TraktShow = {
   ids?: TraktIds
   genres?: string[]
   country?: string
+  /** the languages `/translations` has the show in, which `extended=full` names */
+  available_translations?: string[]
 }
+
+type TraktTranslation = { title?: string | null, overview?: string | null, language?: string, country?: string }
 
 type TraktSearchResult = {
   type?: string
@@ -170,11 +176,24 @@ const fetchEpisodes = async (id: string, mediaUri: string, ctx: ExtractorServerC
     .flatMap(season => (season.episodes ?? []).map(episode => normalizeEpisode(episode, season.number ?? 0, id, mediaUri)))
 }
 
+/** The show's title and overview in the viewer's language, asked only when the show names that language as one it has. */
+const translationOf = async (show: TraktShow, id: string, ctx: ExtractorServerContext) => {
+  const locale = askedLocale(ctx.language)
+  if (!locale || !show.available_translations?.includes(locale.language)) return undefined
+  const answer = await api<TraktTranslation[]>(`/shows/${encodeURIComponent(id)}/translations/${locale.language}`, ctx)
+  const translations = Array.isArray(answer) ? answer : []
+  // one per country the language is written in, Brazil's Portuguese apart from Portugal's
+  const tags = translations.map(({ language, country }) => `${language}-${country?.toUpperCase()}`)
+  const translation = translations[tags.indexOf(bestLanguage([regionalTag(locale)], tags) ?? '')]
+  return translation && { language: locale.language, title: translation.title, synopsis: translation.overview }
+}
+
 const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
   const show = await api<TraktShow>(`/shows/${encodeURIComponent(id)}?extended=full`, ctx)
   if (!show) return undefined
   const media = normalizeMedia(show)
   if (!media) return undefined
+  const translation = translationOf(show, id, ctx)
   // This media is SHOW level by construction: its id is trakt's show slug and `fetchEpisodes` flatMaps
   // EVERY season of it into one list. Every media in this store is one run, so `episodeNumber` is
   // within-season, and flattening several seasons collides them: `store/db.ts` hangs a HAS_EPISODE edge
@@ -185,13 +204,13 @@ const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMed
   //
   // The media itself stays, because `mediaPage` mints exactly these ids for SEARCH. A show whose
   // episodes are all one season is unaffected, its list being honest.
-  const episodes = await fetchEpisodes(id, media.uri, ctx)
+  const [episodes, translated] = await Promise.all([fetchEpisodes(id, media.uri, ctx), translation])
   const seasons = new Set(episodes.map(episode => episode.seasonNumber ?? 0))
   if (seasons.size <= 1) {
     media.episodes = episodes
     media.episodeCount = episodes.length
   }
-  return media
+  return translated ? withTranslation(media, translated.language, SCORE, translated) : media
 }
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
