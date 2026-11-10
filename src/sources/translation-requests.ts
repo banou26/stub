@@ -37,7 +37,7 @@ export const askedLocale = (language: string | undefined) => {
  * another has none. Intl names Korean's script `Kore`, Hangul with Han, which no letter is written in, and a script
  * like it with no letters of its own (Japanese's `Jpan`) reads as written.
  */
-export const writtenIn = (title: string, language: string) => {
+const writtenIn = (title: string, language: string) => {
   const script = localeOf(language)?.maximize().script
   try {
     return new RegExp(`\\p{Script=${script === 'Kore' ? 'Hangul' : script}}`, 'u').test(title)
