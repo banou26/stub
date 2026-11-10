@@ -546,6 +546,7 @@
   "{name} entry": "Eintrag bei {name}",
   "{name} icon": "Symbol von {name}",
   "{name} loading": "{name} wird geladen",
+  "{name} needs the access FKN asked for.": "{name} braucht den Zugriff, um den FKN gebeten hat.",
   "{name} none": "{name} keine Angabe",
   "{name} source": "Quelle {name}",
   "{name} {value}": "{name} {value}",

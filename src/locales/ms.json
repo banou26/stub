@@ -546,6 +546,7 @@
   "{name} entry": "Entri {name}",
   "{name} icon": "Ikon {name}",
   "{name} loading": "Memuatkan {name}",
+  "{name} needs the access FKN asked for.": "{name} memerlukan akses yang diminta oleh FKN.",
   "{name} none": "{name} tiada",
   "{name} source": "Sumber {name}",
   "{name} {value}": "{name} {value}",

@@ -546,6 +546,7 @@
   "{name} entry": "{name} のエントリー",
   "{name} icon": "{name} のアイコン",
   "{name} loading": "{name} を読み込み中",
+  "{name} needs the access FKN asked for.": "{name} には、FKN が求めたアクセスが必要です。",
   "{name} none": "{name} なし",
   "{name} source": "{name} のソース",
   "{name} {value}": "{name} {value}",

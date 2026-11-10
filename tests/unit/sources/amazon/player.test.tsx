@@ -313,6 +313,21 @@ describe('playing an episode', () => {
     expect(host.textContent).not.toContain('frame:')
   })
 
+  // FKN asks again on every refused call, so a Not now read again for 30 s brought its prompt back 3 or 4 times
+  for (const [backend, name, message] of [
+    ['cloud', 'LocatorDeniedError', 'frame.evaluate: the user did not grant evaluation here'],
+    ['extension', 'PermissionDeniedError', 'Permission denied: evaluation on www.amazon.co.jp (evaluate)'],
+  ] as const) {
+    test(`a Not now on the ${backend} is asked once and ends on its own line, with Retry`, async () => {
+      lib.extension = backend === 'extension'
+      const page = refusing(name, message)
+      const host = await afterWaits(page)
+      expect(page.frame.evaluate).toHaveBeenCalledTimes(1)
+      expect(host.querySelector('.overlay')?.textContent).toBe('Prime Video needs the access FKN asked for.RetryOpen on Prime Video')
+      expect(remembered()).toBeUndefined()
+    })
+  }
+
   test('a frame that cannot run page code says so at once, without waiting out the poll', async () => {
     const host = await afterWaits(refusing('LocatorUnsupportedError', 'frame.evaluate: this render proxy predates evaluate; reload the app'), 1_000)
     expect(host.textContent).toContain('this render proxy predates evaluate')

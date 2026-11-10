@@ -546,6 +546,7 @@
   "{name} entry": "{name} 項目",
   "{name} icon": "{name} 圖示",
   "{name} loading": "正在載入 {name}",
+  "{name} needs the access FKN asked for.": "{name} 需要 FKN 要求的存取權限。",
   "{name} none": "{name} 無",
   "{name} source": "{name} 來源",
   "{name} {value}": "{name} {value}",

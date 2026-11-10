@@ -546,6 +546,7 @@
   "{name} entry": "Mục {name}",
   "{name} icon": "Biểu tượng {name}",
   "{name} loading": "Đang tải {name}",
+  "{name} needs the access FKN asked for.": "{name} cần quyền truy cập mà FKN đã yêu cầu.",
   "{name} none": "{name} chưa có",
   "{name} source": "Nguồn {name}",
   "{name} {value}": "{name} {value}",

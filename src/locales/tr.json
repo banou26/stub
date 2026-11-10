@@ -546,6 +546,7 @@
   "{name} entry": "{name} kaydı",
   "{name} icon": "{name} simgesi",
   "{name} loading": "{name} yükleniyor",
+  "{name} needs the access FKN asked for.": "{name} için FKN'nin istediği erişim gerekli.",
   "{name} none": "{name}: yok",
   "{name} source": "{name} kaynağı",
   "{name} {value}": "{name} {value}",

@@ -546,6 +546,7 @@
   "{name} entry": "{name}-bejegyzés",
   "{name} icon": "{name}-ikon",
   "{name} loading": "{name} betöltése",
+  "{name} needs the access FKN asked for.": "{name} igényli az FKN által kért hozzáférést.",
   "{name} none": "{name}: nincs",
   "{name} source": "{name}-forrás",
   "{name} {value}": "{name} {value}",

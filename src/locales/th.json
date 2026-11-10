@@ -546,6 +546,7 @@
   "{name} entry": "รายการ {name}",
   "{name} icon": "ไอคอน {name}",
   "{name} loading": "กำลังโหลด {name}",
+  "{name} needs the access FKN asked for.": "{name} ต้องใช้สิทธิ์เข้าถึงที่ FKN ขอ",
   "{name} none": "{name} ไม่มี",
   "{name} source": "แหล่งที่มา {name}",
   "{name} {value}": "{name} {value}",

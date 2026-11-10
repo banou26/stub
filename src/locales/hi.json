@@ -546,6 +546,7 @@
   "{name} entry": "{name} एंट्री",
   "{name} icon": "{name} आइकॉन",
   "{name} loading": "{name} लोड हो रहा है",
+  "{name} needs the access FKN asked for.": "{name} को वह एक्सेस चाहिए जो FKN ने मांगा था।",
   "{name} none": "{name}: कुछ नहीं",
   "{name} source": "{name} सोर्स",
   "{name} {value}": "{name} {value}",

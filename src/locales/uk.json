@@ -546,6 +546,7 @@
   "{name} entry": "Запис {name}",
   "{name} icon": "Значок {name}",
   "{name} loading": "Завантаження {name}",
+  "{name} needs the access FKN asked for.": "Для {name} потрібен доступ, який запитує FKN.",
   "{name} none": "{name}: немає",
   "{name} source": "Джерело {name}",
   "{name} {value}": "{name} {value}",

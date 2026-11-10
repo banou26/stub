@@ -546,6 +546,7 @@
   "{name} entry": "רשומת {name}",
   "{name} icon": "סמל {name}",
   "{name} loading": "טוען את {name}",
+  "{name} needs the access FKN asked for.": "{name} צריך את הגישה ש-FKN ביקש.",
   "{name} none": "{name}: אין",
   "{name} source": "מקור {name}",
   "{name} {value}": "{name} {value}",

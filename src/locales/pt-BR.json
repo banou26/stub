@@ -546,6 +546,7 @@
   "{name} entry": "Entrada em {name}",
   "{name} icon": "Ícone de {name}",
   "{name} loading": "Carregando {name}",
+  "{name} needs the access FKN asked for.": "{name} precisa do acesso que o FKN pediu.",
   "{name} none": "{name} sem dado",
   "{name} source": "Fonte {name}",
   "{name} {value}": "{name} {value}",

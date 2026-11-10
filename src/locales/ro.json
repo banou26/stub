@@ -546,6 +546,7 @@
   "{name} entry": "Intrare {name}",
   "{name} icon": "Pictogramă {name}",
   "{name} loading": "Se încarcă {name}",
+  "{name} needs the access FKN asked for.": "{name} are nevoie de accesul cerut de FKN.",
   "{name} none": "{name}: nimic",
   "{name} source": "Sursa {name}",
   "{name} {value}": "{name} {value}",

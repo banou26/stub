@@ -546,6 +546,7 @@
   "{name} entry": "Запись в {name}",
   "{name} icon": "Значок {name}",
   "{name} loading": "Загрузка {name}",
+  "{name} needs the access FKN asked for.": "Для {name} нужен доступ, который запрашивает FKN.",
   "{name} none": "{name}: нет",
   "{name} source": "Источник {name}",
   "{name} {value}": "{name} {value}",

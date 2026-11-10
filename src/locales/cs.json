@@ -546,6 +546,7 @@
   "{name} entry": "Záznam {name}",
   "{name} icon": "Ikona {name}",
   "{name} loading": "Načítání {name}",
+  "{name} needs the access FKN asked for.": "{name} potřebuje přístup, o který žádá FKN.",
   "{name} none": "{name}: nic",
   "{name} source": "Zdroj {name}",
   "{name} {value}": "{name} {value}",

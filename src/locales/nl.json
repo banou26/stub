@@ -546,6 +546,7 @@
   "{name} entry": "Item op {name}",
   "{name} icon": "Pictogram van {name}",
   "{name} loading": "{name} laden",
+  "{name} needs the access FKN asked for.": "{name} heeft de toegang nodig waar FKN om vroeg.",
   "{name} none": "{name}: geen",
   "{name} source": "Bron {name}",
   "{name} {value}": "{name} {value}",

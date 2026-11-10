@@ -546,6 +546,7 @@
   "{name} entry": "إدخال {name}",
   "{name} icon": "أيقونة {name}",
   "{name} loading": "جارٍ تحميل {name}",
+  "{name} needs the access FKN asked for.": "يحتاج {name} إلى الوصول الذي طلبه FKN.",
   "{name} none": "{name}: لا يوجد",
   "{name} source": "مصدر {name}",
   "{name} {value}": "{name} {value}",

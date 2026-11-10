@@ -546,6 +546,7 @@
   "{name} entry": "Καταχώριση {name}",
   "{name} icon": "Εικονίδιο {name}",
   "{name} loading": "Φόρτωση {name}",
+  "{name} needs the access FKN asked for.": "Το {name} χρειάζεται την πρόσβαση που ζήτησε το FKN.",
   "{name} none": "{name}: κανένα",
   "{name} source": "Πηγή {name}",
   "{name} {value}": "{name} {value}",

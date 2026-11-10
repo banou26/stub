@@ -5,7 +5,7 @@ import type { PlayerProps } from '../players'
 import type { PrimePageSelectors, PrimeQualityRow, PrimeQualitySelectors } from './prime-page'
 
 import { css, keyframes } from '@emotion/react'
-import { attachFrame } from '@fkn/lib'
+import { attachFrame, isLocatorDenied, isPermissionDenied } from '@fkn/lib'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
@@ -90,6 +90,12 @@ const detailUrl = (url: string) => {
   return target.href
 }
 
+// the viewer's Not now on FKN's prompt: a PermissionDeniedError on the extension, and on the cloud a
+// LocatorDeniedError naming the grant ("frame.evaluate: the user did not grant evaluation here", @fkn/lib
+// 0.9.69), where a frame whose page moved off the attachment's hosts is a LocatorDeniedError too. FKN asks
+// again on every refused call, so a refusal read again would bring its prompt back.
+const isRefused = (err: unknown) => isPermissionDenied(err) || (isLocatorDenied(err) && /not grant/.test((err as Error).message))
+
 // asks `read` until it answers, the time runs out or the load is cancelled; a read refused while the
 // page moves asks again, and the wait ends on the player's own line
 const poll = async <T,>(read: () => Promise<T | undefined>, isCancelled: () => boolean, timeout: number) => {
@@ -99,7 +105,7 @@ const poll = async <T,>(read: () => Promise<T | undefined>, isCancelled: () => b
       const answer = await read()
       if (answer !== undefined) return answer
     } catch (err) {
-      if ((err as Error | null)?.name === 'LocatorUnsupportedError') throw err
+      if ((err as Error | null)?.name === 'LocatorUnsupportedError' || isRefused(err)) throw err
     }
     await new Promise(resolve => setTimeout(resolve, 200))
   }
@@ -275,7 +281,9 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Prime Video player', err)
-      setError(err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
+      setError(isRefused(err)
+        ? intl.formatMessage({ id: '{name} needs the access FKN asked for.', defaultMessage: '{name} needs the access FKN asked for.' }, { name: 'Prime Video' })
+        : err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
       setLoading(false)
     })
     return () => { cancelled = true }

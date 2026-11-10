@@ -546,6 +546,7 @@
   "{name} entry": "{name} 항목",
   "{name} icon": "{name} 아이콘",
   "{name} loading": "{name} 불러오는 중",
+  "{name} needs the access FKN asked for.": "{name}에는 FKN이 요청한 접근 권한이 필요해요.",
   "{name} none": "{name} 없음",
   "{name} source": "{name} 소스",
   "{name} {value}": "{name} {value}",

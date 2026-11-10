@@ -546,6 +546,7 @@
   "{name} entry": "Post på {name}",
   "{name} icon": "Ikon för {name}",
   "{name} loading": "{name} läses in",
+  "{name} needs the access FKN asked for.": "{name} behöver åtkomsten som FKN bad om.",
   "{name} none": "{name}: inget",
   "{name} source": "Källa: {name}",
   "{name} {value}": "{name} {value}",

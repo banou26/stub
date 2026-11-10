@@ -546,6 +546,7 @@
   "{name} entry": "Voce di {name}",
   "{name} icon": "Icona di {name}",
   "{name} loading": "Caricamento di {name}",
+  "{name} needs the access FKN asked for.": "{name} ha bisogno dell’accesso richiesto da FKN.",
   "{name} none": "{name} nessun dato",
   "{name} source": "Fonte {name}",
   "{name} {value}": "{name} {value}",
