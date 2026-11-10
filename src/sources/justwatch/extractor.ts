@@ -15,8 +15,7 @@ import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img, getFirstT
 import { charactersByName, type SourceCredits } from '../credits'
 import { viewerCountry } from '../country'
 import { isViewersPrime } from '../amazon/session'
-import { translatedTitle } from '../translations'
-import { askedLocale, writtenIn } from '../translation-requests'
+import { askedLocale, withTranslation } from '../translation-requests'
 
 const SCORE = 0.2
 // below every other source's banner but AniList's 1900x400 strip (0.05), so a backdrop only fills a gap
@@ -753,7 +752,7 @@ export const showAsContainer = async (
   // its other containers and adds nothing a reader could act on. A listing's show is the card itself.
   if (!handles.length && !listed) return null
 
-  return withTranslation(makeMedia({
+  return withShowTranslation(makeMedia({
     origin,
     id: String(node.objectId),
     url: `https://www.justwatch.com${node.content.fullPath}`,
@@ -887,7 +886,7 @@ const normalizeMedia = async (
     media.episodeCount = 1
   }
 
-  return withTranslation(media, node, ctx, (opts.seasonNumber ?? 1) === 1 && title === node.content.title)
+  return withShowTranslation(media, node, ctx, (opts.seasonNumber ?? 1) === 1 && title === node.content.title)
 }
 
 /**
@@ -896,19 +895,11 @@ const normalizeMedia = async (
  * is the show's, so a later season, or one with a name of its own, gets none. Added after a film's episode copies the
  * media's, as an episode's title and synopsis are what pairs it with another source's.
  */
-const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, theShow: boolean): GQLMedia => {
+const withShowTranslation = (media: GQLMedia, { translated }: JWSearchNode, ctx: ExtractorServerContext, theShow: boolean): GQLMedia => {
   const language = translationOf(ctx)
-  if (!language || !translated || !theShow) return media
-  const title = translated.title && translated.title !== content.title && writtenIn(translated.title, language)
-    ? [translatedTitle(language, translated.title, SCORE)]
-    : []
-  const { descriptions = [], shortDescriptions = [] } = translated.shortDescription !== content.shortDescription ? desc(translated.shortDescription, SCORE, language) : {}
-  return {
-    ...media,
-    titles: [...media.titles ?? [], ...title],
-    descriptions: [...media.descriptions ?? [], ...descriptions],
-    shortDescriptions: [...media.shortDescriptions ?? [], ...shortDescriptions],
-  }
+  return language && translated && theShow
+    ? withTranslation(media, language, SCORE, { title: translated.title, synopsis: translated.shortDescription })
+    : media
 }
 
 // what JustWatch writes for an episode it has no synopsis for (2026-10-16)
