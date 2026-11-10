@@ -176,9 +176,10 @@ const fetchEpisodes = (seasonId: string, ctx: ExtractorServerContext) =>
 const LOCALES = ['ar-SA', 'de-DE', 'es-419', 'es-ES', 'fr-FR', 'hi-IN', 'it-IT', 'pt-BR', 'pt-PT', 'ru-RU']
 
 /**
- * The series' title and description in the viewer's language, asked as the English is, each only where it differs from
- * the `english` series': Crunchyroll answers its English where it has no translation, and a first season's row holds
- * the season's description, which that English is not.
+ * The series' title and description in the viewer's language, asked as the English is, the description only where it
+ * differs from the `english` series': Crunchyroll answers its English where it has no translation, and a first season's
+ * row holds the season's description, which that English is not. The title needs no such care: every row asked holds
+ * the series' title.
  */
 const translationOf = async (english: CrSeries, ctx: ExtractorServerContext) => {
   const locale = askedLocale(ctx.language)
@@ -186,11 +187,8 @@ const translationOf = async (english: CrSeries, ctx: ExtractorServerContext) => 
   if (!asked) return undefined
   const series = await fetchList<CrSeries>(`${CMS}/series/${english.id}?preferred_audio_language=ja-JP&locale=${asked}`, ctx)
     .then(({ data }) => data[0], () => undefined)
-  return series && {
-    language: locale.language,
-    title: series.title !== english.title ? series.title : undefined,
-    synopsis: series.description !== english.description ? series.description : undefined,
-  }
+  const synopsis = series?.description !== english.description ? series?.description : undefined
+  return series && { language: locale.language, title: series.title, synopsis }
 }
 
 const searchSeries = (query: string, ctx: ExtractorServerContext) =>
