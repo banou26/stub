@@ -323,13 +323,15 @@ const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<
 
 /**
  * What a search finds in the US catalogue, then what only the offer country's names, each in `translation` too when
- * given: the search a page lists, never the one a link is checked by, which reads the English alone.
+ * given: the search a page lists, never the one a link is checked by, which reads the English alone. With a `year`,
+ * only the titles that came out that year, so one from a year its top ten leave out is still found.
  */
-const searchTitles = async (query: string, ctx: ExtractorServerContext, translation?: string): Promise<JWSearchNode[]> => {
+const searchTitles = async (query: string, ctx: ExtractorServerContext, translation?: string, year?: number | null): Promise<JWSearchNode[]> => {
   const countries = offerCountries()
-  const { data } = await deduplicatedFetch(`search:${query}:${translation ?? ''}`, () =>
+  const filter = { searchQuery: query, ...year ? { releaseYear: { min: year, max: year } } : {} }
+  const { data } = await deduplicatedFetch(`search:${JSON.stringify(filter)}:${translation ?? ''}`, () =>
     jwFetch<JWSearchResponse>(searchQuery(countries.offerCountry !== COUNTRY, translation ? TRANSLATED : ''), {
-      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...countries, ...translation ? { translation } : {}
+      first: 10, searchTitlesFilter: filter, language: LANGUAGE, country: COUNTRY, ...countries, ...translation ? { translation } : {}
     }, ctx)
   )
   const nodes = [...data?.popularTitles?.edges ?? [], ...data?.viewerTitles?.edges ?? []].map(edge => edge.node)
@@ -1229,8 +1231,10 @@ export const resolvers: Resolvers = {
           return yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
         }
         if (!search) return yield { mediaPage: { nodes: [] } }
-        // the search query does not fetch seasons, so normalizeMedia declines every series result and only movies come through
-        const nodes = await Promise.all((await searchTitles(search, ctx, translationOf(ctx))).map(node => normalizeMedia(node, {}, ctx, policy)))
+        // the search query does not fetch seasons, so normalizeMedia declines every series result and only movies come through;
+        // anime.fkn.app's year is a season's, which JustWatch's titles never carry
+        const year = site === 'anime' ? undefined : input.seasonYear
+        const nodes = await Promise.all((await searchTitles(search, ctx, translationOf(ctx), year)).map(node => normalizeMedia(node, {}, ctx, policy)))
         yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
       }
     }

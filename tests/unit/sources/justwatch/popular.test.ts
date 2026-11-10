@@ -64,11 +64,15 @@ test('a film found by search carries the poster JustWatch answered, on the film 
   expect(films.map((media: any) => media.episodes[0].thumbnails[0].url)).toEqual(films.map((media: any) => media.covers[0].url))
 })
 
-// STUB-380 (movies and series: picking a Year in search emptied the results): its films name a start date and no seasonYear
-test('a search with a year asks JustWatch the search alone, and keeps the film that came out that year', async () => {
-  const plain = await listing({ search: 'star wars' }, STAR_WARS)
-  const { nodes, asked } = await listing({ search: 'star wars', seasonYear: 1977 }, STAR_WARS)
-  expect(asked).toEqual(plain.asked)
+// STUB-380 (movies and series: picking a Year in search emptied the results): its films name a start date and no
+// seasonYear, and a year its top ten leave out is found only by asking for it
+test('a search with a year asks JustWatch that year, even while the search without one is asked, and keeps its film', async () => {
+  const [plain, { nodes, asked }] = await Promise.all([
+    listing({ search: 'star wars' }, STAR_WARS),
+    listing({ search: 'star wars', seasonYear: 1977 }, STAR_WARS),
+  ])
+  expect(plain.asked).toEqual([{ searchQuery: 'star wars' }])
+  expect(asked).toEqual([{ searchQuery: 'star wars', releaseYear: { min: 1977, max: 1977 } }])
   expect(applyMediaFilters(nodes, { seasonYear: 1977 }, 'movie').map((media: any) => media.titles[0].title)).toEqual(['Star Wars'])
 })
 

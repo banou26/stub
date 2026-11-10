@@ -132,6 +132,13 @@ test('JustWatch is not asked for a genre it has no name for, a filter none of it
   }
 })
 
+test('a search with a year asks JustWatch for the titles of that year, but on anime.fkn.app', async () => {
+  for (const site of ['movie', 'series', 'stub'] as const) {
+    expect((await browse(site, { search: 'magic', seasonYear: 1998 })).asked, site)
+      .toEqual([{ searchQuery: 'magic', releaseYear: { min: 1998, max: 1998 } }])
+  }
+})
+
 // anime.fkn.app's search is answered by its anime sources, so a year must not change a byte of what JustWatch is sent
 test('a year changes nothing JustWatch is sent on anime.fkn.app', async () => {
   const sent = async (input: Record<string, unknown>) => {
