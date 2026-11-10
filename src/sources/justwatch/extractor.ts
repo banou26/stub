@@ -16,7 +16,7 @@ import { charactersByName, type SourceCredits } from '../credits'
 import { viewerCountry } from '../country'
 import { isViewersPrime } from '../amazon/session'
 import { translatedTitle } from '../translations'
-import { localeOf } from '../../i18n/best-language'
+import { askedLocale, writtenIn } from '../translation-requests'
 
 const SCORE = 0.2
 // below every other source's banner but AniList's 1900x400 strip (0.05), so a backdrop only fills a gap
@@ -395,16 +395,7 @@ const withoutCopiedDates = (seasons: JWSeason[]): JWSeason[] => {
       : season)
 }
 
-// Not Japanese, until the owner decides whether a Japanese viewer sees anime titles in Japanese script:
-// JustWatch's Japanese title for Frieren is a kana reading, そうそうのフリーレン. Not Chinese: asked `zh`, it answers one
-// script for a viewer reading either, and mixes them, Frieren's title Traditional (葬送者芙莉蓮) and its synopsis
-// Simplified (2026-11-10).
-const UNASKED = new Set([LANGUAGE, 'ja', 'zh'])
-
-const translationOf = ({ language }: ExtractorServerContext) => {
-  const asked = language && localeOf(language)?.language
-  return asked && !UNASKED.has(asked) ? asked : undefined
-}
+const translationOf = ({ language }: ExtractorServerContext) => askedLocale(language)?.language
 
 const getNodeDetails = (nodeId: string, ctx: ExtractorServerContext, details?: boolean | null) => {
   const translation = translationOf(ctx)
@@ -899,11 +890,6 @@ const normalizeMedia = async (
   return withTranslation(media, node, ctx, (opts.seasonNumber ?? 1) === 1 && title === node.content.title)
 }
 
-// A name in Latin letters alone is a romanization in a language written in another script: JustWatch's Arabic and Hebrew
-// for Frieren are "Sôsô No Furîren" (2026-11-10)
-const romanized = (title: string, language: string) =>
-  localeOf(language)?.maximize().script !== 'Latn' && !/(?!\p{Script=Latin})\p{L}/u.test(title)
-
 /**
  * `media` with JustWatch's title and synopsis in the language `translationOf` asked, each only where it differs from
  * the English, when `theShow` says the media is the show, or its first season under the show's name: what is translated
@@ -913,7 +899,7 @@ const romanized = (title: string, language: string) =>
 const withTranslation = (media: GQLMedia, { content, translated }: JWSearchNode, ctx: ExtractorServerContext, theShow: boolean): GQLMedia => {
   const language = translationOf(ctx)
   if (!language || !translated || !theShow) return media
-  const title = translated.title && translated.title !== content.title && !romanized(translated.title, language)
+  const title = translated.title && translated.title !== content.title && writtenIn(translated.title, language)
     ? [translatedTitle(language, translated.title, SCORE)]
     : []
   const { descriptions = [], shortDescriptions = [] } = translated.shortDescription !== content.shortDescription ? desc(translated.shortDescription, SCORE, language) : {}

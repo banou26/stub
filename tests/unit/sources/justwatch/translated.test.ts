@@ -73,7 +73,7 @@ test('the show\'s translation is its first season\'s, and no later season\'s', a
   expect(shown(await season('jw:320458-350405'))).toEqual(['Severance', 'en'])
 })
 
-// Mutation: drop `romanized` from `withTranslation`, and an Arabic viewer's page leads with JustWatch's romanization
+// Mutation: drop `writtenIn` from `withTranslation`, and an Arabic viewer's page leads with JustWatch's romanization
 test('a romanization is no translation into a language written in another script', async () => {
   viewerIn('America/New_York')
   const titlesIn = async (title: string, language: string) =>
