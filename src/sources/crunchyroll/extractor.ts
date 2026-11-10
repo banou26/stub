@@ -175,14 +175,22 @@ const fetchEpisodes = (seasonId: string, ctx: ExtractorServerContext) =>
 // The languages crunchyroll.com is offered in. A Spanish or Portuguese viewer naming no country is asked the first listed.
 const LOCALES = ['ar-SA', 'de-DE', 'es-419', 'es-ES', 'fr-FR', 'hi-IN', 'it-IT', 'pt-BR', 'pt-PT', 'ru-RU']
 
-/** The series' title and description in the viewer's language, asked as the English is. */
-const translationOf = async (seriesId: string, ctx: ExtractorServerContext) => {
+/**
+ * The series' title and description in the viewer's language, asked as the English is, each only where it differs from
+ * the `english` series': Crunchyroll answers its English where it has no translation, and a first season's row holds
+ * the season's description, which that English is not.
+ */
+const translationOf = async (english: CrSeries, ctx: ExtractorServerContext) => {
   const locale = askedLocale(ctx.language)
   const asked = locale && bestLanguage([locale.baseName], LOCALES)
   if (!asked) return undefined
-  const series = await fetchList<CrSeries>(`${CMS}/series/${seriesId}?preferred_audio_language=ja-JP&locale=${asked}`, ctx)
+  const series = await fetchList<CrSeries>(`${CMS}/series/${english.id}?preferred_audio_language=ja-JP&locale=${asked}`, ctx)
     .then(({ data }) => data[0], () => undefined)
-  return series && { language: locale.language, title: series.title, synopsis: series.description }
+  return series && {
+    language: locale.language,
+    title: series.title !== english.title ? series.title : undefined,
+    synopsis: series.description !== english.description ? series.description : undefined,
+  }
 }
 
 const searchSeries = (query: string, ctx: ExtractorServerContext) =>
@@ -298,7 +306,7 @@ export const getMedia = async (id: string, ctx: ExtractorServerContext): Promise
   const seasonTitle = targetSeason && !isOnlySeasonLabel(targetSeason.title) ? targetSeason.title : undefined
   // what is translated is the series', so the series and its first season under the series' name get it, no other
   const translation = !targetSeason || (targetSeason.season_number === 1 && (seasonTitle ?? series.title) === series.title)
-    ? translationOf(seriesId, ctx)
+    ? translationOf(series, ctx)
     : undefined
   const media = targetSeason
     ? normalizeMedia(

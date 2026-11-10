@@ -63,11 +63,14 @@ test('a later season asks no translation', async () => {
   expect(shown(media)).toEqual(['en Frieren: Beyond Journey\'s End Season 2', 'en The second season.'])
 })
 
-// Mutation: drop either comparison with what the media holds from `withTranslation`, and the English comes twice
-test('Crunchyroll\'s English where it has no German is no translation', async () => {
-  const { media, asked } = await open('cr:GG5H5XQX4', 'de-AT')
-  expect(asked).toEqual([`${CMS}/series/GG5H5XQX4?preferred_audio_language=ja-JP&locale=de-DE`])
-  expect(shown(media)).toEqual(['en Frieren: Beyond Journey\'s End', 'en An elf outlives her party.'])
+// A first season's row holds the season's description, not the series'. Mutation: compare Crunchyroll's answer with
+// the row rather than the English series, and its English series description stands as season 1's German synopsis.
+test('Crunchyroll\'s English where it has no German is no translation, on the series and its first season', async () => {
+  for (const [uri, description] of [['cr:GG5H5XQX4', SERIES.description], ['cr:GG5H5XQX4-GS1', 'The first season.']]) {
+    const { media, asked } = await open(uri!, 'de-AT')
+    expect(asked, uri).toEqual([`${CMS}/series/GG5H5XQX4?preferred_audio_language=ja-JP&locale=de-DE`])
+    expect(shown(media), uri).toEqual(['en Frieren: Beyond Journey\'s End', `en ${description}`])
+  }
 })
 
 // The relay caches on the whole request. Mutation: list `en-US` among LOCALES and take `en` out of the languages
