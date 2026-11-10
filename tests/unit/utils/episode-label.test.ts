@@ -34,4 +34,7 @@ test('a film is named by its own title alone, its entry\'s when it has none, and
   expect(entryLabel({ categories: ['MOVIE'] }, entry), 'no title of its own').toBe('Halloween (2018)')
   expect(entryLabel({ type: 'MOVIE' }, { episodeNumber: 1 }), 'nothing to name it by').toBeUndefined()
   expect(entryLabel({ type: 'TV', titles: [{ title: 'Halloween' }] }, entry), 'a series of one episode').toBe('E1 - Halloween (2018)')
+  const part = { episodeNumber: 2, titles: [{ title: 'Part 1 of 2' }] }
+  expect(entryLabel({ type: 'MOVIE', titles: [{ title: 'Spirited Away' }], episodes: [entry, part] }, part), 'a film in parts').toBe('E2 - Part 1 of 2')
+  expect(entryLabel({ type: 'MOVIE', titles: [{ title: 'Halloween' }], episodes: [entry] }, entry), 'a film of one entry').toBe('Halloween')
 })

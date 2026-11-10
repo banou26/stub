@@ -34,7 +34,7 @@ import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { hearUnplayable } from '../../embed-unplayable'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
-import { entryLabel } from '../../utils/episode-label'
+import { entryLabel, isSingleFilm } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { useDocumentTitle } from '../../utils/use-document-title'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
@@ -585,6 +585,7 @@ const Watch = () => {
   const mediaTitle = media?.titles?.at(0)?.title
   useDocumentTitle(mediaTitle)
   const film = Boolean(media && isMovieMedia(media))
+  const singleFilm = isSingleFilm(media)
   const titlePath = mediaTitle && getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })
   const episodeNumber = episode?.episodeNumber
   const episodeName = entryLabel(media, episode)
@@ -1013,8 +1014,8 @@ const Watch = () => {
             {previousLink ? <EpisodeStep link={previousLink} previous/> : undefined}
             <div className="episode-main">
               <div className="episode-info">
-                <div className="episode-title">{film && titlePath ? <Link href={titlePath}>{episodeName}</Link> : episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-                {film ? undefined : titlePath ? <Link className="media-title" href={titlePath}>{mediaTitle}</Link> : media?.settled ? undefined : <Placeholder className="media-title pending"/>}
+                <div className="episode-title">{singleFilm && titlePath ? <Link href={titlePath}>{episodeName}</Link> : episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
+                {singleFilm ? undefined : titlePath ? <Link className="media-title" href={titlePath}>{mediaTitle}</Link> : media?.settled ? undefined : <Placeholder className="media-title pending"/>}
                 <ShareButton className="share" path={getRoutePath(Route.WATCH, params)} title={mediaTitle}/>
               </div>
               <div className="tracking">

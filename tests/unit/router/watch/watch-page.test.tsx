@@ -1015,6 +1015,21 @@ test('a film is headed by its title alone, which opens its page, and the player\
   expect(await heading('MOVIE')).toEqual(['Halloween', `/title/${params.mediaUri}/halloween`, undefined, 'Halloween'])
 })
 
+// Spirited Away: AniZip lists it as "Complete Movie", then "Part 1 of 2" and "Part 2 of 2"
+test('a film listed in parts names each part as an episode, under the film\'s title', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series()
+  media = { ...media, type: 'MOVIE', titles: [{ title: 'Spirited Away' }] }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  const title = host.querySelector('.episode-title')
+  expect([title?.textContent, title?.querySelector('a'), host.querySelector('.media-title')?.textContent, host.querySelector('.episode-card')?.textContent])
+    .toEqual(['E2 - Title 2', null, 'Spirited Away', 'E2 - Title 2'])
+  expect(episodeLinks(host).map(([, , target]) => target)).toEqual(['E1 - Title 1', 'E3 - Title 3'])
+})
+
 test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
