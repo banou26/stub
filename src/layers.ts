@@ -23,9 +23,7 @@ export const layer = {
   categoryBar: 1,
   /** The preview card a row hovers open. Under the modal, since a card is only hovered while nothing covers it. */
   hoverCard: 150,
-  /** A plugin's release picker, hosted on /watch, where no modal exists. */
-  sourcePopup: 300,
-  /** A facet dropdown on /search, which likewise never shares a page with the modal. */
+  /** A facet dropdown on /search, which never shares a page with the modal. */
   filterMenu: 500,
   /**
    * A show's preview.
@@ -55,6 +53,11 @@ export const layer = {
   franchiseDialog: 1200,
   /** What a link's sources did, which stays until it is answered, so it is over whatever that link opened. */
   pluginNotice: 2000,
+  /**
+   * A plugin's release picker, hosted on /watch. The viewer opens it, so it covers the bar and the notice while it
+   * is up: its Close bar sits where the notice does on a desktop window, and under the docked bar on a short one.
+   */
+  sourcePopup: 2200,
   /**
    * "Updating Stub", the whole page for the moment before an update's reload. Under the party cursor
    * only because an update never goes while a party is running.

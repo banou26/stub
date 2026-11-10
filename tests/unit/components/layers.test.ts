@@ -59,6 +59,13 @@ describe('the layer order', () => {
     expect(layer.franchiseDialog).toBeLessThan(layer.pluginNotice)
   })
 
+  // the viewer opens it, and its Close bar sits where the notice and the docked bar are; the update screen still covers it
+  test('a release picker is over the notice and the bar, and under the update screen', () => {
+    expect(layer.sourcePopup).toBeGreaterThan(layer.pluginNotice)
+    expect(layer.pluginNotice).toBeGreaterThan(layer.header)
+    expect(layer.sourcePopup).toBeLessThan(layer.updating)
+  })
+
   // the ghost pointer says where the host's HAND is, so it goes over everything the app draws; it
   // takes nothing in exchange, having no pointer events
   test('the party cursor is over every layer, and under the one that is not ours', () => {
