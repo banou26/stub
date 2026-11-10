@@ -1,6 +1,8 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from '../components/dom'
 
+import type { FragmentDefinitionNode } from 'graphql'
+
 import { afterAll, afterEach, describe, expect, test, vi, type Mock } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
@@ -63,7 +65,7 @@ vi.mock('../../../src/components/media-title', () => ({ default: Result }))
 vi.mock('../../../src/components/media-card', () => ({ default: Result }))
 vi.mock('../../../src/components/media-row', () => ({ default: Result }))
 
-const { default: Search } = await import('../../../src/router/search')
+const { default: Search, SEARCH_CARD_FRAGMENT } = await import('../../../src/router/search')
 
 const publish = (...nodes: (string | { _id: string, genres: string[], tags: string[] })[]) => act(() => {
   stream.data = { mediaPage: { nodes: nodes.map(node => typeof node === 'string' ? { _id: node, uri: node } : { ...node, uri: node._id }) } }
@@ -270,6 +272,12 @@ describe('the search page', () => {
     const page = open('/search?q=frieren&genre=Award+Winning')
     act(() => stream.pickers['Genres & Tags']!.onChange(['Award Winning', 'Travel']))
     expect(page.history.at(-1)).toBe('/search?q=frieren&genre=Award+Winning&tag=Travel')
+  })
+
+  // STUB-382: a film or series card names its year from its start, the one date a live-action source gives
+  test('each result asks its start', () => {
+    const { selectionSet } = SEARCH_CARD_FRAGMENT.definitions[0] as FragmentDefinitionNode
+    expect(selectionSet.selections.flatMap(node => node.kind === 'Field' ? [node.name.value] : [])).toContain('startDate')
   })
 })
 

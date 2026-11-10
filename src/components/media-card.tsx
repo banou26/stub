@@ -9,6 +9,7 @@ import { airsIn, episodesLabel } from './listed-media'
 import { formatLabel, seasonLabel, statusLabel } from '../router/search/params'
 import { accentVars } from '../utils/color'
 import { formatCountdown } from '../utils/countdown'
+import { releaseDateLabel } from '../utils/release-date'
 import { useCoverUrl } from '../utils/use-cover-url'
 import { useNow } from '../utils/use-now'
 import MediaCategories, { categoriesStyle } from './media-categories'
@@ -134,8 +135,9 @@ const style = css`
 /**
  * One media as a cover beside the facts that fit in a paragraph.
  *
- * The top line is the run's next airing when a source has one scheduled, and its status otherwise, so
- * the same slot always answers "where is this up to" rather than going blank on a finished show.
+ * The top line is the run's next airing when a source has one scheduled, its status otherwise, and the
+ * year it started when no source gives a status (no live-action one does), so two films of one name
+ * read apart. A year the cover's season line already names is not repeated, and with none it is empty.
  */
 const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const intl = useIntl()
@@ -148,6 +150,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const format = formatLabel(media.type)
   const season = seasonLabel(media.season, media.seasonYear)
   const meta = [format, episodesLabel(media)].filter(Boolean).join(' • ')
+  const state = statusLabel(media.status) ?? (season ? undefined : releaseDateLabel(media.startDate?.slice(0, 4), { locale: intl.locale }))
 
   return (
     <Link to={to} css={style} style={accentVars(accent)}>
@@ -168,7 +171,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
                     <div className="airing-value airing">{countdown}</div>
                   </>
                 )
-                : <div className="airing-value">{statusLabel(media.status) ?? intl.formatMessage({ id: 'Unknown status', defaultMessage: 'Unknown status' })}</div>
+                : state && <div className="airing-value">{state}</div>
             }
           </div>
           {media.averageScore != null && <StarScore percent={media.averageScore}/>}

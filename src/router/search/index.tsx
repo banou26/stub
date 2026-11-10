@@ -71,6 +71,7 @@ export const SEARCH_CARD_FRAGMENT = gql(`
     categories
     season
     seasonYear
+    startDate
     nextAiringEpisode {
       episodeNumber
       airingAt

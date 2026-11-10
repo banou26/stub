@@ -66,7 +66,17 @@ test('a card names the next airing, the score, the format and the episodes in En
   const finished = draw(<MediaCard media={FINISHED as never} to="/media/anilist:21"/>)
   expect([finished.text('.airing-value'), finished.text('.meta')]).toEqual([['Finished'], ['TV Show • 1 episode']])
   const unknown = draw(<MediaCard media={{ ...FINISHED, status: null, type: null, episodeCount: null } as never} to="/media/anilist:21"/>)
-  expect([unknown.text('.airing-value'), unknown.text('.meta')]).toEqual([['Unknown status'], []])
+  expect([unknown.text('.airing-value'), unknown.text('.meta')]).toEqual([[], []])
+})
+
+// STUB-382: no live-action source gives a status or a season, only a start, so every film and series card read Unknown status
+const LIVE_FILM = { ...FINISHED, ...MOVIE, status: null, season: null, seasonYear: null }
+
+test('a card no source gives a status names the year it started, and nothing when no source dates it', () => {
+  const film = (startDate: string | null) => draw(<MediaCard media={{ ...LIVE_FILM, startDate } as never} to="/media/jw:1"/>).text('.airing-value')
+  expect([film('2021-10-22'), film('1984'), film(null)]).toEqual([['2021'], ['1984'], []])
+  const anime = draw(<MediaCard media={{ ...FINISHED, status: null, startDate: '1999-10-20' } as never} to="/media/anilist:21"/>)
+  expect([anime.text('.season'), anime.text('.airing-value')], 'a year its cover already names').toEqual([['Fall 1999'], []])
 })
 
 test('a row names the score\'s users grouped, the episodes and the next airing to one unit, in English', () => {
@@ -167,5 +177,14 @@ describe('in German', () => {
   // one title, so not the tabs' plural Serien
   test('a preview\'s tag reads German', () => {
     expect([MOVIE, ANIME_SERIES].map(tagOf)).toEqual([['Film'], ['Serie']])
+  })
+})
+
+describe('in Japanese', () => {
+  beforeEach(() => startLanguage({ language: 'ja', languages: ['ja-JP'] }))
+  afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+  test('a card\'s year reads the Japanese way', () => {
+    expect(draw(<MediaCard media={{ ...LIVE_FILM, startDate: '2021-10-22' } as never} to="/media/jw:1"/>).text('.airing-value')).toEqual(['2021年'])
   })
 })
