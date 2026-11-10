@@ -1,7 +1,7 @@
 import { expect, test } from 'vite-plus/test'
 
 import { startLanguage } from '../../../src/i18n'
-import { episodeLabel } from '../../../src/utils/episode-label'
+import { entryLabel, episodeLabel } from '../../../src/utils/episode-label'
 
 test('an episode is named by its number and title, whichever of the two it has', () => {
   expect(episodeLabel(5, 'The Rain Stops')).toBe('E5 - The Rain Stops')
@@ -25,4 +25,13 @@ test('in German and Japanese, an episode is named in the language, its number as
   } finally {
     await startLanguage({ language: 'en', languages: ['en-US'] })
   }
+})
+
+// STUB-401: a film's data is its one entry numbered 1, which was named "E1 - Halloween"
+test('a film is named by its own title alone, its entry\'s when it has none, and a series\' episode as before', () => {
+  const entry = { episodeNumber: 1, titles: [{ title: 'Halloween (2018)' }] }
+  expect(entryLabel({ type: 'MOVIE', titles: [{ title: 'Halloween' }] }, entry)).toBe('Halloween')
+  expect(entryLabel({ categories: ['MOVIE'] }, entry), 'no title of its own').toBe('Halloween (2018)')
+  expect(entryLabel({ type: 'MOVIE' }, { episodeNumber: 1 }), 'nothing to name it by').toBeUndefined()
+  expect(entryLabel({ type: 'TV', titles: [{ title: 'Halloween' }] }, entry), 'a series of one episode').toBe('E1 - Halloween (2018)')
 })

@@ -17,7 +17,7 @@ export type PlayerProps = {
   mediaUri: string
   episodeUri: string
   sourceUri: string
-  /** the episode as `episodeLabel` names it, drawn over the picture; it can arrive after the player mounts */
+  /** the episode as `entryLabel` names it, drawn over the picture; it can arrive after the player mounts */
   title?: string
   /** the relays this show was unavailable through earlier in the visit, which the player starts past */
   triedRelays?: readonly string[]

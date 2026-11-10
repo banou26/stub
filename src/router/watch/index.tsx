@@ -34,7 +34,7 @@ import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { hearUnplayable } from '../../embed-unplayable'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
-import { episodeLabel } from '../../utils/episode-label'
+import { entryLabel } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { useDocumentTitle } from '../../utils/use-document-title'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
@@ -377,6 +377,15 @@ const style = css`
     .episode-title {
       font-size: 1.8rem;
       font-weight: 600;
+
+      /* a film's, where its title opens its page */
+      & > a {
+        color: inherit;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
     }
 
     .episode-title > .pending {
@@ -575,9 +584,10 @@ const Watch = () => {
 
   const mediaTitle = media?.titles?.at(0)?.title
   useDocumentTitle(mediaTitle)
-  const episodeTitle = episode?.titles?.at(0)?.title
+  const film = Boolean(media && isMovieMedia(media))
+  const titlePath = mediaTitle && getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })
   const episodeNumber = episode?.episodeNumber
-  const episodeName = episodeLabel(episodeNumber, episodeTitle)
+  const episodeName = entryLabel(media, episode)
   const thumbnail = episode?.thumbnails?.at(0)?.url
 
   const [backend, setBackend] = useState<FknBackend>()
@@ -903,7 +913,7 @@ const Watch = () => {
       episodeUri: target.episode.uri,
       sourceUri: sourceOf(playableHandlesOf(target.episode.handles)),
     }),
-    title: episodeLabel(target.episode.episodeNumber, target.episode.titles?.at(0)?.title),
+    title: entryLabel([before, media, after].find(run => run?.episodes.includes(target.episode)), target.episode),
   } : undefined
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
@@ -1003,8 +1013,8 @@ const Watch = () => {
             {previousLink ? <EpisodeStep link={previousLink} previous/> : undefined}
             <div className="episode-main">
               <div className="episode-info">
-                <div className="episode-title">{episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
-                {mediaTitle ? <Link className="media-title" href={getRoutePath(Route.TITLE, { uri: params.mediaUri, name: mediaTitle })}>{mediaTitle}</Link> : media?.settled ? undefined : <Placeholder className="media-title pending"/>}
+                <div className="episode-title">{film && titlePath ? <Link href={titlePath}>{episodeName}</Link> : episodeName ?? (episode || media?.settled ? params.episodeUri : <Placeholder className="pending"/>)}</div>
+                {film ? undefined : titlePath ? <Link className="media-title" href={titlePath}>{mediaTitle}</Link> : media?.settled ? undefined : <Placeholder className="media-title pending"/>}
                 <ShareButton className="share" path={getRoutePath(Route.WATCH, params)} title={mediaTitle}/>
               </div>
               <div className="tracking">
@@ -1015,7 +1025,7 @@ const Watch = () => {
                   title={mediaTitle}
                   cover={media?.covers?.at(0)?.url}
                   episodeCount={media?.episodeCount}
-                  movie={media ? isMovieMedia(media) : false}
+                  movie={film}
                   notice={false}
                   link={playbackLink}
                   episode={episodeNumber}
@@ -1041,7 +1051,7 @@ const Watch = () => {
       </div>
 
       {
-        media && !isMovieMedia(media)
+        media && !film
           ? (
             <div className="watch-info episodes">
               <MediaSeasons

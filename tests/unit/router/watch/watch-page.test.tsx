@@ -998,6 +998,23 @@ test('the show\'s name under the episode\'s title opens the show\'s page', async
   expect([show?.textContent, show?.getAttribute('href')]).toEqual(['Frieren', `/title/${params.mediaUri}/frieren`])
 })
 
+// STUB-401: a film's data is its one entry numbered 1, and its heading read "E1 - Halloween" over "Halloween"
+test('a film is headed by its title alone, which opens its page, and the player\'s card reads the same', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const heading = async (type: string) => {
+    media = { ...single, type, titles: [{ title: 'Halloween' }], episodes: [{ ...episode, episodeNumber: 1, titles: [{ title: 'Halloween' }] }] }
+    const host = page()
+    hosts.push(host)
+    await settle()
+    const title = host.querySelector('.episode-title')
+    return [title?.textContent, title?.querySelector('a')?.getAttribute('href'), host.querySelector('.media-title')?.textContent, host.querySelector('.episode-card')?.textContent]
+  }
+  expect(await heading('TV'), 'the control: a series of one episode').toEqual(['E1 - Halloween', undefined, 'Halloween', 'E1 - Halloween'])
+  expect(await heading('MOVIE')).toEqual(['Halloween', `/title/${params.mediaUri}/halloween`, undefined, 'Halloween'])
+})
+
 test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
@@ -2943,6 +2960,18 @@ test('the last episode of an anime links the first of its sequel, on the release
     ['Next episode', `${NEXT_SEASON}/nyaa:d`, 'E1 - Second season'],
   ])
   expect(asked).toEqual(['ag:(anilist:2)'])
+})
+
+// STUB-401
+test('the last episode of an anime whose sequel is a film names the film by its title alone', async () => {
+  for (const type of ['TV', 'MOVIE']) {
+    lastOf({ relations: [{ ...SEQUEL, format: type }] }, 'nyaa:b')
+    nextRun('ag:(anilist:2)')
+    runs['ag:(anilist:2)'] = { ...runs['ag:(anilist:2)'], type, titles: [{ title: 'Mugen Train' }] }
+    const host = await open()
+    expect(episodeLinks(host).at(-1), type).toEqual(['Next episode', `${NEXT_SEASON}/nyaa:d`, type === 'MOVIE' ? 'Mugen Train' : 'E1 - Second season'])
+    unmount(hosts.pop()!)
+  }
 })
 
 test('the last episode of a show\'s season links the first of the next season', async () => {
