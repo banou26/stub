@@ -7,6 +7,7 @@ import { parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeaso
 import { percentScore } from '../average-score'
 import { decodeEntities as decode } from '../entities'
 import { charactersByName, type SourceCredits } from '../credits'
+import { askedLocale, regionalTag, withTranslation } from '../translation-requests'
 
 // TMDB (themoviedb.org) - the public API needs a licensed key, so instead we read TMDB's own server-rendered frontend pages through the FKN proxy, whose curl-impersonate gets past their WAF, same approach as the CR/NF sources.
 
@@ -136,6 +137,19 @@ const parseShow = (html: string, id: string): TmdbMedia => {
     score: percent ? Math.round(Number(percent)) / 10 : undefined,
     anime: isAnime(html),
   }
+}
+
+/**
+ * The show's name and overview in the viewer's language, from its page asked in that language at the address the
+ * English page names as its own, so a show TMDB moves to a slugged address costs one request and not a redirect too.
+ */
+const translationOf = async (html: string, id: string, ctx: ExtractorServerContext) => {
+  const locale = askedLocale(ctx.language)
+  if (!locale) return undefined
+  const path = meta(html, 'og:url')?.match(/^https:\/\/www\.themoviedb\.org(\/tv\/[^?#]+)$/)?.[1] ?? `/tv/${id}`
+  const page = await fetchHtml(`${path}?language=${regionalTag(locale)}`, ctx)
+  const show = page ? parseShow(page, id) : undefined
+  return show && { language: locale.language, title: show.title, synopsis: show.overview }
 }
 
 const parseSeason = (html: string): TmdbEpisode[] => {
@@ -275,11 +289,14 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
 
   // the title page's alone, and not an anime's: its cast names no language, so mergeCredits leaves it out
   const cast = details && !show.anime ? fetchHtml(`/tv/${id}/cast?language=en-US`, ctx) : undefined
+  // what is translated is the show's, so the show and its first season get it and no later season does
+  const translation = seasonNumber === 'show' || (seasonNumber ?? 1) === 1 ? translationOf(html, id, ctx) : undefined
   // a later answer replaces TMDB's credits, so a page that parses to no cast (an error page) adds none
-  const withCredits = async (media: GQLMedia) => {
-    const page = await cast
+  const finish = async (media: GQLMedia) => {
+    const [page, translated] = await Promise.all([cast, translation])
     const credits = page ? parseCredits(page) : undefined
-    return credits?.characters.length ? Object.assign(media, { credits }) : media
+    const answered = translated ? withTranslation(media, translated.language, SCORE, translated) : media
+    return credits?.characters.length ? Object.assign(answered, { credits }) : answered
   }
 
   // The show's own card is answered as the show, with its season list, and with no episodes unless it has one season,
@@ -291,7 +308,7 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
       media.episodes = await fetchEpisodes(id, show.seasons[0]!.seasonNumber, media.uri, ctx)
       media.episodeCount = media.episodes.length
     }
-    return withCredits(media)
+    return finish(media)
   }
 
   const media = normalizeMedia(show, seasonNumber)
@@ -303,7 +320,7 @@ const getMedia = async (uri: string, id: string, pinned: number | undefined, ctx
   // two seasons within 45 days, or in one year with a premiere on the 1st, weld
   // (tests/unit/worker/graph/show-seasons-weld.test.ts).
   if (seasonNumber != null && !show.anime) media.startDate = media.episodes[0]?.releaseDate
-  return withCredits(media)
+  return finish(media)
 }
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> => {
