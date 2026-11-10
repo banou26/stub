@@ -28,6 +28,7 @@ import type { SeasonPair } from '../../store/filter'
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
 import { seasonNamesFirst } from '../../../sources/season'
+import { genreKey } from '../../../sources/justwatch/genres'
 import { mainTitles } from '../../../sources/translations'
 import { DEFAULT_MERGE, mergeOrder } from '../../../sources/merge-order'
 import { refinesDate } from '../../../utils/release-date'
@@ -276,16 +277,19 @@ const reconcileCategories = (categories: string[]): string[] => {
 }
 
 /**
- * Case-insensitive dedupe keeping the best-scored spelling (`aggregate.ts:55-65`).
+ * A merged title's genres, tags or studios, one spelling each, for both read paths (this one and
+ * `src/worker/store/aggregate.ts`).
  *
  * The labels arrive best-scored member first, so the spelling kept is that member's: AniList's
- * "Sci-Fi" survives and a lower-scored "sci-fi" folds into it.
+ * "Sci-Fi" survives and a lower-scored "sci-fi" folds into it. Case-insensitive, and genres go by
+ * `genreKey`, so JustWatch's Sport and Science-Fiction fold into AniList's Sports and Sci-Fi.
  */
-const dedupeLabels = (labels: string[]): string[] => {
+export const dedupeLabels = (field: 'genres' | 'tags' | 'studios', labels: readonly string[] = []): string[] => {
+  const keyOf = field === 'genres' ? genreKey : (label: string) => label.toLowerCase()
   const seen = new Set<string>()
   const out: string[] = []
   for (const label of labels) {
-    const key = label.toLowerCase()
+    const key = keyOf(label)
     if (!label || seen.has(key)) continue
     seen.add(key)
     out.push(label)
@@ -572,7 +576,7 @@ export const aggregateFields = (options: {
   if (owned.length) provenance.push({ field: 'categories', uri: owned[0]!.uri, rule: 'first-non-null' })
 
   for (const field of ['genres', 'tags', 'studios'] as const) {
-    row[field] = dedupeLabels(owned.flatMap(member => stringsOf(member.raw[field])))
+    row[field] = dedupeLabels(field, owned.flatMap(member => stringsOf(member.raw[field])))
     for (const member of owned) {
       if (stringsOf(member.raw[field]).length) provenance.push({ field, uri: member.uri, rule: 'best-score' })
     }

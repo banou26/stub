@@ -6,8 +6,8 @@ import { findPartOfMedia, graph, IDENTITY_LABELS } from './db'
 import { isRoutableUri } from '../../utils/uri'
 import { refinesDate } from '../../utils/release-date'
 import { COERCING_ORIGINS } from '../graph/plugins/origins'
+import { dedupeLabels } from '../graph/plugins/fields'
 import { seasonNamesFirst } from '../../sources/season'
-import { genreKey } from '../../sources/justwatch/genres'
 
 // keep ANIME plus exactly ONE of MOVIE/SERIES (highest-scored source's format wins), so a merged media never lands in both the Movies and the Series listing
 const reconcileCategories = (cats: MediaCategory[]): MediaCategory[] => {
@@ -43,29 +43,6 @@ const seasonOf = (medias: Media[]): { season: Media['season'], seasonYear: numbe
     season: named?.season ?? null,
     seasonYear: (named ? named.seasonYear : medias.find(media => media.seasonYear !== null)?.seasonYear) ?? null,
   }
-}
-
-/**
- * Genre and tag labels from every member of a cluster, in arrival order, one spelling each.
- *
- * The reduce feeds this the highest-scored source's labels first, so the spelling KEPT is that
- * source's: AniList's "Sci-Fi" survives and a lower-scored "sci-fi" folds into it. Case-insensitive
- * because the catalogues genuinely disagree on case and a user filtering for one would otherwise see
- * the same genre listed twice. Genres go by `genreKey`, so JustWatch's Sport folds into AniList's Sports.
- *
- * `removeDuplicatesByField` cannot do this: it keys on a property of an object, and these are bare
- * strings.
- */
-const dedupeLabels = (labels: string[] | undefined, keyOf = (label: string) => label.toLowerCase()): string[] => {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const label of labels ?? []) {
-    const key = keyOf(label)
-    if (!label || seen.has(key)) continue
-    seen.add(key)
-    out.push(label)
-  }
-  return out
 }
 
 export function removeDuplicatesByField<T extends Record<string, any>>(field: keyof T, array: T[]): T[] {
@@ -404,8 +381,8 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
     relations: mergeRelations(merged.relations ?? [], medias),
     categories: reconcileCategories(merged.categories ?? []),
     ...seasonOf(sorted),
-    genres: dedupeLabels(merged.genres, genreKey),
-    tags: dedupeLabels(merged.tags),
+    genres: dedupeLabels('genres', merged.genres),
+    tags: dedupeLabels('tags', merged.tags),
     titles: removeDuplicatesByField('title', seasonNamesFirst(byScore(merged.titles ?? []))),
     descriptions: byScore(merged.descriptions ?? []),
     shortDescriptions: byScore(merged.shortDescriptions ?? []),
