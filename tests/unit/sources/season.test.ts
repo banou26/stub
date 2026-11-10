@@ -59,7 +59,7 @@ describe('seasonScopedId', () => {
   // TVmaze numbers The Simpsons Specials' seasons 2021 to 2026, and `56220-s2021` was asked for as a show (2026-11-10)
   test('round-trips a season numbered by year', () => {
     expect(splitSeasonScopedId(seasonScopedId('56220', 2021))).toEqual({ showId: '56220', seasonNumber: 2021 })
-    expect(splitSeasonScopedId('56220-s2021e1'), 'still not an episode').toEqual({ showId: '56220-s2021e1' })
+    expect(splitSeasonScopedId('56220-s2021e1'), 'an episode is still not a season').toEqual({ showId: '56220-s2021e1' })
   })
 
   test('a show-level id is passed through whole', () => {

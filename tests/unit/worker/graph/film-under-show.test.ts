@@ -51,7 +51,7 @@ test('the film keeps its own page, and the refusal is on record', async () => {
 })
 
 test('TVmaze finds the first season from the show the address opens, and the film stays out of it', async () => {
-  const context = { fetch: async () => ({ json: async () => TVMAZE_SHOW }), findAggregatedMedia: resolveMedia, listenForMediaChanges: async function* () {} }
+  const context = { fetch: async () => ({ ok: true, json: async () => TVMAZE_SHOW }), findAggregatedMedia: resolveMedia, listenForMediaChanges: async function* () {} }
   const { value } = await (tvmaze.Subscription as any).media.subscribe(undefined, { input: { uri: ADDRESS } }, context).next()
   expect(value.media?.uri).toBe('tvmaze:305-s1')
 
