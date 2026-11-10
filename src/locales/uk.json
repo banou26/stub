@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Сторінки: {list}",
   "{name} cannot track this media: {reason}": "{name} не може відстежувати цей тайтл: {reason}",
+  "{name} did not answer. Try again.": "Немає відповіді від {name}. Спробуйте ще раз.",
   "{name} did not save: {error}": "Не вдалося зберегти в {name}: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "Не вдалося зберегти в {name}: {outcome, select, REFUSED {відхилено} other {помилка}}",
   "{name} entry": "Запис {name}",

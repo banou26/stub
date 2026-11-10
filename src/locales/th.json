@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "หน้าของ {list}",
   "{name} cannot track this media: {reason}": "{name} ติดตามเรื่องนี้ไม่ได้: {reason}",
+  "{name} did not answer. Try again.": "{name} ไม่ตอบกลับ ลองอีกครั้ง",
   "{name} did not save: {error}": "{name} ไม่ได้บันทึก: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} ไม่ได้บันทึก: {outcome, select, REFUSED {ถูกปฏิเสธ} other {ล้มเหลว}}",
   "{name} entry": "รายการ {name}",

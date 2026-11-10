@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "صفحات: {list}",
   "{name} cannot track this media: {reason}": "لا يمكن لـ {name} تتبع هذا العمل: {reason}",
+  "{name} did not answer. Try again.": "لا رد من {name}. حاول مرة أخرى.",
   "{name} did not save: {error}": "لم يحفظ {name}: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "لم يحفظ {name}: {outcome, select, REFUSED {مرفوض} other {فشل}}",
   "{name} entry": "إدخال {name}",

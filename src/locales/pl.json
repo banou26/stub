@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Strony: {list}",
   "{name} cannot track this media: {reason}": "{name} nie może śledzić tego tytułu: {reason}",
+  "{name} did not answer. Try again.": "Brak odpowiedzi z {name}. Spróbuj ponownie.",
   "{name} did not save: {error}": "Nie zapisano w {name}: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "Nie zapisano w {name}: {outcome, select, REFUSED {odrzucono} other {błąd}}",
   "{name} entry": "Wpis w {name}",

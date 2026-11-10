@@ -303,10 +303,11 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
     const load = async () => {
       if (mode !== 'cloud') await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
       // on the cloud, auth before styling: the chrome CSS hides a page with no player, so a wall must surface the login prompt, not go black
-      const { isLoggedIn } = await checkIsLoggedIn(frame, isSettled)
+      const state = await checkIsLoggedIn(frame, isSettled)
       if (isSettled()) return null
-      siteStatuses.record('crunchyroll', isLoggedIn ? 'signed-in' : 'signed-out')
-      if (!isLoggedIn) return 'signed-out' as const
+      if (!state) throw new Error(intl.formatMessage({ id: '{name} did not answer. Try again.', defaultMessage: '{name} did not answer. Try again.' }, { name: 'Crunchyroll' }))
+      siteStatuses.record('crunchyroll', state.isLoggedIn ? 'signed-in' : 'signed-out')
+      if (!state.isLoggedIn) return 'signed-out' as const
       if (mode === 'cloud') await frame.addStyleTag({ content: CRUNCHYROLL_OUTER_CSS })
       return isSettled() ? null : waitForVideoElement(frame, isSettled)
     }

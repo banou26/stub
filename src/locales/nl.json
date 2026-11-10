@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Pagina’s van {list}",
   "{name} cannot track this media: {reason}": "{name} kan deze titel niet bijhouden: {reason}",
+  "{name} did not answer. Try again.": "{name} gaf geen antwoord. Probeer het opnieuw.",
   "{name} did not save: {error}": "{name} heeft niet opgeslagen: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} heeft niet opgeslagen: {outcome, select, REFUSED {geweigerd} other {mislukt}}",
   "{name} entry": "Item op {name}",

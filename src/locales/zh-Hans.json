@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}：{names}",
   "{list} pages": "{list}分页",
   "{name} cannot track this media: {reason}": "{name} 无法追踪这部作品：{reason}",
+  "{name} did not answer. Try again.": "{name} 没有回应。请重试。",
   "{name} did not save: {error}": "{name} 未能保存：{error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} 未能保存：{outcome, select, REFUSED {已拒绝} other {失败}}",
   "{name} entry": "{name} 条目",

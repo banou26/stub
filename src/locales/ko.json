@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "{list} 페이지",
   "{name} cannot track this media: {reason}": "{name}에서 이 작품을 기록할 수 없어요: {reason}",
+  "{name} did not answer. Try again.": "{name}에서 응답이 없어요. 다시 시도해 주세요.",
   "{name} did not save: {error}": "{name}에 저장하지 못했어요: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name}에 저장하지 못했어요: {outcome, select, REFUSED {거부됨} other {실패함}}",
   "{name} entry": "{name} 항목",

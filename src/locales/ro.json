@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Pagini: {list}",
   "{name} cannot track this media: {reason}": "{name} nu poate urmări acest titlu: {reason}",
+  "{name} did not answer. Try again.": "{name} nu a răspuns. Încercați din nou.",
   "{name} did not save: {error}": "{name} nu a salvat: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} nu a salvat: {outcome, select, REFUSED {refuzat} other {eșuat}}",
   "{name} entry": "Intrare {name}",

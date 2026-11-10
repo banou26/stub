@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Σελίδες: {list}",
   "{name} cannot track this media: {reason}": "Το {name} δεν μπορεί να παρακολουθεί αυτόν τον τίτλο: {reason}",
+  "{name} did not answer. Try again.": "Καμία απάντηση από {name}. Δοκιμάστε ξανά.",
   "{name} did not save: {error}": "Το {name} δεν αποθήκευσε: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "Το {name} δεν αποθήκευσε: {outcome, select, REFUSED {απορρίφθηκε} other {απέτυχε}}",
   "{name} entry": "Καταχώριση {name}",

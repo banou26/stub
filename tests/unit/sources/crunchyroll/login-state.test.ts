@@ -69,15 +69,15 @@ test('an anonymous menu whose shell was never seen decides signed out only at th
   expect(decidedAt).toBeGreaterThanOrEqual(30_000)
 })
 
-test('a page still in its streamed state at the deadline times out rather than asking to sign in', async () => {
+test('a page still in its streamed state at the deadline is no answer rather than a sign-in', async () => {
   const { result, decidedAt } = await decide([[3000, [ANONYMOUS, SHELL]]])
-  await expect(result).rejects.toThrow('Login state check timed out')
+  await expect(result).resolves.toBeUndefined()
   expect(decidedAt).toBeGreaterThanOrEqual(30_000)
 })
 
 // Cloudflare's 'Just a moment...' page, which a HeadlessChrome user agent was served, carries neither menu
-test('a page with neither menu by the deadline times out', async () => {
+test('a page with neither menu by the deadline is no answer', async () => {
   const { result, decidedAt } = await decide([[2000, []]])
-  await expect(result).rejects.toThrow('Login state check timed out')
+  await expect(result).resolves.toBeUndefined()
   expect(decidedAt).toBeGreaterThanOrEqual(30_000)
 })

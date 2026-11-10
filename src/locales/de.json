@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Seiten: {list}",
   "{name} cannot track this media: {reason}": "{name} kann diesen Titel nicht tracken: {reason}",
+  "{name} did not answer. Try again.": "Keine Antwort von {name}. Versuch es noch einmal.",
   "{name} did not save: {error}": "{name} hat nicht gespeichert: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} hat nicht gespeichert: {outcome, select, REFUSED {abgelehnt} other {fehlgeschlagen}}",
   "{name} entry": "Eintrag bei {name}",

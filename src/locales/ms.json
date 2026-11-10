@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Halaman {list}",
   "{name} cannot track this media: {reason}": "{name} tidak dapat menjejak tajuk ini: {reason}",
+  "{name} did not answer. Try again.": "{name} tidak membalas. Cuba lagi.",
   "{name} did not save: {error}": "{name} tidak menyimpan: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} tidak menyimpan: {outcome, select, REFUSED {ditolak} other {gagal}}",
   "{name} entry": "Entri {name}",

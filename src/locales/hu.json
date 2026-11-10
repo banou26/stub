@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Oldalak: {list}",
   "{name} cannot track this media: {reason}": "{name} nem tudja követni ezt a címet: {reason}",
+  "{name} did not answer. Try again.": "{name} nem válaszolt. Próbáld újra.",
   "{name} did not save: {error}": "A mentés nem sikerült ({name}): {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "A mentés nem sikerült ({name}): {outcome, select, REFUSED {elutasítva} other {hiba}}",
   "{name} entry": "{name}-bejegyzés",

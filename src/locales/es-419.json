@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Páginas de {list}",
   "{name} cannot track this media: {reason}": "{name} no puede seguir este título: {reason}",
+  "{name} did not answer. Try again.": "{name} no respondió. Inténtalo de nuevo.",
   "{name} did not save: {error}": "{name} no guardó: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} no guardó: {outcome, select, REFUSED {rechazado} other {falló}}",
   "{name} entry": "Entrada de {name}",

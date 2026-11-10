@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "{list} के पेज",
   "{name} cannot track this media: {reason}": "{name} इस टाइटल को ट्रैक नहीं कर सकता: {reason}",
+  "{name} did not answer. Try again.": "{name} से कोई जवाब नहीं मिला। फिर से कोशिश करें।",
   "{name} did not save: {error}": "{name} में सेव नहीं हुआ: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} में सेव नहीं हुआ: {outcome, select, REFUSED {अस्वीकार} other {विफल}}",
   "{name} entry": "{name} एंट्री",

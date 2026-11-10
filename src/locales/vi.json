@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Các trang của {list}",
   "{name} cannot track this media: {reason}": "{name} không thể theo dõi tác phẩm này: {reason}",
+  "{name} did not answer. Try again.": "{name} không phản hồi. Hãy thử lại.",
   "{name} did not save: {error}": "{name} chưa lưu: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} chưa lưu: {outcome, select, REFUSED {bị từ chối} other {thất bại}}",
   "{name} entry": "Mục {name}",

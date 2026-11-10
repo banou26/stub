@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Страницы: {list}",
   "{name} cannot track this media: {reason}": "{name} не может отслеживать этот тайтл: {reason}",
+  "{name} did not answer. Try again.": "Нет ответа от {name}. Попробуйте ещё раз.",
   "{name} did not save: {error}": "Не удалось сохранить в {name}: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "Не удалось сохранить в {name}: {outcome, select, REFUSED {отклонено} other {ошибка}}",
   "{name} entry": "Запись в {name}",

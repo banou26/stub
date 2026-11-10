@@ -385,6 +385,22 @@ describe('the sign-in state the page settles on', () => {
     })
   }
 
+  // what a page with neither menu by the deadline showed on production on 2026-11-10: the raw 'Login state check timed out'
+  test('a page that never says who is signed in ends on one translated line, with Retry, and remembers nothing', async () => {
+    frame.locator = () => ({ exists: async () => false })
+    try {
+      vi.useFakeTimers()
+      await startLanguage({ language: 'de', languages: ['de-DE'] })
+      const host = await render()
+      await vi.advanceTimersByTimeAsync(35_000)
+      expect(host.querySelector('.overlay')?.textContent).toBe('Keine Antwort von Crunchyroll. Versuch es noch einmal.Erneut versuchen')
+      expect(recorded()).toEqual([])
+    } finally {
+      vi.useRealTimers()
+      await startLanguage({ language: 'en', languages: ['en-US'] })
+    }
+  })
+
   test('a check that gets no answer remembers nothing', async () => {
     frame.locator = () => ({ exists: async () => { throw new Error('The page went away') } })
     const host = await render()

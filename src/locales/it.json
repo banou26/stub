@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Pagine di {list}",
   "{name} cannot track this media: {reason}": "{name} non può monitorare questo titolo: {reason}",
+  "{name} did not answer. Try again.": "{name} non ha risposto. Riprova.",
   "{name} did not save: {error}": "{name} non ha salvato: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} non ha salvato: {outcome, select, REFUSED {rifiutato} other {non riuscito}}",
   "{name} entry": "Voce di {name}",

@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Stránky: {list}",
   "{name} cannot track this media: {reason}": "{name} nemůže sledovat tento titul: {reason}",
+  "{name} did not answer. Try again.": "Žádná odpověď od {name}. Zkuste to znovu.",
   "{name} did not save: {error}": "Do {name} se nepodařilo uložit: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "Do {name} se nepodařilo uložit: {outcome, select, REFUSED {odmítnuto} other {chyba}}",
   "{name} entry": "Záznam {name}",

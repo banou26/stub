@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "{list} sayfaları",
   "{name} cannot track this media: {reason}": "{name} bu yapımı takip edemiyor: {reason}",
+  "{name} did not answer. Try again.": "{name} yanıt vermedi. Tekrar deneyin.",
   "{name} did not save: {error}": "{name} kaydetmedi: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} kaydetmedi: {outcome, select, REFUSED {reddedildi} other {başarısız}}",
   "{name} entry": "{name} kaydı",

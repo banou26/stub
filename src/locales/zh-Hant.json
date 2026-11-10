@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}：{names}",
   "{list} pages": "{list}分頁",
   "{name} cannot track this media: {reason}": "{name} 無法追蹤這部作品：{reason}",
+  "{name} did not answer. Try again.": "{name} 沒有回應。請再試一次。",
   "{name} did not save: {error}": "{name} 未能儲存：{error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} 未能儲存：{outcome, select, REFUSED {已拒絕} other {失敗}}",
   "{name} entry": "{name} 項目",

@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}：{names}",
   "{list} pages": "{list}のページ",
   "{name} cannot track this media: {reason}": "{name} はこの作品を記録できません：{reason}",
+  "{name} did not answer. Try again.": "{name} から応答がありませんでした。もう一度お試しください。",
   "{name} did not save: {error}": "{name} に保存できませんでした：{error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} に保存できませんでした：{outcome, select, REFUSED {拒否されました} other {失敗しました}}",
   "{name} entry": "{name} のエントリー",

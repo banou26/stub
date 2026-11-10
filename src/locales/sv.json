@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "Sidor: {list}",
   "{name} cannot track this media: {reason}": "{name} kan inte spåra den här titeln: {reason}",
+  "{name} did not answer. Try again.": "{name} svarade inte. Försök igen.",
   "{name} did not save: {error}": "{name} sparade inte: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} sparade inte: {outcome, select, REFUSED {avvisades} other {misslyckades}}",
   "{name} entry": "Post på {name}",

@@ -11,7 +11,7 @@ const LOGIN_TIMEOUT = 30_000
  * has been seen and has gone, and the shell is read first so the menus read after it are the client's.
  * Traced through the relay on 2026-09-26, the shell stood about 2 s either way (signed in +3.9 s to
  * +5.6 s, signed out +3.3 s to +5.2 s). At the deadline an anonymous menu without the shell counts as
- * signed out, and anything else throws.
+ * signed out, and anything else is no answer: undefined, as on a cancel.
  */
 export const checkIsLoggedIn = async (frame: Frame, isCancelled: () => boolean) => {
   const deadline = Date.now() + LOGIN_TIMEOUT
@@ -30,5 +30,5 @@ export const checkIsLoggedIn = async (frame: Frame, isCancelled: () => boolean) 
     if (expired) break
     await new Promise(r => setTimeout(r, 100))
   }
-  throw new Error('Login state check timed out')
+  return undefined
 }

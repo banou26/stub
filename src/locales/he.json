@@ -540,6 +540,7 @@
   "{label}: {names}": "{label}: {names}",
   "{list} pages": "דפים: {list}",
   "{name} cannot track this media: {reason}": "{name} לא יכול לעקוב אחרי היצירה הזו: {reason}",
+  "{name} did not answer. Try again.": "אין תשובה מ-{name}. נסו שוב.",
   "{name} did not save: {error}": "{name} לא שמר: {error}",
   "{name} did not save: {outcome, select, REFUSED {refused} other {failed}}": "{name} לא שמר: {outcome, select, REFUSED {נדחה} other {נכשל}}",
   "{name} entry": "רשומת {name}",
