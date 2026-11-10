@@ -2045,12 +2045,15 @@ minting on read (`graph.ts:234-244`, from `aggregate.ts:294`) and the fuzzy pass
    mechanism, results discarded:
 
 ```cypher
-MATCH (c:Cluster {id: $id})<-[:MEMBER_OF]-(:Media)-[cl:CLAIMS]->(t:Media {owned: false})
+MATCH (c:Cluster {id: $id})<-[:MEMBER_OF]-(:Media)-[cl:CLAIMS]->(t:Media)
+WHERE t.owned = false OR (cl.provenance = 'address' AND NOT EXISTS { MATCH (t)-[:MEMBER_OF]->(c) })
 RETURN DISTINCT t.uri AS uri, t.origin AS origin, cl.provenance AS provenance
 ```
 
    `mal:39535` is a placeholder, so jikan is asked; it answers with `anidb` and `anizip` handles;
-   anizip is asked and lands the dated, titled episodes.
+   anizip is asked and lands the dated, titled episodes. An `address` pointer is asked even when
+   another answer described its target outside this cluster: a search can store IMDb's row of a film
+   whose JustWatch page names it, and that row never joins on a pointer (STUB-391).
 4. **A plugin matches.** With a run length and dated episodes present, `range` proves Crunchyroll's
    folded season by date and mints `INCLUDES` plus 11 episode pairs; `containment` attaches the show
    containers; the similar consumer (7.3) asks each container origin that implements `similarMedia`

@@ -726,13 +726,14 @@ export const episodesOf = async (clusterId: string): Promise<AggregatedEpisode[]
 }
 
 /**
- * One uri a member's claim NAMED and no source has described (4.3), with the provenance of the claim
- * that named it.
+ * One uri a member's claim NAMED and no source has described (4.3), or an `address` claim named outside
+ * the cluster, with the provenance of the claim that named it.
  *
  * `provenance` is carried rather than filtered on, which is the whole of 3.3 as the ask sees it: an
- * `address` claim asserts nothing and never enters the closure, so its target can stay a placeholder
- * forever, and it still names a source to ask. A caller that wants to tell an echo of the address bar
- * from a source's own statement reads this column; a caller that only wants the origins ignores it.
+ * `address` claim asserts nothing and never enters the closure, so its target can stay outside the
+ * cluster forever, and it still names a source to ask. A caller that wants to tell an echo of the
+ * address bar from a source's own statement reads this column; a caller that only wants the origins
+ * ignores it.
  */
 export type Placeholder = {
   uri: string
@@ -751,10 +752,14 @@ export type Placeholder = {
  * `ag:(anilist:108465)`, where `kitsu:42323` was answered once on the old store and 0 times on the
  * graph path, so the page drew four members against the old store's six.
  *
- * `owned: false` is the whole filter and it is a PROPERTY MATCH rather than a `coalesce`, because
- * `Media.owned` is written by the ingest on both of its branches (`ingest.ts`: `false` on the
- * placeholder `MERGE`, `cast(r.owned AS BOOLEAN)` on the owner's) and no plugin writes the `Media`
- * table at all, so the column is never NULL.
+ * `owned = false` is read without a `coalesce`, because `Media.owned` is written by the ingest on both
+ * of its branches (`ingest.ts`: `false` on the placeholder `MERGE`, `cast(r.owned AS BOOLEAN)` on the
+ * owner's) and no plugin writes the `Media` table at all, so the column is never NULL.
+ *
+ * An `address` pointer is reported whether or not another answer described its target, as long as the
+ * target is not a member here (STUB-391): IMDb's search row for Casablanca (1942) is owned and is its
+ * own cluster, so JustWatch's film (1943-01-23) naming it was never re-asked, and the title page opened
+ * from search never asked IMDb with its address.
  *
  * One uri may come back more than once, once per provenance a claim gave it, which is what the
  * spec's `RETURN DISTINCT` over three columns says. The order is this function's, not the engine's,
@@ -764,7 +769,8 @@ export const placeholdersOf = async (clusterId: string): Promise<Placeholder[]> 
   if (!clusterId) return []
   const { query } = await graphReady()
   const rows = await query(
-    `MATCH (c:Cluster {id: $id})<-[:MEMBER_OF]-(:Media)-[cl:CLAIMS]->(t:Media {owned: false})
+    `MATCH (c:Cluster {id: $id})<-[:MEMBER_OF]-(:Media)-[cl:CLAIMS]->(t:Media)
+     WHERE t.owned = false OR (cl.provenance = 'address' AND NOT EXISTS { MATCH (t)-[:MEMBER_OF]->(c) })
      RETURN DISTINCT t.uri AS uri, t.origin AS origin, cl.provenance AS provenance`,
     { id: clusterId }
   )
