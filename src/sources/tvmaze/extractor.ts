@@ -29,7 +29,7 @@ const text = (html: string | null | undefined): string | undefined => {
 }
 
 const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
-  ctx.fetch(`${API}${path}`).then(r => r.json() as Promise<T>).catch(() => undefined)
+  ctx.fetch(`${API}${path}`).then(r => r.ok ? r.json() as Promise<T> : undefined).catch(() => undefined)
 
 interface TvmazeImage { medium?: string, original?: string }
 interface TvmazeShow {

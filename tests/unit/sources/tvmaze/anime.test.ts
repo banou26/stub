@@ -10,7 +10,7 @@ import THE_SIMPSONS from '../../../fixtures/tvmaze/search-the-simpsons.json'
 import LIVE_ACTION from '../../../fixtures/tvmaze/search-live-action.json'
 
 const search = async (answer: unknown) => {
-  const context = { fetch: async () => ({ json: async () => answer }) }
+  const context = { fetch: async () => ({ ok: true, json: async () => answer }) }
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
   const { value } = await subscribe(undefined, { input: { search: 'a title' } }, context).next()
   return value.mediaPage.nodes[0]

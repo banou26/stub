@@ -208,8 +208,9 @@ export const pickSeasonByEpisodeCount = (
 }
 
 // The '-s<n>' suffix, which is what TMDB's own episode ids already use ('94664-s3e1'). Keeping the
-// media on the same convention means the two read as one id space rather than two.
-const SEASON_SCOPED = /^(.+)-s(\d{1,3})$/
+// media on the same convention means the two read as one id space rather than two. Any number of digits: a catalogue
+// can number a show's seasons by year (TVmaze's The Simpsons Specials, 2021 to 2026).
+const SEASON_SCOPED = /^(.+)-s(\d+)$/
 
 /** A show id scoped to one season. The only id shape a season-scoped media may carry. */
 export const seasonScopedId = (id: string | number, seasonNumber: number) => `${id}-s${seasonNumber}`

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { ANIME_SEASONS, MEDIA_SEASONS, animeSeasonOf, isOnlySeasonLabel, lowerSeason, mediaSeasonNow, parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId, upperSeason } from '../../../src/sources/season'
 
@@ -54,6 +54,12 @@ describe('seasonScopedId', () => {
 
   test('round-trips, so resolving the uri still asks TMDB for a show it knows', () => {
     expect(splitSeasonScopedId(seasonScopedId('94664', 3))).toEqual({ showId: '94664', seasonNumber: 3 })
+  })
+
+  // TVmaze numbers The Simpsons Specials' seasons 2021 to 2026, and `56220-s2021` was asked for as a show (2026-11-10)
+  test('round-trips a season numbered by year', () => {
+    expect(splitSeasonScopedId(seasonScopedId('56220', 2021))).toEqual({ showId: '56220', seasonNumber: 2021 })
+    expect(splitSeasonScopedId('56220-s2021e1'), 'still not an episode').toEqual({ showId: '56220-s2021e1' })
   })
 
   test('a show-level id is passed through whole', () => {

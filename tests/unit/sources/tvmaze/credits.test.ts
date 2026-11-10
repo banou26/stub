@@ -32,7 +32,7 @@ test('each actor stands under their character with no language, and the crew are
 
 const open = async (details?: boolean) => {
   const urls: string[] = []
-  const context = { fetch: async (url: string) => (urls.push(url), { json: async () => BREAKING_BAD }) }
+  const context = { fetch: async (url: string) => (urls.push(url), { ok: true, json: async () => BREAKING_BAD }) }
   const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'tvmaze:169-s1', details } }, context).next()
   return { urls, media: value.media }
 }

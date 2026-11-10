@@ -35,6 +35,21 @@ const SHARED_YEAR_SHOW = {
 const EMPTY_SHOW = { id: 99, name: 'Announced Show', premiered: null, externals: { imdb: null }, _embedded: { episodes: [] } }
 const ANIME_SHOW = { ...SHOW, id: 52280, genres: ['Anime'] }
 
+// The Simpsons Specials, whose seasons TVmaze numbers by the year they aired (2021 to 2026, read 2026-11-10)
+const YEAR_SHOW = {
+  id: 56220,
+  name: 'The Simpsons Specials',
+  premiered: '2021-05-04',
+  externals: { imdb: null },
+  _embedded: {
+    episodes: [
+      { id: 1, name: 'Maggie Simpson in The Force Awakens from Its Nap', season: 2021, number: 1, airdate: '2021-05-04' },
+      { id: 2, name: 'The Good, the Bart, and the Loki', season: 2021, number: 2, airdate: '2021-07-07' },
+      { id: 3, name: 'When Billie Met Lisa', season: 2022, number: 1, airdate: '2022-04-22' },
+    ],
+  },
+}
+
 // the address once another source has answered, which is when the aggregated media has a run to pick by
 const LINKED = 'ag:(anilist:108465,tvmaze:52279)'
 
@@ -70,6 +85,9 @@ const context = (misses: string[], known?: unknown) => ({
     if (url.startsWith(`${API}/shows/99?embed=episodes`)) return { ok: true, status: 200, json: async () => EMPTY_SHOW }
     if (url.startsWith(`${API}/shows/52280?embed=episodes`)) return { ok: true, status: 200, json: async () => ANIME_SHOW }
     if (url.startsWith(`${API}/shows/77?embed=episodes`)) return { ok: true, status: 200, json: async () => DATED_SHOW }
+    if (url.startsWith(`${API}/shows/56220?embed=episodes`)) return { ok: true, status: 200, json: async () => YEAR_SHOW }
+    // TVmaze's own answer for a show it does not have
+    if (url.startsWith(`${API}/shows/404?embed=episodes`)) return { ok: false, status: 404, json: async () => ({ name: 'Not Found', message: '', code: 0, status: 404 }) }
     if (url.startsWith(`${API}/search/shows?q=`)) return { ok: true, status: 200, json: async () => [{ show: SHOW }] }
     misses.push(url)
     return { ok: false, status: 404, json: async () => ({}) }
@@ -206,6 +224,19 @@ test('the show\'s IMDb id beside TVmaze\'s still names the show, while another s
 test('a season links every season of its show, and an anime links none', async () => {
   expect((await mediaFor('tvmaze:52279-s2')).seasons?.map(season => season.uri)).toEqual(['tvmaze:52279-s1', 'tvmaze:52279-s2', 'tvmaze:52279-s3'])
   expect((await mediaFor('ag:(tvmaze:52280)')).seasons, 'its runs are its cours, not TVmaze\'s seasons').toBeUndefined()
+})
+
+test('a season numbered by year is that season, as its show links it', async () => {
+  expect((await mediaFor('ag:(tvmaze:56220)')).seasons?.map(season => season.uri)).toEqual(['tvmaze:56220-s2021', 'tvmaze:56220-s2022'])
+
+  const media = await mediaFor('ag:(tvmaze:56220-s2021)')
+  expect({ uri: media.uri, scope: media.scope, episodes: media.episodes.length }).toEqual({ uri: 'tvmaze:56220-s2021', scope: 'RUN', episodes: 2 })
+})
+
+// TVmaze answers a show it does not have with a body of its own, which made a media titled "Not Found" under
+// `tvmaze:undefined`, one id for every such show
+test('a show TVmaze does not have is no media', async () => {
+  expect(await mediaOrNull('ag:(tvmaze:404)')).toBeNull()
 })
 
 // THE MEDIA PATH. A count with no ordinal is tried against the FIRST season only, and with several
