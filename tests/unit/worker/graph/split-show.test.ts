@@ -1,10 +1,16 @@
 /**
- * A show Kitsu maps under its MyAnimeList id twice is one card on a season page, whichever season the tab opened first.
+ * A show one source maps wrongly is one card on a season page, whichever season the tab opened first.
  *
- * Ghost Meets Gal! as its sources answered on 2026-11-10: AniList lists 214703 in Summer 2026, naming MyAnimeList 64718;
- * Kitsu lists 50866 in Fall, mapping MyAnimeList 64718 and AniList 64718, which AniList does not have. The bundled data
- * holds the show in Summer with MyAnimeList 64718 and AniList 214703, and in Fall with Kitsu 50866 too. The home row
- * asks for the season running now (Fall), so Home, then Summer drew the show as two cards where a fresh Summer draws one.
+ * Both shows as their sources answered on 2026-11-10. The home row asks for the season running now (Fall), so a tab
+ * reaches Summer 2026 after Fall, and often after Winter 2027 too.
+ *
+ * Ghost Meets Gal!: AniList lists 214703 in Summer, naming MyAnimeList 64718; Kitsu lists 50866 in Fall, mapping
+ * MyAnimeList 64718 and AniList 64718, which AniList does not have. The bundled data holds the show in Summer with
+ * MyAnimeList 64718 and AniList 214703, and in Fall with Kitsu 50866 too.
+ *
+ * Sekiro: No Defeat: MyAnimeList lists 62312 in Summer as a film; AniList lists 197620 in Winter as a series, naming
+ * MyAnimeList 62312, and Kitsu lists 50104 in Winter, mapping AniList 197620. The bundled data holds MyAnimeList
+ * 62312 in both buckets, a film in Summer and AniList's series in Winter, so its row changes kind with the page.
  *
  * Kitsu's rows come out of its own extractor, from its answers as recorded, so the mapping it reads is the one tested.
  */
@@ -48,6 +54,8 @@ const kitsuSeason = async (page: Page, records: ReturnType<typeof kitsuRecord>[]
 const row = (uri: string, page: Page, name: string, fields: Row) =>
   media(uri, { type: 'TV', ...seasonOf(page), categories: ['ANIME', 'SERIES'], titles: [title('en', name, 0.8)], ...fields })
 
+const film = { type: 'MOVIE', categories: ['ANIME', 'MOVIE'] }
+
 const GAL: Pages = {
   'SUMMER 2026': async () => [
     row('anilist:214703', 'SUMMER 2026', 'Ghost Meets Gal!', { type: 'TV_SHORT', handles: [sameAs(media('mal:64718'))] }),
@@ -70,8 +78,14 @@ const GAL: Pages = {
   ],
 }
 
-// An AniList id Kitsu maps with no MyAnimeList one beside it.
 const SEKIRO: Pages = {
+  'SUMMER 2026': async () => [
+    row('mal:62312', 'SUMMER 2026', 'Sekiro: No Defeat', film),
+    row('offline:mal-62312', 'SUMMER 2026', 'Sekiro: No Defeat', {
+      ...film,
+      handles: [sameAs(media('mal:62312')), sameAs(media('anilist:197620')), sameAs(media('kitsu:50104'))],
+    }),
+  ],
   'WINTER 2027': async () => [
     ...await kitsuSeason('WINTER 2027', [
       kitsuRecord('50104', { canonicalTitle: 'Sekiro: No Defeat', titles: { en: 'Sekiro: No Defeat' }, subtype: 'TV', startDate: '2027-01-08' }, [
@@ -79,6 +93,7 @@ const SEKIRO: Pages = {
       ]),
     ]),
     row('anilist:197620', 'WINTER 2027', 'Sekiro: No Defeat', { handles: [sameAs(media('mal:62312'))] }),
+    row('offline:mal-62312', 'WINTER 2027', 'Sekiro: No Defeat', { handles: [sameAs(media('mal:62312')), sameAs(media('anilist:197620'))] }),
   ],
 }
 
@@ -115,7 +130,18 @@ test('Ghost Meets Gal! is one card on Summer after the Fall page, as on a fresh 
   ])
 })
 
-// Mutation: drop every AniList mapping Kitsu makes, and Sekiro's series is two cards.
+// Mutation: keep a row's season pairs when an answer recasts it between a film and a series (`mergeMediaFields` in
+// src/worker/graph/ingest.ts), and each page draws the other season's work beside its own.
+test('Sekiro: No Defeat is one card on Summer after the Winter page, and on Winter after Summer', async () => {
+  expect(await listed(SEKIRO, ['SUMMER 2026']), 'the control: a fresh Summer draws the film once').toEqual([['mal:62312', 'offline:mal-62312']])
+  expect(await listed(SEKIRO, ['SUMMER 2026', 'WINTER 2027', 'SUMMER 2026'])).toEqual([['mal:62312']])
+  expect(await listed(SEKIRO, ['WINTER 2027']), 'the control: a fresh Winter draws the series once').toEqual([
+    ['anilist:197620', 'kitsu:50104', 'mal:62312', 'offline:mal-62312'],
+  ])
+  expect(await listed(SEKIRO, ['WINTER 2027', 'SUMMER 2026', 'WINTER 2027'])).toEqual([['anilist:197620', 'kitsu:50104']])
+})
+
+// Mutation: drop every AniList mapping Kitsu makes, and Kitsu's Sekiro is a card of its own.
 test('Kitsu and AniList still share a card where Kitsu\'s AniList mapping is right', async () => {
   expect(await listed(TITAN, ['SPRING 2013']), 'an AniList id that is the MyAnimeList id').toEqual([['anilist:16498', 'kitsu:7442', 'mal:16498']])
   const winter = await listed(SEKIRO, ['WINTER 2027'])

@@ -51,6 +51,7 @@ import type { SeasonPair } from '../store/filter'
 import { emit } from '../store/events'
 import { contentHash, sha256Hex } from './hash'
 import { ADDRESS_ECHOING_ORIGINS, NATIVE_ID_SPACES } from './plugins/origins'
+import { formatOf } from './plugins/profile'
 import { graphReady } from './schema'
 
 /** A row the decomposition could not express, kept with the reason rather than dropped in silence. */
@@ -339,13 +340,20 @@ const mergeEpisodeFields = (
  * re-fetch it already holds, so `season` and `popularity` are those of whichever season's answer was new last:
  * the home row's Fall answer, then Summer's, left the Fall page reading Summer. A season page reads the pair of
  * its own season instead (`store/filter.ts`).
+ *
+ * An answer that makes a film of a series, or a series of a film, is about another work, so the row keeps only that
+ * answer's pair. The bundled row for MyAnimeList 62312 is Sekiro: No Defeat's Summer 2026 film in one bucket and
+ * AniList's Winter 2027 series, which names that id, in the other (2026-11-10). Guard 9 parts the row from the work
+ * it no longer is, so a pair kept from that work would list the row as a second card on that work's page.
  */
 const mergeMediaFields: typeof mergeFields = (existing, incoming, seq, fieldSeq) => {
   const merged = mergeFields(existing, incoming, seq, fieldSeq)
   const season = typeof incoming.season === 'string' ? incoming.season : null
   const seasonYear = typeof incoming.seasonYear === 'number' ? incoming.seasonYear : null
   if (season === null && seasonYear === null) return merged
-  const pairs = Array.isArray(existing?.seasonPairs) ? existing.seasonPairs as SeasonPair[] : []
+  const was = formatOf(existing?.type, existing?.categories)
+  const is = formatOf(incoming.type, incoming.categories)
+  const pairs = Array.isArray(existing?.seasonPairs) && !(was && is && was !== is) ? existing.seasonPairs as SeasonPair[] : []
   const known = pairs.find(pair => pair.season === season && pair.seasonYear === seasonYear)
   const pair = { season, seasonYear, popularity: typeof incoming.popularity === 'number' ? incoming.popularity : known?.popularity ?? null }
   return { ...merged, seasonPairs: known ? pairs.map(each => each === known ? pair : each) : [...pairs, pair] }
