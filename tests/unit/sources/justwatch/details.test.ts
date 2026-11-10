@@ -7,6 +7,10 @@ import { expect, test } from 'vite-plus/test'
 import { parseCredits, resolvers } from '../../../../src/sources/justwatch/extractor'
 import { NATIVE_ID_SPACES } from '../../../../src/worker/graph/plugins/origins'
 import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
+import { aggregateMedia, recursivelyUnwrapMediaHandles } from '../../../../src/worker/store/aggregate'
+import { findMediaForPage, resetStore, upsertMedia } from '../../../../src/worker/store/db'
+import { handleClaims, normalizeToStoreMedia } from '../../../../src/worker/store/normalize'
+import { originsOfUri } from '../../../../src/utils/uri'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
 import CHERNOBYL from '../../../fixtures/justwatch/chernobyl.json'
 import DUNE_CREDITS from '../../../fixtures/credits/jw-dune.json'
@@ -66,6 +70,21 @@ test('a film\'s TMDB id links its /movie/ page and a show\'s its /tv/ page, both
   expect(tmdbLinks(dune.media)).toEqual(['PART_OF tmdb:movie-693134 https://www.themoviedb.org/movie/693134'])
   expect(tmdbLinks((await open(CHERNOBYL, 'jw:88632-104891', true)).media)).toEqual(['PART_OF tmdb:87108 https://www.themoviedb.org/tv/87108'])
   expect(NATIVE_ID_SPACES.jw!.has('tmdb'), 'a TMDB id is JustWatch\'s own, not an echo of the address').toBe(true)
+})
+
+// STUB-391: a film page JustWatch reached never asked IMDb, the source of its cast's photos
+test('a film\'s IMDb id is the IMDb source\'s row of it, so its page\'s address names IMDb, and a show\'s is not', async () => {
+  const imdbHandles = (media: { handles: { relation: string, node: { origin: string, uri: string, url: string } }[] }) =>
+    media.handles.filter(({ node }) => ['omdb', 'imdb'].includes(node.origin)).map(({ relation, node }) => `${relation} ${node.uri} ${node.url}`)
+  const { media } = await open(DUNE, 'ag:(jw:1133934)', true)
+  expect(imdbHandles(media)).toEqual(['SAME_AS omdb:tt15239678 https://www.imdb.com/title/tt15239678'])
+  expect(imdbHandles((await open(CHERNOBYL, 'jw:88632-104891', true)).media)).toEqual(['PART_OF imdb:tt7366338 https://www.imdb.com/title/tt7366338'])
+
+  // stored as the worker's inserter stores an answer, the page's media names IMDb, and the page asks every source its address names
+  resetStore()
+  const rows = recursivelyUnwrapMediaHandles(media)
+  await upsertMedia(rows.map(normalizeToStoreMedia), handleClaims(rows))
+  expect(originsOfUri(aggregateMedia(await findMediaForPage('ag:(jw:1133934)'), '').uri)).toEqual(['hbo', 'jw', 'omdb'])
 })
 
 // the credits of the same answer, trimmed to the first eight actors

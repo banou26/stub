@@ -64,7 +64,7 @@ test('JustWatch asks for the film when AniZip\'s row is the first to land', asyn
   expect(await askJustWatch()).toEqual({
     asked: ['tm403680'],
     uri: 'jw:403680',
-    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
+    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'omdb:tt8076344', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
   })
 }, 60_000)
 
@@ -88,7 +88,7 @@ test('a cluster that reads as a series still gets the film, since the show its i
   expect(await askJustWatch(series)).toEqual({
     asked: ['ts403680', 'tm403680'],
     uri: 'jw:403680',
-    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
+    offers: ['amazon:amzn1.dv.gti.4e6a43b7-2b36-40fc-8249-3bd2371e156e', 'hoopla:12418002', 'nf:81037598', 'omdb:tt8076344', 'plex:5d77708f594b2b001e74d1ea', 'tubi:590793'],
   })
   const numbers = async () => ({ categories: ['ANIME', 'SERIES'], titles: [{ title: 'The Numbers' }] })
   expect((await askJustWatch(numbers)).asked, 'the control: a cluster titled like the show keeps the show').toEqual(['ts403680'])

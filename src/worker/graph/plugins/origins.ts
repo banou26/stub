@@ -134,8 +134,11 @@ export const NATIVE_ID_SPACES: Record<string, Set<string>> = {
   // `imdbId` and `tmdbId` (`watchmode:153-155`) plus the stream hosts of `watchmode:67-74`
   watchmode: new Set(['imdb', 'tmdb', 'cr', 'nf', 'hulu', 'disney', 'amazon', 'hbo']),
   // the offer deep links through `PACKAGE_ORIGIN_MAP` (`justwatch/id.ts:80-86`, minted at
-  // `justwatch:648`), plus its own show container (`justwatch:782`), the title page's
-  // `externalIds.tmdbId` as a link (`justwatch:796`) and a show's `externalIds.imdbId` as one (`justwatch:793`)
+  // `justwatch:697`), plus its own show container (`justwatch:832`), the title page's
+  // `externalIds.tmdbId` as a link (`justwatch:848`) and a show's `externalIds.imdbId` as one (`justwatch:842`).
+  // NOT `omdb`, though a film names its own (`justwatch:846`): a recorded season echoing its show's `omdb:` id off the
+  // address carries no stamp, and would read as JustWatch's own and join the show
+  // (tests/unit/worker/graph/episode-named-as-media.test.ts). Read as an address, the film's claim still has IMDb asked.
   jw: new Set([
     'cr', 'nf', 'disney', 'amazon', 'appletv', 'hulu', 'hbo', 'peacock', 'paramount', 'fubo',
     'hidive', 'tubi', 'roku', 'pluto', 'plex', 'hoopla', 'starz', 'amcplus', 'philo', 'jw', 'tmdb', 'imdb',

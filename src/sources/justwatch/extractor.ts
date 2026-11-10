@@ -827,6 +827,7 @@ const normalizeMedia = async (
   // the container space union `jw:<objectId>` with `cr:<series>` and `tvmaze:<show>` on a title, so a
   // run PART_OF any one of them reaches JustWatch's offers. The same shape tvmaze, tmdb and
   // crunchyroll already mint for a show.
+  const imdbId = node.content.externalIds?.imdbId
   if (opts.seasonNumber != null) {
     handles.push(partOf(makeMedia({
       origin,
@@ -838,9 +839,11 @@ const normalizeMedia = async (
     })))
     // The show's id, as IMDb has no seasons. TMDB's pages carry none and TVmaze's season does not always join, so this
     // is what links a season to IMDb on every visit.
-    const imdbId = node.content.externalIds?.imdbId
     if (imdbId) handles.push(partOf(makeMedia({ origin: 'imdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })))
   }
+  // A film's IMDb id names the film, so it is the IMDb source's row of it, which the page then asks: IMDb is where a
+  // film's cast photos come from
+  if (imdbId && node.objectType === 'MOVIE') handles.push(sameAs(makeMedia({ origin: 'omdb', id: imdbId, url: `https://www.imdb.com/title/${imdbId}` })))
   const tmdbId = node.content.externalIds?.tmdbId
   if (tmdbId) handles.push(tmdbLink(tmdbId, node.objectType === 'MOVIE'))
 

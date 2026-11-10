@@ -23,7 +23,8 @@ const handlesOf = async (answer: Answer) => {
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const { value } = await subscribe(undefined, { input: { uri: `jw:${answer.data.node.objectId}` } }, context).next()
   return ((value?.media?.handles ?? []) as { relation: string, node: { origin: string, id: string, url: string } }[])
-    .filter(handle => handle.node.origin !== 'jw')
+    // the platforms alone: not the show, nor the IMDb source's row a film's IMDb id names
+    .filter(handle => !['jw', 'omdb'].includes(handle.node.origin))
     .map(({ relation, node }) => `${node.origin}:${node.id} ${relation} ${node.url}`)
     .sort()
 }
