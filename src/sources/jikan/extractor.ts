@@ -10,6 +10,8 @@ import { malLargeImage } from '../mal-image'
 import { animeSeasonOf, lowerSeason, upperSeason, type AnimeSeason } from '../season'
 import { percentScore } from '../average-score'
 import { withSeasonPopularity } from '../popularity'
+import { translatedTitle } from '../translations'
+import { bestLanguage } from '../../i18n/best-language'
 
 export const icon = 'https://cdn.myanimelist.net/images/favicon.ico'
 export const originUrl = 'https://myanimelist.net'
@@ -92,7 +94,14 @@ const malMedia = (id: string, kind: string | undefined, fields: Omit<Parameters<
   })
 }
 
-const pageMedia = (id: string, page: MalAnime) => {
+// The page's title in `language`, the viewer's, where it is none of the page's own
+const translationOf = (page: MalAnime, language: string) => {
+  const tag = bestLanguage([language], Object.keys(page.translatedTitles))
+  const title = tag && page.translatedTitles[tag]
+  return title && ![page.englishTitle, page.title, page.japaneseTitle].includes(title) ? [translatedTitle(tag, title, SCORE)] : []
+}
+
+const pageMedia = (id: string, page: MalAnime, language: string) => {
   const aniDBId = anidbIdFromUrl(page.anidb)
   const season = page.season ? lowerSeason(page.season) : undefined
   return malMedia(id, page.type, {
@@ -108,6 +117,7 @@ const pageMedia = (id: string, page: MalAnime) => {
       ...page.englishTitle ? [{ language: 'en', title: page.englishTitle, score: SCORE }] : [],
       { language: 'jp-en', title: page.title, score: JAPANESE_TITLE_SCORE },
       ...page.japaneseTitle ? [{ language: 'jp', title: page.japaneseTitle, score: JAPANESE_TITLE_SCORE }] : [],
+      ...translationOf(page, language),
     ],
     covers: page.cover ? [{ language: 'en', url: page.cover, score: SCORE }] : [],
     episodeCount: page.episodes,
@@ -155,7 +165,7 @@ const fetchCredits = (id: number, context: ExtractorServerContext) =>
 const fetchMedia = async ({ id }: { id: number }, context: ExtractorServerContext) => {
   const response = await context.fetch(`https://myanimelist.net/anime/${id}`)
   const page = parseMalAnime(await response.text(), String(id))
-  return page && pageMedia(String(id), page)
+  return page && pageMedia(String(id), page, context.language)
 }
 
 // The page carries no season per card because the page IS one season, so the season asked for is

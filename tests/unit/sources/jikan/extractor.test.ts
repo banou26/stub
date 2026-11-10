@@ -11,11 +11,12 @@ import SAMPLES from '../../../fixtures/descriptions/samples.json'
 
 const fixture = (name: string) => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8')
 
-const routed = (route: (url: string) => unknown) => {
+const routed = (route: (url: string) => unknown, language?: string) => {
   const urls: string[] = []
   return {
     urls,
     ctx: {
+      language,
       fetch: async (url: string) => {
         urls.push(url)
         const answer = route(url)
@@ -30,8 +31,8 @@ const html = (body: string, ok = true) => ({ ok, status: ok ? 200 : 404, text: a
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
 
 // every answer the subscription yields, and the last one's media
-const mediaFor = async (asked: string, route: (url: string) => unknown, details?: boolean) => {
-  const { ctx, urls } = routed(route)
+const mediaFor = async (asked: string, route: (url: string) => unknown, details?: boolean, language?: string) => {
+  const { ctx, urls } = routed(route, language)
   const subscribe = (resolvers.Subscription as any).media.subscribe
   const answers: any[] = []
   for await (const { media } of subscribe(undefined, { input: { uri: asked, details } }, ctx)) answers.push(media)
@@ -96,6 +97,22 @@ test('a film is a movie with no season, and a show not yet aired keeps its parti
   expect(upcoming).toMatchObject({ status: 'NOT_YET_RELEASED', season: 'FALL', seasonYear: 2027, startDate: '2027-10' })
   expect(upcoming.averageScore).toBeUndefined()
   expect(upcoming.trailers).toEqual([])
+})
+
+// Mutation: leave `translationOf` out of `pageMedia`'s titles, and a French viewer's page stays English; drop
+// its comparison with the page's own titles, and the made up page's French row, its English title, comes twice.
+test('a viewer reading German, Spanish or French gets the page\'s title in it, from the page already read', async () => {
+  const titlesIn = async (language: string | undefined, page = fixture('mal-anime-199.html')) => {
+    const { media, urls } = await mediaFor('mal:199', () => html(page), undefined, language)
+    expect(urls).toEqual(['https://myanimelist.net/anime/199'])
+    return media.titles.slice(3)
+  }
+  expect(await titlesIn('fr-FR')).toEqual([{ language: 'fr', title: 'Le Voyage de Chihiro', score: 0.09, class: 'TRANSLATED' }])
+  expect(await titlesIn('es-MX')).toEqual([{ language: 'es', title: 'El viaje de Chihiro', score: 0.09, class: 'TRANSLATED' }])
+  expect(await titlesIn('de')).toEqual([{ language: 'de', title: 'Chihiros Reise ins Zauberland', score: 0.09, class: 'TRANSLATED' }])
+  for (const language of [undefined, 'en-US', 'ja-JP', 'it-IT']) expect(await titlesIn(language), language).toEqual([])
+  const english = fixture('mal-anime-199.html').replace('Le Voyage de Chihiro', 'Spirited Away')
+  expect(await titlesIn('fr-FR', english), 'a French row that is the English title').toEqual([])
 })
 
 // The page's placeholder would otherwise win the description over AniList's real one, at 0.9.

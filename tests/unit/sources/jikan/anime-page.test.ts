@@ -36,6 +36,12 @@ describe('parseMalAnime', () => {
     expect(page(63816)!.genres).toEqual(['Adventure', 'Drama', 'Fantasy', 'Shounen'])
   })
 
+  // the three rows a page keeps beside English and Japanese, on Spirited Away's
+  test('the German, Spanish and French titles are read by language tag, and a page without them has none', () => {
+    expect(page(199)!.translatedTitles).toEqual({ de: 'Chihiros Reise ins Zauberland', es: 'El viaje de Chihiro', fr: 'Le Voyage de Chihiro' })
+    expect(page(1)!.translatedTitles).toEqual({})
+  })
+
   // The page writes `&amp;` inside the href, and `aid` is only a parameter once that is read.
   test('the AniDB link is read off the resources, entities and all', () => {
     expect(page(1)!.anidb).toBe('https://anidb.net/perl-bin/animedb.pl?show=anime&aid=23')

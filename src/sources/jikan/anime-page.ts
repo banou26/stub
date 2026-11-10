@@ -11,6 +11,8 @@ export type MalAnime = {
   title: string
   englishTitle?: string
   japaneseTitle?: string
+  /** The page's German, Spanish and French titles, by language tag. */
+  translatedTitles: Record<string, string>
   cover?: string
   synopsis?: string
   /** As the page prints it: `TV`, `Movie`, `OVA`, `ONA`, `Special`, `TV Special`, `Music`. */
@@ -103,6 +105,9 @@ const recommendationsOf = (html: string, id: string): MalRecommendation[] =>
 const row = (html: string, label: string) =>
   text(one(html, new RegExp(`<span class="dark_text">${label}:</span>([\\s\\S]*?)</div>`)))
 
+// the only languages but English and Japanese the page titles a show in, under Alternative Titles
+const LANGUAGE_ROWS = { de: 'German', es: 'Spanish', fr: 'French' }
+
 /** myanimelist.net's title page for `id`, or undefined when the page names no show. */
 export const parseMalAnime = (html: string, id: string): MalAnime | undefined => {
   const title = text(one(html, /<h1 class="title-name[^"]*"><strong>([\s\S]*?)<\/strong>/))
@@ -113,6 +118,10 @@ export const parseMalAnime = (html: string, id: string): MalAnime | undefined =>
     title,
     englishTitle: row(html, 'English'),
     japaneseTitle: row(html, 'Japanese'),
+    translatedTitles: Object.fromEntries(Object.entries(LANGUAGE_ROWS).flatMap(([tag, label]) => {
+      const title = row(html, label)
+      return title ? [[tag, title]] : []
+    })),
     cover: malLargeImage(one(html, /<img[^>]*\bdata-src="(https:\/\/cdn\.myanimelist\.net\/images\/anime\/[^"]+)"[^>]*itemprop="image"/)),
     synopsis: synopsisText(one(html, /<p itemprop="description">([\s\S]*?)<\/p>/)),
     type: row(html, 'Type'),
