@@ -5,6 +5,8 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, makeMovieEpisode, isMovie, desc, img } from '../utils'
 import { percentScore } from '../average-score'
 import { charactersByName, type SourceCredits, type SourcePerson } from '../credits'
+import { askedLocale, withTranslation } from '../translation-requests'
+import { bestLanguage, localeOf } from '../../i18n/best-language'
 
 const SCORE = 0.3
 // IMDb's own GraphQL, which imdb.com's web app calls. It needs no key and answers 403 without the web
@@ -26,7 +28,7 @@ export const supportedUris = ['omdb']
 export const color = '#f5c518'
 
 type Day = { year?: number | null, month?: number | null, day?: number | null } | null
-type Plot = { plotText?: { plainText?: string | null } | null } | null
+type Plot = { plotText?: { plainText?: string | null } | null, language?: { id?: string | null } | null } | null
 type EpisodeNode = {
   id?: string
   titleText?: { text?: string } | null
@@ -59,16 +61,31 @@ const TITLE_QUERY = titleQuery('')
 const NAME_FIELDS = 'id nameText { text } primaryImage { url }'
 const TITLE_DETAILS_QUERY = titleQuery(` cast: credits(first: 25, filter: { categories: ["cast"] }) { edges { node { name { ${NAME_FIELDS} } ... on Cast { characters { name } } } } } crew: principalCredits(filter: { categories: ["director", "writer", "creator"] }) { category { id } credits { name { ${NAME_FIELDS} } } }`)
 
-const graphql = <T>(query: string, variables: Record<string, string>, ctx: ExtractorServerContext): Promise<T | undefined> =>
+const graphql = <T>(query: string, variables: Record<string, string>, ctx: ExtractorServerContext, headers?: Record<string, string>): Promise<T | undefined> =>
   ctx
     .fetch(GRAPHQL, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-imdb-client-name': CLIENT_NAME },
+      headers: { 'content-type': 'application/json', 'x-imdb-client-name': CLIENT_NAME, ...headers },
       body: JSON.stringify({ query, variables }),
     })
     .then(r => r.json() as Promise<{ data?: T }>)
     .then(answer => answer.data)
     .catch(() => undefined)
+
+// The languages imdb.com is offered in, and so the only ones it is asked in
+const LANGUAGES = ['fr-FR', 'fr-CA', 'de-DE', 'es-MX', 'es-ES', 'hi-IN', 'it-IT', 'pt-BR']
+const TRANSLATION_QUERY = 'query Title($id: ID!) { title(id: $id) { titleText { text } plot { plotText { plainText } language { id } } } }'
+
+/** The title and plot of `id` in the viewer's language, a plot only where IMDb says it is in that language. */
+const translationOf = async (id: string, ctx: ExtractorServerContext) => {
+  const locale = askedLocale(ctx.language)
+  const asked = locale && bestLanguage([locale.baseName], LANGUAGES)
+  if (!asked) return undefined
+  const headers = { 'x-imdb-user-language': asked, 'x-imdb-user-country': asked.slice(3) }
+  const title = (await graphql<{ title?: Title | null }>(TRANSLATION_QUERY, { id }, ctx, headers))?.title
+  const plot = localeOf(title?.plot?.language?.id ?? '')?.language === locale.language ? title?.plot?.plotText?.plainText : undefined
+  return { language: locale.language, title: title?.titleText?.text, synopsis: plot }
+}
 
 const FILM_TYPES = new Set(['movie', 'tvMovie'])
 const SERIES_TYPES = new Set(['tvSeries', 'tvMiniSeries'])
@@ -181,7 +198,10 @@ export const resolvers: Resolvers = {
       subscribe: async function* (_, { input: { uri, details } }, ctx: ExtractorServerContext) {
         if (!uri || !(isUri(uri) || isAggregatedUri(uri))) return yield { media: null }
         const omdbUri = extractAggregatedUriOrigin(uri, origin)
-        yield { media: omdbUri ? (await getMedia(omdbUri.id, ctx, details)) ?? null : null }
+        if (!omdbUri) return yield { media: null }
+        const [media, translation] = await Promise.all([getMedia(omdbUri.id, ctx, details), translationOf(omdbUri.id, ctx)])
+        // after a film's episode copies the media's title and synopsis, which pair it with other sources' episodes
+        yield { media: media && translation ? withTranslation(media, translation.language, SCORE, translation) : media ?? null }
       }
     },
     mediaPage: {
