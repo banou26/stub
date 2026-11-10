@@ -390,7 +390,7 @@ const withoutCopiedDates = (seasons: JWSeason[]): JWSeason[] => {
       : season)
 }
 
-// Not Japanese, until the owner decides whether a Japanese viewer sees anime titles in Japanese script (STUB-374):
+// Not Japanese, until the owner decides whether a Japanese viewer sees anime titles in Japanese script:
 // JustWatch's Japanese title for Frieren is a kana reading, そうそうのフリーレン. Not Chinese: asked `zh`, it answers one
 // script for a viewer reading either, and mixes them, Frieren's title Traditional (葬送者芙莉蓮) and its synopsis
 // Simplified (2026-11-10).

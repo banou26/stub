@@ -1,4 +1,4 @@
-// A show's title and synopsis in the viewer's language, where a source has them (STUB-374). A translated title ranks a
+// A show's title and synopsis in the viewer's language, where a source has them. A translated title ranks a
 // tenth of its source's score and nothing compares it, so the stored order, every merge and every link a source makes
 // stay the same whatever the viewer's language; only the worker's field resolvers put the viewer's language first.
 
