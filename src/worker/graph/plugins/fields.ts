@@ -486,8 +486,8 @@ export const aggregateFields = (options: {
   /** The sources the viewer turned off (src/worker/disabled-origins.ts): no value ranks as one of them. */
   off?: Iterable<string>
   /**
-   * The members of every show this cluster is the first run of (`Cluster.preferredRun`), whose translated titles and
-   * synopses are this run's too when it carries the show's name. A later season is no show's first run.
+   * The members of every show this cluster is the first run of, starting when the show does (plugins/aggregate.ts),
+   * whose translated titles and synopses are this run's too when it carries the show's name.
    */
   show?: readonly MemberRow[]
 }): AggregatedMedia => {

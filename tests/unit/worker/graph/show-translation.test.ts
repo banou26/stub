@@ -2,7 +2,7 @@
 // in the viewer's language reached the search card, while the page, which follows the show to TMDB's first season,
 // stayed English. TheTVDB's rows are its extractor's own over the recorded searches (tests/unit/sources/tvdb), and the
 // two seasons are TMDB's as it names them, each with the show's title; the second is made up, two years on, and so is
-// Breaking Bad's run with a name of its own.
+// Breaking Bad's run with a name of its own, which starts with the show.
 import { readFileSync } from 'node:fs'
 
 import { afterAll, beforeAll, expect, test } from 'vite-plus/test'
@@ -78,13 +78,21 @@ test('a French viewer\'s first season reads TheTVDB\'s French title and overview
   expect(page.synopses).toEqual([expect.stringMatching(/^Printemps 1945 - enfin la paix en Europe\./)])
 })
 
-// Mutation: hand the show to every run attached to it rather than its `preferredRun`, and the second season reads French.
+// Mutation: drop the start day check (plugins/aggregate.ts), and the second season reads French.
 test('a later season reads none of the show\'s translation', async () => {
   expect(await shown('tmdb:112370-s2', 'fr-FR')).toEqual({ page: 'ag:(tmdb:112370-s2)', titles: ['Labyrinth of Peace'], synopses: [OWN] })
 })
 
 // Mutation: drop the name check from `translationsOf` (plugins/fields.ts), and the run reads TheTVDB's French overview.
 test('a first run with a name of its own reads none of the show\'s translation', async () => {
-  await pass([runRow('tmdb:1396-s1', 'Breaking Bad: Original Minisodes', '2009-02-17', 'tt0903747'), await tvdbRow('fr-FR', '81189')])
+  await pass([runRow('tmdb:1396-s1', 'Breaking Bad: Original Minisodes', '2008-01-20', 'tt0903747'), await tvdbRow('fr-FR', '81189')])
   expect(await shown('tvdb:81189', 'fr-FR')).toEqual({ page: 'ag:(tmdb:1396-s1)', titles: ['Breaking Bad: Original Minisodes'], synopses: [OWN] })
+})
+
+// Frieren's second season opened before its first, as a reload or a shared link does: JustWatch titles that season with
+// the show's name, and it is the show's only run in the store.
+// Mutation: drop the start day check (plugins/aggregate.ts), and the season reads TheTVDB's German title.
+test('a later season alone in the store reads none of the show\'s translation', async () => {
+  await pass([runRow('tmdb:209867-s2', 'Frieren: Beyond Journey\'s End', '2026-01-16', 'tt22248376'), await tvdbRow('de-DE', '424536')])
+  expect(await shown('tvdb:424536', 'de-DE')).toEqual({ page: 'ag:(tmdb:209867-s2)', titles: ['Frieren: Beyond Journey\'s End'], synopses: [OWN] })
 })

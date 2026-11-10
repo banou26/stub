@@ -48,6 +48,7 @@ import { heldMergeOrder } from '../../../sources/merge-order'
 import { disabledOrigins } from '../../disabled-origins'
 import { STREAMING_ORIGINS } from '../../../sources/justwatch/id'
 import { tieredConsensus } from '../../store/consensus'
+import { START_DATE_WINDOW_DAYS } from '../../store/fuzzy-merge'
 import { readAnomalies } from './anomalies'
 import { attachmentsOf, listingIndexOf, listingVerdict, preferredRunOf } from './containment'
 import { aggregateEpisodeFields, aggregateFields, byScoreThenUri, cardOf } from './fields'
@@ -846,13 +847,14 @@ export const aggregatePlugin: Plugin = {
     const clusterOf = (uri: string): string | undefined => memberCluster.get(uri)
     const attachments = attachmentsOf({ links: containment, clusterOf, clusters: clusterFacts })
     const listing = listingIndexOf({ clusters: clusterFacts, clusterOf, links: containment, attachments })
-    const preferredRuns = new Map<string, string>()
+    // A show's start day is its first run's premiere (`laterRunAgainstContainer`, ./title.ts), so a run starting within
+    // the window two sources place one run in is that first run, whichever other runs of the show the store holds.
     const showsOf = new Map<string, string[]>()
-    for (const cluster of clusterFacts.values()) {
-      const run = cluster.scope === 'CONTAINER' ? preferredRunOf({ container: cluster.id, attachments, clusters: clusterFacts }) : null
-      if (!run) continue
-      preferredRuns.set(cluster.id, run)
-      showsOf.set(run, [...showsOf.get(run) ?? [], cluster.id])
+    for (const { from, to } of attachments) {
+      const run = clusterFacts.get(from)
+      const show = clusterFacts.get(to)
+      if (run?.scope !== 'RUN' || show?.scope !== 'CONTAINER' || run.startDay === null || show.startDay === null) continue
+      if (Math.abs(run.startDay - show.startDay) <= START_DATE_WINDOW_DAYS) showsOf.set(from, [...showsOf.get(from) ?? [], to])
     }
 
     const anomalies = await readAnomalies(ctx.query)
@@ -926,7 +928,9 @@ export const aggregatePlugin: Plugin = {
       // store-wide truth about a LISTING, and the resolve answers with the cluster holding the asked
       // row whatever it says, so the column never depends on who is looking.
       const verdict = listingVerdict(facts, listing)
-      const preferredRun = preferredRuns.get(id) ?? null
+      const preferredRun = scope === 'CONTAINER'
+        ? preferredRunOf({ container: id, attachments, clusters: clusterFacts })
+        : null
 
       // THE SLOTS. The member episodes of this cluster, trimmed, grouped, and materialized.
       const own = members.flatMap(member => episodesByMedia.get(member.uri) ?? [])
