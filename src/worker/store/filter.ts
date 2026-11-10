@@ -8,6 +8,8 @@ import type { Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { site, siteAllows, type Site } from '../../site'
 import { genreKey } from '../../sources/justwatch/genres'
+import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../sources/utils'
+import { idParentCandidate } from '../graph/plugins/profile'
 
 /**
  * The subset of `MediaPageInput` decided here, as plain data.
@@ -156,6 +158,25 @@ export const thinLast = <T extends Hit>(medias: readonly T[]): T[] =>
   [...medias.filter(media => !isThin(media)), ...medias.filter(isThin)]
 
 /**
+ * The rows less every season whose live-action show is among them: the show stands for its seasons, and a search over
+ * a store holding the season the show was opened at listed both. A season is told by its own ids, each source's
+ * extending the show's (`tmdb:<show>-s<n>`, `nf:<title>-<n>`), and not by what the graph attached it to: a season a
+ * source answered alone is attached to nothing yet, and a film a title match hung under a show is no season. An anime
+ * show is hidden behind its runs where it has any, and is left as it is. `members` is the graph store's.
+ */
+const lessShownSeasons = <T extends { _id?: unknown, categories?: readonly string[] | null, members?: readonly string[] }>(
+  rows: readonly T[]
+): T[] => {
+  const showOf = new Map(rows
+    .filter(row => !(row.categories ?? []).includes('ANIME'))
+    .flatMap(row => (row.members ?? []).map(uri => [uri, row._id] as const)))
+  return rows.filter(row => !(row.members ?? []).some(uri => {
+    const show = showOf.get(idParentCandidate(uri) ?? '')
+    return show !== undefined && show !== row._id
+  }))
+}
+
+/**
  * The rows a page keeps, a listing's in the order its sources answered them. On a page of a season or a year each
  * reads as listed there, with the season, year and share of the pair it matched: a show two seasons list is labelled
  * and ranked as the page's own on both.
@@ -169,6 +190,33 @@ export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categorie
   const pair = (input.season || input.seasonYear) && listedIn(row, input, current)
   return pair && pair !== row ? { ...row, season: pair.season, seasonYear: pair.seasonYear, popularity: pair.popularity } : row
 })
+
+/**
+ * A page as `mediaPage` draws it, the same on both stores: `pageRows`, a search's relevance cut and order, the seasons
+ * whose show is drawn left off, then the sorts. It runs after the hide, which on the graph path is store-wide and
+ * written into the cluster: dropping a run before the hide leaves its container behind as an orphan card. A season
+ * is left off only after the cut, as a show the search drops stands for none of its seasons.
+ */
+export const sortPage = async <T extends GQLMedia & Seasoned>(
+  rows: readonly T[],
+  input: MediaPageFilters & { search?: string | null, sorts?: readonly string[] | null },
+  answered: readonly string[],
+  current: Site = site
+): Promise<T[]> => {
+  let page = pageRows(rows, input, answered, current)
+  const { search } = input
+  if (search) {
+    const scored = await Promise.all(page.map(async media => ({
+      media,
+      score: await searchRelevance(search, (media.titles ?? []).map(title => title.title)),
+    })))
+    page = thinLast(scored
+      .filter(entry => entry.score >= SEARCH_RELEVANCE_THRESHOLD)
+      .sort((a, b) => b.score - a.score || (b.media.followers ?? 0) - (a.media.followers ?? 0))
+      .map(entry => entry.media))
+  }
+  return applyMediaSorts(lessShownSeasons(page), input)
+}
 
 // Nulls are decided BEFORE the direction, so reversing the order does not reverse where an unranked
 // row lands. A media with no count is unranked rather than unpopular, so it sorts last either way, the

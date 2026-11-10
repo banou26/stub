@@ -4,7 +4,7 @@
 // anyway, and each is the kind of change a reviewer makes on purpose, believing it kinder.
 import { describe, expect, test } from 'vite-plus/test'
 
-import { applyMediaFilters, inAnswerOrder, isListing, pageRows, siteMedia, type MediaPageFilters } from '../../../../src/worker/store/filter'
+import { applyMediaFilters, inAnswerOrder, isListing, pageRows, siteMedia, sortPage, type MediaPageFilters } from '../../../../src/worker/store/filter'
 
 // an aggregated row as the page receives it, defaulting to the shape a source that says nothing
 // produces: no type, no season, no labels
@@ -273,4 +273,23 @@ test('a season page draws a row two seasons list as listed in its own', () => {
   expect(pageRows([row], {}, [], 'anime')[0], 'and a page of no season draws the row itself').toBe(row)
   const legacy = media('anilist:1', { categories: ['ANIME'], season: 'FALL', seasonYear: 2026, popularity: 0.5 })
   expect(pageRows([legacy], { season: 'FALL', seasonYear: 2026 }, [], 'anime')[0], 'as it does a row with no pairs').toBe(legacy)
+})
+
+// Mutation: leave seasons off before the search's cut, and a search for a season's own name lists nothing, as its show
+// is dropped too; drop the ANIME clause, and an anime show listed beside its runs takes their place; let a row's ids
+// match its own, and a show holding one of its seasons drops itself.
+test('a season is left off only beside a live-action show the page draws', async () => {
+  const row = (members: string[], title: string, categories = ['SERIES']) => media(`ag:(${members.join(',')})`, {
+    _id: `cl:${members[0]}`, members, categories, titles: [{ title }], startDate: '2011', covers: [], banners: [], handles: [],
+  })
+  const show = row(['nf:70177057', 'tmdb:1413'], 'American Horror Story')
+  const season = row(['nf:70177057-3', 'tmdb:1413-s3'], 'Coven')
+  const alone = row(['nf:70177057-1'], 'American Horror Story')
+  expect(uris(await sortPage([show, season, alone], {}, [], 'series'))).toEqual([show.uri])
+  expect(uris(await sortPage([show, season], { search: 'coven' }, [], 'series'))).toEqual([season.uri])
+  const welded = row(['nf:70177057', 'nf:70177057-1', 'tmdb:1413'], 'American Horror Story')
+  expect(uris(await sortPage([welded], {}, [], 'series')), 'a show holding its own season').toEqual([welded.uri])
+  const anime = row(['cr:GG5H5XQX4', 'tvdb:1'], 'Frieren', ['ANIME', 'SERIES'])
+  const run = row(['cr:GG5H5XQX4-GYE5CQMQ5'], 'Frieren Season 2', ['ANIME', 'SERIES'])
+  expect(uris(await sortPage([anime, run], {}, [], 'anime'))).toEqual([anime.uri, run.uri])
 })

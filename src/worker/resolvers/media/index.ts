@@ -6,7 +6,7 @@ import _schema from './schema.gql?raw'
 import { implementsSimilarMedia, proxyRequestToExtractors, similarOutcomeFrom } from '../../extractor'
 import { resolveSimilarRuns } from '../../similar-consumer'
 import { findAggregatedMedia, findAllAggregatedMedia, findAggregatedEpisodesForMedia, findMediaForPage, findRunEpisodes, hideAttachedContainers } from '../../store/db'
-import { applyMediaSorts, isListing, pageRows, siteMedia, thinLast } from '../../store/filter'
+import { isListing, siteMedia, sortPage } from '../../store/filter'
 import { fuzzyMergeMediaClusters } from '../../store/fuzzy-merge'
 import { aggregateMedia, aggregateEpisode, sameAsHandleUris } from '../../store/aggregate'
 import { askAddressOf, createMediaReader, createPageReader, episodesOf, followedShowAddress, passSettled, readStore } from '../../graph'
@@ -15,7 +15,6 @@ import { createSettling } from '../../fanout'
 import { descriptionAs } from '../utils'
 import { heldViewerLanguages } from '../../../viewer-languages'
 import { synopsesIn, translationFirst } from '../../../sources/translations'
-import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../../sources/utils'
 import { decodeRouteUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
 
 export const schema = _schema as string
@@ -236,39 +235,6 @@ export const resolvers = {
         // names clusters that moved, and a uri answered late names a cluster that did not.
         let seeded = -1
 
-        /**
-         * Everything decidable from an aggregated row or a card, in one pinned place and VERBATIM on
-         * both stores: the graph's page is the same three functions over the same fields, which is
-         * what makes the two paths comparable at all.
-         */
-        const sortPage = async (rows: Media[], uris: string[]) => {
-          // It runs AFTER the hide, which on the graph path is store-wide and written into the
-          // cluster: dropping a run before the hide leaves its container behind as an orphan card.
-          let aggregated = pageRows(rows, args.input, uris)
-
-          const search = args.input.search
-          if (search) {
-            const scored = await Promise.all(
-              aggregated.map(async media => ({
-                media,
-                score: await searchRelevance(search, (media.titles ?? []).map(title => title.title))
-              }))
-            )
-            aggregated = thinLast(
-              scored
-                .filter(entry => entry.score >= SEARCH_RELEVANCE_THRESHOLD)
-                .sort((a, b) => b.score - a.score || (b.media.followers ?? 0) - (a.media.followers ?? 0))
-                .map(entry => entry.media)
-            )
-          }
-
-          // `POPULARITY` is ascending and `POPULARITY_DESC` descending, the reading the `_DESC` suffix
-          // carries everywhere else, this app's own AniList calls included. Both members pointed the
-          // other way until 2026-09-12. The home row and the search page ask for `POPULARITY_DESC` and
-          // render the list in the order given, so this is what puts the most popular card first.
-          return applyMediaSorts(aggregated, args.input)
-        }
-
         const getPage = async () => {
           const uris = [...insertedUris]
           narrowed ||= uris.length > 0
@@ -281,7 +247,7 @@ export const resolvers = {
             named.clear()
             const cards = uris.length === seeded ? await page.apply(ids, uris) : await page.read(uris)
             seeded = uris.length
-            return sortPage(cards as unknown as Media[], uris)
+            return sortPage(cards as unknown as Media[], args.input, uris)
           }
           // THE WHOLE-STORE FALLBACK IS LOAD BEARING, and it does not look it.
           //
@@ -305,7 +271,7 @@ export const resolvers = {
           clusters = hideAttachedContainers(clusters)
           // a container is only hidden when a run cluster in the SAME LIST points at it, which is why
           // the hide runs here and the filter runs inside `sortPage`
-          return sortPage(clusters.map(cluster => aggregateMedia(cluster, location.origin)), uris)
+          return sortPage(clusters.map(cluster => aggregateMedia(cluster, location.origin)), args.input, uris)
         }
 
         try {
