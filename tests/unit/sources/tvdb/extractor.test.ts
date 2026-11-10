@@ -173,3 +173,16 @@ test('a series names no episode list, the site naming its episodes only in the s
 test('the helper defaults to RUN, so CONTAINER is this source saying so', () => {
   expect(makeMedia({ origin, id: '424536' }).scope).toBe('RUN')
 })
+
+test('the site\'s missing-artwork stand-in is no poster', async () => {
+  const hit = (id: number, image_url: string) => ({ id, name: `Series ${id}`, image_url })
+  const answer = { results: [{ hits: [
+    hit(1, 'https://artworks.thetvdb.com/banners/images/missing/series.jpg'),
+    hit(2, 'https://artworks.thetvdb.com/banners/posters/5bd0dd7924433.jpg'),
+  ] }] }
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const { value } = await subscribe(undefined, { input: { search: 'series' } }, { fetch: async () => ({ json: async () => answer }) } as never).next()
+  const covers = (value.mediaPage.nodes as { covers?: { url: string }[] }[]).map(row => row.covers?.map(cover => cover.url) ?? [])
+
+  expect(covers).toEqual([[], ['https://artworks.thetvdb.com/banners/posters/5bd0dd7924433.jpg']])
+})

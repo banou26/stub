@@ -36,6 +36,9 @@ type Hit = {
   remote_ids?: RemoteId[]
 }
 
+// The site's own stand-in when a series has no artwork (a grey texture), not a poster.
+const MISSING_ARTWORK = '/banners/images/missing/'
+
 type SearchParams = { query: string, filters: string, hitsPerPage: number }
 
 const search = (params: SearchParams, ctx: ExtractorServerContext): Promise<Hit[]> =>
@@ -118,7 +121,7 @@ const normalize = (hit: Hit, language: string): GQLMedia | undefined => {
     score: SCORE,
     titles: titlesOf(hit),
     ...desc(hit.overviews?.eng, SCORE),
-    covers: img(hit.image_url, SCORE),
+    covers: img(hit.image_url?.includes(MISSING_ARTWORK) ? undefined : hit.image_url, SCORE),
     startDate: hit.first_air_date || undefined,
   }), hit, language)
 }
