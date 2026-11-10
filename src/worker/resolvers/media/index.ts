@@ -30,9 +30,9 @@ export const resolvers = {
       resolve: (parent: Media) => parent,
       subscribe: async function* (_parent, args, ctx: ExtractorServerContext) {
         const requestedUri = decodeRouteUri(args.input.uri ?? undefined)
+        // an address that names no uri is a title no source answers
         if (!requestedUri || !(isUri(requestedUri) || isAggregatedUri(requestedUri))) {
-          // a refused page and a slow one are indistinguishable from outside the worker without this
-          console.warn(`media: refused '${args.input.uri}', which names no uri`)
+          yield null
           return
         }
         // THE READ STORE IS READ ONCE, at subscribe time: a flag that moved mid subscription would

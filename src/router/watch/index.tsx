@@ -41,8 +41,9 @@ import { usePluginStatuses } from '../../utils/use-plugin-statuses'
 import { AggregatedUri, asAggregatedUri, extractAggregatedUriOrigin, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
 import { Episodes, EpisodesPlaceholder, useTrackingSummary } from '../home/media-details'
 import { unreleasedOf } from '../home/episodes'
-import { currentMedia } from '../home/modal-media'
+import { currentMedia, notKept } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
+import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { foundSignedIn, neverSignedIn as neverSignedInTo, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
@@ -943,6 +944,8 @@ const Watch = () => {
   const pickedRun = useRun(pickedUri)
   const listed = picked ? pickedRun : playing
   const tracked = useTrackingSummary(listed?.uri)
+
+  if (notKept(watchMedia, params.mediaUri)) return <NotFound/>
 
   return (
     <div css={style}>

@@ -90,10 +90,10 @@ vi.mock('../../../src/worker/store/aggregate', async original => ({
 
 const { resolvers } = await import('../../../src/worker/resolvers/media/index')
 
-const open = () => {
+const open = (uri = 'ag:(anilist:1)') => {
   const controller = new AbortController()
-  const ctx = { request: { signal: controller.signal }, params: { query: 'Q', variables: { input: { uri: 'ag:(anilist:1)' } } } }
-  const answers = (resolvers.Subscription.media.subscribe as any)(undefined, { input: { uri: 'ag:(anilist:1)' } }, ctx) as AsyncGenerator<{ settled: boolean, rows?: number }>
+  const ctx = { request: { signal: controller.signal }, params: { query: 'Q', variables: { input: { uri } } } }
+  const answers = (resolvers.Subscription.media.subscribe as any)(undefined, { input: { uri } }, ctx) as AsyncGenerator<{ settled: boolean, rows?: number }>
   const answer = async () => (await answers.next()).value!
   return { answer, next: async () => (await answer()).settled, close: () => { controller.abort(); void answers.return(undefined as never) } }
 }
@@ -155,6 +155,13 @@ describe('the media subscription', { timeout: 5_000 }, () => {
 
     tvmaze!.end()
     expect(await next).toBeNull()
+  })
+
+  // anime.fkn.app/watch/garbage/also-garbage stayed on placeholders, the subscription ended without an answer (2026-11-10)
+  test('answers null at once for an address that names no uri', async () => {
+    const media = open('garbage')
+    opened.push(media)
+    expect(await media.answer()).toBeNull()
   })
 
   test('answers null on the first read when no source is out', async () => {

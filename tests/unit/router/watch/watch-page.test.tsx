@@ -64,7 +64,8 @@ vi.mock('urql', async () => {
       if (uri === params.mediaUri) watchQuery = printed
       else if (!pause && !asked.includes(uri)) asked.push(uri)
       const answer = uri === params.mediaUri ? media : runs[uri]
-      if (answer && !pause) last.current = { data: { media: answer }, operation: { variables } }
+      // null is the worker's word that no source answered the address
+      if (answer !== undefined && !pause) last.current = { data: { media: answer }, operation: { variables } }
       return [last.current]
     },
     useMutation: () => [{}, async ({ input }: { input: { trackers: string[] } }) => {
@@ -699,6 +700,19 @@ test('an episode or a film not out yet that lists no source is not asked about',
     await settle()
     expect(noSource(host), (unreleased as { type?: string }).type).toBeNull()
   }
+})
+
+// STUB-402: anime.fkn.app/watch/ag:(anilist:999999999)/ag:(anizip:999999-1) stayed on placeholders (2026-11-10)
+test('an address no source answered ends on a 404, and not while it is still asking', async () => {
+  vi.useFakeTimers()
+  media = undefined as unknown as object
+  const { host, rerender } = live()
+  await settle()
+  expect(host.textContent).not.toContain('404')
+
+  media = null as unknown as object
+  await rerender()
+  expect(host.textContent).toBe('404 No page found')
 })
 
 test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {
