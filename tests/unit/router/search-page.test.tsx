@@ -91,10 +91,10 @@ const typingInHeader = () => {
   Object.defineProperty(document, 'activeElement', { configurable: true, get: () => box })
 }
 
-const open = (path: string) => {
+const open = (path: string, covered?: boolean) => {
   vi.useFakeTimers()
   const location = memoryLocation({ path, record: true })
-  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Search/></Router>))
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><Search covered={covered}/></Router>))
   hosts.push(host)
   const field = host.querySelector<HTMLInputElement>('input[aria-label="Search by title"]')!
   return {
@@ -453,6 +453,14 @@ describe('the scene search', () => {
     await flush()
     expect(event.defaultPrevented).toBe(true)
     expect(page.history).toEqual(['/search?q=mushoku', `/search?scene=${CODE}`])
+  })
+
+  test('under a preview the page takes no pasted picture, so the header\'s bar takes it alone', async () => {
+    const page = open('/search?q=mushoku', true)
+    const event = pasted(picture())
+    await flush()
+    expect(event.defaultPrevented).toBe(false)
+    expect(page.history).toEqual(['/search?q=mushoku'])
   })
 
   test('a paste of text with a picture beside it, as Word and Excel copy, is the field\'s', async () => {

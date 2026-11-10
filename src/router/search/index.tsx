@@ -310,7 +310,8 @@ const variablesFor = (filters: SearchFilters) => ({
   ...filters.tags.length ? { tags: filters.tags } : {},
 })
 
-const Search = () => {
+/** The search page. `covered` while a preview is drawn over it: it then takes no pasted or dropped picture, the header's bar does. */
+const Search = ({ covered = false }: { covered?: boolean }) => {
   const intl = useIntl()
   const search = useSearch()
   const [, navigate] = useLocation()
@@ -321,7 +322,7 @@ const Search = () => {
   const asked = !scene && namesAQuery(filters)
 
   const { searchPicture, unreadable } = usePictureSearch()
-  usePictureInput(searchPicture, !LIVE_ACTION_SITE)
+  usePictureInput(searchPicture, !LIVE_ACTION_SITE && !covered)
 
   // The url is the state, so a control writes to it and re-renders from it. `replace` keeps the back
   // button pointing at wherever the user came from rather than at every intermediate filter set.

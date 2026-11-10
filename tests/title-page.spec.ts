@@ -1495,6 +1495,40 @@ test('a work opened from a search opens over its results, and closing it, or Bac
   }
 })
 
+test('over a search, a picture pasted on the preview is left alone, and one pasted in the header\'s bar is one step', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/`)
+  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  await page.goto(`${origin}${season}`)
+  await page.locator('.grid a.card.link[href^="/media/"]').first().click({ timeout: 30_000 })
+  await expect(modal(page).locator('h2.title')).toHaveText(/\S/, { timeout: 30_000 })
+  const preview = page.url()
+  const paste = () => page.evaluate(async () => {
+    const canvas = new OffscreenCanvas(64, 36)
+    const context = canvas.getContext('2d')!
+    context.fillStyle = '#c33'
+    context.fillRect(0, 0, 64, 36)
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([await canvas.convertToBlob({ type: 'image/png' })], 'shot.png', { type: 'image/png' }))
+    const event = new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })
+    ;(document.activeElement ?? document).dispatchEvent(event)
+    return { taken: event.defaultPrevented, steps: history.length }
+  })
+
+  await modal(page).focus()
+  expect((await paste()).taken, 'on the preview').toBe(false)
+  await expect(page).toHaveURL(preview)
+
+  // the open preview hides the rest of the page from the accessibility tree, so the bar is found by its place
+  await page.locator('header form input:not([type="file"])').click()
+  const { taken, steps } = await paste()
+  expect(taken, 'in the bar').toBe(true)
+  await expect(page).toHaveURL(/\/search\?scene=/)
+  expect(await page.evaluate(() => history.length), 'one step').toBe(steps + 1)
+  await page.goBack()
+  await expect(page).toHaveURL(preview)
+})
+
 test('a work opened from the home page still closes to the home page', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${origin}/`)
