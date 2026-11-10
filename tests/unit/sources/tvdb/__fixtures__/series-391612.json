@@ -1,0 +1,44 @@
+{
+  "results": [
+    {
+      "hits": [
+        {
+          "id": 391612,
+          "name": "Frieden",
+          "slug": "frieden",
+          "first_air_date": "2020-11-08",
+          "image_url": "https://artworks.thetvdb.com/banners/series/391612/posters/5fa96d6106bf5.jpg",
+          "primary_language": "deu",
+          "translations": {
+            "deu": "Frieden",
+            "eng": "Labyrinth of Peace",
+            "fin": "Rauhan hinta",
+            "fra": "Le prix de la paix",
+            "ita": "Il Prezzo Della Pace",
+            "por": "Paz",
+            "spa": "Laberinto de paz"
+          },
+          "overviews": {
+            "deu": "Die Sehnsucht nach einem Neuanfang ist gross, aber die Vergangenheit lässt sich nicht einfach abschütteln. Es ist das Portrait einer Generation, die nach dem Krieg massgeblich daran beteiligt war, die Grundlagen für die Schweiz von heute zu schaffen. Und es ist eine Geschichte über deren guten Willen und wie sie dabei ihre Unschuld verloren hat.",
+            "eng": "Year 1945. The war is over and neutral Switzerland has been saved from the conflict. Klara's family looks forward to the future as she cares for young Holocaust survivors. Johann hopes to save and modernize his father-in-law's textile business. And Egon, fresh from military service, takes his first steps in the Attorney General's office chasing fugitive Nazis. The three soon realize that the facade of peace is bought with the blood of war victims. Johann's career ambitions bring him closer to those who committed heinous war crimes. Klara risks her marriage as she grows closer and closer to one of the survivors, whom the locals receive with distrust. And Egon finds himself trapped in a system that voluntarily turns a blind eye to Nazi criminals for financial reasons.",
+            "fin": "Puolueeton Sveitsi vältti itse maailmansotien karikot, ja siksi toisen maailmansodan päätyttyä maa teki paljon sodasta kärsineiden auttamiseksi. Keväällä 1945 Toblerin tekstiilitehtailijasuvun tytär Klara on menossa vihille sulhasensa Johannin kanssa, joka työskentelee tulevan appensa tehtaassa. Klara toimii hoivatyössä Punaisen ristin perustamassa lasten vastaanottokodissa, ja Johannin veli Egon toimii poliisina. Näiden kolmen nuoren urat ja elämänpolut kietoutuvat toisiinsa ja ympäröivän maailman kyräilyyn peruuttamattomasti.",
+            "fra": "Printemps 1945 - enfin la paix en Europe. Klara, Johann et Egon font face à l'héritage de la guerre et cherchent un moyen de façonner l'avenir de différentes manières. \r\nÀ travers une histoire de famille, la série se penche sur un pan important de l'histoire suisse, peu connu du public. C'est aussi le portrait d'une génération qui a joué un rôle majeur dans la mise en place des bases de la Suisse d'aujourd'hui. Une histoire sur la volonté de changement de cette génération et sur la façon dont elle a perdu son innocence dans le processus.",
+            "ita": "Nella primavera del 1945, la pace in Europa mette tre giovani svizzeri a confronto con delle grandi sfide. Klara, la figlia del proprietario di una fabbrica, si occupa di giovani ragazzi sopravvissuti ai campi di concentramento. Nel frattempo, suo marito Johann vuole evitare la rovina dell'azienda di famiglia, mentre suo fratello Egon dà la caccia ai nazisti che si nascondono in Svizzera.",
+            "por": "1945. A guerra acabou e finalmente há paz na Europa. Também na Suíça, um pequeno país neutro no coração da Europa, uma geração inteira respira aliviada ao enfrentar um futuro novo e promissor. Klara e Johann querem casar-se. Enquanto Klara cuida de jovens judeus num campo de refugiados e os ajuda na busca de sobreviventes da família, Johann tem grandes planos para a fábrica do sogro e espera salvar e modernizar a bem estabelecida, mas problemática, empresa têxtil.\r\nAo voltar do serviço militar, Egon, irmão de Johann, dá os primeiros passos no gabinete do procurador-geral, tentando estabelecer-se na sua nova normalidade depois de ter vivenciado os horrores da guerra perto da fronteira. A sua missão é apanhar nazis fugitivos. Mas os três depressa percebem que a fachada de paz é comprada com o sangue das vítimas da guerra.",
+            "spa": "Año 1945. La guerra ha terminado y la neutral Suiza se ha salvado del conflicto. La familia de Klara mira con ilusión al futuro mientras ella cuida a los jóvenes supervivientes del Holocausto. Johann espera salvar y modernizar la empresa textil de su suegro. Y Egon, recién llegado del servicio militar, da sus primeros pasos en la oficina del Fiscal General persiguiendo a nazis fugitivos. Los tres pronto se dan cuenta de que la fachada de la paz se compra con la sangre de las víctimas de la guerra. Las ambiciones profesionales de Johann lo acercan a quienes cometieron crímenes de guerra atroces. Klara arriesga su matrimonio mientras se acerca cada vez más a uno de los supervivientes, a quienes los lugareños reciben con desconfianza. Y Egon se encuentra atrapado en un sistema que voluntariamente hace la vista gorda hacia los criminales nazis por motivos económicos."
+          },
+          "remote_ids": [
+            {
+              "id": "tt10639680",
+              "sourceName": "IMDB"
+            },
+            {
+              "id": "112370",
+              "sourceName": "TheMovieDB.com"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

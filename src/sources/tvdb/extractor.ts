@@ -3,6 +3,8 @@ import type { Resolvers, Media as GQLMedia } from '../../generated/schema/types.
 
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { makeMedia, desc, img } from '../utils'
+import { translatedTitle } from '../translations'
+import { bestLanguage, localeOf } from '../../i18n/best-language'
 
 const SCORE = 0.3
 // The search every thetvdb.com page points its search box at (`window.TVDB_SEARCH_URL`, read
@@ -66,10 +68,33 @@ const titlesOf = (hit: Hit) => {
   return titles
 }
 
-const normalize = (hit: Hit): GQLMedia | undefined => {
+// The entry of `map` in `language` under the tag stub writes: Intl.Locale reads TheTVDB's ISO 639-2 key `fra` as `fr`.
+// Its `zhtw` is no tag, so its Traditional Chinese is not read.
+const entryIn = (map: Record<string, string> = {}, language: string) => {
+  const key = bestLanguage([language], Object.keys(map).filter(key => map[key]))
+  return key ? { language: localeOf(key)!.baseName, text: map[key]! } : undefined
+}
+
+/**
+ * `media` with the series' title and overview in `language`, the viewer's, each where it is not one the media has
+ * already: the title in the series' own language is its `name`, and TheTVDB's `eng` the English.
+ */
+const withTranslation = (media: GQLMedia, hit: Hit, language: string): GQLMedia => {
+  const title = entryIn(hit.translations, language)
+  const overview = entryIn(hit.overviews, language)
+  const { descriptions = [], shortDescriptions = [] } = overview && overview.text !== hit.overviews?.eng ? desc(overview.text, SCORE, overview.language) : {}
+  return {
+    ...media,
+    titles: [...media.titles ?? [], ...title && !media.titles?.some(main => main.title === title.text) ? [translatedTitle(title.language, title.text, SCORE)] : []],
+    descriptions: [...media.descriptions ?? [], ...descriptions],
+    shortDescriptions: [...media.shortDescriptions ?? [], ...shortDescriptions],
+  }
+}
+
+const normalize = (hit: Hit, language: string): GQLMedia | undefined => {
   if (hit.id == null) return undefined
   const id = String(hit.id)
-  return makeMedia({
+  return withTranslation(makeMedia({
     origin,
     id,
     url: `https://thetvdb.com/dereferrer/series/${id}`,
@@ -81,7 +106,7 @@ const normalize = (hit: Hit): GQLMedia | undefined => {
     ...desc(hit.overviews?.eng, SCORE),
     covers: img(hit.image_url, SCORE),
     startDate: hit.first_air_date || undefined,
-  })
+  }), hit, language)
 }
 
 // No episode list. The site renders episodes only on its season pages, named in the series' own
@@ -90,12 +115,12 @@ const normalize = (hit: Hit): GQLMedia | undefined => {
 const getMedia = async (id: string, ctx: ExtractorServerContext): Promise<GQLMedia | undefined> => {
   const hits = await search({ query: '', filters: seriesFilter(id), hitsPerPage: 1 }, ctx)
   const hit = hits.find(candidate => String(candidate.id) === id)
-  return hit ? normalize(hit) : undefined
+  return hit ? normalize(hit, ctx.language) : undefined
 }
 
 const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<GQLMedia[]> =>
   (await search({ query, filters: seriesFilter(), hitsPerPage: 10 }, ctx))
-    .map(normalize)
+    .map(hit => normalize(hit, ctx.language))
     .filter((media): media is GQLMedia => !!media)
 
 export const resolvers: Resolvers = {

@@ -1,5 +1,6 @@
 // Recorded signed out on 2026-10-07, with no key, trimmed: thetvdb.com's own search for "frieren" among
-// series, and the same search asked for series 424536 by id.
+// series, and the same search asked for series 424536 by id. series-391612 is Frieden (Labyrinth of Peace), the first
+// hit of the same search on 2026-11-10, trimmed to what the extractor reads, with its titles and overviews in 7 languages.
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
@@ -8,12 +9,13 @@ import { makeMedia } from '../../../../src/sources/utils'
 
 const SEARCH = 'https://api4.thetvdb.com/web/search/queries'
 
-type Row = { uri?: string, scope?: string, url?: string, startDate?: string, titles: { language: string, title: string }[], handles: { node: { uri: string, scope?: string } }[], episodes?: unknown[] }
+type Row = { uri?: string, scope?: string, url?: string, startDate?: string, titles: { language: string, title: string }[], descriptions: { language: string, description: string }[], handles: { node: { uri: string, scope?: string } }[], episodes?: unknown[] }
 type Sent = { url: string, method?: string, headers: Record<string, string>, body: { requests: { indexName: string, params: { query: string, filters: string, hitsPerPage: number } }[] } }
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}.json`, import.meta.url), 'utf8'))
 
-const recorded = (sent: Sent[]) => ({
+const recorded = (sent: Sent[], language?: string) => ({
+  language,
   fetch: async (url: string, init: { method?: string, headers?: Record<string, string>, body: string }) => {
     const body = JSON.parse(init.body) as Sent['body']
     sent.push({ url, method: init.method, headers: init.headers ?? {}, body })
@@ -21,19 +23,20 @@ const recorded = (sent: Sent[]) => ({
     const { query, filters } = body.requests[0]!.params
     if (query === 'frieren' && filters === 'type:series') return { json: async () => fixture('search-frieren') }
     if (query === '' && filters === 'type:series AND id:424536') return { json: async () => fixture('series-424536') }
+    if (query === '' && filters === 'type:series AND id:391612') return { json: async () => fixture('series-391612') }
     return { json: async () => ({ results: [{ hits: [] }] }) }
   },
 }) as never
 
-const mediaFor = async (uri: string, sent: Sent[] = []) => {
+const mediaFor = async (uri: string, sent: Sent[] = [], language?: string) => {
   const subscribe = (resolvers.Subscription as any).media.subscribe
-  const { value } = await subscribe(undefined, { input: { uri } }, recorded(sent)).next()
+  const { value } = await subscribe(undefined, { input: { uri } }, recorded(sent, language)).next()
   return value?.media as Row | null
 }
 
-const searchFor = async (search: string, sent: Sent[] = []) => {
+const searchFor = async (search: string, sent: Sent[] = [], language?: string) => {
   const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
-  const { value } = await subscribe(undefined, { input: { search } }, recorded(sent)).next()
+  const { value } = await subscribe(undefined, { input: { search } }, recorded(sent, language)).next()
   return value?.mediaPage?.nodes as Row[]
 }
 
@@ -76,6 +79,40 @@ test('the English title is tagged en and the original name by the series\' own l
     ['en', "Frieren: Beyond Journey's End"],
     ['jp', '葬送のフリーレン'],
   ])
+})
+
+// Mutation: return `media` from `withTranslation` as it came, and a French viewer's page stays English.
+test('a French viewer gets the series\' French title and overview beside the English, from the answer already read', async () => {
+  const sent: Sent[] = []
+  const media = await mediaFor('tvdb:391612', sent, 'fr-CA')
+  expect(sent).toHaveLength(1)
+  expect(media!.titles).toEqual([
+    { language: 'en', title: 'Labyrinth of Peace', score: 0.3 },
+    { language: 'en', title: 'Frieden', score: 0.3 },
+    { language: 'fr', title: 'Le prix de la paix', score: 0.03, class: 'TRANSLATED' },
+  ])
+  expect(media!.descriptions.map(({ language, description }) => `${language} ${description.slice(0, 22)}`))
+    .toEqual(['en Year 1945. The war is ', 'fr Printemps 1945 - enfin'])
+})
+
+// Mutation: drop the comparison with the media's own titles in `withTranslation`, and Frieden's German viewer, its
+// English viewer and Frieren's Japanese viewer each get a "translation" that is a title the series has already.
+test('a title the series has already is no translation: its own name, and the English', async () => {
+  const german = await mediaFor('tvdb:391612', [], 'de-CH')
+  expect(german!.titles.map(({ title }) => title)).toEqual(['Labyrinth of Peace', 'Frieden'])
+  expect(german!.descriptions.map(({ language }) => language), 'its German overview is a synopsis still').toEqual(['en', 'de'])
+  const asBefore = await mediaFor('tvdb:391612')
+  expect(await mediaFor('tvdb:391612', [], 'en-GB')).toMatchObject({ titles: asBefore!.titles, descriptions: asBefore!.descriptions })
+  expect((await mediaFor('tvdb:424536', [], 'ja-JP'))!.titles, 'Frieren\'s native name, no Japanese title before the owner decides')
+    .toEqual((await mediaFor('tvdb:424536'))!.titles)
+  expect((await mediaFor('tvdb:424536', [], 'de'))!.titles.at(-1), 'the control')
+    .toEqual({ language: 'de', title: 'Frieren - Nach dem Ende der Reise', score: 0.03, class: 'TRANSLATED' })
+})
+
+// what keeps a search for a German title showing its series, the search page's relevance reading every title
+test('a search hit carries its title in the viewer\'s language', async () => {
+  const rows = await searchFor('frieren', [], 'de-DE')
+  expect(rows.find(row => row.uri === 'tvdb:424536')!.titles.at(-1)).toEqual({ language: 'de', title: 'Frieren - Nach dem Ende der Reise', score: 0.03, class: 'TRANSLATED' })
 })
 
 test('an id the site has no series for is no media', async () => {
