@@ -684,6 +684,27 @@ test('an episode out that lists no source offers Browse sources once every sourc
   expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
 })
 
+// STUB-396: an address naming a torrent plugin's release, opened without the plugin, sat on the episode's still (2026-11-11)
+test('an episode out that lists no source offers Browse sources too when the address names a source it does not list, and one listing sources to pick keeps its still', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  plugins.statuses = []
+  Object.assign(episode, { handles: [] })
+  params = { ...params, sourceUri: 'nyaa:1234567' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
+
+  premiumEpisode()
+  const listing = page()
+  hosts.push(listing)
+  await settle()
+  expect(listing.querySelector('a.source'), 'a source to pick').not.toBeNull()
+  expect(noSource(listing)).toBeNull()
+  expect(listing.querySelector('.watch-container > .player-container.still'), 'the episode\'s still').not.toBeNull()
+})
+
 test('an episode or a film not out yet that lists no source is not asked about', async () => {
   vi.useFakeTimers()
   origins = ['cr']

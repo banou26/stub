@@ -894,9 +894,10 @@ const Watch = () => {
   const episodes = media?.episodes ?? []
   const index = episode ? episodes.indexOf(episode) : -1
   const now = useNow()
-  // on an episode out now, or one that lists sources, as one not out yet often lists none
+  // on an episode out now, or one that lists sources, as one not out yet often lists none; an address naming a source
+  // the episode does not hold keeps the episode's still while it lists others to pick
   const out = Boolean(media && index >= 0 && !unreleasedOf(media, new Date(now))[index])
-  const noSource = stuck && !guest && !selectedSourceUri && (out || sources.length > 0)
+  const noSource = stuck && !guest && !selected && (sources.length ? !selectedSourceUri : out)
   // the player's box from the first frame, loading until something is in it or the page knows nothing is coming, and
   // kept with the episode's picture then, so the page under it never moves
   const empty = !noSource && !viaPlugin && !embedUrl && !needsExtension
