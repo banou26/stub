@@ -30,18 +30,20 @@ export type MediaPageFilters = {
 /** A season and its year as an answer named them for a row, and the share of that season it gave the row. */
 export type SeasonPair = { season: string | null, seasonYear: number | null, popularity: number | null }
 
-type Seasoned = Pick<GQLMedia, 'season' | 'seasonYear' | 'popularity' | 'startDate'> & { seasonPairs?: readonly SeasonPair[] }
+type Seasoned = Pick<GQLMedia, 'categories' | 'season' | 'seasonYear' | 'popularity' | 'startDate'> & { seasonPairs?: readonly SeasonPair[] }
 
 /**
  * The pair a season or a year filter matches: on the graph store any a member was listed in, the row's own first when
- * a year alone matches two, and else the row's own. A year alone matches a row no source names a year of, a film or a
- * show as the live-action sources answer them, by the year it started.
+ * a year alone matches two, and else the row's own. A year alone matches a film or a show as the live-action sources
+ * answer them, which name no season, by the year it started. Not an anime, whose year is its season's, but on
+ * movies.fkn.app, which asks no anime catalogue, every film is listed by the year it came out.
  */
-const listedIn = (media: Seasoned, { season, seasonYear }: MediaPageFilters): Seasoned | SeasonPair | undefined => {
+const listedIn = (media: Seasoned, { season, seasonYear }: MediaPageFilters, current: Site): Seasoned | SeasonPair | undefined => {
   const own = (pair: { season?: string | null, seasonYear?: number | null }) => Number(pair.season === media.season && pair.seasonYear === media.seasonYear)
   const pairs = media.seasonPairs?.length ? [...media.seasonPairs].sort((a, b) => own(b) - own(a)) : [media]
+  const byStart = !season && (current === 'movie' || !media.categories?.includes('ANIME'))
   return pairs.find(pair => (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))
-    ?? (!season && !pairs.some(pair => pair.seasonYear) && media.startDate?.slice(0, 4) === String(seasonYear) ? media : undefined)
+    ?? (byStart && media.startDate?.slice(0, 4) === String(seasonYear) ? media : undefined)
 }
 
 const labelSet = (labels: readonly string[] | null | undefined, key = (label: string) => label.toLowerCase()): Set<string> =>
@@ -74,7 +76,7 @@ const labelSet = (labels: readonly string[] | null | undefined, key = (label: st
  *
  * A season and a year match any pair in `seasonPairs`, every season a member was listed in, so a run two seasons
  * list is on both pages whichever of them a tab opened first. A row with none matches on its own pair, and a year alone
- * on its `startDate` when it names no year at all.
+ * on its `startDate` when it is not an anime, whose year is its season's.
  *
  * The SITE comes first (src/site.ts), and it is a parameter rather than a field of `filters` because a
  * field is something any caller could widen: no page and no address can ask this past it.
@@ -95,7 +97,7 @@ export const applyMediaFilters = <T extends Pick<GQLMedia, 'categories' | 'type'
     if (categories.length && !(media.categories ?? []).some(category => categories.includes(category))) return false
     if (formats.length && !(media.type && formats.includes(media.type))) return false
     if (status && media.status !== status) return false
-    if ((season || seasonYear) && !listedIn(media, filters)) return false
+    if ((season || seasonYear) && !listedIn(media, filters, current)) return false
     if (genres.size) {
       const carried = labelSet(media.genres, genreKey)
       for (const genre of genres) if (!carried.has(genre)) return false
@@ -164,7 +166,7 @@ export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categorie
   answered: readonly string[],
   current: Site = site
 ): T[] => applyMediaFilters(isListing(input) ? inAnswerOrder(rows, answered) : rows, input, current).map(row => {
-  const pair = (input.season || input.seasonYear) && listedIn(row, input)
+  const pair = (input.season || input.seasonYear) && listedIn(row, input, current)
   return pair && pair !== row ? { ...row, season: pair.season, seasonYear: pair.seasonYear, popularity: pair.popularity } : row
 })
 

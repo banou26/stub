@@ -131,6 +131,19 @@ describe('applyMediaFilters', () => {
     expect(uris(applyMediaFilters(page, { season: 'FALL', seasonYear: 2021 })), 'a start date names no season').toEqual([])
     expect(pageRows(page, { seasonYear: 2021 }, [], 'movie')[0], 'drawn as it is').toBe(page[0])
   })
+
+  // anime.fkn.app's Year is a broadcast season's: Kitsu names a start date and no season, and a late December premiere
+  // is in the next year's Winter
+  test('a year alone keeps no anime naming no season by the year it started, but for a film on movies.fkn.app', () => {
+    const page = [
+      media('kitsu:1', { categories: ['ANIME', 'SERIES'], startDate: '2023-12-30' }),
+      media('jw:2', { categories: ['ANIME', 'MOVIE'], startDate: '2023-07-14' }),
+      media('jw:3', { categories: ['SERIES'], startDate: '2023-03-01' }),
+    ]
+    expect(uris(applyMediaFilters(page, { seasonYear: 2023 }, 'anime'))).toEqual([])
+    expect(uris(applyMediaFilters(page, { seasonYear: 2023 }, 'stub'))).toEqual(['jw:3'])
+    expect(uris(applyMediaFilters(page, { seasonYear: 2023 }, 'movie'))).toEqual(['jw:2'])
+  })
 })
 
 // The four tests below are one rule seen from four sides, and it is the rule most likely to be
