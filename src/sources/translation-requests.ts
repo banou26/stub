@@ -18,6 +18,9 @@ const UNASKED = new Set(['en', 'ja', 'zh'])
 // the main one's: asked de-AT, fr-BE or es-AR, TMDB answered Breaking Bad in English though it has it in German, French
 // and Spanish (2026-11-10). Spanish outside Spain is asked Mexico's, which TMDB and IMDb keep as Latin America's.
 const APART: Record<string, string> = { fr: 'CA', pt: 'PT' }
+// A language's main country is the one Intl names, but Arabic's is Saudi Arabia's: asked ar-EG, TMDB answered Breaking
+// Bad in English, and asked ar-SA in Arabic (2026-11-10).
+const MAIN: Record<string, string> = { ar: 'SA' }
 
 /**
  * The viewer's `language` as a source is asked a translation into it, with the country the source keeps it for:
@@ -27,7 +30,7 @@ export const askedLocale = (language: string | undefined) => {
   const locale = language ? localeOf(language)?.maximize() : undefined
   if (!locale || UNASKED.has(locale.language)) return undefined
   const { language: asked, region } = locale
-  const main = localeOf(asked)!.maximize().region
+  const main = MAIN[asked] ?? localeOf(asked)!.maximize().region
   const country = region === main || region === APART[asked] ? region : asked === 'es' ? 'MX' : main
   return new Intl.Locale(asked, country ? { region: country } : {})
 }
