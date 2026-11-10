@@ -179,5 +179,15 @@ JustWatch, and two parts are still drawn twice: TMDB's "Gustavo Fring" reaches n
 "Gus Fring", so TVmaze's row joins TMDB's by its own name; and TMDB's "Todd" never meets "Todd
 Alquist".
 
+JustWatch writes a part with its notes and every name the actor plays: "Peter Parker / Spider-Man",
+"E.V. (voice)", "Arab (uncredited)", where IMDb writes "Peter Parker", "E.V." and "Arab". So a part
+with its notes in parentheses dropped, and each of the parts a slash joins, are other keys, tried as
+a nickname is and never drawn (STUB-391). The name drawn is IMDb's, and its actors come whole from
+IMDb: JustWatch's second uncredited "Arab", Nick Shaid, is not drawn. Measured on the title pages
+(2026-11-11): Spider-Man: Brand New Day drew 54 rows with 9 actors twice, each once with IMDb's photo
+and once with none, and draws 46 with one actor twice ("Sheila Riviera" and "Sheila Rivera") and one
+part twice under two spellings of its actor ("Nina Galano" and "Nina Rose Galano"); Casablanca drew
+106 rows with 10 actors twice and draws 97 with none.
+
 The tests are in `tests/unit/worker/graph/plugins/credits.test.ts`, on trimmed real rows of every
 source in `tests/fixtures/credits/`.

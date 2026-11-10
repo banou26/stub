@@ -57,6 +57,12 @@ const nicknameKeys = (name: string) => nicknamed(name).map(nameKey)
 // other keys
 const reordered = (key: string) => key.replace(/^(\S+) (.+)$/, '$2 $1')
 
+// "Peter Parker / Spider-Man (voice)" read as "Peter Parker / Spider-Man", "Peter Parker" and "Spider-Man"
+const partKeys = (name: string): string[] => {
+  const bare = name.replace(/\s*\([^)]*\)/g, '').trim()
+  return [bare, ...bare.split(/\s+\/\s+/)].map(nameKey)
+}
+
 /**
  * Every source's rows folded into entries, sources in order. A row joins an entry that shares its id;
  * else the one earlier entry its name keys reach, when they reach exactly one and `accept` agrees; else
@@ -186,6 +192,11 @@ const sharesActor = (drawn: CreditPerson[], offered: SourceCharacter['voiceActor
  * Alchemist: Brotherhood with MyAnimeList and ANN it joins 54 more rows, none wrong, and One Piece's
  * names drawn twice by word set go from 102 to 54.
  *
+ * A part with its notes in parentheses dropped, and each of the parts a slash joins, are other keys too,
+ * tried as a nickname is (STUB-391): JustWatch's "Peter Parker / Spider-Man", "E.V. (voice)" and "Arab
+ * (uncredited)" meet IMDb's "Peter Parker", "E.V." and "Arab" on the actor they share. The name drawn is
+ * the first source's, and the actors still come whole from it.
+ *
  * Measured over 10 shows (HOR-348, AniList page 1 against ANN): 172 of AniList's 239 characters
  * match ANN's by name, 167 of them sharing an actor; 52 of 54 name matches on Cowboy Bebop,
  * Fullmetal Alchemist: Brotherhood and Frieren pass the whole rule, the other two refused (no actor in
@@ -225,7 +236,7 @@ export const mergeCredits = <M extends Member>(
   const cast = sources.some(credits => credits.characters.length && !unlabelled(credits)) ? sources.filter(credits => !unlabelled(credits)) : sources
   const characters = mergeRows(
     cast.map(({ characters }) => characters),
-    { id: character => character.id, names: character => character.names, otherKeys: name => [...nicknameKeys(name), reordered(nameKey(name))] },
+    { id: character => character.id, names: character => character.names, otherKeys: name => [...nicknameKeys(name), reordered(nameKey(name)), ...partKeys(name)] },
     (character): { entry: CreditCharacter, languages: Map<string | null, number> } => ({
       entry: { name: character.names[0] ?? '', image: null, url: null, role: null, voiceActors: [] },
       languages: new Map(),

@@ -552,3 +552,23 @@ test('a nickname read first still takes the name a later source writes', () => {
   ])!
   expect(merged.characters.map(({ name }) => name)).toEqual(["Michael 'Mike' Ehrmantraut"])
 })
+
+// STUB-391: parts as IMDb and JustWatch spelled them on Spider-Man: Brand New Day and Casablanca (2026-11-11). Mutation:
+// drop the part keys and each actor is drawn twice, once with IMDb's photo and once with none.
+test('a part JustWatch writes with a note or a slash meets the one IMDb writes alone, on the actor they share', () => {
+  const imdb = imdbCredits({
+    cast: {
+      edges: [['Peter Parker', 'Tom Holland'], ['E.V.', 'Naomi Watts'], ['Arab', 'Abdullah Abbas'], ['Mac Gargan', 'Michael Mando']]
+        .map(([part, actor], index) => ({ node: { name: { id: `nm${index}`, nameText: { text: actor! }, primaryImage: { url: `https://m.media-amazon.com/${index}._V1_.jpg` } }, characters: [{ name: part! }] } })),
+    },
+  })
+  const justwatch = justwatchCredits([
+    ['Peter Parker / Spider-Man', 'Tom Holland'], ['E.V. (voice)', 'Naomi Watts'], ['Arab (uncredited)', 'Abdullah Abbas'],
+    ['Arab (uncredited)', 'Nick Shaid'], ['Mac Gargan / Scorpion', 'Josh Brener'],
+  ].map(([characterName, name], personId) => ({ role: 'ACTOR', name: name!, characterName: characterName!, personId })))
+  const merged = mergeCredits([member('omdb:tt22084616', imdb), member('jw:1265001', justwatch)])!
+  expect(parts(merged.characters), 'the control: a part with no actor in common stays two').toEqual([
+    'Peter Parker: Tom Holland', 'E.V.: Naomi Watts', 'Arab: Abdullah Abbas', 'Mac Gargan: Michael Mando', 'Mac Gargan / Scorpion: Josh Brener',
+  ])
+  expect(merged.characters[0]!.voiceActors[0]!.image).toBe('https://m.media-amazon.com/0._V1_UY256_.jpg')
+})

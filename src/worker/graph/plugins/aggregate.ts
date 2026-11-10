@@ -56,7 +56,7 @@ import { readComponents } from './guards'
 import { ownShift } from './range'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const AGGREGATE_VERSION = 11
+export const AGGREGATE_VERSION = 12
 
 /** The id every minted cluster carries, so an id is readable as one at a glance in a trace. */
 const ID_PREFIX = 'cl:'
