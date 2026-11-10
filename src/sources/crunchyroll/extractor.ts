@@ -12,6 +12,8 @@ import {
   bestTitleScore, buildHandlesFromUri, getFirstTitle, simplifyTitle, waitForMedia
 } from '../utils'
 import { crunchyrollId, findSeason, resolveSeasonId } from './season-id'
+import { askedLocale, withTranslation } from '../translation-requests'
+import { bestLanguage } from '../../i18n/best-language'
 import { CRUNCHYROLL_ICON } from './session'
 
 const SCORE = 0.5
@@ -123,6 +125,7 @@ interface CrSeason {
   id: string
   title: string
   description: string
+  season_number?: number
   audio_locale: string
   versions?: { audio_locale: string, guid: string, original: boolean }[]
 }
@@ -168,6 +171,19 @@ const fetchSeasons = (id: string, ctx: ExtractorServerContext) =>
 
 const fetchEpisodes = (seasonId: string, ctx: ExtractorServerContext) =>
   fetchList<CrEpisode>(`${CMS}/seasons/${seasonId}/episodes?preferred_audio_language=ja-JP&locale=en-US`, ctx)
+
+// The languages crunchyroll.com is offered in. A Spanish or Portuguese viewer naming no country is asked the first listed.
+const LOCALES = ['ar-SA', 'de-DE', 'es-419', 'es-ES', 'fr-FR', 'hi-IN', 'it-IT', 'pt-BR', 'pt-PT', 'ru-RU']
+
+/** The series' title and description in the viewer's language, asked as the English is. */
+const translationOf = async (seriesId: string, ctx: ExtractorServerContext) => {
+  const locale = askedLocale(ctx.language)
+  const asked = locale && bestLanguage([locale.baseName], LOCALES)
+  if (!asked) return undefined
+  const series = await fetchList<CrSeries>(`${CMS}/series/${seriesId}?preferred_audio_language=ja-JP&locale=${asked}`, ctx)
+    .then(({ data }) => data[0], () => undefined)
+  return series && { language: locale.language, title: series.title, synopsis: series.description }
+}
 
 const searchSeries = (query: string, ctx: ExtractorServerContext) =>
   api<{ data?: { type: string, items: CrSeries[] }[] }>(
@@ -280,6 +296,10 @@ export const getMedia = async (id: string, ctx: ExtractorServerContext): Promise
   // show into the store, where anything comparing titles reads it as an identity: it is what merged
   // Grand Blue into Mushoku Tensei. Fall back to the series, which always names the show.
   const seasonTitle = targetSeason && !isOnlySeasonLabel(targetSeason.title) ? targetSeason.title : undefined
+  // what is translated is the series', so the series and its first season under the series' name get it, no other
+  const translation = !targetSeason || (targetSeason.season_number === 1 && (seasonTitle ?? series.title) === series.title)
+    ? translationOf(seriesId, ctx)
+    : undefined
   const media = targetSeason
     ? normalizeMedia(
       crunchyrollId(seriesId, resolveSeasonId(targetSeason)),
@@ -327,7 +347,8 @@ export const getMedia = async (id: string, ctx: ExtractorServerContext): Promise
       if (aired.length) media.startDate = aired[0]
     }
   }
-  return media
+  const translated = await translation
+  return translated ? withTranslation(media, translated.language, SCORE, translated) : media
 }
 
 type CrSeasonCandidate = SeasonCandidate<{ resolvedId: string }> & { airDates?: string[] }
