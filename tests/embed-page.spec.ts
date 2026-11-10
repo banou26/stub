@@ -104,6 +104,42 @@ for (const [locale, language] of [['de-DE', 'de'], ['es-MX', 'es-419']] as const
   })
 }
 
+// The page inherits nothing from the watch page framing it: on production on 2026-11-10 every player's messages drew in
+// Times New Roman and their buttons in Arial, and Prime Video's ran to a phone's edges.
+for (const [player, sourceUri, url] of [
+  ['Crunchyroll', 'cr:GXXXXXXXX', 'https://www.crunchyroll.com/watch/GXXXXXXXX'],
+  ['Prime Video', 'amazon:amzn1.dv.gti.x', 'https://www.amazon.com/gp/video/detail/amzn1.dv.gti.x'],
+  ['Netflix', 'nf:1', 'https://www.netflix.com/watch/1'],
+] as const) {
+  test(`the ${player} player's messages and their buttons draw in stub's font, clear of a phone's sides`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+    const page = await context.newPage()
+    await page.route(url => !url.href.startsWith(origin), route => route.abort())
+    await page.goto(`${origin}${PREFIX}build/embed.html?${new URLSearchParams({ mediaUri: 'm', episodeUri: 'e', sourceUri, url })}`)
+    await expect(page.locator('.overlay')).toBeVisible()
+
+    // a player shows its message and button once the site answers, so a line of short words, which fills each line to
+    // within a word, and a button of the player's own class stand in for them
+    const read = await page.locator('.overlay').evaluate(overlay => {
+      const line = document.createTextNode('a '.repeat(300))
+      const button = Object.assign(document.createElement('button'), { className: 'login-button', textContent: 'Retry' })
+      overlay.append(line, button)
+      const range = document.createRange()
+      range.selectNodeContents(line)
+      const lines = [...range.getClientRects()]
+      return {
+        fonts: [document.body, overlay, button].map(element => getComputedStyle(element).fontFamily),
+        left: Math.min(...lines.map(({ left }) => left)),
+        right: document.documentElement.clientWidth - Math.max(...lines.map(({ right }) => right)),
+      }
+    })
+    expect(read.fonts).toEqual(Array(3).fill('Montserrat, system-ui, sans-serif'))
+    expect(read.left).toBeGreaterThanOrEqual(16)
+    expect(read.right).toBeGreaterThanOrEqual(16)
+    await context.close()
+  })
+}
+
 test('the watch route frames the page beside whichever build runs it', async ({ request }) => {
   const chunks = [
     'build/index.js',

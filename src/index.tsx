@@ -19,14 +19,13 @@ import './answers-export.ts'
 import { forgetApiKeys } from './utils/forget-api-keys'
 import { watchTrackerAccount } from './tracking/account-watch'
 import { trackerCheck, trackerFocused } from './worker'
+import { baseText } from './base-text'
 
 forgetApiKeys()
 watchTrackerAccount({ check: trackerCheck, focused: trackerFocused })
 watchAccountFiles(checkSources)
 
 const style = css`
-  @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,500;1,600;1,700;1,800;1,900&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
-
   :root {
     color-scheme: dark;
     /* the fixed header's own height. Every page that has to start below the bar reads this instead of
@@ -75,7 +74,6 @@ const style = css`
   }
 
   html {
-    font-size: 62.5%;
     height: 100vh;
     width: 100%;
   }
@@ -84,11 +82,7 @@ const style = css`
     margin: 0;
     height: 100vh;
     width: 100%;
-    font-size: 1.6rem;
     background-color: #0f0f0f;
-    color: #fff;
-    /* Montserrat draws Latin, Cyrillic and Vietnamese; every other script falls to the system's own sans-serif */
-    font-family: Montserrat, system-ui, sans-serif;
   }
 
   #stub-root {
@@ -126,7 +120,7 @@ render(
   <RawIntlProvider value={intl}>
     <Provider value={client}>
       {/* outside the boundary, so the base styles the fallback renders against survive a caught error */}
-      <Global styles={style}/>
+      <Global styles={[baseText, style]}/>
       <ErrorBoundary>
         <Router/>
       </ErrorBoundary>

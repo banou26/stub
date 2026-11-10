@@ -1,7 +1,9 @@
+import { Global } from '@emotion/react'
 import { isExtensionExposed, shell } from '@fkn/lib'
 import { render } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
 import { RawIntlProvider, useIntl } from 'react-intl'
+import { baseText } from './base-text'
 import { trackLanguagesOf } from './embed-languages'
 import { triedRelaysOf } from './embed-relays'
 import { receiveEmbedTitle } from './embed-title'
@@ -39,4 +41,4 @@ const App = () => {
 
 const intl = await startLanguage()
 
-render(<RawIntlProvider value={intl}><App /></RawIntlProvider>, document.getElementById('app')!)
+render(<RawIntlProvider value={intl}><Global styles={baseText}/><App /></RawIntlProvider>, document.getElementById('app')!)

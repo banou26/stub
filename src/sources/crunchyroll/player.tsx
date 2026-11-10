@@ -139,8 +139,10 @@ const styles = css`
     align-items: center;
     justify-content: center;
     gap: 1.6rem;
+    padding: 0 1.6rem;
     background: #000;
     font-size: 1.4rem;
+    text-align: center;
     color: rgba(255, 255, 255, 0.8);
     /* Above the skin's own layers (its controls/error dialog top out at
        z-index 20) so the login/loading screen fully covers them. */
@@ -153,6 +155,7 @@ const styles = css`
     color: #fff;
     border: none;
     border-radius: 0.4rem;
+    font-family: inherit;
     font-size: 1.4rem;
     font-weight: 600;
     cursor: pointer;
