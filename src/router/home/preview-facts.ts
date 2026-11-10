@@ -73,9 +73,14 @@ export const filmLine = (media: PreviewMedia, now = new Date()): string => {
 
 /**
  * The side column's words: the categories drawn as pills, and for a series when it aired, left out when no source gave
- * it.
+ * it, and whether that start is still ahead of `now`.
  */
-export const sideFacts = (media: PreviewMedia, film: boolean): { genres: string[], tags: string[], aired: string | undefined } => {
+export const sideFacts = (media: PreviewMedia, film: boolean, now = new Date()): { genres: string[], tags: string[], aired: string | undefined, upcoming: boolean } => {
   const { genres, tags } = categories(media.genres ?? [], media.tags ?? [])
-  return { genres, tags, aired: film ? undefined : releasedLabel(media, { locale: intl.locale }) }
+  return {
+    genres,
+    tags,
+    aired: film ? undefined : releasedLabel(media, { locale: intl.locale }),
+    upcoming: !film && filmRelease({ startDate: media.startDate, status: media.status }, now).upcoming,
+  }
 }

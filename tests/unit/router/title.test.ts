@@ -207,6 +207,13 @@ test('an upcoming start reads Releases', () => {
   ])
 })
 
+test('a show not yet begun reads Releases by its own start, a begun one Aired', () => {
+  const show = { type: MediaType.Tv, status: MediaStatus.NotYetReleased, startDate: '2099-10-01' }
+  expect(titleFacts(show, { locale: 'en-US' }).find(({ value }) => value === 'Oct 1, 2099')?.label).toBe('Releases')
+  expect(titleFacts({ ...show, status: MediaStatus.Finished, startDate: '2023-09-29' }, { locale: 'en-US' }).find(({ value }) => value === 'Sep 29, 2023')?.label)
+    .toBe('Aired')
+})
+
 test('Aired is the day the source named, west of Greenwich too', () => {
   for (const zone of ['America/Los_Angeles', 'Asia/Tokyo']) {
     // AniList's shape, then Jikan's
@@ -241,7 +248,7 @@ test('Aired names an air time\'s day where the viewer is, as the modal\'s Releas
 })
 
 test('Aired names a year or a month alone as just that', () => {
-  expect(aired({ startDate: '2027', status: MediaStatus.NotYetReleased })).toBe('2027')
+  expect(titleFacts({ startDate: '2099', status: MediaStatus.NotYetReleased }, { locale: 'en-US' }).find(({ label }) => label === 'Releases')?.value).toBe('2099')
   expect(aired({ startDate: '2026-04', endDate: '2027' })).toBe('Apr 2026 to 2027')
 })
 

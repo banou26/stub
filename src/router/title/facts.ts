@@ -12,6 +12,7 @@ import { MediaStatus } from '../../generated/graphql'
 import { intl, NAME_LIST } from '../../i18n'
 import { formatLabel, seasonLabel, statusLabel } from '../search/params'
 import { releaseDateLabel, releaseDay } from '../../utils/release-date'
+import { filmRelease } from '../home/episodes'
 import { isMovieMedia } from '../home/movie'
 
 export type TitleMedia = {
@@ -103,8 +104,9 @@ export const ratingChips = (media: TitleMedia): string[] => media.ratings?.map(r
 
 /**
  * The labelled facts, in reading order. A fact no source gave is left out rather than shown empty, unless `held`
- * (an anime's sources still answering), where it stays with no value, its line kept. An `upcoming` start reads
- * Releases rather than Aired.
+ * (an anime's sources still answering), where it stays with no value, its line kept. A start still ahead reads
+ * Releases rather than Aired: a film's when the caller says `upcoming` (its release goes by its episode), a show's by
+ * its own start.
  */
 export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, held = false, upcoming = false): Fact[] => {
   const start = releaseDateLabel(releaseDay(media.startDate), options)
@@ -114,6 +116,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
   const named = [media.titles?.[0]?.title, secondTitle(media.titles)?.title]
   const others = [...new Set(media.titles?.map(({ title }) => title))].filter(title => !named.includes(title))
   const film = isMovieMedia(media)
+  const ahead = film ? upcoming : filmRelease({ startDate: media.startDate, status: media.status }).upcoming
   const facts: Fact[] = [
     { label: intl.formatMessage({ id: 'Format', defaultMessage: 'Format' }), value: formatLabel(media.type) },
     ...film ? [] : [{ label: intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' }), value: media.episodeCount ? String(media.episodeCount) : undefined }],
@@ -123,7 +126,7 @@ export const titleFacts = (media: TitleMedia, options: ReleaseDateOptions = {}, 
     },
     { label: intl.formatMessage({ id: 'Status', defaultMessage: 'Status' }), value: statusLabel(media.status) },
     {
-      label: upcoming ? intl.formatMessage({ id: 'Releases#verb', defaultMessage: 'Releases', description: 'verb' }) : intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }),
+      label: ahead ? intl.formatMessage({ id: 'Releases#verb', defaultMessage: 'Releases', description: 'verb' }) : intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' }),
       value: start && end && end !== start ? intl.formatMessage({ id: '{start} to {end}', defaultMessage: '{start} to {end}' }, { start, end }) : start,
     },
     { label: intl.formatMessage({ id: 'Season#broadcast season', defaultMessage: 'Season', description: 'broadcast season' }), value: seasonLabel(media.season, media.seasonYear) },

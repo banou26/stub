@@ -735,12 +735,12 @@ const Line = ({ media, movie, loading }: { media: DetailsMedia, movie: boolean, 
 
 const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) => {
   const intl = useIntl()
-  const { genres, tags, aired } = sideFacts(media, movie)
+  const { genres, tags, aired, upcoming } = sideFacts(media, movie)
   return (
     <>
       {media.averageScore ? <StarScore percent={media.averageScore}/> : undefined}
       <MediaCategories genres={genres} tags={tags} linked/>
-      {aired ? <dl className="facts"><div><dt>{intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' })}</dt><dd>{aired}</dd></div></dl> : undefined}
+      {aired ? <dl className="facts"><div><dt>{upcoming ? intl.formatMessage({ id: 'Releases#verb', defaultMessage: 'Releases', description: 'verb' }) : intl.formatMessage({ id: 'Aired', defaultMessage: 'Aired' })}</dt><dd>{aired}</dd></div></dl> : undefined}
     </>
   )
 }

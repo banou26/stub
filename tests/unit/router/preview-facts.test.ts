@@ -45,9 +45,9 @@ const penguin = {
 // round 3's Cinematic line, Split's star and chips (the owner, 2026-10-30)
 test('a film\'s line names Movie, its release and its length, its side column its categories', () => {
   expect(filmLine(penguin)).toBe(`Movie · ${releaseDateLabel('2018-08-17')} · 2h`)
-  expect(sideFacts(penguin, true)).toEqual({ genres: ['Fantasy', 'Mystery'], tags: ['Coming of Age'], aired: undefined })
+  expect(sideFacts(penguin, true)).toEqual({ genres: ['Fantasy', 'Mystery'], tags: ['Coming of Age'], aired: undefined, upcoming: false })
   expect(filmLine({ type: MediaType.Movie }), 'Movie alone').toBe('Movie')
-  expect(sideFacts({ type: MediaType.Movie }, true)).toEqual({ genres: [], tags: [], aired: undefined })
+  expect(sideFacts({ type: MediaType.Movie }, true)).toEqual({ genres: [], tags: [], aired: undefined, upcoming: false })
 })
 
 // Made in Abyss: Awakening Mystery, 2026-10-22: AniList's 71 minutes, its episode none
@@ -70,8 +70,15 @@ test('a film\'s line names its own release day, whatever day its episode airs', 
 
 test('a series\' side column names its categories and when it aired, and leaves out what no source gave', () => {
   const frieren = { type: MediaType.Tv, startDate: '2023-09-29', season: null, seasonYear: null, genres: ['Fantasy'], tags: ['Travel'], duration: 24 }
-  expect(sideFacts(frieren, false)).toEqual({ genres: ['Fantasy'], tags: ['Travel'], aired: releaseDateLabel('2023-09-29') })
-  expect(sideFacts({ type: MediaType.Tv }, false)).toEqual({ genres: [], tags: [], aired: undefined })
+  expect(sideFacts(frieren, false)).toEqual({ genres: ['Fantasy'], tags: ['Travel'], aired: releaseDateLabel('2023-09-29'), upcoming: false })
+  expect(sideFacts({ type: MediaType.Tv }, false)).toEqual({ genres: [], tags: [], aired: undefined, upcoming: false })
+})
+
+test('a series not yet begun says its start is ahead, by its own start as of the time given', () => {
+  const now = new Date('2026-11-10T12:00:00Z')
+  expect(sideFacts({ type: MediaType.Tv, status: MediaStatus.NotYetReleased, startDate: '2027-10-01' }, false, now).upcoming).toBe(true)
+  expect(sideFacts({ type: MediaType.Tv, status: MediaStatus.NotYetReleased, startDate: '2027' }, false, now).upcoming, 'a year alone').toBe(true)
+  expect(sideFacts({ type: MediaType.Tv, status: MediaStatus.Releasing, startDate: '2026-10-01' }, false, now).upcoming, 'begun').toBe(false)
 })
 
 test('a series\' line names its format, release and episodes', () => {
@@ -85,7 +92,7 @@ test('in German, the side column\'s date and both lines are German, its genres a
   try {
     await startLanguage({ language: 'de', languages: ['de-DE'] })
     const comedy = { ...penguin, genres: ['Comedy', 'Award Winning'] }
-    expect(sideFacts(comedy, false)).toEqual({ genres: ['Comedy', 'Award Winning'], tags: ['Coming of Age'], aired: releaseDateLabel('2018-08-17', { locale: 'de' }) })
+    expect(sideFacts(comedy, false)).toEqual({ genres: ['Comedy', 'Award Winning'], tags: ['Coming of Age'], aired: releaseDateLabel('2018-08-17', { locale: 'de' }), upcoming: false })
     expect(filmLine(penguin)).toBe(`Film · ${releaseDateLabel('2018-08-17', { locale: 'de' })} · ${runtimeText(120)}`)
     expect(seriesLine({ type: MediaType.Tv, startDate: '2023-09-29', episodeCount: 28 })).toBe(`TV-Serie · ${releaseDateLabel('2023-09-29', { locale: 'de' })} · 28 Folgen`)
   } finally {
