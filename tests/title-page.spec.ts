@@ -1481,6 +1481,17 @@ test('a work opened from a search opens over its results, and closing it, or Bac
     await expect(modal(page)).toHaveCount(0)
     await expect(cards).toHaveCount(results)
     await expect.poll(() => page.evaluate(() => scrollY), `${width} px: Back where it was`).toBe(y)
+
+    // the title page and Back draw the results again under the preview, and the browser's own restore stops short
+    await card.click()
+    await modal(page).getByRole('link', { name: 'More details' }).click({ timeout: 30_000 })
+    await expect(heading(page)).toHaveText(/\S/, { timeout: 30_000 })
+    await page.goBack()
+    await expect(modal(page).locator('h2.title')).toHaveText(/\S/, { timeout: 30_000 })
+    await expect(cards).toHaveCount(results)
+    await page.locator('[data-party-scroll]').click({ position: { x: 4, y: height / 2 } })
+    await expect(page).toHaveURL(`${origin}${season}`)
+    await expect.poll(() => page.evaluate(() => scrollY), `${width} px: closed where it was, after the title page`).toBe(y)
   }
 })
 

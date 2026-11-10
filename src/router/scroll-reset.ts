@@ -6,14 +6,16 @@
 // kept pure so every navigation in the app can be tabled against it in tests/unit/router; the
 // component that applies it is components/scroll-reset.tsx.
 
+import type { Over } from './page-under'
+
 /** How the document reached its current url. Back and forward are `pop`. */
 export type NavigationKind = 'push' | 'replace' | 'pop'
 
 export type Place = {
   pathname: string
   search: string
-  /** The search a preview was opened over, if any: see `pageUnder` in ./page-under.ts. */
-  under?: string
+  /** The search a preview was opened over, if any: see `pageOver` in ./page-under.ts. */
+  over?: Over
 }
 
 export type Navigation = {
@@ -28,20 +30,24 @@ export type Navigation = {
  * `/` and `/media/...` are ONE page. The media route renders the home page with a modal over it (a
  * fixed overlay that locks the body and scrolls inside itself), so opening a card, closing it, or
  * a canonical uri replacing the one in the address bar has to leave the home page exactly where it
- * was: it is still there under the modal, and it is what the person comes back to.
+ * was: it is still there under the modal, and it is what the person comes back to. A modal opened
+ * from a search is drawn over that search instead, see `Place.over`.
  */
 export const isHomeFamily = (pathname: string): boolean =>
   pathname === '/' || pathname === '/media' || pathname.startsWith('/media/')
 
 const isTitle = (pathname: string) => pathname.startsWith('/title/')
 
+const address = ({ pathname, search }: Place) => `${pathname}${search}`
+
 /**
  * Whether a navigation resets the page to the top.
  *
  * - Back and forward are the browser's. It restores the position the entry had, and a reset on top
  *   of that would send every back button to the top of a page the person had already read.
- * - Anything within the home family stays: the modal rides over the page, see `isHomeFamily`. So does
- *   opening a modal over a search, or closing it back to that search.
+ * - Anything within the home family stays: the modal rides over the page, see `isHomeFamily`. So
+ *   does a modal opened over a search, and closing it returns to where that search was, see
+ *   `returnTop`.
  * - A replace is the url as state (the search filters, the header's typing, a canonical media uri)
  *   rather than the person going somewhere, so it resets only when it changes the page. The title
  *   page growing its address as sources merge is the same page.
@@ -52,29 +58,41 @@ export const resetsScroll = ({ from, to, kind, asked = false }: Navigation): boo
   if (asked) return true
   if (kind === 'pop') return false
   if (isHomeFamily(from.pathname) && isHomeFamily(to.pathname)) return false
-  if (to.under === `${from.pathname}${from.search}` || from.under === `${to.pathname}${to.search}`) return false
+  if (to.over?.under === address(from) || from.over?.under === address(to)) return false
   if (kind === 'replace') return from.pathname !== to.pathname && !(isTitle(from.pathname) && isTitle(to.pathname))
   return true
 }
 
 /**
+ * Where closing a modal puts the search it was drawn over: where that search was when the modal
+ * opened. The search may have been drawn again under the modal since (Back from a title or watch
+ * page, a reload), and the browser's own restore stops short while its results load. Undefined for
+ * every other navigation, and for Back, which is the browser's.
+ */
+export const returnTop = ({ from, to, kind }: Navigation): number | undefined =>
+  kind !== 'pop' && from.over?.under === address(to) ? from.over.top : undefined
+
+/**
  * Jumped, never glided. `instant` rather than `auto`, because `auto` defers to whatever
  * `scroll-behavior` a stylesheet sets and would animate the reset across the whole of the old page.
  */
-export const scrollToTop = () => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }) }
+const jumpTo = (top: number) => { window.scrollTo({ top, left: 0, behavior: 'instant' }) }
+
+/** The top of the page, for a link that goes there itself. */
+export const scrollToTop = () => { jumpTo(0) }
 
 let frame = 0
 
 /**
- * Reset on the NEXT frame rather than now, because two things follow the navigation and both have to
- * come first. The re-render, so the new page is not painted at the old position and then jumped. And
- * a modal the old page had, whose unlock on unmount restores the position it captured when it locked
- * (floating-ui does this on iOS); a reset before that unlock is undone by it, and nothing on a
- * desktop shows it.
+ * Reset, to `top` when given, on the NEXT frame rather than now, because two things follow the
+ * navigation and both have to come first. The re-render, so the new page is not painted at the old
+ * position and then jumped. And a modal the old page had, whose unlock on unmount restores the
+ * position it captured when it locked (floating-ui does this on iOS); a reset before that unlock is
+ * undone by it, and nothing on a desktop shows it.
  */
-export const scheduleReset = () => {
+export const scheduleReset = (top = 0) => {
   cancelReset()
-  frame = requestAnimationFrame(() => { frame = 0; scrollToTop() })
+  frame = requestAnimationFrame(() => { frame = 0; jumpTo(top) })
 }
 
 /**

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'preact/hooks'
 
-import { cancelReset, resetsScroll, scheduleReset, takeAskedTop } from '../router/scroll-reset'
-import { pageUnder } from '../router/page-under'
+import { cancelReset, resetsScroll, returnTop, scheduleReset, takeAskedTop } from '../router/scroll-reset'
+import { pageOver } from '../router/page-under'
 import type { Navigation, NavigationKind, Place } from '../router/scroll-reset'
 
 // Applies router/scroll-reset.ts to the document. Mounted once at the router root, so it hears every
 // navigation whichever page made it.
 
-const here = (): Place => ({ pathname: location.pathname, search: location.search, under: pageUnder(location.pathname, history.state) })
+const here = (): Place => ({ pathname: location.pathname, search: location.search, over: pageOver(location.pathname, history.state) })
 
 /**
  * wouter patches `pushState` and `replaceState` to dispatch an event of the same name once the url has
@@ -33,7 +33,8 @@ const ScrollReset = () => {
         // would swallow that navigation's reset: plugin-url.ts is the live example, rewriting the url
         // with a same-page `replaceState` whenever the enabled plugins change or a pop lands.
         // `scheduleReset` waits a frame; see it for why the reset cannot run here.
-        if (resetsScroll(navigation)) scheduleReset()
+        const top = resetsScroll(navigation) ? 0 : returnTop(navigation)
+        if (top !== undefined) scheduleReset(top)
       }
       addEventListener(event, listener)
       return () => removeEventListener(event, listener)

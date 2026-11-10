@@ -3,7 +3,7 @@
 // the top under itself, and neither errors.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { askForTop, cancelReset, isHomeFamily, resetPending, resetsScroll, scheduleReset, scrollToTop, takeAskedTop } from '../../../src/router/scroll-reset'
+import { askForTop, cancelReset, isHomeFamily, resetPending, resetsScroll, returnTop, scheduleReset, scrollToTop, takeAskedTop } from '../../../src/router/scroll-reset'
 import type { Navigation, NavigationKind } from '../../../src/router/scroll-reset'
 
 const at = (url: string) => {
@@ -16,6 +16,8 @@ const go = (from: string, to: string, kind: NavigationKind, asked?: boolean): Na
 
 const MEDIA = '/media/ag:(anilist:207141,mal:63403)'
 const WATCH = '/watch/ag:(anilist:207141)/ag:(anizip:19873-4)'
+const LISTING = '/search?genre=Action'
+const OVER = { under: LISTING, top: 2243 }
 
 describe('isHomeFamily', () => {
   test('the home page and the modal over it are one page', () => {
@@ -71,11 +73,10 @@ describe('resetsScroll', () => {
   }
 
   test('a modal opened from the listing rides over the listing: opening it, closing it, another modal from it', () => {
-    const LISTING = '/search?genre=Action'
-    const preview = { ...at(MEDIA), under: LISTING }
+    const preview = { ...at(MEDIA), over: OVER }
     expect(resetsScroll({ from: at(LISTING), to: preview, kind: 'push' }), 'opening it').toBe(false)
     expect(resetsScroll({ from: preview, to: at(LISTING), kind: 'push' }), 'closing it').toBe(false)
-    expect(resetsScroll({ from: preview, to: { ...at('/media/other'), under: LISTING }, kind: 'push' }), 'a relation in it').toBe(false)
+    expect(resetsScroll({ from: preview, to: { ...at('/media/other'), over: OVER }, kind: 'push' }), 'a relation in it').toBe(false)
     expect(resetsScroll({ from: preview, to: at('/search?genre=Drama'), kind: 'push' }), 'a genre in it, another listing').toBe(true)
     expect(resetsScroll({ from: at('/search?genre=Drama'), to: preview, kind: 'push' }), 'a modal over another listing').toBe(true)
   })
@@ -103,6 +104,23 @@ describe('resetsScroll', () => {
   test('a link that asked for the top gets it, even within the family the rule keeps', () => {
     expect(resetsScroll(go('/', '/', 'push', true))).toBe(true)
     expect(resetsScroll(go(MEDIA, '/', 'push', true))).toBe(true)
+  })
+})
+
+describe('returnTop', () => {
+  const preview = { ...at(MEDIA), over: OVER }
+
+  test('closing a modal over a search returns to where the search was when it opened, from that modal or one it led to', () => {
+    expect(returnTop({ from: preview, to: at(LISTING), kind: 'push' })).toBe(2243)
+    expect(returnTop({ from: { ...at('/media/other'), over: OVER }, to: at(LISTING), kind: 'push' })).toBe(2243)
+  })
+
+  test('says nothing for Back, which is the browser\'s, nor for anywhere but that search', () => {
+    expect(returnTop({ from: preview, to: at(LISTING), kind: 'pop' })).toBeUndefined()
+    expect(returnTop({ from: preview, to: at('/search?genre=Drama'), kind: 'push' })).toBeUndefined()
+    expect(returnTop({ from: preview, to: { ...at('/media/other'), over: OVER }, kind: 'push' })).toBeUndefined()
+    expect(returnTop({ from: at(LISTING), to: preview, kind: 'push' })).toBeUndefined()
+    expect(returnTop(go(MEDIA, '/', 'push')), 'a modal over the home page').toBeUndefined()
   })
 })
 
@@ -148,6 +166,13 @@ describe('scheduleReset', () => {
     run()
     expect(scrolls).toEqual([{ top: 0, left: 0, behavior: 'instant' }])
     expect(resetPending()).toBe(false)
+  })
+
+  test('goes where it is told when told', () => {
+    const { scrolls, run } = frames()
+    scheduleReset(2243)
+    run()
+    expect(scrolls).toEqual([{ top: 2243, left: 0, behavior: 'instant' }])
   })
 
   test('cancelReset drops a reset that has not run: the party placing a follower where the host is', () => {
