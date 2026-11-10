@@ -28,6 +28,7 @@ import type { SeasonPair } from '../../store/filter'
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
 import { seasonNamesFirst } from '../../../sources/season'
+import { mainTitles } from '../../../sources/translations'
 import { DEFAULT_MERGE, mergeOrder } from '../../../sources/merge-order'
 import { refinesDate } from '../../../utils/release-date'
 import { mergeCredits } from './credits'
@@ -441,6 +442,31 @@ const dedupeRelated = (related: readonly RelatedRow[]): RelatedRow[] => {
   return [...best.values()]
 }
 
+const namesOf = (members: readonly MemberRow[]): Set<unknown> =>
+  new Set(mainTitles(members.flatMap(member => listOf(member.raw.titles).filter(isRecord))).map(title => title.title))
+
+/**
+ * `show`'s members holding only their translations, when one of `run`'s main titles is one of the show's: a source
+ * knowing only the show translates the show's name, so a run named otherwise gets none, as with JustWatch's
+ * (src/sources/justwatch/extractor.ts `withTranslation`). A synopsis in another language than English is a translation,
+ * since no source writes one otherwise.
+ */
+const translationsOf = (show: readonly MemberRow[], run: readonly MemberRow[]): MemberRow[] => {
+  const owned = byScoreThenUri(show).filter(member => member.owned)
+  const names = namesOf(owned)
+  if (![...namesOf(run)].some(name => names.has(name))) return []
+  const translated = (member: MemberRow, field: string) =>
+    listOf(member.raw[field]).filter(value => isRecord(value) && value.language !== 'en')
+  return owned.map(member => ({
+    ...member,
+    raw: {
+      titles: listOf(member.raw.titles).filter(title => isRecord(title) && title.class === 'TRANSLATED'),
+      descriptions: translated(member, 'descriptions'),
+      shortDescriptions: translated(member, 'shortDescriptions'),
+    },
+  }))
+}
+
 /**
  * The aggregated Media of 6.3, field by field, with the provenance of every choice.
  *
@@ -459,12 +485,18 @@ export const aggregateFields = (options: {
   order?: readonly string[]
   /** The sources the viewer turned off (src/worker/disabled-origins.ts): no value ranks as one of them. */
   off?: Iterable<string>
+  /**
+   * The members of every show this cluster is the first run of (`Cluster.preferredRun`), whose translated titles and
+   * synopses are this run's too when it carries the show's name. A later season is no show's first run.
+   */
+  show?: readonly MemberRow[]
 }): AggregatedMedia => {
   const { cluster, locationOrigin } = options
   const members = byScoreThenUri(options.members)
   const weigh = mergeWeights(options.order)
   const off = new Set(options.off)
   const owned = byWeight(members, weigh).filter(member => member.owned)
+  const titled = [...owned, ...translationsOf(options.show ?? [], owned)]
   const provenance: FieldProvenance[] = []
   const identity = aggregatedIdentity(members.map(member => member.uri))
 
@@ -546,8 +578,8 @@ export const aggregateFields = (options: {
     }
   }
 
-  row.titles = dedupeByField('title', seasonNamesFirst(valuesOf(owned, 'titles', weigh, off) as { title?: string }[]))
-  for (const member of owned) {
+  row.titles = dedupeByField('title', seasonNamesFirst(valuesOf(titled, 'titles', weigh, off) as { title?: string }[]))
+  for (const member of titled) {
     if (listOf(member.raw.titles).length) {
       provenance.push({ field: 'titles', uri: member.uri, answerSeq: member.fieldSeq.titles ?? null, rule: 'concat' })
     }
@@ -556,8 +588,8 @@ export const aggregateFields = (options: {
   // sorted by score and NOT deduped: two catalogues describing the same work in two languages are two
   // descriptions, and two covers are two covers
   for (const field of ['descriptions', 'shortDescriptions', 'covers', 'banners'] as const) {
-    row[field] = valuesOf(owned, field, weigh, off)
-    for (const member of owned) {
+    row[field] = valuesOf(titled, field, weigh, off)
+    for (const member of titled) {
       if (listOf(member.raw[field]).length) {
         provenance.push({ field, uri: member.uri, answerSeq: member.fieldSeq[field] ?? null, rule: 'concat' })
       }

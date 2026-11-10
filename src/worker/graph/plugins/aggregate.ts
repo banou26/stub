@@ -846,6 +846,14 @@ export const aggregatePlugin: Plugin = {
     const clusterOf = (uri: string): string | undefined => memberCluster.get(uri)
     const attachments = attachmentsOf({ links: containment, clusterOf, clusters: clusterFacts })
     const listing = listingIndexOf({ clusters: clusterFacts, clusterOf, links: containment, attachments })
+    const preferredRuns = new Map<string, string>()
+    const showsOf = new Map<string, string[]>()
+    for (const cluster of clusterFacts.values()) {
+      const run = cluster.scope === 'CONTAINER' ? preferredRunOf({ container: cluster.id, attachments, clusters: clusterFacts }) : null
+      if (!run) continue
+      preferredRuns.set(cluster.id, run)
+      showsOf.set(run, [...showsOf.get(run) ?? [], cluster.id])
+    }
 
     const anomalies = await readAnomalies(ctx.query)
     const anomaliesByUri = new Map<string, Anomaly[]>()
@@ -918,9 +926,7 @@ export const aggregatePlugin: Plugin = {
       // store-wide truth about a LISTING, and the resolve answers with the cluster holding the asked
       // row whatever it says, so the column never depends on who is looking.
       const verdict = listingVerdict(facts, listing)
-      const preferredRun = scope === 'CONTAINER'
-        ? preferredRunOf({ container: id, attachments, clusters: clusterFacts })
-        : null
+      const preferredRun = preferredRuns.get(id) ?? null
 
       // THE SLOTS. The member episodes of this cluster, trimmed, grouped, and materialized.
       const own = members.flatMap(member => episodesByMedia.get(member.uri) ?? [])
@@ -1079,6 +1085,7 @@ export const aggregatePlugin: Plugin = {
         locationOrigin,
         order: heldMergeOrder(),
         off: disabledOrigins(),
+        show: (showsOf.get(id) ?? []).flatMap(show => clusterFacts.get(show)!.members.map(uri => byUri.get(uri)!)),
       })
       const owns = members.some(member => member.owned)
 
