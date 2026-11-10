@@ -316,7 +316,7 @@ describe('playing an episode', () => {
     expect(host.textContent).not.toContain('frame:')
   })
 
-  // FKN asks again on every refused call, so a Not now read again for 30 s brought its prompt back 3 or 4 times
+  // the cloud draws its card again on the first call 10 s after a Not now, so reads refused for 30 s brought it back 3 or 4 times
   for (const [backend, name, message] of [
     ['cloud', 'LocatorDeniedError', 'frame.evaluate: the user did not grant evaluation here'],
     ['extension', 'PermissionDeniedError', 'Permission denied: evaluation on www.amazon.co.jp (evaluate)'],
@@ -330,6 +330,25 @@ describe('playing an episode', () => {
       expect(remembered()).toBeUndefined()
     })
   }
+
+  // the cloud draws no card for 10 s after a Not now, so a Retry pressed sooner read refused again with no card
+  test('Retry right after a Not now on the cloud spins until FKN can ask again, then attaches', async () => {
+    const host = await afterWaits(refusing('LocatorDeniedError', 'frame.evaluate: the user did not grant evaluation here'), 1_000)
+    button(host, 'Retry')!.click()
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(lib.attachFrame).toHaveBeenCalledTimes(1)
+    expect(host.querySelector('.overlay [role="status"]')).toBeTruthy()
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(lib.attachFrame).toHaveBeenCalledTimes(2)
+  })
+
+  test('Retry after a Not now on the extension attaches again at once', async () => {
+    lib.extension = true
+    const host = await afterWaits(refusing('PermissionDeniedError', 'Permission denied: evaluation on www.amazon.co.jp (evaluate)'), 1_000)
+    button(host, 'Retry')!.click()
+    await vi.advanceTimersByTimeAsync(500)
+    expect(lib.attachFrame).toHaveBeenCalledTimes(2)
+  })
 
   test('a frame that cannot run page code says so at once, without waiting out the poll', async () => {
     const host = await afterWaits(refusing('LocatorUnsupportedError', 'frame.evaluate: this render proxy predates evaluate; reload the app'), 1_000)

@@ -92,9 +92,12 @@ const detailUrl = (url: string) => {
 
 // the viewer's Not now on FKN's prompt: a PermissionDeniedError on the extension, and on the cloud a
 // LocatorDeniedError naming the grant ("frame.evaluate: the user did not grant evaluation here", @fkn/lib
-// 0.9.69), where a frame whose page moved off the attachment's hosts is a LocatorDeniedError too. FKN asks
-// again on every refused call, so a refusal read again would bring its prompt back.
+// 0.9.69), where a frame whose page moved off the attachment's hosts is a LocatorDeniedError too. The cloud
+// draws its card again on the first call 10 s after a Not now, so a refusal read again brings it back.
 const isRefused = (err: unknown) => isPermissionDenied(err) || (isLocatorDenied(err) && /not grant/.test((err as Error).message))
+
+// FKN's cloud answers a request refused under 10 s ago with no card (REDISPLAY_COOLDOWN_MS in fkn-client)
+const CLOUD_REASK_MS = 10_000
 
 // asks `read` until it answers, the time runs out or the load is cancelled; a read refused while the
 // page moves asks again, and the wait ends on the player's own line
@@ -199,11 +202,14 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
   const [signingIn, setSigningIn] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const popupWatch = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const reaskAt = useRef(0)
+  const remountWait = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const mounted = useRef(true)
 
   useEffect(() => () => {
     mounted.current = false
     clearInterval(popupWatch.current)
+    clearTimeout(remountWait.current)
   }, [])
 
   useEffect(() => {
@@ -281,6 +287,7 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     })().catch(err => {
       if (cancelled) return
       console.error('Failed to load Prime Video player', err)
+      if (isRefused(err) && mode === 'cloud') reaskAt.current = Date.now() + CLOUD_REASK_MS
       setError(isRefused(err)
         ? intl.formatMessage({ id: '{name} needs the access FKN asked for.', defaultMessage: '{name} needs the access FKN asked for.' }, { name: 'Prime Video' })
         : err?.message || intl.formatMessage({ id: 'Failed to load player', defaultMessage: 'Failed to load player' }))
@@ -301,7 +308,8 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     },
   } : undefined, [frame, quality])
 
-  // a fresh iframe, since the cloud refuses to attach one it already attached
+  // a fresh iframe, since the cloud refuses to attach one it already attached; a Retry soon after a Not
+  // now waits until the cloud draws its card again
   const remount = useCallback(() => {
     setFrame(null)
     setError(undefined)
@@ -310,7 +318,8 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     setRentOnly(false)
     setBlocked(false)
     setLoading(true)
-    setAttachKey(key => key + 1)
+    clearTimeout(remountWait.current)
+    remountWait.current = setTimeout(() => setAttachKey(key => key + 1), Math.max(0, reaskAt.current - Date.now()))
   }, [])
 
   // through the Sign in of the site the link is on. On the extension the frame runs on the browser's own
