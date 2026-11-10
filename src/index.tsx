@@ -74,6 +74,7 @@ const style = css`
   }
 
   html {
+    font-size: 62.5%;
     height: 100vh;
     width: 100%;
   }
@@ -82,6 +83,7 @@ const style = css`
     margin: 0;
     height: 100vh;
     width: 100%;
+    font-size: 1.6rem;
     background-color: #0f0f0f;
   }
 

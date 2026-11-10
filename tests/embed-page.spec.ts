@@ -140,6 +140,16 @@ for (const [player, sourceUri, url] of [
   })
 }
 
+// the videojs skin Netflix plays in sizes everything from a 16px root, so the app's 62.5% root stays off this page:
+// under it the skin's buttons drew at 22.5px and its text at 8px (measured 2026-11-11)
+test('the Netflix player\'s controls keep the skin\'s own size', async ({ page }) => {
+  await page.route(url => !url.href.startsWith(origin), route => route.abort())
+  await page.goto(`${origin}${PREFIX}build/embed.html?${new URLSearchParams({ mediaUri: 'm', episodeUri: 'e', sourceUri: 'nf:1', url: 'https://www.netflix.com/watch/1' })}`)
+  const button = page.locator('.media-default-skin .media-button--icon').first()
+  await expect(button).toHaveCSS('height', '36px')
+  await expect(page.locator('.media-default-skin')).toHaveCSS('font-size', '13px')
+})
+
 test('the watch route frames the page beside whichever build runs it', async ({ request }) => {
   const chunks = [
     'build/index.js',
