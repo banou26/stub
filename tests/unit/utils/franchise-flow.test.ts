@@ -1,5 +1,7 @@
 import { expect, test } from 'vite-plus/test'
 
+import { startLanguage } from '../../../src/i18n'
+
 import { franchiseFlowGraph } from '../../../src/utils/franchise-flow'
 import { layoutFranchise } from '../../../src/utils/franchise-layout'
 
@@ -26,6 +28,15 @@ test('a box names the work\'s kind and its episodes, as the sources count them',
     c: 'Special',
     d: '2 ep',
   })
+})
+
+test('right to left, each part of a box\'s line is isolated', async () => {
+  try {
+    await startLanguage({ language: 'ar', languages: ['ar'] })
+    expect(graph().nodes.find(node => node.id === 'a')!.data.meta).toBe('\u2068TV\u2069 · \u2068الحلقات: \u20681100\u2069\u2069')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })
 
 test('a stated relation is labelled in capitals, from the page the reader is on', () => {

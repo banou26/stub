@@ -2,7 +2,7 @@ import type { Edge, Node } from '@xyflow/react'
 
 import type { Layout } from './franchise-layout'
 
-import { intl } from '../i18n'
+import { intl, joinFacts } from '../i18n'
 import { edgeKey, highlightFor, nodeTitle } from './franchise-layout'
 import { relationLabel, workFormatLabel } from './relation-labels'
 
@@ -94,8 +94,7 @@ export const franchiseFlowGraph = (
         uri: node.uri,
         title,
         lines: titleLines(title),
-        meta: [workFormatLabel(node.format), node.episodeCount ? intl.formatMessage({ id: '{count} ep', defaultMessage: '{count} ep' }, { count: node.episodeCount }) : undefined]
-          .filter(Boolean).join(' · '),
+        meta: joinFacts([workFormatLabel(node.format), node.episodeCount ? intl.formatMessage({ id: '{count} ep', defaultMessage: '{count} ep' }, { count: node.episodeCount }) : undefined]),
         current: options.current.has(node.uri),
         lit: lit.nodes.has(node.uri),
       },

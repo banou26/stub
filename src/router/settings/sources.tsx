@@ -10,7 +10,7 @@ import { defineMessages, useIntl } from 'react-intl'
 
 import OriginIcon from '../../components/origin-icon'
 import { switchStyle } from '../../components/switch-style'
-import { NAME_LIST } from '../../i18n'
+import { joinFacts, NAME_LIST } from '../../i18n'
 import { loadPluginValues } from '../../plugin-list'
 import { addPlugins, configurePlugin, disablePlugin, installPlugin, onPluginsChange, pluginStatuses, type PluginStatus } from '../../plugins'
 import { builtInSources, drawnAs } from '../../sources/built-in'
@@ -428,11 +428,12 @@ const PluginRow = ({ plugin, onRemove }: { plugin: PluginStatus, onRemove: () =>
   const name = pluginName(intl, plugin)
   const temporary = plugin.temporary ? intl.formatMessage({ id: 'Temporary', defaultMessage: 'Temporary' }) : undefined
   // a package may register a family of sources, and some of them and not others
-  const counts = [
+  const facts = joinFacts([
     temporary,
     sources.length > 1 ? intl.formatMessage({ id: '{count, plural, one {{count} source} other {{count} sources}}', defaultMessage: '{count, plural, one {{count} source} other {{count} sources}}' }, { count: sources.length }) : undefined,
     plugin.rejected?.length ? intl.formatMessage({ id: '{count, plural, one {{count} unavailable} other {{count} unavailable}}', defaultMessage: '{count, plural, one {{count} unavailable} other {{count} unavailable}}' }, { count: plugin.rejected.length }) : undefined,
-  ].filter(Boolean).map(part => ` · ${part}`).join('')
+  ])
+  const counts = facts && ` · ${facts}`
   return (
     <li className="row plugin" data-plugin={plugin.uri}>
       <div className="info">

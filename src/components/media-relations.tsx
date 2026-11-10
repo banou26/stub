@@ -8,6 +8,7 @@ import { Link, useSearch } from 'wouter'
 
 import Paged from './paged'
 import Placeholder from './placeholder'
+import { joinFacts } from '../i18n'
 import { getRoutePath, Route } from '../router/path'
 import { carriedSearch } from '../router/debug/trace'
 import { asAggregatedUri } from '../utils/uri'
@@ -218,7 +219,7 @@ const MediaRelations = (
     label: relationLabel(edge.relation),
     // `format` rides on the EDGE rather than the node because `MediaType` is anime formats only and a
     // franchise's relations are mostly not anime. See the schema's own note on the field.
-    meta: [workFormatLabel(edge.format), statusLabel(edge.node.status)].filter(Boolean).join(' · '),
+    meta: joinFacts([workFormatLabel(edge.format), statusLabel(edge.node.status)]),
   }))
   return <WorkCards name="relations" heading={heading} cards={cards} action={action} route={route} pending={pending}/>
 }
@@ -235,7 +236,7 @@ export const MediaRecommendations = (
   const cards = recommendations.map(({ node }) => ({
     key: node.uri,
     node,
-    label: [workFormatLabel(node.type), releaseDateLabel(node.startDate?.slice(0, 4), { locale: intl.locale })].filter(Boolean).join(' · '),
+    label: joinFacts([workFormatLabel(node.type), releaseDateLabel(node.startDate?.slice(0, 4), { locale: intl.locale })]),
     meta: statusLabel(node.status),
   }))
   return <WorkCards name="recommendations" heading={heading} cards={cards} route={route} pending={false}/>

@@ -35,6 +35,16 @@ const isolated = (elements: MessageFormatElement[]) => elements.flatMap((element
     ? [{ ...element, options: Object.fromEntries(Object.entries(element.options).map(([key, option]) => [key, { ...option, value: isolated(option.value) }])) }]
   : [element])
 
+/**
+ * `parts` joined by `joiner`, the empty ones left out, for a line of facts such as `ONA · 19 March 2026 · 1 Episode`.
+ * Right to left, each part is isolated as a message's values are: a Latin `ONA` before a date that opens on a digit
+ * would otherwise take the day into its own left to right run, away from its month.
+ */
+export const joinFacts = (parts: readonly (string | null | undefined)[], joiner = ' · '): string => {
+  const named = parts.filter((part): part is string => !!part)
+  return (isRightToLeft(intl.locale) ? named.map(part => `\u2068${part}\u2069`) : named).join(joiner)
+}
+
 // a message that does not parse stays text, which formatjs answers with its English, as in any other language
 const isolatedText = (text: string) => {
   try { return isolated(parse(text)) } catch { return text }

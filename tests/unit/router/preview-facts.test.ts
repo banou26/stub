@@ -87,6 +87,20 @@ test('a series\' line names its format, release and episodes', () => {
   expect(seriesLine({})).toBe('')
 })
 
+// a Latin ONA beside a date opening on a digit would draw as `19 · ONA مارس 2026`, the day away from its month
+test('right to left, each part of both lines is isolated, so it reads as one piece', async () => {
+  const isolated = (...parts: (string | undefined)[]) => parts.map(part => `\u2068${part}\u2069`).join(' · ')
+  try {
+    const ar = await startLanguage({ language: 'ar', languages: ['ar'] })
+    expect(seriesLine({ type: MediaType.Ona, startDate: '2026-03-19', episodeCount: 1 }))
+      .toBe(isolated('ONA', releaseDateLabel('2026-03-19', { locale: ar.locale }), 'حلقة واحدة'))
+    const he = await startLanguage({ language: 'he', languages: ['he-IL'] })
+    expect(filmLine(penguin)).toBe(isolated('סרט', releaseDateLabel('2018-08-17', { locale: he.locale }), runtimeText(120)))
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
 // the genres as their sources name them, which their pills label and link to the search by (tests/unit/router/media-pages.test.tsx)
 test('in German, the side column\'s date and both lines are German, its genres as their sources name them', async () => {
   try {

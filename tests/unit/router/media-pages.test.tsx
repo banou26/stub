@@ -887,6 +887,21 @@ describe('Recommendations', () => {
     })
   })
 
+  describe('in Arabic', () => {
+    beforeAll(() => startLanguage({ language: 'ar', languages: ['ar'] }))
+    afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))
+
+    test('a card\'s kind is isolated from its year and from its status, so a Latin kind keeps away from both', () => {
+      const ended = { ...frieren, relations: [{ ...sequel, node: { ...sequel.node, status: 'FINISHED' } }] }
+      const { host, answer } = titlePage(ended.uri)
+      answer(ended)
+      const recommended = host.querySelector('[data-recommendations] a.relation-card')!
+      expect(recommended.querySelector('.relation')!.textContent).toBe('\u2068TV\u2069 · \u20682018\u2069')
+      const finished = recommended.querySelector('.meta')!.textContent
+      expect(host.querySelector('[data-relations] .relation-card .meta')!.textContent).toBe(`\u2068TV\u2069 · \u2068${finished}\u2069`)
+    })
+  })
+
   test('none is no section, on the title page and in the preview, which draws them nowhere', () => {
     const none = { ...frieren, recommendations: null }
     const { host, answer } = titlePage(none.uri)

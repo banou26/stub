@@ -329,6 +329,16 @@ test('declining FKN\'s confirm keeps the address, and an empty one asks nothing'
   expect(calls.installPlugin).not.toHaveBeenCalled()
 })
 
+test('right to left, each count after a package\'s address is isolated', async () => {
+  try {
+    await startLanguage({ language: 'ar', languages: ['ar'] })
+    const { row } = render([FAMILY])
+    expect(row(FAMILY.uri).querySelector('.meta')!.textContent).toBe('npm:@spec/family · \u2068\u20683\u2069 مصادر\u2069 · \u2068غير متاح: \u20681\u2069\u2069')
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
 describe('in Russian', () => {
   beforeAll(() => startLanguage({ language: 'ru', languages: ['ru-RU'] }))
   afterAll(() => startLanguage({ language: 'en', languages: ['en-US'] }))

@@ -153,6 +153,15 @@ test('the home page\'s category tabs read in English, each handing its category'
   expect(picked).toEqual([null, MediaCategory.Anime, MediaCategory.Series, MediaCategory.Movie])
 })
 
+test('right to left, each part of a card\'s line is isolated', async () => {
+  try {
+    await startLanguage({ language: 'ar', languages: ['ar'] })
+    expect(draw(<MediaCard media={{ ...FINISHED, type: 'ONA' } as never} to="/media/anilist:21"/>).text('.meta')).toEqual(['\u2068ONA\u2069 • \u2068حلقة واحدة\u2069'])
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
+})
+
 describe('in German', () => {
   beforeEach(() => startLanguage({ language: 'de', languages: ['de-DE'] }))
   afterEach(() => startLanguage({ language: 'en', languages: ['en-US'] }))

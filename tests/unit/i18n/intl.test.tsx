@@ -10,7 +10,7 @@ import { parseHTML } from 'linkedom'
 import { RawIntlProvider, useIntl } from 'react-intl'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { intl, startLanguage, type Catalogue } from '../../../src/i18n'
+import { intl, joinFacts, startLanguage, type Catalogue } from '../../../src/i18n'
 import { releaseDateLabel } from '../../../src/utils/release-date'
 
 // plain descriptors, which the linter does not read: each message as stub writes it, its English its id
@@ -92,6 +92,14 @@ describe('a right to left language', () => {
     expect(ar.formatMessage(WHO, { who: 'other', member: 'Alex' })).toBe('\u2068Alex\u2069 متوقف')
     const linked = ar.formatMessage(LINKED, { site: 'trace.moe', link: (text: string[]) => `[${text.join('')}]` })
     expect([linked].flat().join('')).toBe('عثر عليها [\u2068trace.moe\u2069]')
+  })
+
+  test('a line of facts isolates each part, so a Latin format keeps away from a date opening on a digit', async () => {
+    await start('ar', {})
+    expect(joinFacts(['ONA', '19 مارس 2026', undefined, 'حلقة واحدة'])).toBe('\u2068ONA\u2069 · \u206819 مارس 2026\u2069 · \u2068حلقة واحدة\u2069')
+    expect(joinFacts(['ONA', null, '12 حلقة'], ' • ')).toBe('\u2068ONA\u2069 • \u206812 حلقة\u2069')
+    await start('fr', {})
+    expect(joinFacts(['ONA', '19 mars 2026', undefined]), 'the control: left to right, as written').toBe('ONA · 19 mars 2026')
   })
 
   test('a left to right language stays as written', async () => {

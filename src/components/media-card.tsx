@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl'
 import { Link } from 'wouter'
 
 import { airsIn, episodesLabel } from './listed-media'
+import { joinFacts } from '../i18n'
 import { formatLabel, seasonLabel, statusLabel } from '../router/search/params'
 import { accentVars } from '../utils/color'
 import { formatCountdown } from '../utils/countdown'
@@ -149,7 +150,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
   const episode = media.nextAiringEpisode?.episodeNumber
   const format = formatLabel(media.type)
   const season = seasonLabel(media.season, media.seasonYear)
-  const meta = [format, episodesLabel(media)].filter(Boolean).join(' • ')
+  const meta = joinFacts([format, episodesLabel(media)], ' • ')
   const state = statusLabel(media.status) ?? (season ? undefined : releaseDateLabel(media.startDate?.slice(0, 4), { locale: intl.locale }))
 
   return (

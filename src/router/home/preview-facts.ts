@@ -3,7 +3,7 @@
 
 import type { TitleMedia } from '../title/facts'
 
-import { intl } from '../../i18n'
+import { intl, joinFacts } from '../../i18n'
 import { site } from '../../site'
 import { releaseDateLabel } from '../../utils/release-date'
 import { formatLabel } from '../search/params'
@@ -55,7 +55,7 @@ export const categories = (allGenres: readonly string[] = [], allTags: readonly 
 
 /** The line over a series' title: its format, its release and its episodes, each left out when no source named it. */
 export const seriesLine = (media: PreviewMedia): string =>
-  [formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media)].filter(Boolean).join(' · ')
+  joinFacts([formatLabel(media.type), releasedLabel(media, { locale: intl.locale }), episodesLabel(media)])
 
 /**
  * The line over a film's title: Movie, its release once it is out as of `now` (by the rule the modal's Play goes by;
@@ -64,11 +64,11 @@ export const seriesLine = (media: PreviewMedia): string =>
 export const filmLine = (media: PreviewMedia, now = new Date()): string => {
   const film = media.episodes?.at(0)
   const { released, upcoming } = filmRelease({ startDate: media.startDate, status: media.status, episode: film }, now)
-  return [
+  return joinFacts([
     intl.formatMessage({ id: 'Movie', defaultMessage: 'Movie' }),
     upcoming ? undefined : releaseDateLabel(released, { locale: intl.locale }),
     runtimeText(film?.runtime ?? media.duration),
-  ].filter(Boolean).join(' · ')
+  ])
 }
 
 /**
