@@ -8,8 +8,8 @@ import { localeOf } from '../i18n/best-language'
 import { translatedTitle } from './translations'
 import { desc } from './utils'
 
-// Not English, the language every source is asked in already. Not Japanese, until the owner decides whether a Japanese
-// viewer sees anime titles in Japanese script: JustWatch's Japanese title for Frieren is a kana reading, そうそうのフリーレン.
+// Not English, the language every source is asked in already. Not Japanese: a Japanese viewer reads the show's own
+// Japanese title (./translations), and JustWatch's Japanese title for Frieren is a kana reading, そうそうのフリーレン.
 // Not Chinese: asked `zh`, JustWatch answers one script for a viewer reading either, and mixes them, Frieren's title
 // Traditional (葬送者芙莉蓮) and its synopsis Simplified (2026-11-10).
 const UNASKED = new Set(['en', 'ja', 'zh'])

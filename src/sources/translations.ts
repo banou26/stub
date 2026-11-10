@@ -2,7 +2,7 @@
 // tenth of its source's score and nothing compares it, so the stored order, every merge and every link a source makes
 // stay the same whatever the viewer's language; only the worker's field resolvers put the viewer's language first.
 
-import { bestLanguage } from '../i18n/best-language'
+import { bestLanguage, localeOf } from '../i18n/best-language'
 
 const classOf = (title: object) => ('class' in title && title.class) || 'MAIN'
 
@@ -19,9 +19,19 @@ const inLanguage = <T extends { language: string }>(values: readonly T[], langua
   return tag ? values.filter(value => value.language === tag) : []
 }
 
-/** `titles` with the best translation in `language` first and the rest as they are, or `titles` when it has none. */
-export const translationFirst = <T extends { language: string }>(titles: T[], language: string): T[] => {
-  const [first] = inLanguage(titles.filter(title => classOf(title) === 'TRANSLATED'), language)
+// No source translates into Japanese: a Japanese viewer reads a show's own Japanese title, AniDB's `ja` or the native
+// title every other source tags `jp`. That tag is a Chinese or Korean work's native title too, so not one in Hangul.
+const HANGUL = /\p{Script=Hangul}/u
+const japanese = (title: { language: string, title?: string }) =>
+  title.language === 'ja' || (title.language === 'jp' && !HANGUL.test(title.title ?? ''))
+
+/**
+ * `titles` with the best translation in `language` first and the rest as they are, or for a viewer reading Japanese
+ * the show's own Japanese title first, or `titles` when it has neither.
+ */
+export const translationFirst = <T extends { language: string, title?: string }>(titles: T[], language: string): T[] => {
+  const [translation] = inLanguage(titles.filter(title => classOf(title) === 'TRANSLATED'), language)
+  const first = translation ?? (localeOf(language)?.language === 'ja' ? titles.find(japanese) : undefined)
   return first ? [first, ...titles.filter(title => title !== first)] : titles
 }
 

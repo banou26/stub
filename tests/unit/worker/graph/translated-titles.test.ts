@@ -176,6 +176,12 @@ test('a French viewer\'s title page and card lead with the French title and show
   })
 })
 
+// Mutation: drop the Japanese case from `translationFirst`, and the Japanese viewer reads the English title first.
+test('a Japanese viewer\'s title page and card lead with the show\'s own Japanese title, the English one below', async () => {
+  const { heading, card } = await shownTo('ja-JP')
+  expect({ heading, card }).toEqual({ heading: ['ペンギン・ハイウェイ', 'Penguin Highway'], card: ['ペンギン・ハイウェイ', LONGER] })
+})
+
 test('an English viewer\'s title page and card are as before', async () => {
   expect(await shownTo('en-US')).toEqual({
     heading: ['Penguin Highway', 'ペンギン・ハイウェイ'],
