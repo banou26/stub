@@ -77,6 +77,8 @@ test('a card no source gives a status names the year it started, and nothing whe
   expect([film('2021-10-22'), film('1984'), film(null)]).toEqual([['2021'], ['1984'], []])
   const anime = draw(<MediaCard media={{ ...FINISHED, status: null, startDate: '1999-10-20' } as never} to="/media/anilist:21"/>)
   expect([anime.text('.season'), anime.text('.airing-value')], 'a year its cover already names').toEqual([['Fall 1999'], []])
+  const seasonless = draw(<MediaCard media={{ ...FINISHED, season: null, seasonYear: null, startDate: '2016-08-26' } as never} to="/media/anilist:21"/>)
+  expect(seasonless.text('.airing-value'), 'a status before the year').toEqual(['Finished'])
 })
 
 test('a row names the score\'s users grouped, the episodes and the next airing to one unit, in English', () => {
