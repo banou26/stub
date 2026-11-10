@@ -2962,7 +2962,6 @@ test('the last episode of an anime links the first of its sequel, on the release
   expect(asked).toEqual(['ag:(anilist:2)'])
 })
 
-// STUB-401
 test('the last episode of an anime whose sequel is a film names the film by its title alone', async () => {
   for (const type of ['TV', 'MOVIE']) {
     lastOf({ relations: [{ ...SEQUEL, format: type }] }, 'nyaa:b')
