@@ -30,16 +30,18 @@ export type MediaPageFilters = {
 /** A season and its year as an answer named them for a row, and the share of that season it gave the row. */
 export type SeasonPair = { season: string | null, seasonYear: number | null, popularity: number | null }
 
-type Seasoned = Pick<GQLMedia, 'season' | 'seasonYear' | 'popularity'> & { seasonPairs?: readonly SeasonPair[] }
+type Seasoned = Pick<GQLMedia, 'season' | 'seasonYear' | 'popularity' | 'startDate'> & { seasonPairs?: readonly SeasonPair[] }
 
 /**
  * The pair a season or a year filter matches: on the graph store any a member was listed in, the row's own first when
- * a year alone matches two, and else the row's own.
+ * a year alone matches two, and else the row's own. A year alone matches a row no source names a year of, a film or a
+ * show as the live-action sources answer them, by the year it started.
  */
 const listedIn = (media: Seasoned, { season, seasonYear }: MediaPageFilters): Seasoned | SeasonPair | undefined => {
   const own = (pair: { season?: string | null, seasonYear?: number | null }) => Number(pair.season === media.season && pair.seasonYear === media.seasonYear)
-  return (media.seasonPairs?.length ? [...media.seasonPairs].sort((a, b) => own(b) - own(a)) : [media]).find(pair =>
-    (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))
+  const pairs = media.seasonPairs?.length ? [...media.seasonPairs].sort((a, b) => own(b) - own(a)) : [media]
+  return pairs.find(pair => (!season || pair.season === season) && (!seasonYear || pair.seasonYear === seasonYear))
+    ?? (!season && !pairs.some(pair => pair.seasonYear) && media.startDate?.slice(0, 4) === String(seasonYear) ? media : undefined)
 }
 
 const labelSet = (labels: readonly string[] | null | undefined, key = (label: string) => label.toLowerCase()): Set<string> =>
@@ -71,7 +73,8 @@ const labelSet = (labels: readonly string[] | null | undefined, key = (label: st
  * it is why status is a filter rather than a default.
  *
  * A season and a year match any pair in `seasonPairs`, every season a member was listed in, so a run two seasons
- * list is on both pages whichever of them a tab opened first. A row with none matches on its own pair.
+ * list is on both pages whichever of them a tab opened first. A row with none matches on its own pair, and a year alone
+ * on its `startDate` when it names no year at all.
  *
  * The SITE comes first (src/site.ts), and it is a parameter rather than a field of `filters` because a
  * field is something any caller could widen: no page and no address can ask this past it.

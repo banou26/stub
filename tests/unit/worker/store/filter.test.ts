@@ -116,6 +116,21 @@ describe('applyMediaFilters', () => {
     expect(uris(applyMediaFilters(page, { season: 'SUMMER', seasonYear: 2026 }))).toEqual(['mal:1', 'mal:2'])
     expect(uris(applyMediaFilters(page, { season: 'FALL' }))).toEqual(['mal:1', 'mal:2'])
   })
+
+  // STUB-380 (movies and series: picking a Year in search emptied the results): no live-action source names a seasonYear
+  test('a year alone keeps a row naming no year by the year it started, and never one naming another year', () => {
+    const page = [
+      media('jw:1', { categories: ['MOVIE'], startDate: '2021-10-22T00:00:00.000Z' }),
+      media('tmdb:2', { categories: ['MOVIE'], startDate: '2021' }),
+      media('jw:3', { categories: ['MOVIE'], startDate: '1984-12-14' }),
+      media('anilist:4', { categories: ['ANIME'], season: 'WINTER', seasonYear: 2022, startDate: '2021-12-30' }),
+      media('mal:5', { categories: ['ANIME'], seasonPairs: [pair('WINTER', 2022)], startDate: '2021-12-30' }),
+    ]
+    expect(uris(applyMediaFilters(page, { seasonYear: 2021 }))).toEqual(['jw:1', 'tmdb:2'])
+    expect(uris(applyMediaFilters(page, { seasonYear: 2022 }))).toEqual(['anilist:4', 'mal:5'])
+    expect(uris(applyMediaFilters(page, { season: 'FALL', seasonYear: 2021 })), 'a start date names no season').toEqual([])
+    expect(pageRows(page, { seasonYear: 2021 }, [], 'movie')[0], 'drawn as it is').toBe(page[0])
+  })
 })
 
 // The four tests below are one rule seen from four sides, and it is the rule most likely to be

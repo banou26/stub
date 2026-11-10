@@ -338,7 +338,7 @@ const searchTitles = async (query: string, ctx: ExtractorServerContext, translat
 
 const POPULAR_FIRST = 40
 
-type PopularFilter = { objectTypes: ('MOVIE' | 'SHOW')[], genres?: string[] }
+type PopularFilter = { objectTypes: ('MOVIE' | 'SHOW')[], genres?: string[], releaseYear?: { min: number, max: number } }
 
 const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) => {
   const translation = translationOf(ctx)
@@ -351,25 +351,28 @@ const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) => {
 
 const KINDS: Partial<Record<MediaCategory, PopularFilter['objectTypes']>> = { MOVIE: ['MOVIE'], SERIES: ['SHOW'] }
 
-// the kinds a site lists a genre by: its own, or on stub.fkn.app the category named, none meaning every kind;
-// anime.fkn.app lists by AniList's genres
-const genreKinds = (named: PopularFilter['objectTypes'] | undefined) =>
+// the kinds a site lists a genre or a year by: its own, or on stub.fkn.app the category named, none meaning every kind;
+// anime.fkn.app lists by AniList's genres and seasons
+const browseKinds = (named: PopularFilter['objectTypes'] | undefined) =>
   site === 'movie' ? KINDS.MOVIE : site === 'series' ? KINDS.SERIES : site === 'stub' ? named ?? [] : undefined
 
 const genreCode = (label: string) =>
   Object.entries(JUSTWATCH_GENRES).find(([name]) => genreKey(name) === genreKey(label))?.[1]
 
-// What JustWatch's most popular titles answer and no other source does: a home row, one category named, and a genre on
-// the sites that list by its genres. Never with a search, or a season, status or tag, which its titles never carry, nor
-// with formats that leave out a film's, the only one they carry. Its filter keeps a title carrying any genre asked where
-// the page keeps one carrying every genre picked, so it is asked the first.
+// What JustWatch's most popular titles answer and no other source does: a home row, one category named, and a genre or
+// a year on the sites that list by them. Never with a search, or a season, status or tag, which its titles never carry,
+// nor with formats that leave out a film's, the only one they carry. Its filter keeps a title carrying any genre asked
+// where the page keeps one carrying every genre picked, so it is asked the first. Its year is the one a film or a show
+// first came out, which is the `startDate` year the page keeps it by.
 const popularFilter = ({ categories, formats, season, seasonYear, status, tags, genres }: MediaPageInput): PopularFilter | undefined => {
-  if (season || seasonYear || status || tags?.length || (formats?.length && !formats.includes('MOVIE'))) return undefined
+  if (season || status || tags?.length || (formats?.length && !formats.includes('MOVIE'))) return undefined
   const named = categories?.length === 1 ? KINDS[categories[0]!] : undefined
-  if (!genres?.length) return named && { objectTypes: named }
-  const objectTypes = genreKinds(named)
-  const codes = genres.map(genreCode)
-  return objectTypes && codes.every(Boolean) ? { objectTypes, genres: [codes[0]!] } : undefined
+  if (!genres?.length && !seasonYear) return named && { objectTypes: named }
+  const objectTypes = browseKinds(named)
+  const codes = (genres ?? []).map(genreCode)
+  return objectTypes && codes.every(Boolean)
+    ? { objectTypes, ...codes.length ? { genres: [codes[0]!] } : {}, ...seasonYear ? { releaseYear: { min: seasonYear, max: seasonYear } } : {} }
+    : undefined
 }
 
 const DAY_MS = 86_400_000
