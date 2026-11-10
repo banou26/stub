@@ -120,7 +120,9 @@ const CellComponent = (
   )
 }
 
-export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, titleTo?: string, mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
+export const MediaSection = (
+  { name, title, titleTo, mediaNodes }: { name: string, title: string, titleTo?: string, mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }
+) => {
   // held as long as the search page waits before it finds nothing, so a row whose sources answer nothing ends empty
   const [waited, setWaited] = useState(false)
   useEffect(() => {
@@ -133,7 +135,7 @@ export const MediaSection = ({ title, titleTo, mediaNodes }: { title: string, ti
       <RowTitle title={title} to={titleTo}/>
       {
         mediaNodes.length || waited
-          ? <CardRow count={mediaNodes.length} cell={CellComponent} cellProps={{ mediaNodes }}/>
+          ? <CardRow name={name} count={mediaNodes.length} cell={CellComponent} cellProps={{ mediaNodes }}/>
           : (
             <div className='list-container'>
               <div className="pending">{Array.from({ length: 8 }, (_, index) => <Placeholder key={index}/>)}</div>

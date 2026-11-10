@@ -15,7 +15,7 @@ vi.mock('../../../src/components/draggable', () => ({ default: ({ children }: { 
 vi.mock('react-window', async () => {
   const { h } = await import('preact')
   return {
-    useGridRef: () => ({ current: null }),
+    useGridCallbackRef: () => [null, () => {}],
     Grid: ({ cellComponent, cellProps, columnCount }: { cellComponent: (props: object) => null, cellProps: object, columnCount: number }) =>
       h('div', null, Array.from({ length: columnCount }, (_, columnIndex) =>
         h(cellComponent, { ...cellProps, key: `0-${columnIndex}`, columnIndex, rowIndex: 0, style: {} }))),
@@ -46,7 +46,7 @@ const show = (_id: string, title: string, { covers = [`https://images.justwatch.
 
 const row = async (nodes: object[]) => {
   const { hook } = memoryLocation({ path: '/' })
-  const tree = (next: object[]) => withIntl(<Router hook={hook}><MediaSection title="Popular shows" mediaNodes={next as Nodes}/></Router>)
+  const tree = (next: object[]) => withIntl(<Router hook={hook}><MediaSection name="shows" title="Popular shows" mediaNodes={next as Nodes}/></Router>)
   const host = mount(tree(nodes))
   hosts.push(host)
   const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)))

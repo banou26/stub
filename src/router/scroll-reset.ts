@@ -1,4 +1,4 @@
-// Where the page's scroll goes after a navigation.
+// Where the page's scroll goes after a navigation, and the home rows' sideways scroll.
 //
 // A single page app moves nothing on its own: wouter swaps the route component and the document
 // keeps whatever scroll it had, so "Current season" clicked 1,200px down the home page opened the
@@ -61,6 +61,30 @@ export const resetsScroll = ({ from, to, kind, asked = false }: Navigation): boo
   if (to.over?.under === address(from) || from.over?.under === address(to)) return false
   if (kind === 'replace') return from.pathname !== to.pathname && !(isTitle(from.pathname) && isTitle(to.pathname))
   return true
+}
+
+const shown = new Map<string, () => number>()
+
+/**
+ * Where the home row `row` was when the viewer left the history entry the page shows, as `keepRows` kept it. Undefined
+ * on an entry never left, so a page somebody asked for starts each row at its first card.
+ */
+export const rowLeft = (row: string): number | undefined =>
+  (globalThis.navigation?.currentEntry?.getState() as { rows?: Record<string, number> } | undefined)?.rows?.[row]
+
+/** Lets `keepRows` read a home row's place while it is drawn. Returns the function that ends that, for its unmount. */
+export const showRow = (row: string, left: () => number) => {
+  shown.set(row, left)
+  return () => { shown.delete(row) }
+}
+
+/**
+ * For the Navigation API's `navigate` event, which fires while the entry being left is still the current one: keeps
+ * the drawn rows' places in it. History holds them per entry, through a reload too, so Back draws every row where that
+ * page had it.
+ */
+export const keepRows = () => {
+  navigation.updateCurrentEntry({ state: { rows: Object.fromEntries([...shown].map(([row, left]) => [row, left()])) } })
 }
 
 /**

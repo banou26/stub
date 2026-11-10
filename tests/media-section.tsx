@@ -24,7 +24,7 @@ const show = (index: number, typed: boolean) => ({
 const intl = await startLanguage()
 const draw = (count: number, typed = false) => render(
   <RawIntlProvider value={intl}>
-    <Router hook={hook}><MediaSection title="Current season" mediaNodes={Array.from({ length: count }, (_, index) => show(index, typed)) as never}/></Router>
+    <Router hook={hook}><MediaSection name="season" title="Current season" mediaNodes={Array.from({ length: count }, (_, index) => show(index, typed)) as never}/></Router>
   </RawIntlProvider>,
   document.getElementById('row')!,
 )

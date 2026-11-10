@@ -166,7 +166,7 @@ const NewEpisodes = () => {
           ? (
             <section css={rowStyle} className='home-row'>
               <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.CONTINUE)}/>
-              <CardRow count={Math.min(episodes.length, MOST)} cell={Cell} cellProps={{ episodes }}/>
+              <CardRow name='new-episodes' count={Math.min(episodes.length, MOST)} cell={Cell} cellProps={{ episodes }}/>
             </section>
           )
           : undefined

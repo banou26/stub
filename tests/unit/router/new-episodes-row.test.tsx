@@ -37,7 +37,7 @@ vi.mock('../../../src/components/draggable', () => ({ default: ({ children }: { 
 vi.mock('react-window', async () => {
   const { h } = await import('preact')
   return {
-    useGridRef: () => ({ current: null }),
+    useGridCallbackRef: () => [null, () => {}],
     Grid: ({ cellComponent, cellProps, columnCount }: { cellComponent: (props: object) => null, cellProps: object, columnCount: number }) =>
       h('div', null, Array.from({ length: columnCount }, (_, columnIndex) =>
         h(cellComponent, { ...cellProps, key: `0-${columnIndex}`, columnIndex, rowIndex: 0, style: {} }))),

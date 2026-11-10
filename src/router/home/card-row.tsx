@@ -2,11 +2,12 @@ import type { CSSProperties } from 'react'
 import type { GridProps } from 'react-window'
 
 import { css } from '@emotion/react'
-import { Grid, useGridRef } from 'react-window'
-import { useCallback, useEffect, useMemo, useState } from 'preact/compat'
+import { Grid, useGridCallbackRef } from 'react-window'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/compat'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import Draggable from '../../components/draggable'
+import { rowLeft, showRow } from '../scroll-reset'
 
 /** A home row card's size in CSS px: 25rem x 35rem, and the smaller 15rem x 21rem on a phone. */
 export type RowCard = { width: number, height: number }
@@ -89,19 +90,32 @@ export type RowCellProps<P> = P & { style: CSSProperties, columnIndex: number, c
 
 /**
  * A home row's cards in one line, dragged with the pointer to scroll and stepped with the arrows on either side,
- * drawing only the cells in view. Every home row scrolls through this one, so they all move alike.
+ * drawing only the cells in view. Every home row scrolls through this one, so they all move alike. `name` tells the
+ * rows apart, so that Back draws each one again where the viewer left it.
  */
-export const CardRow = <P extends object>({ count, cell, cellProps }: { count: number, cell: (props: RowCellProps<P>) => JSX.Element | null, cellProps: P }) => {
+export const CardRow = <P extends object>(
+  { name, count, cell, cellProps }: { name: string, count: number, cell: (props: RowCellProps<P>) => JSX.Element | null, cellProps: P }
+) => {
   const card = useRowCard()
   const [visibleStartIndex, setVisibleStartIndex] = useState(0)
   const [visibleEndIndex, setVisibleEndIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
-  const gridRef = useGridRef(null)
+  const [grid, setGrid] = useGridCallbackRef(null)
+
+  // Put back again each time cards are drawn, since a listing still arriving may not reach that far yet, until the
+  // viewer moves the row. `applied` is where this row put itself, which tells its own scroll from theirs.
+  const restore = useRef(rowLeft(name))
+  const applied = useRef<number>(undefined)
+  useLayoutEffect(() => {
+    const element = grid?.element
+    if (!element || restore.current === undefined) return
+    element.scrollLeft = restore.current
+    applied.current = element.scrollLeft
+  }, [grid, count])
+  useEffect(() => showRow(name, () => restore.current ?? grid?.element?.scrollLeft ?? 0), [name, grid])
 
   const scrollTo = useCallback((direction: 'previous' | 'next') => {
-    const grid = gridRef.current
-    if (!grid) return
-    grid.scrollToColumn({
+    grid?.scrollToColumn({
       // named, since react-window's automatic alignment reads a right to left row's negative scroll as before its start
       align: direction === 'previous' ? 'start' : 'end',
       index:
@@ -110,14 +124,17 @@ export const CardRow = <P extends object>({ count, cell, cellProps }: { count: n
           : visibleEndIndex + 1 >= count ? count - 1 : visibleEndIndex,
       behavior: 'smooth'
     })
-  }, [visibleStartIndex, visibleEndIndex, count, gridRef])
+  }, [visibleStartIndex, visibleEndIndex, count, grid])
 
   return (
     <div className='list-container' css={style}>
       <Draggable isDragging={isDragging} setIsDragging={setIsDragging}>
         <Grid<P & { card: RowCard }>
-          gridRef={gridRef}
+          gridRef={setGrid}
           className='virtual-list'
+          onScroll={({ currentTarget: { scrollLeft } }) => {
+            if (scrollLeft !== applied.current) restore.current = undefined
+          }}
           cellComponent={cell}
           cellProps={{ ...cellProps, card } as GridProps<P & { card: RowCard }>['cellProps']}
           columnCount={count}

@@ -3,7 +3,7 @@
 // the top under itself, and neither errors.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { askForTop, cancelReset, isHomeFamily, resetPending, resetsScroll, returnTop, scheduleReset, scrollToTop, takeAskedTop } from '../../../src/router/scroll-reset'
+import { askForTop, cancelReset, isHomeFamily, keepRows, resetPending, resetsScroll, returnTop, rowLeft, scheduleReset, scrollToTop, showRow, takeAskedTop } from '../../../src/router/scroll-reset'
 import type { Navigation, NavigationKind } from '../../../src/router/scroll-reset'
 
 const at = (url: string) => {
@@ -121,6 +121,31 @@ describe('returnTop', () => {
     expect(returnTop({ from: preview, to: { ...at('/media/other'), over: OVER }, kind: 'push' })).toBeUndefined()
     expect(returnTop({ from: at(LISTING), to: preview, kind: 'push' })).toBeUndefined()
     expect(returnTop(go(MEDIA, '/', 'push')), 'a modal over the home page').toBeUndefined()
+  })
+})
+
+// STUB-412: a trip through a title page threw the home page away, and Back drew every row at its first card
+describe('keepRows', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  test('keeps the drawn rows\' places in the entry being left', () => {
+    const updateCurrentEntry = vi.fn()
+    vi.stubGlobal('navigation', { updateCurrentEntry })
+    const ends = [showRow('season', () => 2620), showRow('movies', () => 520)]
+    keepRows()
+    expect(updateCurrentEntry).toHaveBeenCalledWith({ state: { rows: { season: 2620, movies: 520 } } })
+    for (const end of ends) end()
+    keepRows()
+    expect(updateCurrentEntry, 'a row no longer drawn is not kept').toHaveBeenLastCalledWith({ state: { rows: {} } })
+  })
+
+  test('a row reads its place from the entry the page shows', () => {
+    vi.stubGlobal('navigation', { currentEntry: { getState: () => ({ rows: { season: 500 } }) } })
+    expect([rowLeft('season'), rowLeft('movies')]).toEqual([500, undefined])
+    vi.stubGlobal('navigation', { currentEntry: { getState: () => undefined } })
+    expect(rowLeft('season'), 'an entry never left starts at the first card').toBeUndefined()
+    vi.stubGlobal('navigation', undefined)
+    expect(rowLeft('season'), 'nor does a browser without the Navigation API break').toBeUndefined()
   })
 })
 
