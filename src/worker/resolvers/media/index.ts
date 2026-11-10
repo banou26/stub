@@ -171,14 +171,13 @@ export const resolvers = {
           // on the graph path the last answers' rows are a pass away from the read
           if (reader && settling.settled()) await passSettled()
           const found = await read()
-          if (!found) return undefined
           // after the read, which may have asked a source the cluster has only just named, and with nothing
           // out, after the asks it makes past awaits of its own, or the page hears settled as one starts
-          if (settling.settled()) await found.asking
+          if (found && settling.settled()) await found.asking
           const settled = settling.settled() && settles === since
-          // Null is a title the site does not keep, and only once settled: a category can arrive late, and a page
-          // on a 404 until it does would flash one. A page already drawn stays.
-          if (!found.media) return settled && !drawn ? null : undefined
+          // Null is a title no source answered or the site does not keep, and only once settled: a category can
+          // arrive late, and a page on a 404 until it does would flash one. A page already drawn stays.
+          if (!found?.media) return settled && !drawn ? null : undefined
           drawn = true
           return { ...found.media, settled }
         }
@@ -188,7 +187,7 @@ export const resolvers = {
           if (first !== undefined) yield first
 
           for await (const detail of iterator) {
-            // An empty cluster yields nothing and WAITS, on its requested uris until one resolves and
+            // An empty cluster yields null once settled and WAITS, on its requested uris until one resolves and
             // on its cluster id after that. Every other cluster's event is refused here rather than
             // costing a read that answers the same row. No detail is the sources settling.
             if (reader && detail && !reader.wakes(detail as { clusters: string[], uris: string[] })) continue

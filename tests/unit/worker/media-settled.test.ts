@@ -25,6 +25,8 @@ const cluster = vi.hoisted(() => ({ uri: 'ag:(anilist:1)', categories: ['ANIME']
 // the graph read store, off unless a test turns it on: `rows` stands in for the rows a pass folds in
 const graph = vi.hoisted(() => ({
   on: false,
+  // no cluster for the address, as for one no source has answered
+  empty: false,
   rows: 0,
   address: async () => '',
   show: async () => '',
@@ -67,7 +69,7 @@ vi.mock('../../../src/worker/graph', async original => ({
     read: async () => {
       const rows = graph.rows
       await graph.reading()
-      return { _id: 'cl:1', uri: cluster.uri, categories: cluster.categories, rows }
+      return graph.empty ? undefined : { _id: 'cl:1', uri: cluster.uri, categories: cluster.categories, rows }
     },
     wakes: () => true,
   }),
@@ -104,7 +106,7 @@ afterEach(() => {
   cluster.uri = 'ag:(anilist:1)'
   cluster.categories = ['ANIME']
   setSite('stub')
-  Object.assign(graph, { on: false, rows: 0, address: async () => '', show: async () => '', pass: async () => null, reading: async () => {} })
+  Object.assign(graph, { on: false, empty: false, rows: 0, address: async () => '', show: async () => '', pass: async () => null, reading: async () => {} })
   similar.run = async () => {}
   similar.answer = async () => ({ outcome: 'refused', reason: 'null' })
   reads.count = 0
@@ -137,6 +139,21 @@ describe('the media subscription', { timeout: 5_000 }, () => {
     expect(await Promise.race([next, quiet().then(() => 'nothing')]), 'one source is still out').toBe('nothing')
 
     anizip!.end()
+    expect(await next).toBeNull()
+  })
+
+  // TVmaze's The Simpsons Specials asked as a show named `56220-s2021` answered nothing, and the page waited forever
+  // (2026-11-10)
+  test('answers null for an address no source answered, once every source has answered', async () => {
+    graph.on = true
+    graph.empty = true
+    const [tvmaze] = sources.asked = [source('tvmaze')]
+    const media = open()
+    opened.push(media)
+    const next = media.answer()
+    expect(await Promise.race([next, quiet().then(() => 'nothing')]), 'TVmaze has not answered').toBe('nothing')
+
+    tvmaze!.end()
     expect(await next).toBeNull()
   })
 
