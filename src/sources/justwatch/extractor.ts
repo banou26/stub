@@ -146,8 +146,8 @@ const jwFetch = async <T>(query: string, variables: Record<string, unknown>, ctx
   return res.json() as T
 }
 
-// one catalogue's most popular titles under `field`, every one read in the US
-const titlesIn = (field: string, country: string, extra: string) => `
+// one catalogue's most popular titles under `field`, every one read in the US, and `translated` beside
+const titlesIn = (field: string, country: string, extra: string, translated: string) => `
     ${field}(country: ${country}, filter: $searchTitlesFilter, first: $first, sortBy: POPULAR, sortRandomSeed: 0) {
       edges {
         node {
@@ -169,7 +169,7 @@ const titlesIn = (field: string, country: string, extra: string) => `
               translation(language: $language)
             }
             productionCountries${extra}
-          }
+          }${translated}
           offers(country: $offerCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
           }
           extraOffers: offers(country: $extraCountry, platform: WEB, filter: { bestOnly: true }) {${OFFER}
@@ -188,8 +188,8 @@ const titlesIn = (field: string, country: string, extra: string) => `
       }
     }`
 
-const titlesQuery = (catalogues: string) => `
-  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!) {${catalogues}
+const titlesQuery = (catalogues: string, translated: string) => `
+  query GetSearchTitles($searchTitlesFilter: TitleFilter!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!, $language: Language!, $first: Int!${translated && ', $translation: Language!'}) {${catalogues}
   }
 `
 
@@ -199,20 +199,20 @@ const SEARCH_EXTRA = `
             tmdb: externalIds {
               tmdbId
             }`
-const SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', SEARCH_EXTRA))
 // A title the US catalogue does not carry is searched in the offer country's too, in the same request: Even the
 // Student Council Has Its Holes! is none of the US search's ten and first of Japan's (2026-10-29). A US viewer's two
-// would be one, so they ask SEARCH_QUERY.
-const VIEWER_SEARCH_QUERY = titlesQuery(titlesIn('popularTitles', '$country', SEARCH_EXTRA) + titlesIn('viewerTitles: popularTitles', '$offerCountry', SEARCH_EXTRA))
+// would be one, so they ask the US alone.
+const searchQuery = (abroad: boolean, translated: string) => titlesQuery(titlesIn('popularTitles', '$country', SEARCH_EXTRA, translated)
+  + (abroad ? titlesIn('viewerTitles: popularTitles', '$offerCountry', SEARCH_EXTRA, translated) : ''), translated)
 // the home hero's wide image and trailer, which nothing reading a search draws. On the 40 most popular US shows and
 // films, 7 to 10 KB of backdrops and 4 to 5 KB of clips on a 177 to 204 KB answer, and a clip on 79 of the 80 (2026-10-26)
-const POPULAR_QUERY = titlesQuery(titlesIn('popularTitles', '$country', `
+const popularQuery = (translated: string) => titlesQuery(titlesIn('popularTitles', '$country', `
             backdrops(profile: S1920, format: JPG) {
               backdropUrl
             }
             clips(providers: [YOUTUBE]) {
               externalId
-            }`))
+            }`, translated), translated)
 
 const nodeQuery = (details: string, translated = '') => `
   query GetTitleNode($nodeId: ID!, $language: Language!, $country: Country!, $offerCountry: Country!, $extraCountry: Country!${translated && ', $translation: Language!'}) {
@@ -322,12 +322,15 @@ const deduplicatedFetch = async <T>(key: string, fn: () => Promise<T>): Promise<
   return promise
 }
 
-/** What a search finds in the US catalogue, then what only the offer country's names. */
-const searchTitles = async (query: string, ctx: ExtractorServerContext): Promise<JWSearchNode[]> => {
+/**
+ * What a search finds in the US catalogue, then what only the offer country's names, each in `translation` too when
+ * given: the search a page lists, never the one a link is checked by, which reads the English alone.
+ */
+const searchTitles = async (query: string, ctx: ExtractorServerContext, translation?: string): Promise<JWSearchNode[]> => {
   const countries = offerCountries()
-  const { data } = await deduplicatedFetch(`search:${query}`, () =>
-    jwFetch<JWSearchResponse>(countries.offerCountry === COUNTRY ? SEARCH_QUERY : VIEWER_SEARCH_QUERY, {
-      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...countries
+  const { data } = await deduplicatedFetch(`search:${query}:${translation ?? ''}`, () =>
+    jwFetch<JWSearchResponse>(searchQuery(countries.offerCountry !== COUNTRY, translation ? TRANSLATED : ''), {
+      first: 10, searchTitlesFilter: { searchQuery: query }, language: LANGUAGE, country: COUNTRY, ...countries, ...translation ? { translation } : {}
     }, ctx)
   )
   const nodes = [...data?.popularTitles?.edges ?? [], ...data?.viewerTitles?.edges ?? []].map(edge => edge.node)
@@ -338,12 +341,14 @@ const POPULAR_FIRST = 40
 
 type PopularFilter = { objectTypes: ('MOVIE' | 'SHOW')[], genres?: string[] }
 
-const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) =>
-  deduplicatedFetch(`popular:${JSON.stringify(filter)}`, () =>
-    jwFetch<JWSearchResponse>(POPULAR_QUERY, {
-      first: POPULAR_FIRST, searchTitlesFilter: filter, language: LANGUAGE, country: COUNTRY, ...offerCountries()
+const popularTitles = (filter: PopularFilter, ctx: ExtractorServerContext) => {
+  const translation = translationOf(ctx)
+  return deduplicatedFetch(`popular:${JSON.stringify(filter)}:${translation ?? ''}`, () =>
+    jwFetch<JWSearchResponse>(popularQuery(translation ? TRANSLATED : ''), {
+      first: POPULAR_FIRST, searchTitlesFilter: filter, language: LANGUAGE, country: COUNTRY, ...offerCountries(), ...translation ? { translation } : {}
     }, ctx)
   )
+}
 
 const KINDS: Partial<Record<MediaCategory, PopularFilter['objectTypes']>> = { MOVIE: ['MOVIE'], SERIES: ['SHOW'] }
 
@@ -444,15 +449,15 @@ interface JWSearchNode {
     externalIds?: { imdbId?: string | null, tmdbId?: string | null } | null
     /** only on a search's answer; see `SEARCH_EXTRA` */
     tmdb?: { tmdbId?: string | null } | null
-    /** these four and `externalIds.tmdbId` only on NODE_DETAILS_QUERY's answer, `backdrops` on POPULAR_QUERY's too */
+    /** these four and `externalIds.tmdbId` only on the title page's answer (`DETAILS`), `backdrops` on `popularQuery`'s too */
     runtime?: number | null
     backdrops?: { backdropUrl: string }[] | null
-    /** YouTube's videos for the title, only on POPULAR_QUERY's answer */
+    /** YouTube's videos for the title, only on `popularQuery`'s answer */
     clips?: { externalId: string }[] | null
     scoring?: { imdbScore: number | null, tmdbScore: number | null, tomatoMeter: number | null, jwRating: number | null } | null
     credits?: JWCredit[] | null
   }
-  /** `TRANSLATED`'s answer, only on a node asked for a viewer reading another language than English */
+  /** `TRANSLATED`'s answer, only on a node, listing or search asked for a viewer reading another language than English */
   translated?: { title: string | null, shortDescription: string | null } | null
   offers: JWOffer[]
   /** the same offers read on the second country; see `offerCountries` */
@@ -476,7 +481,7 @@ interface JWSeason {
      * dropped on the way into this type, so the gate had nothing but the show-level
      * `content.originalReleaseYear` to compare against and could not tell season 1 from season 4.
      *
-     * Optional because SEARCH_QUERY's seasons block asks only for seasonNumber and isReleased, so a
+     * Optional because a search's seasons block asks only for seasonNumber and isReleased, so a
      * season that came off a search payload genuinely does not carry it.
      */
     originalReleaseYear?: number | null
@@ -488,7 +493,7 @@ interface JWSeason {
      * back to the year rather than to `node.content.originalReleaseDate` (Mushoku's season row is
      * 2026-07-04 while its show row is 2021-01-11).
      *
-     * Optional for the same reason the year is: SEARCH_QUERY's seasons block does not ask for it.
+     * Optional for the same reason the year is: a search's seasons block does not ask for it.
      */
     originalReleaseDate?: string | null
   }
@@ -517,7 +522,7 @@ interface JWShowNode extends JWSearchNode { seasons: JWSeason[] }
 interface JWSearchResponse {
   data: {
     popularTitles: { edges: { node: JWSearchNode }[] }
-    /** the offer country's catalogue, which only VIEWER_SEARCH_QUERY asks */
+    /** the offer country's catalogue, which only a viewer outside the US asks with a search */
     viewerTitles?: { edges: { node: JWSearchNode }[] }
   }
 }
@@ -1245,7 +1250,7 @@ export const resolvers: Resolvers = {
         }
         if (!search) return yield { mediaPage: { nodes: [] } }
         // the search query does not fetch seasons, so normalizeMedia declines every series result and only movies come through
-        const nodes = await Promise.all((await searchTitles(search, ctx)).map(node => normalizeMedia(node, {}, ctx, policy)))
+        const nodes = await Promise.all((await searchTitles(search, ctx, translationOf(ctx))).map(node => normalizeMedia(node, {}, ctx, policy)))
         yield { mediaPage: { nodes: nodes.filter((media): media is GQLMedia => media !== null) } }
       }
     }

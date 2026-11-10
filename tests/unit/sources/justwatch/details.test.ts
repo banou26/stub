@@ -103,11 +103,28 @@ test('the details form goes out only when asked, and the modal and listing bodie
     expect((await open(DUNE, 'jw:1133934', true, language)).bodies, language).toEqual(page.bodies)
   }
 
-  const listing: string[] = []
-  const context = { fetch: async (_: string, init: { body: string }) => (listing.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
-  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
-  await subscribe(undefined, { input: { search: 'Dune' } }, context).next()
+  const listing = await listed({ search: 'Dune' })
   expect(sha256(listing[0]!), 'the listing body').toBe('93f123a924a7f67313ac046ed0fa6adab162f074d58f2efb33f4ebf9723e2344')
+})
+
+const listed = async (input: object, language?: string) => {
+  const bodies: string[] = []
+  const context = { language, fetch: async (_: string, init: { body: string }) => (bodies.push(init.body), { json: async () => ({ data: { popularTitles: { edges: [] } } }) }) }
+  await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input }, context).next()
+  return bodies
+}
+
+// taken before a search or a home row asked a translation of anyone
+test('an English, Japanese or Chinese viewer\'s search and home row bodies are the ones every viewer sent before', async () => {
+  const pinned = { US: ['93f123a924a7f67313ac046ed0fa6adab162f074d58f2efb33f4ebf9723e2344', '046335eec39e3ec725553bd7476c83617fe8455a4e9e6c124cfc7d5e36296294'], FR: ['90bd4767da2baf9865d4131130f1309196ab8a4dc076a76f721305b267f038e2', 'cb787a81a127fdb4814eebd01451cc2fbded21381913efc59c8745915e8ead7c'] }
+  for (const [country, zone] of [['US', 'America/New_York'], ['FR', 'Europe/Paris']] as const) {
+    viewerIn(zone)
+    for (const language of [undefined, 'en-US', 'en-GB', 'ja-JP', 'zh-Hans', 'zh-TW']) {
+      const bodies = [...await listed({ search: 'Dune' }, language), ...await listed({ categories: ['MOVIE'] }, language)]
+      expect(bodies.map(sha256), `${country} ${language}`).toEqual(pinned[country])
+    }
+    expect((await listed({ search: 'Dune' }, 'fr-FR')).map(sha256), 'the control, a French viewer\'s').not.toEqual(pinned[country].slice(0, 1))
+  }
 })
 
 test('a title the page found by search asks the details form too', async () => {

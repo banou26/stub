@@ -6,6 +6,9 @@ import { expect, test } from 'vite-plus/test'
 import { resolvers } from '../../../../src/sources/justwatch/extractor'
 import DUNE from '../../../fixtures/justwatch/dune-part-two.json'
 import SEVERANCE from '../../../fixtures/justwatch/severance.json'
+import POPULAR_MOVIES from '../../../fixtures/justwatch/popular-movies.json'
+import POPULAR_SHOWS from '../../../fixtures/justwatch/popular-shows.json'
+import STAR_WARS from '../../../fixtures/justwatch/star-wars-search.json'
 import { viewerIn } from './viewer'
 
 const FRENCH = {
@@ -78,4 +81,63 @@ test('a romanization is no translation into a language written in another script
   expect(await titlesIn('Dyun: Al-Juz Al-Thani', 'ar')).toEqual(['Dune: Part Two'])
   expect(await titlesIn('كثيب: الجزء الثاني', 'ar')).toEqual(['Dune: Part Two', 'كثيب: الجزء الثاني'])
   expect(await titlesIn('Diuna: Część druga', 'pl'), 'the control, a language written in Latin letters').toEqual(['Dune: Part Two', 'Diuna: Część druga'])
+})
+
+type Listing = { data: { popularTitles: { edges: { node: { content: { title: string, shortDescription: string | null } } }[] } } }
+
+// each node answered in French as JustWatch answers where it has no translation, its English, but for `title`'s
+const inFrench = ({ data }: Listing, english: string, title: string) => ({ data: { popularTitles: { edges: data.popularTitles.edges.map(({ node }) =>
+  ({ node: { ...node, translated: { title: node.content.title === english ? title : node.content.title, shortDescription: node.content.shortDescription } } })) } } })
+
+const listedIn = async (input: object, answer: unknown, language: string) => {
+  const bodies: { query: string, variables: Record<string, unknown> }[] = []
+  const context = {
+    language,
+    findAggregatedMedia: async () => null,
+    listenForMediaChanges: async function* () {},
+    fetch: async (_: string, init: { body: string }) => (bodies.push(JSON.parse(init.body)), { json: async () => answer }),
+  }
+  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input }, context).next()
+  return { nodes: value.mediaPage.nodes as Texts[], body: bodies[0]! }
+}
+
+// The French titles are made up. Mutation: leave `translated` out of `popularQuery` or `searchQuery`, and the cards of a
+// home row or a search stay English for every viewer.
+test('a French viewer\'s home rows and search carry JustWatch\'s French titles, asked in the same request', async () => {
+  viewerIn('America/New_York')
+  const cases = [
+    [{ categories: ['MOVIE'] }, POPULAR_MOVIES, 'Practical Magic', 'Les Ensorceleuses'],
+    [{ categories: ['SERIES'] }, POPULAR_SHOWS, 'Slow Horses', 'Les Tocards'],
+    [{ search: 'star wars' }, STAR_WARS, 'Star Wars', 'La Guerre des étoiles'],
+  ] as const
+  for (const [input, answer, english, french] of cases) {
+    const { nodes, body } = await listedIn(input, inFrench(answer, english, french), 'fr-FR')
+    expect(body.query, english).toContain('translated: content(country: $country, language: $translation) {')
+    expect(body.variables.translation, english).toBe('fr')
+    const titled = nodes.find(({ titles }) => titles[0]!.title === english)!
+    expect(titled.titles.slice(1), english).toEqual([{ language: 'fr', title: french, score: 0.02, class: 'TRANSLATED' }])
+    expect(nodes.filter(media => media !== titled).map(({ titles }) => titles.length), 'one equal to the English is none').toEqual([1, 1, 1])
+  }
+})
+
+// Mutation: hand the search `searchAndLinkMedia` runs `translationOf(ctx)`, and a French viewer's search for a link is a
+// body of its own, cached apart from every other viewer's, for a field nothing there reads.
+test('the search a link is checked by asks no translation, and the title it links is still asked in French', async () => {
+  const bodies: { query: string, variables: Record<string, unknown> }[] = []
+  const context = {
+    language: 'fr-FR',
+    findAggregatedMedia: async () => ({ titles: [{ title: 'Dune: Part Two' }], startDate: '2024-02-27', categories: ['MOVIE'] }),
+    listenForMediaChanges: async function* () {},
+    fetch: async (_: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body))
+      return { json: async () => init.body.includes('GetSearchTitles') ? { data: { popularTitles: { edges: [{ node: DUNE.data.node }] } } } : { data: { node: { ...DUNE.data.node, translated: FRENCH } } } }
+    },
+  }
+  const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: 'ag:(omdb:tt15239678)', details: true } }, context).next()
+  const [search, node] = bodies
+  expect(search!.query).toContain('GetSearchTitles')
+  expect(search!.query).not.toContain('translated')
+  expect(search!.variables).not.toHaveProperty('translation')
+  expect(node!.variables.translation, 'the control: the node is asked in French').toBe('fr')
+  expect((value.media as Texts).titles.map(({ title }) => title)).toEqual(['Dune: Part Two', FRENCH.title])
 })
