@@ -1,6 +1,6 @@
 // Which of a series' episodes are not out yet. No app imports, for the reason ./movie.ts gives.
 
-import { isUpcoming, releaseSide } from './movie'
+import { isMovieMedia, isUpcoming, releaseSide } from './movie'
 import { isDateOnly, isPartialDate, parseReleaseDate, releaseDay } from '../../utils/release-date'
 
 type Dated = { origin?: string | null, releaseDate?: string | null }
@@ -139,4 +139,14 @@ export const filmRelease = (
   const released = (isPartialDate(own) ? undefined : own) ?? airs ?? own
   const side = releaseSide(airs && !isDateOnly(airs) && withinADay(released, airs) ? airs : released, now)
   return { released, upcoming: side === 1 || (side === 0 && isPartialDate(released) && status === 'NOT_YET_RELEASED') }
+}
+
+/** Which of a media's episodes are not out yet at `now`, a film's by `filmRelease`: the rule Play is drawn by. */
+export const unreleasedOf = (
+  media: Parameters<typeof unreleasedEpisodes>[0] & { type?: string | null, categories?: readonly string[] | null, startDate?: string | null },
+  now = new Date()
+): boolean[] => {
+  if (!isMovieMedia(media)) return unreleasedEpisodes(media, now)
+  const { upcoming } = filmRelease({ startDate: media.startDate, status: media.status, episode: media.episodes.at(0) }, now)
+  return media.episodes.map(() => upcoming)
 }

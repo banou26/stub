@@ -664,15 +664,41 @@ test('a source the play order names whose package is gone does not hold the page
   expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr', 'amazon'])
 })
 
-test('an episode that lists no source is not asked about', async () => {
+// STUB-396: You Can See Everything, from the movies home's Play, drew a black box and an empty sources row (2026-11-10).
+// It was left out as an episode not out yet lists none, but Play is never drawn for one, so that holds only for those.
+test('an episode out that lists no source offers Browse sources once every source has answered', async () => {
   vi.useFakeTimers()
   origins = ['cr']
   Object.assign(episode, { handles: [] })
-  const host = page()
-  hosts.push(host)
+  media = { ...single, settled: false }
+  const { host, rerender } = live()
   await settle()
+  expect(noSource(host), 'a source still to answer').toBeNull()
+
+  media = { ...single }
+  await rerender()
   expect(host.querySelector('a.source')).toBeNull()
-  expect(noSource(host)).toBeNull()
+  expect(noSource(host)?.querySelector('h2')?.textContent).toBe('No source you can play here yet')
+  expect(signInRows(host)).toEqual([])
+  expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
+})
+
+test('an episode or a film not out yet that lists no source is not asked about', async () => {
+  vi.useFakeTimers()
+  origins = ['cr']
+  plugins.statuses = []
+  const ahead = new Date(Date.now() + 30 * 86_400_000).toISOString()
+  const unlisted = { ...episode, handles: [] }
+  for (const unreleased of [
+    { ...single, episodes: [{ ...unlisted, releaseDate: ahead }] },
+    { ...single, type: 'MOVIE', startDate: ahead.slice(0, 10), episodes: [unlisted] },
+  ]) {
+    media = unreleased
+    const host = page()
+    hosts.push(host)
+    await settle()
+    expect(noSource(host), (unreleased as { type?: string }).type).toBeNull()
+  }
 })
 
 test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {

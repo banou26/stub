@@ -40,6 +40,7 @@ import { useDocumentTitle } from '../../utils/use-document-title'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
 import { AggregatedUri, asAggregatedUri, extractAggregatedUriOrigin, fromAggregatedUri, fromUri, matchAggregatedUris, decodeRouteUri, routeMediaUri } from '../../utils/uri'
 import { Episodes, EpisodesPlaceholder, useTrackingSummary } from '../home/media-details'
+import { unreleasedOf } from '../home/episodes'
 import { currentMedia } from '../home/modal-media'
 import { isMovieMedia } from '../home/movie'
 import { getRoutePath, Route } from '../path'
@@ -85,6 +86,7 @@ const GET_WATCH_MEDIA = gql(`
       categories
       episodeCount
       status
+      startDate
       settled
       nextAiringEpisode {
         episodeNumber
@@ -888,8 +890,12 @@ const Watch = () => {
   const asked = useRef<string | undefined>(undefined)
   const { pick, stuck } = playPick(open, ways, { plays, free, neverSignedIn }, { answered: everyAnswered, asked: asked.current === params.episodeUri, moving: cannotPlay, pending })
   if (stuck) asked.current = params.episodeUri
-  // on an episode that lists sources, as one not out yet often lists none
-  const noSource = stuck && !guest && !selectedSourceUri && sources.length > 0
+  const episodes = media?.episodes ?? []
+  const index = episode ? episodes.indexOf(episode) : -1
+  const now = useNow()
+  // on an episode out now, or one that lists sources, as one not out yet often lists none
+  const out = Boolean(media && index >= 0 && !unreleasedOf(media, new Date(now))[index])
+  const noSource = stuck && !guest && !selectedSourceUri && (out || sources.length > 0)
   // the player's box from the first frame, loading until something is in it or the page knows nothing is coming, and
   // kept with the episode's picture then, so the page under it never moves
   const empty = !noSource && !viaPlugin && !embedUrl && !needsExtension
@@ -897,12 +903,9 @@ const Watch = () => {
   useAutoPick(pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
-  const episodes = media?.episodes ?? []
-  const index = episode ? episodes.indexOf(episode) : -1
   // only a run's first or last episode has a neighbour in another run, so only there is it asked for
   const before = useRun(media && index === 0 ? adjacentRun(media, -1) : undefined)
   const after = useRun(media && index >= 0 && index === episodes.length - 1 ? adjacentRun(media, 1) : undefined)
-  const now = useNow()
   // the address's own spelling of this run, so a link inside it keeps the page's subscription
   const { previous, next } = neighbours([before, media ? { ...media, uri: params.mediaUri } : undefined, after], index, new Date(now))
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
