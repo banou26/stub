@@ -83,7 +83,7 @@ test('a romanization is no translation into a language written in another script
   expect(await titlesIn('Diuna: Część druga', 'pl'), 'the control, a language written in Latin letters').toEqual(['Dune: Part Two', 'Diuna: Część druga'])
 })
 
-type Listing = { data: { popularTitles: { edges: { node: { content: { title: string, shortDescription: string | null } } }[] } } }
+type Listing = { data: { popularTitles: { edges: { node: { id: string, content: { title: string, shortDescription: string | null } } }[] } } }
 
 // each node answered in French as JustWatch answers where it has no translation, its English, but for `title`'s
 const inFrench = ({ data }: Listing, english: string, title: string) => ({ data: { popularTitles: { edges: data.popularTitles.edges.map(({ node }) =>
@@ -140,4 +140,29 @@ test('the search a link is checked by asks no translation, and the title it link
   expect(search!.variables).not.toHaveProperty('translation')
   expect(node!.variables.translation, 'the control: the node is asked in French').toBe('fr')
   expect((value.media as Texts).titles.map(({ title }) => title)).toEqual(['Dune: Part Two', FRENCH.title])
+})
+
+// Answered as JustWatch would, the offer country's film in French only where that catalogue's block asks it. Mutation:
+// leave `translated` out of the offer country's catalogue in `searchQuery`, and that card stays English.
+test('a viewer abroad gets the French title of a film only their own country\'s catalogue finds', async () => {
+  viewerIn('Europe/Paris')
+  const { data } = inFrench(STAR_WARS, 'Star Wars: The Last Jedi', 'Star Wars : Les Derniers Jedi')
+  const franceOnly = ({ node }: { node: { id: string } }) => node.id === 'tm8'
+  const bodies: { query: string, variables: Record<string, unknown> }[] = []
+  const context = {
+    language: 'fr-FR',
+    findAggregatedMedia: async () => null,
+    listenForMediaChanges: async function* () {},
+    fetch: async (_: string, init: { body: string }) => {
+      const body = JSON.parse(init.body)
+      bodies.push(body)
+      const asked = body.query.split('viewerTitles:')[1]?.includes('translated: content(')
+      const viewerTitles = { edges: data.popularTitles.edges.filter(franceOnly).map(({ node }) => ({ node: asked ? node : { ...node, translated: undefined } })) }
+      return { json: async () => ({ data: { popularTitles: { edges: data.popularTitles.edges.filter(edge => !franceOnly(edge)) }, viewerTitles } }) }
+    },
+  }
+  const { value } = await (resolvers.Subscription as any).mediaPage.subscribe(undefined, { input: { search: 'star wars' } }, context).next()
+  expect(bodies[0]!.variables, 'the setup: France\'s catalogue is asked beside the US one').toMatchObject({ offerCountry: 'FR', translation: 'fr' })
+  expect((value.mediaPage.nodes as Texts[]).map(({ titles }) => titles.map(({ title }) => title)))
+    .toEqual([['Star Wars'], ['Star Wars: The Force Awakens'], ['Star Wars: The Rise of Skywalker'], ['Star Wars: The Last Jedi', 'Star Wars : Les Derniers Jedi']])
 })
