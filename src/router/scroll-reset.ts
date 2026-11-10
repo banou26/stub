@@ -78,13 +78,30 @@ export const showRow = (row: string, left: () => number) => {
   return () => { shown.delete(row) }
 }
 
+let replacing: unknown
+
 /**
  * For the Navigation API's `navigate` event, which fires while the entry being left is still the current one: keeps
  * the drawn rows' places in it. History holds them per entry, through a reload too, so Back draws every row where that
- * page had it.
+ * page had it. A replace leaves no entry: it keeps the places already kept, for `carryRows` to hand to the new entry.
  */
-export const keepRows = () => {
+export const keepRows = (event?: { navigationType?: string }) => {
+  if (event?.navigationType === 'replace') {
+    replacing = navigation.currentEntry?.getState()
+    return
+  }
   navigation.updateCurrentEntry({ state: { rows: Object.fromEntries([...shown].map(([row, left]) => [row, left()])) } })
+}
+
+/**
+ * For `currententrychange`. A replace starts an entry with no state in every engine, and a preview's address grows by
+ * replace right after Back reaches it, before the home rows under it have their cards: without this, they drew at
+ * their first cards (measured on production 2026-11-11).
+ */
+export const carryRows = (event: { navigationType?: string | null }) => {
+  if (event.navigationType !== 'replace' || replacing === undefined) return
+  navigation.updateCurrentEntry({ state: replacing })
+  replacing = undefined
 }
 
 /**

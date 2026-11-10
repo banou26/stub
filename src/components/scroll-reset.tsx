@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 
-import { cancelReset, keepRows, resetsScroll, returnTop, scheduleReset, takeAskedTop } from '../router/scroll-reset'
+import { cancelReset, carryRows, keepRows, resetsScroll, returnTop, scheduleReset, takeAskedTop } from '../router/scroll-reset'
 import { pageOver } from '../router/page-under'
 import type { Navigation, NavigationKind, Place } from '../router/scroll-reset'
 
@@ -41,10 +41,12 @@ const ScrollReset = () => {
     })
     // a browser without the Navigation API draws the home rows at their first cards after Back, as before STUB-412
     globalThis.navigation?.addEventListener('navigate', keepRows)
+    globalThis.navigation?.addEventListener('currententrychange', carryRows)
     return () => {
       cancelReset()
       for (const remove of listeners) remove()
       globalThis.navigation?.removeEventListener('navigate', keepRows)
+      globalThis.navigation?.removeEventListener('currententrychange', carryRows)
     }
   }, [])
 

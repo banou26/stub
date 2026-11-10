@@ -3,7 +3,7 @@
 // the top under itself, and neither errors.
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { askForTop, cancelReset, isHomeFamily, keepRows, resetPending, resetsScroll, returnTop, rowLeft, scheduleReset, scrollToTop, showRow, takeAskedTop } from '../../../src/router/scroll-reset'
+import { askForTop, cancelReset, carryRows, isHomeFamily, keepRows, resetPending, resetsScroll, returnTop, rowLeft, scheduleReset, scrollToTop, showRow, takeAskedTop } from '../../../src/router/scroll-reset'
 import type { Navigation, NavigationKind } from '../../../src/router/scroll-reset'
 
 const at = (url: string) => {
@@ -137,6 +137,19 @@ describe('keepRows', () => {
     for (const end of ends) end()
     keepRows()
     expect(updateCurrentEntry, 'a row no longer drawn is not kept').toHaveBeenLastCalledWith({ state: { rows: {} } })
+  })
+
+  test('a replace carries the kept places to the entry that replaced it, as the preview\'s address grows after Back', () => {
+    const updateCurrentEntry = vi.fn()
+    vi.stubGlobal('navigation', { updateCurrentEntry, currentEntry: { getState: () => ({ rows: { season: 2620 } }) } })
+    const end = showRow('season', () => 0)
+    keepRows({ navigationType: 'replace' })
+    expect(updateCurrentEntry, 'the rows not drawn yet are not written over the kept places').not.toHaveBeenCalled()
+    carryRows({ navigationType: 'replace' })
+    expect(updateCurrentEntry).toHaveBeenCalledWith({ state: { rows: { season: 2620 } } })
+    carryRows({ navigationType: 'push' })
+    expect(updateCurrentEntry, 'only a replace carries').toHaveBeenCalledTimes(1)
+    end()
   })
 
   test('a row reads its place from the entry the page shows', () => {
