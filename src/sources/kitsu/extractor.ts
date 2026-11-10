@@ -69,11 +69,10 @@ const api = <T>(path: string, ctx: ExtractorServerContext): Promise<KitsuRespons
  *
  * Kitsu writes a new show's MyAnimeList id in its AniList mapping now and then: Ghost Meets Gal!, kitsu:50866, maps
  * AniList 64718, which AniList does not have, beside MyAnimeList 64718, and AniList's own entry is 214703, which names
- * MyAnimeList 64718 (2026-11-10). Two AniList ids for one show split it into two cards, and which half a season page
- * drew depended on which season the tab opened first (STUB-376). A right repeat is a show old enough that AniList took
- * MyAnimeList's ids, and its MyAnimeList id joins the same rows. Of 1,083 records mapping both in eleven Kitsu seasons
- * from 2013 to 2027, 117 repeat one: 115 are pairs the bundled index holds too, and the other two name an AniList id
- * AniList does not have.
+ * MyAnimeList 64718 (2026-11-10). Two AniList ids for one show split it into two cards. A right repeat is a show old
+ * enough that AniList took MyAnimeList's ids, and its MyAnimeList id joins the same rows. Of 1,083 records mapping both
+ * in eleven Kitsu seasons from 2013 to 2027, 117 repeat one: 115 are pairs the bundled index holds too, and the other
+ * two name an AniList id AniList does not have.
  */
 const mappingHandles = (mappings: KitsuMapping[]): GQLMedia[] => {
   const mal = new Set(mappings.filter(m => m.externalSite === 'myanimelist/anime').map(m => m.externalId))
