@@ -8,21 +8,12 @@
  * alone, and in both buckets. Each answer stamps the season it was asked for and its share of it, the home row asks
  * for the season running now (Fall), and the answer log folds a byte-identical re-fetch nowhere, so Home, then
  * Summer, then Fall left each row reading Summer.
- *
- * The answers go through the log as a page's do, so a re-fetch is deduplicated exactly as in the app.
  */
 import { beforeAll, expect, test } from 'vite-plus/test'
 
-import type { ClusterCard } from '../../../../src/worker/graph/plugins/fields'
-import type { Media } from '../../../../src/generated/schema/types.generated'
-
 import { enableGraph } from '../../../../src/worker/graph'
-import { flushAnswers, recordAnswers } from '../../../../src/worker/graph/answers'
-import { resetPassState } from '../../../../src/worker/graph/plugins/runner'
-import { createPageReader } from '../../../../src/worker/graph/read'
-import { graphReady, GRAPH_NODE_TABLES } from '../../../../src/worker/graph/schema'
-import { passSettled, startScheduler, stopScheduler } from '../../../../src/worker/graph/scheduler'
-import { applyMediaSorts, pageRows } from '../../../../src/worker/store/filter'
+import { applyMediaSorts } from '../../../../src/worker/store/filter'
+import { pageAfter } from './page-visits'
 import { media, sameAs, title } from './plugins/fixtures'
 
 beforeAll(async () => { await enableGraph(true) })
@@ -73,40 +64,19 @@ const ANSWERS: Record<Season, Record<string, unknown>[]> = {
   FALL: [...steelBallRun('FALL'), offlineKaiju('FALL'), summerOnly],
 }
 
-const PAGE_PATH = { prev: { prev: undefined, key: 'mediaPage', typename: 'Subscription' }, key: 'nodes', typename: 'MediaPage' }
-
-/** One season page's answers, through the log and the ingest, settled. Answers its uris. */
-const visit = async (season: Season): Promise<string[]> => {
-  await recordAnswers({ path: PAGE_PATH, variableValues: {} }, 'Media', ANSWERS[season])
-  await flushAnswers()
-  await passSettled()
-  return ANSWERS[season].map(answer => String(answer.uri))
-}
-
 /**
  * The shows the last visited page lists after the pages before it, in its order, each by the MyAnimeList id its
  * members name with the season and the share it is drawn with.
  */
 const listed = async (seasons: Season[]): Promise<string[]> => {
-  const { query } = await graphReady()
-  for (const table of GRAPH_NODE_TABLES) await query(`MATCH (n:${table}) DETACH DELETE n`)
-  resetPassState()
-  startScheduler({ audit: false })
-  try {
-    let uris: string[] = []
-    for (const season of seasons) uris = await visit(season)
-    const cards = await createPageReader().read(uris)
-    const input = { season: seasons.at(-1), seasonYear: 2026, sorts: ['POPULARITY_DESC'] }
-    const page = applyMediaSorts(pageRows(cards as unknown as (Media & ClusterCard)[], input, uris, 'anime'), input)
-    return page.map(card => [
-      [...new Set(card.members.map(uri => uri.replace(/^offline:mal-/, 'mal:')))].filter(uri => uri.startsWith('mal:')).join(),
-      card.season,
-      card.seasonYear,
-      card.popularity,
-    ].join(' '))
-  } finally {
-    stopScheduler()
-  }
+  const input = { season: seasons.at(-1), seasonYear: 2026, sorts: ['POPULARITY_DESC'] }
+  const page = applyMediaSorts(await pageAfter(seasons.map(season => ANSWERS[season]), input), input)
+  return page.map(card => [
+    [...new Set(card.members.map(uri => uri.replace(/^offline:mal-/, 'mal:')))].filter(uri => uri.startsWith('mal:')).join(),
+    card.season,
+    card.seasonYear,
+    card.popularity,
+  ].join(' '))
 }
 
 // Mutation: drop `seasonPairs` from the season check in store/filter.ts, or stop `mergeMediaFields` keeping the pairs,
