@@ -68,11 +68,25 @@ const titlesOf = (hit: Hit) => {
   return titles
 }
 
-// The entry of `map` in `language` under the tag stub writes: Intl.Locale reads TheTVDB's ISO 639-2 key `fra` as `fr`.
-// Its `zhtw` is no tag, so its Traditional Chinese is not read.
+// TheTVDB's keys are ISO 639-2 codes, which Intl.Locale reads (`fra` as `fr`), but `pt` is Brazil's Portuguese and
+// `por` Portugal's: Breaking Bad's overviews say "câncer" and "cancro" (2026-11-10).
+const PORTUGUESE = new Map([['pt', 'pt-BR'], ['por', 'pt-PT']])
+
+// No Chinese, as from JustWatch: Breaking Bad's `zho` title is Simplified and its overview Traditional (2026-11-10).
+// `zhtw` is no tag at all.
+const tagOf = (key: string) => {
+  const locale = localeOf(PORTUGUESE.get(key) ?? key)
+  return locale && locale.language !== 'zh' ? locale.baseName : undefined
+}
+
+/** The entry of `map` in `language`, under the tag stub writes. */
 const entryIn = (map: Record<string, string> = {}, language: string) => {
-  const key = bestLanguage([language], Object.keys(map).filter(key => map[key]))
-  return key ? { language: localeOf(key)!.baseName, text: map[key]! } : undefined
+  const entries = new Map(Object.entries(map).flatMap(([key, text]) => {
+    const tag = text ? tagOf(key) : undefined
+    return tag ? [[tag, text] as const] : []
+  }))
+  const tag = bestLanguage([language], [...entries.keys()])
+  return tag ? { language: tag, text: entries.get(tag)! } : undefined
 }
 
 /**

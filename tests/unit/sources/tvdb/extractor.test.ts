@@ -1,6 +1,8 @@
 // Recorded signed out on 2026-10-07, with no key, trimmed: thetvdb.com's own search for "frieren" among
 // series, and the same search asked for series 424536 by id. series-391612 is Frieden (Labyrinth of Peace), the first
 // hit of the same search on 2026-11-10, trimmed to what the extractor reads, with its titles and overviews in 7 languages.
+// series-81189 is Breaking Bad, asked by id on 2026-11-10, trimmed the same way to its English, French, both Portuguese
+// and Chinese entries, the long overviews to their first sentence.
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vite-plus/test'
 
@@ -24,6 +26,7 @@ const recorded = (sent: Sent[], language?: string) => ({
     if (query === 'frieren' && filters === 'type:series') return { json: async () => fixture('search-frieren') }
     if (query === '' && filters === 'type:series AND id:424536') return { json: async () => fixture('series-424536') }
     if (query === '' && filters === 'type:series AND id:391612') return { json: async () => fixture('series-391612') }
+    if (query === '' && filters === 'type:series AND id:81189') return { json: async () => fixture('series-81189') }
     return { json: async () => ({ results: [{ hits: [] }] }) }
   },
 }) as never
@@ -113,6 +116,30 @@ test('a title the series has already is no translation: its own name, and the En
 test('a search hit carries its title in the viewer\'s language', async () => {
   const rows = await searchFor('frieren', [], 'de-DE')
   expect(rows.find(row => row.uri === 'tvdb:424536')!.titles.at(-1)).toEqual({ language: 'de', title: 'Frieren - Nach dem Ende der Reise', score: 0.03, class: 'TRANSLATED' })
+})
+
+type Texts = Pick<Row, 'titles' | 'descriptions'>
+const shown = ({ titles, descriptions }: Texts) => [...titles.map(({ language, title }) => `${language} ${title}`), ...descriptions.map(({ language, description }) => `${language} ${description.slice(0, 12)}`)]
+
+// Mutation: read TheTVDB's keys as Intl.Locale does, and its `pt` and `por` are both `pt`, so Portugal's, listed first,
+// answers a Brazilian viewer: "Breaking Bad: Ruptura Total", and "cancro" for "câncer".
+test('a Brazilian viewer gets Brazil\'s Portuguese, and Portugal\'s where TheTVDB has no other', async () => {
+  expect(shown((await mediaFor('tvdb:81189', [], 'pt-BR'))!), 'its Brazilian title is the English')
+    .toEqual(['en Breaking Bad', 'en When Walter ', 'pt-BR O drama "Bre'])
+  expect(shown((await mediaFor('tvdb:81189', [], 'pt-PT'))!))
+    .toEqual(['en Breaking Bad', 'pt-PT Breaking Bad: Ruptura Total', 'en When Walter ', 'pt-PT Um professor'])
+  expect(shown((await mediaFor('tvdb:391612', [], 'pt-BR'))!).filter(text => text.startsWith('pt')))
+    .toEqual(['pt-PT Paz', 'pt-PT 1945. A guer'])
+})
+
+// Mutation: read `zho` as any other key, and both Chinese viewers get Breaking Bad's Simplified title over its
+// Traditional overview.
+test('no Chinese, which TheTVDB writes in either script for either reader', async () => {
+  const { translations, overviews } = fixture('series-81189').results[0].hits[0]
+  expect([translations.zho, overviews.zho.slice(0, 6)], 'the setup: a Simplified title, a Traditional overview').toEqual(['绝命毒师', '《絕命毒師》'])
+  const english = shown((await mediaFor('tvdb:81189'))!)
+  for (const language of ['zh-Hans', 'zh-TW', 'zh-Hant']) expect(shown((await mediaFor('tvdb:81189', [], language))!), language).toEqual(english)
+  expect(shown((await mediaFor('tvdb:81189', [], 'fr-FR'))!).at(-1), 'the control').toBe('fr La vie de Wa')
 })
 
 test('an id the site has no series for is no media', async () => {

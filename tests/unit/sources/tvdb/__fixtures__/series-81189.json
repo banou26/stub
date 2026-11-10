@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "hits": [
+        {
+          "id": 81189,
+          "name": "Breaking Bad",
+          "first_air_date": "2008-01-20",
+          "image_url": "https://artworks.thetvdb.com/banners/posters/81189-10.jpg",
+          "primary_language": "eng",
+          "translations": {
+            "eng": "Breaking Bad",
+            "fra": "Breaking Bad",
+            "por": "Breaking Bad: Ruptura Total",
+            "pt": "Breaking Bad",
+            "zho": "绝命毒师"
+          },
+          "overviews": {
+            "eng": "When Walter White, a chemistry teacher, is diagnosed with Stage III cancer and given a prognosis of two years left to live, he chooses to enter a dangerous world of drugs and crime with the intent to secure his family's financial security.",
+            "fra": "La vie de Walter White, professeur de chimie dans un lycée, est bouleversée lorsqu'il apprend qu'il est atteint d'un cancer en phase terminale. Une nouvelle qui le sort de la torpeur de son quotidien et l'amène à prendre des mesures radicales pour anticiper l'avenir de sa famille.",
+            "por": "Um professor do secundário com cancro do pulmão terminal junta-se a um ex-aluno para fabricar e vender metanfetaminas como forma de garantir o futuro da sua família.",
+            "pt": "O drama \"Breaking Bad\" narra a história de Walter White (Bryan Cranston), um humilde professor de química que vê sua vida se transformar quando descobre ser portador de um câncer terminal.",
+            "zho": "《絕命毒師》（英語：Breaking Bad）是一部美國電視連續劇，由文斯·吉利根（Vince Gilligan）創作和製作[1]。"
+          },
+          "remote_ids": [
+            {
+              "id": "tt0903747",
+              "sourceName": "IMDB",
+              "type": 2
+            },
+            {
+              "id": "1396",
+              "sourceName": "TheMovieDB.com",
+              "type": 12
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
