@@ -711,6 +711,14 @@ test('a live-action title draws its cast and staff with no language picker', asy
   // STUB-391: IMDb has a photo of the actor and none of the part, which draws no empty box
   await expect(characters.locator('li').first().locator('.face')).toHaveCount(1)
   await expect(characters.locator('li').first().locator('.person.actor img.face')).toHaveCount(1)
+  // and a row with no photo at all, made as tall as the one beside it, keeps its actor level with its part
+  const skyler = characters.locator('li').filter({ hasText: 'Skyler White' })
+  await expect(skyler.locator('.face')).toHaveCount(0)
+  const [part, actor] = await skyler.evaluate(card => [...card.querySelectorAll('.name')].map(name => {
+    const box = name.getBoundingClientRect()
+    return box.top + box.height / 2
+  }))
+  expect(Math.abs(part! - actor!)).toBeLessThan(1)
   await expect(characters.getByRole('combobox')).toHaveCount(0)
   await expect(page.locator('[data-staff] li').filter({ hasText: 'Vince Gilligan' })).toContainText('Creator')
 })

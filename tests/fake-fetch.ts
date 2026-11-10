@@ -19,6 +19,10 @@ import WATCHMODE_BREAKING_BAD from './unit/sources/watchmode/__fixtures__/quick-
 
 const FRIEREN_IDS = { themoviedb_id: '209867', thetvdb_id: 424536, imdb_id: 'tt22248376' }
 
+const { title: BREAKING_BAD_TITLE } = BREAKING_BAD.data
+const BREAKING_BAD_ANSWER = { data: { title: { ...BREAKING_BAD_TITLE, cast: { edges: BREAKING_BAD_TITLE.cast.edges.map(({ node }) =>
+  ({ node: node.name.nameText.text === 'Anna Gunn' ? { ...node, name: { ...node.name, primaryImage: null } } : node })) } } } }
+
 const many = <T>(count: number, make: (number: number) => T) => Array.from({ length: count }, (_, index) => make(index + 1))
 
 const SEQUEL = { id: 900001, type: 'ANIME', format: 'TV', status: 'FINISHED', title: { english: 'Spec Sequel' }, description: 'The journey goes on. '.repeat(100) }
@@ -188,7 +192,7 @@ const TMDB: Record<string, string> = {
 // own characters, staff, relations and songs each run past a page, AniZip with 26 dated episodes (1,100
 // for mal:21) and Frieren's TMDB, TheTVDB and IMDb ids, AnimeThemes with Frieren's themes, bliss without
 // its video, so no title, cover or date changes under the page, IMDb with Breaking Bad for tt0903747
-// alone, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
+// alone, Anna Gunn with no photo, and TMDB with Squid Game's three seasons and Frieren's one, each season's own page empty but
 // Squid Game's first two, which list one episode each, JustWatch with its four most popular films or shows
 // when asked for either, those carrying a genre asked when asked any, and with The Boys as it answered the
 // countries asked (prime-countries.json), MyAnimeList with Cowboy Bebop's title and credits pages for mal:1,
@@ -257,7 +261,7 @@ export const answer = async (input: RequestInfo | URL, init?: FetchInit): Promis
   if (typeof input === 'string' && input.startsWith('https://www.themoviedb.org/')) return new Response(TMDB[new URL(input).pathname] ?? '')
   if (typeof input === 'string' && input.startsWith(`https://api.tvmaze.com/shows/${MAZE.id}?`)) return Response.json(MAZE)
   if (input === 'https://caching.graphql.imdb.com/' && typeof init?.body === 'string' && JSON.parse(init.body).variables?.id === 'tt0903747') {
-    return Response.json(BREAKING_BAD)
+    return Response.json(BREAKING_BAD_ANSWER)
   }
   if (input !== 'https://graphql.anilist.co/' || typeof init?.body !== 'string') return undefined
   const { query, variables } = JSON.parse(init.body) as { query: string, variables: { id?: number, idMal?: number } }

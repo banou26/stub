@@ -446,6 +446,7 @@ const style = css`
     .actors {
       display: flex;
       flex-direction: column;
+      justify-content: center;
       gap: 0.6rem;
       min-width: 0;
     }
