@@ -1149,10 +1149,11 @@ test('a source\'s card shows its own row\'s picture and stream, the episode\'s p
   expect(watchQuery, 'what each card reads off its own row').toMatch(/shortDescription\s*\}\s*thumbnails \{\s*url\s*\}\s*videoQualities\s*audioQualities\s*audioLanguages\s*subtitleLanguages/)
 })
 
-test('the watch query asks what decides whether an episode is out', async () => {
+test('the watch query asks what decides whether an episode or a film is out', async () => {
   vi.useFakeTimers()
   hosts.push(page())
   await settle()
+  expect(watchQuery).toMatch(/\bstartDate\b/)
   expect(watchQuery).toMatch(/episodes \{[^}]*releaseDate/)
   expect(watchQuery).toMatch(/handles \{\s*relation\s*node \{[^}]*releaseDate/)
   expect(watchQuery).toMatch(/\bstatus\b/)
