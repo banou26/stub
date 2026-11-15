@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
-import { readAutoplay } from '../../utils/autoplay'
+import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
@@ -97,7 +97,8 @@ const offeredOn = (link: PlaybackLink, chapters: MediaChapter[], duration: numbe
 /**
  * Next episode over the player, from the moment `ownOfferAt` reads off the player's own chapters when they mark an
  * ending, else `nextOfferAt` off `chapters`, and once the player has ended. With autoplay on, the end counts down with
- * Cancel beside it and opens `next` when `UP_NEXT_MS` is out. Nothing without a `next`, and a player that left its
+ * Cancel beside it and opens `next` when `UP_NEXT_MS` is out, and autoplay turned off meanwhile, in the player too, leaves
+ * the button without the countdown. Nothing without a `next`, and a player that left its
  * Skip Ending out for one gets it back. A seek back or a pause before the moment withdraws the button, and a report
  * that the player is no longer at its end (a seek back, a play) withdraws the countdown. It stands above the player's
  * skip offer while one is up, or on a phone's player too short for both, waits for it to go.
@@ -191,7 +192,8 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
   useEffect(() => {
     if (shown !== 'counting' || !href) return
     const timer = setTimeout(() => open(href), UP_NEXT_MS)
-    return () => clearTimeout(timer)
+    const stop = watchAutoplay(() => { if (!readAutoplay()) setShown('offered') })
+    return () => { clearTimeout(timer); stop() }
   }, [shown, href])
 
   if (!shown || !href) return null

@@ -3,10 +3,11 @@ import type { Mock } from 'vite-plus/test'
 import type { PlaybackCorrection } from '../../../src/party/playback'
 import type { PlaybackState } from '../../../src/party/protocol'
 
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { NUDGE_RATE } from '../../../src/party/playback'
-import { BUFFER_WAIT_MS, pluginPlaybackLink, servePluginFullscreen } from '../../../src/party/plugin-link'
+import { BUFFER_WAIT_MS, pluginPlaybackLink, servePluginAutoplay, servePluginFullscreen } from '../../../src/party/plugin-link'
+import { AUTOPLAY_KEY, readAutoplay, setAutoplay } from '../../../src/utils/autoplay'
 
 const STATE = { paused: false, time: 42, rate: 1, at: 1 }
 
@@ -637,5 +638,51 @@ describe('a package\'s fullscreen, kept on the stage', () => {
     expect(refused, 'a request and an exit, both refused').toBe(2)
     servePluginFullscreen({ onFullscreenRequest: async () => { throw new Error('gone') }, applyFullscreen: async () => {} }, stage, host)
     await new Promise(resolve => setTimeout(resolve, 0))
+  })
+})
+
+describe('the autoplay setting on a package\'s player', () => {
+  const stored = new Map<string, string>()
+  beforeEach(() => {
+    stored.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+      removeItem: (key: string) => { stored.delete(key) },
+    })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  test('a flip the player reports is kept as the setting, and a report without one changes nothing', () => {
+    const { source, report } = fakeSource()
+    pluginPlaybackLink(source)
+    report({ ...STATE, autoplayNext: false } as typeof STATE)
+    expect(stored.get(AUTOPLAY_KEY)).toBe('off')
+    report(STATE)
+    report({ ...STATE, autoplayNext: 'on' } as unknown as typeof STATE)
+    expect(readAutoplay()).toBe(false)
+    report({ ...STATE, autoplayNext: true } as typeof STATE)
+    expect(readAutoplay()).toBe(true)
+  })
+
+  test('the package is told the setting at once and on every change, until stopped', () => {
+    setAutoplay(false)
+    const applyAutoplay = vi.fn(async (_: boolean) => {})
+    const stop = servePluginAutoplay({ applyAutoplay })
+    expect(applyAutoplay.mock.calls).toEqual([[false]])
+    setAutoplay(true)
+    expect(applyAutoplay.mock.calls).toEqual([[false], [true]])
+    stop()
+    setAutoplay(false)
+    expect(applyAutoplay).toHaveBeenCalledTimes(2)
+  })
+
+  test('a package without it is left alone, and one that refuses does not take the page down', async () => {
+    expect(() => servePluginAutoplay({})()).not.toThrow()
+    const refusing = vi.fn(async () => { throw new Error('gone') })
+    const stop = servePluginAutoplay({ applyAutoplay: refusing })
+    await Promise.resolve()
+    expect(refusing).toHaveBeenCalledTimes(1)
+    stop()
   })
 })

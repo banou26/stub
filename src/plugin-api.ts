@@ -79,12 +79,13 @@ export type StubSource = {
    * Next episode is offered as it starts rather than at the end. `endingOffered` answers `offerEnding`: false
    * only once the player's Skip Ending is off its screen. `picked` rides the report made as the viewer picks a track:
    * stub keeps it as it keeps a pick made in its own players, so the next media, in any player, starts in it.
+   * `autoplayNext` rides the report made as the viewer flips the player's autoplay switch (see `applyAutoplay`).
    * `seeking` and `readyState` are the player's own, as a media element's, with a report as a stall starts and as it
    * ends (none inside a seek, which the report as it lands covers): between reports, a follower's player is read as
    * playing on from its last one, except while it seeks or waits, when it stands still. A report made while it seeks
    * is read for this viewer's player alone, and never told to the party.
    */
-  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, seeking?: boolean, readyState?: number }) => void) => Promise<void>
+  onPlayback?: (listener: (state: PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, autoplayNext?: boolean, seeking?: boolean, readyState?: number }) => void) => Promise<void>
   /**
    * Make the player match `state`. Nothing playing is nothing to do, not an error.
    *
@@ -147,6 +148,13 @@ export type StubSource = {
    * at the end. Optional and additive to stub-source@1.
    */
   offerEnding?: (offered: boolean) => Promise<void>
+  /**
+   * Show the viewer's Autoplay next episode setting on the player `play` put up and on every later one, as a switch
+   * there: told at once and on every change, in this tab, another one or on the account. The player plays nothing next
+   * by itself; Next episode stays stub's. A flip of that switch is reported once as `autoplayNext`, and stub keeps it as
+   * it keeps the setting changed in Settings. Optional and additive to stub-source@1: without it the player has no switch.
+   */
+  applyAutoplay?: (on: boolean) => Promise<void>
   /**
    * Fetch ahead what a later `play` of `release`, the next episode's release Next opens, waits on before its first
    * frame, beside the player up now. Stub asks once an episode's player is 80% through it. Resolves true when it was

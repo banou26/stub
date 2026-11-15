@@ -26,6 +26,7 @@ const told = vi.hoisted(() => [] as [string, string | boolean | null][])
 vi.mock('../../../../src/embed-languages', () => ({
   tellTrackLanguage: (kind: string, language: string | null) => { told.push([kind, language]) },
   tellAlwaysSubtitles: (on: boolean) => { told.push(['always-subtitles', on]) },
+  tellAutoplay: () => {},
 }))
 
 const { default: CrunchyrollVideoJSPlayer } = await import('../../../../src/sources/crunchyroll/cr-videojs-player')

@@ -9,8 +9,10 @@ import { useIntl } from 'react-intl'
 
 import LeftToRight from '../../components/player/left-to-right'
 import { useHostFullscreen } from '../../embed-fullscreen'
-import { tellAlwaysSubtitles, tellTrackLanguage } from '../../embed-languages'
+import { tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage } from '../../embed-languages'
+import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
+import { useSetting } from '../../utils/use-setting'
 import { usePageFrameStep } from '../frame-steps'
 import { withTimelineSeek } from './timeline-seek'
 
@@ -50,6 +52,8 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   // on the element itself, never through `media`: the scrubber it seeks would round a step to its 0.25 s
   const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
   const fullscreen = useHostFullscreen()
+  // the page keeps it: a flip here is told to the page, whose write reaches this document as a storage event
+  const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
   return (
     <LeftToRight>
@@ -69,6 +73,8 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
         onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
         onAlwaysShowSubtitlesChange={tellAlwaysSubtitles}
+        autoplayNext={autoplayNext}
+        onAutoplayNextChange={tellAutoplay}
         stepFrame={stepFrame}
         language={locale}
       >

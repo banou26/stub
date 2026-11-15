@@ -10,7 +10,10 @@ import { useIntl } from 'react-intl'
 
 import LeftToRight from '../../components/player/left-to-right'
 import { useHostFullscreen } from '../../embed-fullscreen'
+import { tellAutoplay } from '../../embed-languages'
+import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
+import { useSetting } from '../../utils/use-setting'
 import { usePageFrameStep } from '../frame-steps'
 
 type Props = {
@@ -32,11 +35,21 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
   useEffect(() => (volume ? exposePlayer(volume.served(volume.media)) : undefined), [volume])
   const stepFrame = usePageFrameStep(frame, remote, video)
   const fullscreen = useHostFullscreen()
+  const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
   return (
     // `media` is passed even as null: its presence is what makes the player drive a media it does not own
     <LeftToRight>
-      <MediaPlayer media={volume?.media ?? null} title={title} quality={quality} stepFrame={stepFrame} fullscreen={fullscreen} language={locale}>
+      <MediaPlayer
+        media={volume?.media ?? null}
+        title={title}
+        quality={quality}
+        stepFrame={stepFrame}
+        fullscreen={fullscreen}
+        language={locale}
+        autoplayNext={autoplayNext}
+        onAutoplayNextChange={tellAutoplay}
+      >
         {children}
       </MediaPlayer>
     </LeftToRight>

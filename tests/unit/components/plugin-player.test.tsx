@@ -6,6 +6,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 
 import { PLUGIN_VALUES_KEY } from '../../../src/plugin-list'
+import { setAutoplay } from '../../../src/utils/autoplay'
 import { keepAudioLanguage, keepSubtitleLanguage } from '../../../src/utils/track-languages'
 
 // FKN's mount of a package into the player's frame: each call is one document of the package, serving `source`
@@ -33,6 +34,7 @@ const playing = () => {
     onFullscreenRequest: vi.fn(async () => {}),
     applyFullscreen: vi.fn(async () => {}),
     focus: vi.fn(async () => {}),
+    applyAutoplay: vi.fn(async (_on: boolean) => {}),
   }
   fkn.source = source
   return { played, source }
@@ -180,6 +182,16 @@ test('its fullscreen is kept on the stage it is given, a release at a time, and 
   source.applyFullscreen.mockClear()
   document.dispatchEvent(new Event('fullscreenchange'))
   expect(source.applyFullscreen, 'told for the release playing only').toHaveBeenCalledTimes(1)
+})
+
+test('its player shows the autoplay setting, told on each change for the release playing only', async () => {
+  const { source } = playing()
+  const { next } = await shown(1)
+  expect(source.applyAutoplay.mock.calls).toEqual([[true]])
+  await next(2)
+  source.applyAutoplay.mockClear()
+  act(() => { setAutoplay(false) })
+  expect(source.applyAutoplay.mock.calls).toEqual([[false]])
 })
 
 test('its link hands the keys to the package, after focusing the package\'s frame', async () => {

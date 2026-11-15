@@ -2,13 +2,14 @@ import type { ComponentChildren } from 'preact'
 
 import { css } from '@emotion/react'
 import { languageTag } from '@banou/media-player/language'
-import { useEffect, useId, useMemo, useState } from 'preact/hooks'
+import { useId, useMemo } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { switchStyle } from '../../components/switch-style'
 import { bestLanguage, contentLanguage, OFFERED } from '../../i18n/languages'
 import { settings } from '../../settings-store'
 import { readAutoplay, setAutoplay, watchAutoplay } from '../../utils/autoplay'
+import { useSetting } from '../../utils/use-setting'
 import {
   ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, OFF, ON, ORIGINAL,
   SUBTITLE_LANGUAGE_KEY, watchTrackLanguages,
@@ -90,15 +91,6 @@ const LanguageRow = ({ title, setting, value, first, pick }: {
       </select>
     </div>
   )
-}
-
-const useSetting = <T,>(read: () => T, watch: (listener: () => void) => () => void) => {
-  const [value, setValue] = useState(read)
-  useEffect(() => {
-    setValue(read())
-    return watch(() => setValue(read()))
-  }, [])
-  return value
 }
 
 /**

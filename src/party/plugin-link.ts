@@ -6,6 +6,7 @@ import type { PlaybackState } from './protocol'
 import type { PlayerBuffer } from './status'
 
 import { hearFullscreenKey } from '../embed-fullscreen'
+import { readAutoplay, setAutoplay, watchAutoplay } from '../utils/autoplay'
 import { keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage } from '../utils/track-languages'
 import { advance, followCorrection, sameRate, SEEK_TOLERANCE_S } from './playback'
 import { isPlaybackState } from './protocol'
@@ -55,7 +56,7 @@ const keepPicked = (picked: unknown) => {
 export const BUFFER_WAIT_MS = 1_000
 
 /** What a source package's player reports. See plugin-api.ts. */
-type PlayerReport = PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, seeking?: boolean, readyState?: number }
+type PlayerReport = PlaybackState & { ended?: boolean, duration?: number, chapters?: MediaChapter[], endingOffered?: boolean, picked?: TrackPick, autoplayNext?: boolean, seeking?: boolean, readyState?: number }
 
 /** The optional methods a source package may serve beside `play`. See plugin-api.ts. */
 export type PlaybackSource = {
@@ -66,6 +67,7 @@ export type PlaybackSource = {
   applyFullscreen?: (active: boolean) => Promise<void>
   focus?: () => Promise<void>
   offerEnding?: (offered: boolean) => Promise<void>
+  applyAutoplay?: (on: boolean) => Promise<void>
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
@@ -80,7 +82,8 @@ export type PlaybackSource = {
  * `frame` is the package's frame on this page. The link's `focus` focuses it afresh first, which gives the package's
  * document the focus it hands on to its player, and tells a viewer who moved on since from one who did not.
  *
- * A track the viewer picks in the player is kept from the moment the link is up, party or not.
+ * A track the viewer picks in the player, and a flip of its autoplay switch, are kept from the moment the link is up,
+ * party or not.
  *
  * `follow` keeps the player with the host by `followCorrection`, as stub's own players are kept, over where its reports
  * put it now: played on from the last one unless it said it was seeking or waiting, and at a seek it was sent until a
@@ -110,6 +113,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
   const ear = (report: PlayerReport) => {
     if (disposed || !isPlaybackState(report)) return
     keepPicked(report.picked)
+    if (typeof report.autoplayNext === 'boolean') setAutoplay(report.autoplayNext)
     ended = report.ended === true
     duration = lengthOf(report.duration)
     chapters = chaptersOf(report.chapters)
@@ -215,4 +219,16 @@ export const servePluginFullscreen = (source: PlaybackSource, stage: HTMLElement
     stopKey()
     document.removeEventListener('fullscreenchange', tell)
   }
+}
+
+/**
+ * Shows the autoplay setting on a source package's player through its `applyAutoplay`, at once and on every change, in
+ * this tab, another one or on the account. A package without it shows none. Returns the stop.
+ */
+export const servePluginAutoplay = (source: PlaybackSource) => {
+  const { applyAutoplay } = source
+  if (!applyAutoplay) return () => {}
+  const tell = () => { applyAutoplay(readAutoplay()).catch(() => {}) }
+  tell()
+  return watchAutoplay(tell)
 }

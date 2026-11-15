@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-import { hearTrackLanguages, tellAlwaysSubtitles, tellTrackLanguage, trackLanguagesOf, trackLanguagesParams } from '../../src/embed-languages'
+import { hearTrackLanguages, tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage, trackLanguagesOf, trackLanguagesParams } from '../../src/embed-languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../src/settings-store'
+import { AUTOPLAY_KEY, readAutoplay } from '../../src/utils/autoplay'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, readTrackLanguages } from '../../src/utils/track-languages'
 
 // The watch page and its embed as fake windows, as in embed-relays.test.ts: a message is delivered a
@@ -107,6 +108,24 @@ test('only the embed the page frames, on this app\'s origin, with a language of 
 
   tellTrackLanguage('audio', 'Japanese', framed.embed)
   await vi.waitFor(() => expect(readTrackLanguages().audio).toBe('Japanese'))
+})
+
+test('a flip of the player\'s autoplay switch in the framed embed is kept by the page, and nothing else is', async () => {
+  const framed = makePage()
+  const other = makePage()
+  stops.push(hearTrackLanguages(framed.iframe, framed.page))
+  const send = (data: unknown, source: Window, origin = APP) =>
+    framed.page.dispatchEvent(Object.assign(new Event('message'), { data, source, origin }))
+  send({ type: 'stub:embed-language-picked', kind: 'autoplay', on: false }, other.embed)
+  send({ type: 'stub:embed-language-picked', kind: 'autoplay', on: false }, framed.embed, 'https://other.example')
+  send({ type: 'stub:embed-language-picked', kind: 'autoplay', on: 'off' }, framed.embed)
+  await delivered()
+  expect(readAutoplay()).toBe(true)
+
+  tellAutoplay(false, framed.embed)
+  await vi.waitFor(() => expect(stored.get(AUTOPLAY_KEY)).toBe('off'))
+  tellAutoplay(true, framed.embed)
+  await vi.waitFor(() => expect(readAutoplay()).toBe(true))
 })
 
 test('an embed with no page around it tells nobody', async () => {

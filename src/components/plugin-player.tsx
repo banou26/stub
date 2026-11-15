@@ -10,7 +10,7 @@ import { useIntl } from 'react-intl'
 import type { PlaybackLink } from '../party/bridge'
 
 import { STUB_SOURCE_PROTOCOL, type PluginSettings, type ViewerLanguages } from '../plugin-api'
-import { pluginPlaybackLink, servePluginFullscreen, type PlaybackSource } from '../party/plugin-link'
+import { pluginPlaybackLink, servePluginAutoplay, servePluginFullscreen, type PlaybackSource } from '../party/plugin-link'
 import { loadPluginValues } from '../plugin-list'
 import { fromUri } from '../utils/uri'
 import { viewerLanguages } from '../viewer-languages'
@@ -94,6 +94,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
     let done = false
     let link: PlaybackLink | undefined
     let stopFullscreen: (() => void) | undefined
+    let stopAutoplay: (() => void) | undefined
     setFailed(false)
 
     const run = async () => {
@@ -122,6 +123,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
         link = pluginPlaybackLink(source, iframe)
         if (link) callbacks.current.onPlayback?.(link)
         if (stage?.current) stopFullscreen = servePluginFullscreen(source, stage.current, window, iframe)
+        stopAutoplay = servePluginAutoplay(source)
       } catch (error) {
         if (done) return
         console.warn(`Source '${pluginUri}' could not start playback:`, error)
@@ -133,6 +135,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
     return () => {
       done = true
       stopFullscreen?.()
+      stopAutoplay?.()
       if (link) { link.dispose(); callbacks.current.onPlayback?.(undefined) }
     }
   }, [pluginUri, release.uri, release.url])

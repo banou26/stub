@@ -3,13 +3,15 @@
  * that keeps them on the FKN account and stub's own embed, where the player runs and no account sync does.
  *
  * The page hands them to the embed in its url, under their setting keys, and the embed tells the page each
- * language the viewer picks there. Only this app's origin is heard or sent to, as in ./embed-title.ts.
+ * language the viewer picks there, and each flip of the player's autoplay switch. Only this app's origin is heard or
+ * sent to, as in ./embed-title.ts.
  */
 import type { TrackKind } from './embed-tracks'
 
 import { postMessage } from '@banou/ponyfill/web-messaging'
 
 import { settings } from './settings-store'
+import { setAutoplay } from './utils/autoplay'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY, type TrackLanguages } from './utils/track-languages'
 
 const PICKED = 'stub:embed-language-picked'
@@ -25,7 +27,7 @@ export const trackLanguagesParams = (): Record<string, string> => Object.fromEnt
 /** In the embed: the languages its url hands over. */
 export const trackLanguagesOf = (params: URLSearchParams): TrackLanguages => readTrackLanguages(key => params.get(key))
 
-/** On the watch page: keeps each language the embed in `iframe` says the viewer picked. Returns the stop. */
+/** On the watch page: keeps each language and autoplay flip the embed in `iframe` says the viewer picked. Returns the stop. */
 export const hearTrackLanguages = (iframe: HTMLIFrameElement, host: Window = window) => {
   const receive = (event: MessageEvent) => {
     if (event.source !== iframe.contentWindow || event.origin !== host.location.origin) return
@@ -34,6 +36,7 @@ export const hearTrackLanguages = (iframe: HTMLIFrameElement, host: Window = win
     if (kind === 'audio' && typeof language === 'string') keepAudioLanguage(language)
     if (kind === 'subtitles' && (typeof language === 'string' || language === null)) keepSubtitleLanguage(language)
     if (kind === 'always-subtitles' && typeof on === 'boolean') keepAlwaysSubtitles(on)
+    if (kind === 'autoplay' && typeof on === 'boolean') setAutoplay(on)
   }
   host.addEventListener('message', receive)
   return () => host.removeEventListener('message', receive)
@@ -47,4 +50,9 @@ export const tellTrackLanguage = (kind: TrackKind, language: string | null, host
 /** In the embed: tells the page that frames it whether subtitles show when the audio plays in their language. */
 export const tellAlwaysSubtitles = (on: boolean, host: Window = window) => {
   if (host.parent !== host) postMessage(host.parent, { type: PICKED, kind: 'always-subtitles', on }, host.location.origin)
+}
+
+/** In the embed: tells the page that frames it the viewer flipped the player's autoplay switch, which the page keeps. */
+export const tellAutoplay = (on: boolean, host: Window = window) => {
+  if (host.parent !== host) postMessage(host.parent, { type: PICKED, kind: 'autoplay', on }, host.location.origin)
 }

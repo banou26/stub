@@ -309,7 +309,7 @@ const { default: MediaTracking } = await import('../../../../src/components/medi
 const { PREPARE_AT, UP_NEXT_MS } = await import('../../../../src/router/watch/up-next')
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { aniskipUrl } = await import('../../../../src/sources/aniskip')
-const { AUTOPLAY_KEY } = await import('../../../../src/utils/autoplay')
+const { AUTOPLAY_KEY, setAutoplay } = await import('../../../../src/utils/autoplay')
 const { ACCOUNT_WAIT_MS } = await import('../../../../src/worker/plugin-sources')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
@@ -1639,6 +1639,21 @@ test('with autoplay turned off, the end offers Next episode and never counts dow
   expect(navigate).not.toHaveBeenCalled()
   await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
   expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'cr:GX3'))
+})
+
+test('autoplay turned off during the countdown stops it, and leaves Next episode to press', async () => {
+  const { host } = await atTheEnd()
+  await report(played, ended)
+  expect(host.querySelector('.up-next.counting')).not.toBeNull()
+  await act(() => { setAutoplay(false) })
+  await wait(UP_NEXT_MS * 2)
+  expect(navigate).not.toHaveBeenCalled()
+  expect(host.querySelector('.up-next')?.getAttribute('title')).toBe('E3 - Title 3')
+  expect(host.querySelector('.up-next.counting'), 'no countdown fill').toBeNull()
+  expect(host.querySelector('.up-next-cancel'), 'nothing to cancel').toBeNull()
+  await act(() => { setAutoplay(true) })
+  await wait(UP_NEXT_MS * 2)
+  expect(navigate, 'turned on again after the end, nothing starts').not.toHaveBeenCalled()
 })
 
 test('a party guest\'s player does not move on, the host takes the party along', async () => {
