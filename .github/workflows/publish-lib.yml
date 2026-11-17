@@ -24,51 +24,32 @@ on:
   # for re-running a publish that failed after the version already landed, which a push cannot repeat
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # A job of its own so that only a real release enters the release environment: this runs on every push,
+  # and every job that names an environment records a deployment there.
+  #
+  # Asked over HTTP rather than through `npm view`, which answers from a cache that a lookup made
+  # shortly before a publish can leave holding a negative. The VERSION document is the definitive
+  # answer, and it separates the three facts a gate needs: 200 is published, 404 is not, and
+  # anything else is the registry not answering, which is not evidence either way.
+  decide:
     runs-on: ubuntu-latest
-    # 'Confirm the registry serves it' may wait an hour on npm, on top of the build. A timeout
-    # that expires PAST the publish spends a version whose serving is then never confirmed: a
-    # workflow_dispatch re-run reads changed=false from the gate and skips every release step.
-    timeout-minutes: 90
-    permissions:
-      # the OIDC token npm exchanges for short lived publish credentials
-      id-token: write
-      # checkout only; nothing here pushes
-      contents: read
-
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.decide.outputs.changed }}
+      version: ${{ steps.decide.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
-
-      # NO registry-url on purpose. That input writes an .npmrc pinning the auth token to
-      # ${NODE_AUTH_TOKEN}, which is empty here and can turn trusted publishing into an ENEEDAUTH.
-      # registry.npmjs.org is npm's default, so nothing is lost by leaving it alone.
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          node-version: 24
-          cache: npm
+          persist-credentials: false
 
-      # Trusted publishing needs npm 11.5.1 or newer. Node 24 ships something recent enough today,
-      # which is exactly why this is pinned rather than assumed: the day the runner image moves, an
-      # unpinned npm would fail at the publish step with an auth error that looks like a revoked
-      # credential rather than a stale CLI.
-      - name: Use an npm that supports trusted publishing
-        run: |
-          npm install -g npm@latest
-          echo "npm $(npm --version)"
-
-      - run: npm ci
-
-      # Decide BEFORE building, so an unchanged version costs seconds rather than a full build.
-      #
-      # Asked over HTTP rather than through `npm view`, which answers from a cache that a lookup made
-      # shortly before a publish can leave holding a negative. The VERSION document is the definitive
-      # answer, and it separates the three facts a gate needs: 200 is published, 404 is not, and
-      # anything else is the registry not answering, which is not evidence either way.
       - name: Decide whether the version moved
         id: decide
         run: |
@@ -86,21 +67,59 @@ jobs:
             exit 1
           fi
 
+  publish:
+    needs: decide
+    if: needs.decide.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    # where FKN_RELEASE_KEY belongs once it moves out of the repository secrets
+    environment: release
+    # 'Confirm the registry serves it' may wait an hour on npm, on top of the build. A timeout
+    # that expires PAST the publish spends a version whose serving is then never confirmed: a
+    # workflow_dispatch re-run reads changed=false from the gate and skips this job.
+    timeout-minutes: 90
+    permissions:
+      # the OIDC token npm exchanges for short lived publish credentials
+      id-token: write
+      # checkout only; nothing here pushes
+      contents: read
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      # NO registry-url on purpose. That input writes an .npmrc pinning the auth token to
+      # ${NODE_AUTH_TOKEN}, which is empty here and can turn trusted publishing into an ENEEDAUTH.
+      # registry.npmjs.org is npm's default, so nothing is lost by leaving it alone.
+      # No cache in a release job, including the one setup-node@v5 turns on by itself for a
+      # package.json that names npm as its package manager.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      # Trusted publishing needs npm 11.5.1 or newer, and a stale CLI fails the publish step with an
+      # auth error that looks like a revoked credential. Exact, so a new npm only arrives by a bump
+      # here: 12.2.2 is what run 44016233129 (2026-11-17) published 0.0.63 with.
+      - name: Use an npm that supports trusted publishing
+        run: |
+          npm install -g npm@12.2.2
+          echo "npm $(npm --version)"
+
+      - run: npm ci
+
       - name: Build
-        if: steps.decide.outputs.changed == 'true'
         run: npm run build
 
       # the list fkn.dev publishes for Stub, which the release attaches; into the runner's temporary
       # directory, so it is never a file npm packs. pipefail: under `bash -e` alone jq's exit decides
       # the pipeline, and jq exits 0 on the empty output of a refused fetch
       - name: Fetch Stub's key list
-        if: steps.decide.outputs.changed == 'true'
         run: set -o pipefail; curl -fsS https://api.fkn.app/v1/apps/fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq/keys | jq .list > "$RUNNER_TEMP/fkn-keys.json"
 
       # writes fkn.json beside package.json, listing every file npm pack ships, and refuses when the
       # package would not ship it or the release would not fit what a device reads
       - name: Sign the package in place
-        if: steps.decide.outputs.changed == 'true'
         env:
           FKN_RELEASE_KEY: ${{ secrets.FKN_RELEASE_KEY }}
         run: npx --yes @fkn/sign@0.0.14 release . --npm --list "$RUNNER_TEMP/fkn-keys.json"
@@ -112,7 +131,6 @@ jobs:
       # matched the registered name (2026-09-11).
       # Provenance is attested automatically under trusted publishing; --provenance says so out loud.
       - name: Publish
-        if: steps.decide.outputs.changed == 'true'
         # verbose so the identity exchange's answer is in the log: a trusted publisher that does not
         # match this repository and filename otherwise surfaces only as a bare ENEEDAUTH
         env:
@@ -135,9 +153,8 @@ jobs:
       # Ask the REGISTRY, not the runner. Everything above is a claim about what was uploaded; this is
       # the only step that observes what a consumer would actually get.
       - name: Confirm the registry serves it
-        if: steps.decide.outputs.changed == 'true'
         env:
-          VERSION: ${{ steps.decide.outputs.version }}
+          VERSION: ${{ needs.decide.outputs.version }}
         run: |
           # npm stages every upload before it goes live, which took 3 minutes for 0.0.51 and over 25 for
           # 0.0.52 (2026-10-10; others report up to about 55), so this waits up to an hour
@@ -156,9 +173,8 @@ jobs:
       # What a device does with the version: its fkn.json and every file it lists, fetched from unpkg
       # and checked. Exit 2 is unpkg not serving every file yet, the only answer worth waiting out
       - name: Confirm devices verify it
-        if: steps.decide.outputs.changed == 'true'
         env:
-          VERSION: ${{ steps.decide.outputs.version }}
+          VERSION: ${{ needs.decide.outputs.version }}
         run: |
           for attempt in $(seq 1 40); do
             set +e
