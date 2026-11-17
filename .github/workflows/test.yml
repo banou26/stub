@@ -6,13 +6,19 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # not latest: ubuntu-latest is moving to 26.04, where Playwright 1.58 installed no browsers (2026-11-17)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           # the repo's own version, as Pages builds with: Node 22 has no navigator.locks, which the tracker's store takes
           node-version-file: .node-version
@@ -32,7 +38,7 @@ jobs:
       # cache between runs gives it the same fallback a local rebuild has. It restores AFTER npm ci
       # because npm ci empties node_modules, and it saves at the end of the job, by which point
       # data:build has refreshed it whenever the network was fine.
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             node_modules/.cache/stub-anime-data.json
