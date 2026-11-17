@@ -86,15 +86,17 @@ export default defineConfig(env => {
       {
         // A lib build inlines every asset as base64, `assetsInlineLimit` notwithstanding, so jassub's two
         // `new URL('./wasm/*.wasm', import.meta.url)` put 6.2 MB (2.6 MB gzip) in the chunk behind the first
-        // theme Play (measured 2026-10-12), for a subtitle renderer a theme never starts, and its
-        // `./default.woff2` 146 KB in the chunk the player page starts with (2026-10-31). `?no-inline` is
-        // vite's per-import opt out, and the build strips it from the emitted url.
+        // theme Play (measured 2026-10-12), for a subtitle renderer a theme never starts, its
+        // `./default.woff2` 146 KB in the chunk the player page starts with (2026-10-31), and since jassub
+        // 2.5.35 the two `./wasm/*.js` that run the wasm 218 KB there (2026-11-17). `?no-inline` is vite's
+        // per-import opt out, and the build strips it from the emitted url. `./worker/worker.js` is left to
+        // vite, which builds it as a worker file of its own.
         name: 'stub-lib-asset-files',
         enforce: 'pre',
         apply: 'build',
         transform: {
           filter: { id: /\/node_modules\/jassub\// },
-          handler: code => ({ code: code.replace(/(new URL\(\s*['"][^'"?]+\.(?:wasm|woff2))(['"])/g, '$1?no-inline$2'), map: null }),
+          handler: code => ({ code: code.replace(/(new URL\(\s*['"](?:[^'"?]+\.(?:wasm|woff2)|\.\/wasm\/[^'"?]+\.js))(['"])/g, '$1?no-inline$2'), map: null }),
         },
       },
       {

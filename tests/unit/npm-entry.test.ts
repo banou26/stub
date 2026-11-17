@@ -36,6 +36,7 @@ const FILES = {
   'build/index.js': 'import { a } from "./assets/lib-chunk-Dx0.js";\na()\n',
   'build/assets/lib-chunk-Dx0.js': 'export const a = () => import("./lib-theme-player-Cz4.js")\n',
   'build/assets/lib-theme-player-Cz4.js': 'const wasm = new URL(new URL("lib-jassub-worker-C7b.wasm", import.meta.url).href)\n',
+  'build/assets/lib-jassub-worker-C7b.wasm': '\0asm',
 }
 
 describe('the npm entry check', () => {
@@ -97,6 +98,19 @@ describe('the npm entry check', () => {
   test('refuses a font inlined in a chunk a page loads', () => {
     const font = { ...FILES, 'build/assets/lib-theme-player-Cz4.js': 'const font = "data:font/woff2;base64,d09GMgABAAAA"\n' }
     expect(npmEntryProblems(MANIFEST, treeOf(font)).join('\n')).toContain('build/assets/lib-theme-player-Cz4.js carries a font file inlined')
+  })
+
+  // jassub 2.5.37's two scripts that run its wasm, 218 KB of base64 in the chunk the player page and the theme player load
+  test('refuses a script inlined in a chunk a page loads', () => {
+    const script = { ...FILES, 'build/assets/lib-theme-player-Cz4.js': 'const s = new URL(`data:text/javascript;base64,ZXhwb3J0IHt9`, import.meta.url)\n' }
+    expect(npmEntryProblems(MANIFEST, treeOf(script)).join('\n')).toContain('build/assets/lib-theme-player-Cz4.js carries a javascript file inlined')
+  })
+
+  test('refuses a file a page fetches by new URL that the build does not have, and leaves another origin\'s to it', () => {
+    const { 'build/assets/lib-jassub-worker-C7b.wasm': _, ...withoutWasm } = FILES
+    expect(npmEntryProblems(MANIFEST, treeOf(withoutWasm))).toEqual(['build/assets/lib-theme-player-Cz4.js fetches build/assets/lib-jassub-worker-C7b.wasm, and it is not in the build'])
+    const elsewhere = { ...FILES, 'build/assets/lib-chunk-Dx0.js': `${FILES['build/assets/lib-chunk-Dx0.js']}const api = new URL("https://fkn.app/api", import.meta.url)\n` }
+    expect(npmEntryProblems(MANIFEST, treeOf(elsewhere))).toEqual([])
   })
 
   test('refuses a build with no theme player chunk to check', () => {
@@ -218,6 +232,11 @@ describe('the published file list', () => {
     test('refuses a package missing a file the player page names', () => {
       const paths = PACKED.filter(path => !path.includes('lib-embed'))
       expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en']).join('\n')).toContain('build/embed.html names build/assets/lib-embed-Dk2Ab_c-.js')
+    })
+
+    test('refuses a package missing a file a page fetches by new URL', () => {
+      const paths = PACKED.filter(path => !path.includes('lib-worker-index'))
+      expect(unpackedFilesProblems(MANIFEST, treeOf(PLAYER_PAGE), paths, ['en'])).toEqual(['a page fetches build/assets/lib-worker-index-B6VYNi0d.js, and package.json "files" leaves it out'])
     })
 
     test('refuses a package missing a chunk a page imports', () => {

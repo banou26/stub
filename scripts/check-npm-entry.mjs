@@ -34,14 +34,20 @@ const FETCHED_URL = /\s(?:src|href)="([^"]*)"/g
 /** an ES import of a file of the package: static, re-exported, side effect only or dynamic, minified or not */
 const IMPORTED = /\b(?:from|import)\s*\(?\s*["'`](\.\.?\/[^"'`]+\.js)["'`]/g
 
-/** a wasm file or a font a build inlined as base64 */
-const INLINED = /data:(?:application\/(wasm)|(font)\/)/
+/** a wasm file, a font or a script a build inlined as base64 */
+const INLINED = /data:(?:application\/(wasm)|(font)\/|(?:text|application)\/(javascript))/
 
-/** The files of the package `page` names, as paths from the package root. */
-const namedBy = (tree, page) => [...(tree.read(page) ?? '').matchAll(FETCHED_URL)]
+/** a file a module fetches by `new URL('<file>', import.meta.url)`: a worker, a wasm build and its script, a font */
+const URL_NAMED = /new URL\(\s*[`'"]([^`'"$]+)[`'"]\s*,\s*import\.meta\.url\s*\)/g
+
+/** The files of the package `pattern` finds in `path`, as paths from the package root. */
+const namedIn = (tree, path, pattern) => [...(tree.read(path) ?? '').matchAll(pattern)]
   .map(([, url]) => url)
   .filter(url => url && !ELSEWHERE.test(url) && !url.startsWith('/'))
-  .map(url => posix.join(posix.dirname(page), url.split(/[?#]/)[0]))
+  .map(url => posix.join(posix.dirname(path), url.split(/[?#]/)[0]))
+
+/** The files of the package `page` names. */
+const namedBy = (tree, page) => namedIn(tree, page, FETCHED_URL)
 
 /**
  * Every file of the build a page of the package loads by ES import, from the entry and the player page's scripts on,
@@ -129,12 +135,16 @@ export const npmEntryProblems = (pkg, tree) => {
 
   // a lib build inlines every asset, and jassub's wasm inlined made the first theme Play load 6.2 MB:
   // see the stub-lib-asset-files plugin in vite.lib.config.ts. Every chunk a page loads, since the player
-  // shares the theme player's code with the embed page, so that chunk holds only an import
+  // shares the theme player's code with the embed page, so that chunk holds only an import. A file such a
+  // chunk fetches by `new URL` has to be in the build, or the worker or wasm it is never starts
   const loaded = pageFiles(pkg, tree)
   if (!loaded.some(path => posix.basename(path).startsWith('lib-theme-player-'))) problems.push(`${assets} has no lib-theme-player chunk a page loads to check for inlined files`)
   for (const path of loaded) {
     const inlined = tree.read(path)?.match(INLINED)
-    if (inlined) problems.push(`${path} carries a ${inlined[1] ?? inlined[2]} file inlined as base64, which every page loading it would download`)
+    if (inlined) problems.push(`${path} carries a ${inlined[1] ?? inlined[2] ?? inlined[3]} file inlined as base64, which every page loading it would download`)
+    for (const file of namedIn(tree, path, URL_NAMED)) {
+      if (tree.read(file) === undefined) problems.push(`${path} fetches ${file}, and it is not in the build`)
+    }
   }
 
   return problems
@@ -296,9 +306,10 @@ const languageChunk = language => new RegExp(`^lib-${language.replace(/[^\w-]/g,
 
 /**
  * Why `npm pack` would publish a package missing what it loads: a file the player page names, a chunk a page imports,
- * or one of an offered language's two chunks (stub's text and the player's labels). Each reads as a working app, the
- * first on the disk `embedPageProblems` looks at, a language's partly in English. Takes `npmEntryProblems`'s
- * arguments, then what `packedPaths` read and the offered languages, English among them with no chunk.
+ * a file a page fetches by `new URL`, or one of an offered language's two chunks (stub's text and the player's labels).
+ * Each reads as a working app, the first on the disk `embedPageProblems` looks at, a language's partly in English.
+ * Takes `npmEntryProblems`'s arguments, then what `packedPaths` read and the offered languages, English among them
+ * with no chunk.
  *
  * @returns {string[]} one line per problem, each naming the file it is about
  */
@@ -306,9 +317,11 @@ export const unpackedFilesProblems = (pkg, tree, paths, languages) => {
   const page = posix.join(dirname(pkg.main), 'embed.html')
   const named = namedBy(tree, page)
   const loaded = pageFiles(pkg, tree)
+  const fetched = [...new Set(loaded.flatMap(path => namedIn(tree, path, URL_NAMED)))]
   return [
     ...named.filter(file => !paths.includes(file)).map(file => `${page} names ${file}, and package.json "files" leaves it out`),
     ...loaded.filter(file => !paths.includes(file) && !named.includes(file)).map(file => `a page imports ${file}, and package.json "files" leaves it out`),
+    ...fetched.filter(file => !paths.includes(file)).map(file => `a page fetches ${file}, and package.json "files" leaves it out`),
     ...languages.filter(language => language !== 'en').flatMap(language => {
       const chunks = loaded.filter(file => languageChunk(language).test(posix.basename(file)))
       return chunks.length < 2 ? [`a page imports ${chunks.length} of ${language}'s two chunks, stub's text and the player's labels, so a viewer of that language would read the package partly in English`] : []
