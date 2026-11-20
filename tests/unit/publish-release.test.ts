@@ -62,7 +62,7 @@ describe('the in-place signature', () => {
     expect(names.indexOf("Fetch Stub's key list")).toBeLessThan(names.indexOf('Sign the package in place'))
     const sign = block('Sign the package in place')
     expect(sign).toContain('FKN_RELEASE_KEY: ${{ secrets.FKN_RELEASE_KEY }}')
-    expect(sign).toContain('npx --yes @fkn/sign@0.0.14 release . --npm --list "$RUNNER_TEMP/fkn-keys.json"')
+    expect(sign).toContain('npx --yes @fkn/sign@0.0.16 release . --npm --list "$RUNNER_TEMP/fkn-keys.json"')
     expect(block("Fetch Stub's key list")).toContain('set -o pipefail; curl -fsS https://api.fkn.app/v1/apps/fkn:app:173elff365hgaijng4mufbd4zo6lypfskb3zdd5jkpgd4hj4ovjjq/keys | jq .list > "$RUNNER_TEMP/fkn-keys.json"')
     // the decision gates the whole publish job, so these run only for a version the registry lacks
     for (const name of ["Fetch Stub's key list", 'Sign the package in place', 'Confirm devices verify it']) {
@@ -79,7 +79,7 @@ describe('the in-place signature', () => {
   test('checks what devices check once the registry serves it, retrying only while unpkg catches up', () => {
     expect(names.indexOf('Confirm devices verify it')).toBeGreaterThan(names.indexOf('Confirm the registry serves it'))
     const verify = block('Confirm devices verify it')
-    expect(verify).toContain('npx --yes @fkn/sign@0.0.14 verify "npm:@banou/stub@$VERSION" --list "$RUNNER_TEMP/fkn-keys.json"')
+    expect(verify).toContain('npx --yes @fkn/sign@0.0.16 verify "npm:@banou/stub@$VERSION" --list "$RUNNER_TEMP/fkn-keys.json"')
     expect(verify).toContain('if [ "$CODE" != "2" ]; then exit "$CODE"; fi')
   })
 })
