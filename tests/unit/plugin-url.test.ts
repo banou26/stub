@@ -47,6 +47,9 @@ const address = { origin: 'https://anime.fkn.app', href: `https://anime.fkn.app/
 const entries: string[] = []
 const moved = (url: unknown) => { address.href = new URL(String(url), address.href).href }
 vi.stubGlobal('location', address)
+// the top page, where a link adds its sources
+vi.stubGlobal('window', globalThis)
+vi.stubGlobal('top', globalThis)
 vi.stubGlobal('history', {
   state: null,
   pushState: (_state: unknown, _unused: string, url: string) => { entries.push(address.href); moved(url) },

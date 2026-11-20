@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { Locator, Page } from '@playwright/test'
+import type { Frame, Locator, Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
 import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -34,6 +34,12 @@ let dir: string
 let server: Server
 let origin: string
 
+// the build's file at a request's path, else index.html, as Pages answers
+const servedFile = (url: string) => {
+  const file = join(dir, decodeURIComponent(new URL(url, 'http://app').pathname))
+  return !relative(dir, file).startsWith('..') && existsSync(file) && statSync(file).isFile() ? file : join(dir, 'index.html')
+}
+
 test.beforeAll(async () => {
   test.setTimeout(300_000)
   dir = mkdtempSync(join(tmpdir(), 'stub-settings-'))
@@ -51,9 +57,7 @@ test.beforeAll(async () => {
   })
 
   server = createServer((request, response) => {
-    const path = decodeURIComponent(new URL(request.url ?? '/', 'http://app').pathname)
-    const file = join(dir, path)
-    const served = !relative(dir, file).startsWith('..') && existsSync(file) && statSync(file).isFile() ? file : join(dir, 'index.html')
+    const served = servedFile(request.url ?? '/')
     response.writeHead(200, { 'content-type': TYPES[extname(served)] ?? 'application/octet-stream' })
     createReadStream(served).pipe(response)
   })
@@ -94,7 +98,7 @@ const seeded = async (page: Page, path = '/settings') => {
 }
 
 const categories = (page: Page) => page.getByRole('navigation', { name: 'Settings categories' })
-const panel = (page: Page) => page.locator('[data-section]')
+const panel = (page: Page | Frame) => page.locator('[data-section]')
 const sourceSwitches = (page: Page) => page.getByRole('switch', { name: / source$/ })
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -827,6 +831,62 @@ test('a short code that opens nothing is no page', async ({ page }) => {
   await expect(page.getByText('404 No page found')).toBeVisible()
   expect(page.url()).toBe(`${origin}${SHORT_PATH}AAAA`)
 })
+
+// HOR-1458: whoever frames stub writes its address, so a link adds its sources only where stub is the top page. Its own
+// fkn.app/app/ tab frames it too, and looks from inside like an app in fkn.app that sends its frame to stub.
+const FKN_TAB = 'https://fkn.app/app/npm:@banou/stub'
+const APP_TAB = 'https://fkn.app/app/npm:@spec/app'
+// the app's frame in APP_TAB, which sends itself to the next page instead of framing it
+const APP = 'https://spec-app.sdbx.app/'
+const OTHER_SITE = 'https://other.example/'
+// routed as the pages above are: Chrome 156 shows a public page's frame on loopback as an error page (local network access)
+const STUB_SITE = 'https://stub.example'
+
+/** Opens stub's settings with a link to ANIME inside `pages`, each framing the next, and returns stub's frame. */
+const openedIn = async (page: Page, pages: string[]): Promise<Frame> => {
+  const chain = [...pages, `${STUB_SITE}/settings?plugins=${ANIME}`]
+  await page.route(`${STUB_SITE}/**`, route => {
+    const served = servedFile(route.request().url())
+    return route.fulfill({ path: served, contentType: TYPES[extname(served)] ?? 'application/octet-stream' })
+  })
+  await page.route(url => pages.includes(url.href), route => {
+    const next = chain[chain.indexOf(route.request().url()) + 1]!
+    return route.fulfill({
+      contentType: 'text/html',
+      body: route.request().url() === APP
+        ? `<script>location.href = ${JSON.stringify(next)}</script>`
+        : `<iframe src="${next}" style="width:100%;height:95vh;border:0"></iframe>`,
+    })
+  })
+  await page.goto(chain[0]!)
+  await expect.poll(() => page.frames().some(frame => frame.url().startsWith(STUB_SITE))).toBe(true)
+  const stub = page.frames().find(frame => frame.url().startsWith(STUB_SITE))!
+  await expect(panel(stub)).toBeVisible()
+  return stub
+}
+
+test('a link opened as the top page adds its source', async ({ page }) => {
+  const stub = await openedIn(page, [])
+  await expect(stub.getByRole('status').getByText('Source enabled: Spec Anime', { exact: true })).toBeVisible()
+  await expect(panel(stub).locator(`[data-plugin="${ANIME}"] .pill`)).toHaveText('Connected')
+  expect(await stub.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBe(JSON.stringify([ANIME]))
+})
+
+for (const [where, pages] of [
+  ['stub is in its own fkn.app tab', [FKN_TAB]],
+  ['an app in its fkn.app tab sends its frame to stub', [APP_TAB, APP]],
+  ['an app frames stub inside fkn.app', [APP_TAB, OTHER_SITE]],
+  ['another site frames stub', [OTHER_SITE]],
+  ['another site frames its fkn.app tab', [OTHER_SITE, FKN_TAB]],
+] as const) {
+  test(`a link adds nothing when ${where}`, async ({ page }) => {
+    const stub = await openedIn(page, [...pages])
+    await page.waitForTimeout(1_500)
+    await expect(stub.getByRole('status').filter({ has: stub.getByRole('button', { name: 'OK' }) })).toHaveCount(0)
+    await expect(panel(stub).locator(`[data-plugin="${ANIME}"]`)).toHaveCount(0)
+    expect(await stub.evaluate(() => localStorage.getItem('stub-enabled-plugins') ?? '[]')).toBe('[]')
+  })
+}
 
 test('at 390x844 a source whose long host has nowhere to break keeps its error inside the notice', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })

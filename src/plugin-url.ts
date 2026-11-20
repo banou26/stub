@@ -30,6 +30,11 @@ const patch = (type: 'pushState' | 'replaceState') => {
   }
 }
 
+// Whoever frames stub writes its address, so a link adds sources only when stub is the top page. Its own fkn.app/app/
+// tab frames it too, and nothing stub can read tells that frame from one that another app in fkn.app sent to stub's
+// fkn.app copy (fkn.app's frame-src admits every *.sdbx.app), so no frame adds any.
+const openedByPerson = () => window.top === window
+
 const INSTALLED = Symbol.for('stub_plugin_url')
 
 if (!(INSTALLED in globalThis)) {
@@ -43,6 +48,6 @@ if (!(INSTALLED in globalThis)) {
   onPluginsChange(sync)
   onInvitesChange(sync)
   const navigation = globalThis.performance?.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
-  void addInvites(readPluginUris(location.href), { install: navigation?.type !== 'back_forward' })
+  if (openedByPerson()) void addInvites(readPluginUris(location.href), { install: navigation?.type !== 'back_forward' })
   sync()
 }

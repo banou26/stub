@@ -11,6 +11,9 @@ vi.spyOn(performance, 'getEntriesByType').mockImplementation(type => type === 'n
 vi.stubGlobal('location', { href: `https://anime.fkn.app/settings?plugins=${LINK}`, origin: 'https://anime.fkn.app' })
 vi.stubGlobal('history', { state: null, pushState: () => {}, replaceState: () => {} })
 vi.stubGlobal('addEventListener', () => {})
+// the top page, where a link adds its sources
+vi.stubGlobal('window', globalThis)
+vi.stubGlobal('top', globalThis)
 
 test('a page Back or Forward loads again shows only what FKN holds of what its address names', async () => {
   await import('../../src/plugin-url')
