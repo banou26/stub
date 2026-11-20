@@ -44,6 +44,12 @@ test('names every host stub asks from the browser, every source icon it draws an
   expect(unlisted(needed)).toEqual([])
 })
 
+// the owner's answer of 2026-11-21: stub-plugin hands stub each source icon as a data url, so the list does not grow
+test("names none of stub-plugin's icon hosts", () => {
+  const icons = ['eztvx.to', 'knaben.org', 'nyaa.si', 'thepiratebay.org', 'torrentio.strem.fun', 'yts.gg']
+  expect(network.hosts.filter(host => icons.includes(host))).toEqual([])
+})
+
 // manami takes each picture from whichever source supplied it, so the shipped data names hosts no source asks
 test('names every host the offline data built for this release draws a cover or banner from', async () => {
   const media = Object.values((seasons as { seasons: Record<string, ManamiRecord[]> }).seasons).flat().flatMap(record => seasonMedia(record) ?? [])

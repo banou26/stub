@@ -81,6 +81,13 @@ describe('readPluginSources', () => {
     expect(long.sources[0]!.meta.name.length).toBe(64)
   })
 
+  // HOR-1183: stub-plugin hands each icon as a data url, so stub's page reaches no icon host; one it could not fetch is left out
+  test('an icon handed as a data url is kept as it is, and none reads as no icon', () => {
+    const icon = 'data:image/png;base64,iVBORw0KGgo='
+    const result = readPluginSources({ sources: [{ ...source('nyaa'), icon }, source('yts')] }, 'https:stub.plugins.banou.dev')
+    expect(result.sources.map(entry => entry.meta.icon)).toEqual([icon, null])
+  })
+
   test('access is read as declared, and as none when left out, as every older plugin does, or of any other value', () => {
     const access = (value?: unknown) => readPluginSources({ ...source('s'), ...value === undefined ? {} : { access: value } }, 'u').sources[0]!.meta.access
     expect(access('account')).toBe('account')
