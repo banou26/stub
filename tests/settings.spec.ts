@@ -62,7 +62,8 @@ test.beforeAll(async () => {
     createReadStream(served).pipe(response)
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  // one of stub's own sites, where a link opened as the top page adds its sources
+  origin = `http://stub.localhost:${(server.address() as AddressInfo).port}`
 })
 
 test.afterAll(async () => {
@@ -832,56 +833,94 @@ test('a short code that opens nothing is no page', async ({ page }) => {
   expect(page.url()).toBe(`${origin}${SHORT_PATH}AAAA`)
 })
 
-// HOR-1458: whoever frames stub writes its address, so a link adds its sources only where stub is the top page. Its own
-// fkn.app/app/ tab frames it too, and looks from inside like an app in fkn.app that sends its frame to stub.
+// Whoever frames stub or opens a window at its address writes that address, so a link adds its sources only where the
+// person opened it: as the top page of one of stub's own sites, or in stub's own fkn.app/app/ tab, which only fkn.app
+// can tell from a frame another app sent to stub's copy there.
 const FKN_TAB = 'https://fkn.app/app/npm:@banou/stub'
 const APP_TAB = 'https://fkn.app/app/npm:@spec/app'
 // the app's frame in APP_TAB, which sends itself to the next page instead of framing it
 const APP = 'https://spec-app.sdbx.app/'
 const OTHER_SITE = 'https://other.example/'
 // routed as the pages above are: Chrome 156 shows a public page's frame on loopback as an error page (local network access)
-const STUB_SITE = 'https://stub.example'
+const STUB_SITE = 'https://stub.fkn.app'
+// stub's copy in fkn.app, at none of stub's sites
+const STUB_COPY = 'https://spec-stub.sdbx.app'
+const OSRA = 'https://fkn.app/spec-osra.js'
 
-/** Opens stub's settings with a link to ANIME inside `pages`, each framing the next, and returns stub's frame. */
-const openedIn = async (page: Page, pages: string[]): Promise<Frame> => {
-  const chain = [...pages, `${STUB_SITE}/settings?plugins=${ANIME}`]
-  await page.route(`${STUB_SITE}/**`, route => {
+// fkn.app's broker as @fkn/lib's handshake with its parent meets it: it takes the port, says so, and answers on it, here
+// only `shell.isAppTab`. A page that relays its channel to a worker, as stub does, makes its own calls on the second key
+const broker = (appTab: boolean) => `<script>
+  addEventListener('message', ({ data, ports: [port] }) => {
+    if (data?.type !== 'fkn-api-port' || !port) return
+    import(${JSON.stringify(OSRA)}).then(({ expose }) => {
+      for (const key of ['fkn-api', 'fkn-api-window']) {
+        expose({ shell: { isAppTab: async () => ${appTab} } }, { transport: { receive: port, emit: port }, key })
+      }
+      port.start()
+      port.postMessage({ type: 'fkn-api-port-ack' })
+    })
+  })
+</script>`
+
+/**
+ * Opens stub's settings at `at` with a link to ANIME inside `pages`, each framing the next, and returns stub's frame.
+ * Each fkn.app page answers `appTab` to whether stub is its own app.
+ */
+const openedIn = async (page: Page, pages: string[], { at = STUB_SITE, appTab = false } = {}): Promise<Frame> => {
+  const chain = [...pages, `${at}/settings?plugins=${ANIME}`]
+  await page.route(`${at}/**`, route => {
     const served = servedFile(route.request().url())
     return route.fulfill({ path: served, contentType: TYPES[extname(served)] ?? 'application/octet-stream' })
   })
+  await page.route(OSRA, route => route.fulfill({ path: join(ROOT, 'node_modules', 'osra', 'build', 'index.js'), contentType: 'text/javascript' }))
   await page.route(url => pages.includes(url.href), route => {
-    const next = chain[chain.indexOf(route.request().url()) + 1]!
+    const url = route.request().url()
+    const next = chain[chain.indexOf(url) + 1]!
     return route.fulfill({
       contentType: 'text/html',
-      body: route.request().url() === APP
+      body: url === APP
         ? `<script>location.href = ${JSON.stringify(next)}</script>`
-        : `<iframe src="${next}" style="width:100%;height:95vh;border:0"></iframe>`,
+        : `${url.startsWith('https://fkn.app/') ? broker(appTab) : ''}<iframe src="${next}" style="width:100%;height:95vh;border:0"></iframe>`,
     })
   })
   await page.goto(chain[0]!)
-  await expect.poll(() => page.frames().some(frame => frame.url().startsWith(STUB_SITE))).toBe(true)
-  const stub = page.frames().find(frame => frame.url().startsWith(STUB_SITE))!
+  await expect.poll(() => page.frames().some(frame => frame.url().startsWith(at))).toBe(true)
+  const stub = page.frames().find(frame => frame.url().startsWith(at))!
   await expect(panel(stub)).toBeVisible()
   return stub
 }
 
-test('a link opened as the top page adds its source', async ({ page }) => {
-  const stub = await openedIn(page, [])
+const addsAnime = async (stub: Frame) => {
   await expect(stub.getByRole('status').getByText('Source enabled: Spec Anime', { exact: true })).toBeVisible()
   await expect(panel(stub).locator(`[data-plugin="${ANIME}"] .pill`)).toHaveText('Connected')
   expect(await stub.evaluate(() => localStorage.getItem('stub-enabled-plugins'))).toBe(JSON.stringify([ANIME]))
+}
+
+for (const site of ['anime', 'movies', 'series', 'stub']) {
+  test(`a link opened as the top page of ${site}.fkn.app adds its source`, async ({ page }) => {
+    await addsAnime(await openedIn(page, [], { at: `https://${site}.fkn.app` }))
+  })
+}
+
+test('a link opened in stub\'s own fkn.app tab adds its source', async ({ page }) => {
+  await addsAnime(await openedIn(page, [FKN_TAB], { at: STUB_COPY, appTab: true }))
 })
 
-for (const [where, pages] of [
-  ['stub is in its own fkn.app tab', [FKN_TAB]],
-  ['an app in its fkn.app tab sends its frame to stub', [APP_TAB, APP]],
-  ['an app frames stub inside fkn.app', [APP_TAB, OTHER_SITE]],
-  ['another site frames stub', [OTHER_SITE]],
-  ['another site frames its fkn.app tab', [OTHER_SITE, FKN_TAB]],
+// Under another site alone no answer comes here, since the fkn.app frame @fkn/lib then mounts is refused, and the link
+// stays on the address
+for (const [where, pages, at, answered] of [
+  ['fkn.app does not say stub is its tab\'s own app', [FKN_TAB], STUB_COPY, true],
+  ['an app in its fkn.app tab sends its frame to stub', [APP_TAB, APP], STUB_COPY, true],
+  ['an app frames stub inside fkn.app', [APP_TAB, OTHER_SITE], STUB_COPY, true],
+  ['another site frames stub\'s site', [OTHER_SITE], STUB_SITE, false],
+  ['another site frames its fkn.app tab', [OTHER_SITE, FKN_TAB], STUB_COPY, true],
+  ['stub\'s copy in fkn.app is opened as a window of its own', [], STUB_COPY, true],
+  ['a host that is none of stub\'s sites is opened as the top page', [], 'https://stub.example', true],
 ] as const) {
   test(`a link adds nothing when ${where}`, async ({ page }) => {
-    const stub = await openedIn(page, [...pages])
-    await page.waitForTimeout(1_500)
+    const stub = await openedIn(page, [...pages], { at })
+    if (answered) await expect.poll(() => stub.url(), { message: 'the link leaves the address once fkn.app has answered' }).toBe(`${at}/settings`)
+    else await page.waitForTimeout(1_500)
     await expect(stub.getByRole('status').filter({ has: stub.getByRole('button', { name: 'OK' }) })).toHaveCount(0)
     await expect(panel(stub).locator(`[data-plugin="${ANIME}"]`)).toHaveCount(0)
     expect(await stub.evaluate(() => localStorage.getItem('stub-enabled-plugins') ?? '[]')).toBe('[]')

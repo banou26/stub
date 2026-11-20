@@ -1,10 +1,16 @@
+import { shell } from '@fkn/lib'
+
 import { readPluginUris, writePluginUris } from './utils/plugin-links'
 import { loadEnabled } from './plugin-list'
 import { enabledPluginUris, onPluginsChange } from './plugins'
 import { addInvites, onInvitesChange, pendingInviteUris } from './plugin-invites'
+import { isSiteHost } from './site'
 
-// pending too: a link's source has to stay on the url until FKN answers, or a reload loses it
-const desired = () => [...enabledPluginUris(), ...pendingInviteUris()]
+let asking: string[] = []
+
+// pending, or still asking fkn.app whether this is stub's own tab: a link's source has to stay on the url until FKN
+// answers, or a reload loses it
+const desired = () => [...enabledPluginUris(), ...pendingInviteUris(), ...asking]
 
 const sync = () => {
   const next = writePluginUris(location.href, desired(), location.href)
@@ -30,11 +36,6 @@ const patch = (type: 'pushState' | 'replaceState') => {
   }
 }
 
-// Whoever frames stub writes its address, so a link adds sources only when stub is the top page. Its own fkn.app/app/
-// tab frames it too, and nothing stub can read tells that frame from one that another app in fkn.app sent to stub's
-// fkn.app copy (fkn.app's frame-src admits every *.sdbx.app), so no frame adds any.
-const openedByPerson = () => window.top === window
-
 const INSTALLED = Symbol.for('stub_plugin_url')
 
 if (!(INSTALLED in globalThis)) {
@@ -48,6 +49,16 @@ if (!(INSTALLED in globalThis)) {
   onPluginsChange(sync)
   onInvitesChange(sync)
   const navigation = globalThis.performance?.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
-  if (openedByPerson()) void addInvites(readPluginUris(location.href), { install: navigation?.type !== 'back_forward' })
+  const uris = readPluginUris(location.href)
+  const add = () => addInvites(uris, { install: navigation?.type !== 'back_forward' })
+  // Whoever frames stub or opens a window at its address writes that address, so a link adds sources only where the
+  // person opened it: as the top page of one of stub's own sites, or in stub's own fkn.app/app/ tab, which only
+  // fkn.app can tell from a frame another app sent to stub's copy there. addInvites holds its links before its first
+  // wait, so none leaves the url between the answer and the add.
+  if (window.top === window && isSiteHost(location.hostname)) void add()
+  else if (uris.length) {
+    asking = uris
+    void shell.isAppTab().then(yes => { if (yes) void add() }).finally(() => { asking = []; sync() })
+  }
   sync()
 }

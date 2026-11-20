@@ -41,13 +41,17 @@ vi.mock('../../src/plugins', () => ({
 
 vi.mock('../../src/plugin-list', () => ({ loadEnabled: () => plugins.kept }))
 
+// counted by hand, since vitest clears a mock's calls before each test and this module loads before the first
+const fkn = vi.hoisted(() => ({ asked: 0 }))
+vi.mock('@fkn/lib', () => ({ shell: { isAppTab: async () => { fkn.asked += 1; return false } } }))
+
 const LINK = 'https:stub.plugins.banou.dev'
 const DECLINED = vi.hoisted(() => 'npm:@banou/declined')
-const address = { origin: 'https://anime.fkn.app', href: `https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}` }
+const address = { origin: 'https://anime.fkn.app', hostname: 'anime.fkn.app', href: `https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}` }
 const entries: string[] = []
 const moved = (url: unknown) => { address.href = new URL(String(url), address.href).href }
 vi.stubGlobal('location', address)
-// the top page, where a link adds its sources
+// the top page of one of stub's sites, where a link adds its sources
 vi.stubGlobal('window', globalThis)
 vi.stubGlobal('top', globalThis)
 vi.stubGlobal('history', {
@@ -69,6 +73,7 @@ const { addedInvites, closeInvites, removeInvite } = await import('../../src/plu
 test('a link adds its source as the page loads, and a Back that reaches the mirror of a source removed since adds nothing', async () => {
   expect(address.href, 'FKN has not answered, and a reload now must not lose the link').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}&plugins=${DECLINED}`)
   expect(pluginHref('/settings'), 'nor name it to a tab a link opens, since FKN may hold it for this tab alone').toBe('/settings')
+  expect(fkn.asked, 'nor ask fkn.app whether this is its tab').toBe(0)
   plugins.answerList([])
   await vi.waitFor(() => expect(addedInvites()).toEqual([{ uri: LINK }]))
   expect(address.href, 'a source the viewer said no to leaves the url').toBe(`https://anime.fkn.app/title/1?plugins=${LINK}`)

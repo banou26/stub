@@ -5,13 +5,14 @@ import { expect, test, vi } from 'vite-plus/test'
 const addInvites = vi.hoisted(() => vi.fn(async (_uris: string[], _options?: { install?: boolean }) => {}))
 vi.mock('../../src/plugin-invites', () => ({ addInvites, onInvitesChange: () => () => {}, pendingInviteUris: () => [] }))
 vi.mock('../../src/plugins', () => ({ enabledPluginUris: () => [], onPluginsChange: () => () => {} }))
+vi.mock('@fkn/lib', () => ({ shell: { isAppTab: async () => false } }))
 
 const LINK = 'https:stub.plugins.banou.dev'
 vi.spyOn(performance, 'getEntriesByType').mockImplementation(type => type === 'navigation' ? [{ type: 'back_forward' } as PerformanceNavigationTiming] : [])
-vi.stubGlobal('location', { href: `https://anime.fkn.app/settings?plugins=${LINK}`, origin: 'https://anime.fkn.app' })
+vi.stubGlobal('location', { href: `https://anime.fkn.app/settings?plugins=${LINK}`, origin: 'https://anime.fkn.app', hostname: 'anime.fkn.app' })
 vi.stubGlobal('history', { state: null, pushState: () => {}, replaceState: () => {} })
 vi.stubGlobal('addEventListener', () => {})
-// the top page, where a link adds its sources
+// the top page of one of stub's sites, where a link adds its sources
 vi.stubGlobal('window', globalThis)
 vi.stubGlobal('top', globalThis)
 
