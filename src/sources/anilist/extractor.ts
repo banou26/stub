@@ -890,7 +890,7 @@ export const resolvers: Resolvers = {
     mediaPage: {
       subscribe: async function*(_, { input }, ctx: ExtractorServerContext) {
         const variables = browseVariables(input)
-        if (!variables) return
+        if (!variables) return yield { mediaPage: { nodes: [] } }
         yield {
           mediaPage: {
             nodes: await browse(variables, ctx)

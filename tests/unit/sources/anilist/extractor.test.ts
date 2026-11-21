@@ -319,13 +319,15 @@ test('a search asks for exactly one page, ranked by SEARCH_MATCH, and names no s
   expect('season' in requests[0]!.variables).toBe(false)
 })
 
-test('an input naming nothing this source can browse yields nothing and asks nothing', async () => {
+// An answer with no payload reaches the page as urql's "No Content", logged as a network error on every load of
+// the general site's popular movies and shows rows, which ask with only a category
+test('an input naming nothing this source can browse answers an empty list and asks nothing', async () => {
   const { ctx, requests } = browseContext({ lastPage: 12 })
 
-  for (const input of [{}, { formats: [] }, { genres: [] }, { tags: [] }, { after: 3 }]) {
+  for (const input of [{}, { formats: [] }, { genres: [] }, { tags: [] }, { after: 3 }, { categories: ['MOVIE'] }, { categories: ['SERIES'] }]) {
     const { done, value } = await openMediaPage(ctx, input)
-    expect(done, `${JSON.stringify(input)} names no filter`).toBe(true)
-    expect(value).toBeUndefined()
+    expect(done, `${JSON.stringify(input)} names no filter`).toBe(false)
+    expect(value).toEqual({ mediaPage: { nodes: [] } })
   }
   expect(requests).toEqual([])
 })
