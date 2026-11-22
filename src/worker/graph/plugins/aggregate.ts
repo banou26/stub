@@ -56,7 +56,7 @@ import { readComponents } from './guards'
 import { ownShift } from './range'
 
 /** The version of 5.1: bumped when a rule below changes, which retracts and recomputes every row. */
-export const AGGREGATE_VERSION = 12
+export const AGGREGATE_VERSION = 13
 
 /** The id every minted cluster carries, so an id is readable as one at a glance in a trace. */
 const ID_PREFIX = 'cl:'
@@ -499,17 +499,31 @@ export type RunLength = { length: number, tier: number, witnesses: number, from:
  * the length is 12 and its witnesses are mal and anizip.
  */
 export const runLengthOf = (
-  // the four columns the vote reads, rather than a whole `Subject`: a caller holding the count and
-  // the score can ask, and a column added for another rule cannot change what the length is
-  members: readonly Pick<Subject, 'uri' | 'score' | 'countKind' | 'countStated'>[]
+  // the columns the vote reads, rather than a whole `Subject`: a caller holding the count, score
+  // and distinct episode count can ask, and a column added for another rule cannot change what the length is
+  members: readonly (Pick<Subject, 'uri' | 'score' | 'countKind' | 'countStated'> & { countDistinct?: number | null })[]
 ): RunLength | null => {
   const stated = members.filter(member => member.countKind !== 'none' && member.countStated !== null)
   const declared = stated.filter(member => member.countKind === 'declared')
   const pool = declared.length ? declared : stated.filter(member => member.countKind === 'listLength')
   if (!pool.length) return null
-  const agreed = tieredConsensus(pool.map(member => ({ value: member.countStated, score: member.score })))
+  let agreed = tieredConsensus(pool.map(member => ({ value: member.countStated, score: member.score })))
   if (!agreed) return null
-  const witnesses = stated.filter(member => member.countStated === agreed.value)
+  let witnesses = stated.filter(member => member.countStated === agreed!.value)
+  if (witnesses.length < 2 && declared.length > 1) {
+    const backed = witnesses.some(member => member.countDistinct != null && member.countDistinct >= agreed!.value)
+    const alternative = backed
+      ? []
+      : declared.filter(member =>
+        member.countStated! > agreed!.value && member.countDistinct != null && member.countDistinct >= member.countStated!)
+    const picked = alternative.length
+      ? tieredConsensus(alternative.map(member => ({ value: member.countStated, score: member.score })))
+      : undefined
+    if (picked) {
+      agreed = picked
+      witnesses = stated.filter(member => member.countStated === picked.value)
+    }
+  }
   return {
     length: agreed.value,
     tier: agreed.tier,
@@ -1000,7 +1014,7 @@ export const aggregatePlugin: Plugin = {
       const alignedRowsByUri = new Map(candidates.map(aligned => [aligned.row.uri, aligned.row]))
       const fills = alignedFillsOf({
         slots: slots.map(slot => ({ id: slot.id, number: slot.number, filled: slot.rows.map(filled => filled.row.uri) })),
-        runLength: run?.length ?? null,
+        runLength: run && run.witnesses >= 2 ? run.length : null,
         own: ownUris,
         pairs: candidates.map(aligned => ({
           uri: aligned.row.uri,

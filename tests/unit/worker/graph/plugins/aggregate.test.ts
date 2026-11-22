@@ -368,6 +368,32 @@ test('on one class the wrapper answers exactly what consensus.runLength answers'
   }
 })
 
+// When an uncorroborated top-tier declared count lists no episodes, an episode-backed larger declared count wins
+// (Steel Ball Run: AniList 1 with no episodes against AniZip 12 backed by 12 episode rows, while MAL stays none).
+// Mutation: drop the episode-backed fallback in `runLengthOf` and SBR stays at 1.
+test('an uncorroborated declared count with no episodes yields to a larger episode-backed declared count', () => {
+  const member = (origin: string, score: number | null, countStated: number | null, countDistinct: number | null, countKind = countStated === null ? 'none' : 'declared') => ({
+    uri: `${origin}:1`, score, countKind, countStated, countDistinct,
+  })
+
+  expect(runLengthOf([
+    member('mal', 0.9, null, null),
+    member('anilist', 0.8, 1, null),
+    member('anizip', null, 12, 12),
+  ])).toMatchObject({ length: 12, witnesses: 1, from: ['anizip:1'] })
+
+  expect(runLengthOf([
+    member('mal', 0.9, null, null),
+    member('anilist', 0.8, 1, null),
+    member('anizip', null, 12, 12),
+    member('nyaa', null, 12, 12, 'listLength'),
+  ])).toMatchObject({ length: 12, witnesses: 2, from: ['anizip:1', 'nyaa:1'] })
+
+  // Controls: episode-backed top tier stays put, and a smaller episode-backed count never undercuts.
+  expect(runLengthOf([member('mal', 0.9, 12, 12), member('anizip', null, 13, 13)])).toMatchObject({ length: 12, witnesses: 1 })
+  expect(runLengthOf([member('anilist', 0.8, 13, null), member('anizip', null, 12, 12)])).toMatchObject({ length: 13, witnesses: 1 })
+})
+
 // TWO METADATA SOURCES OVER ONE RUN ARE ONE LIST, which is `mergeByEpisodeNumber`'s rule with its
 // input fenced to one cluster (`db.ts:465-468`), and the unnumbered row gets its own slot listed
 // last, so a special can never collide with episode 1 (5.4 P5).
@@ -441,6 +467,37 @@ test('an aligned fill needs a pair, the window, and a slot a member already fill
   // two hangs of one row onto one slot is one fill, and the lowest target decides which keys it names
   const twice = fills([pair('cr:x-13', 'anizip:x-1', 1), pair('cr:x-13', 'anizip:x-1', 1)])
   expect(twice).toHaveLength(1)
+})
+
+test('an uncorroborated 1-witness run length does not drop aligned fills', async () => {
+  const fills = alignedFillsOf({
+    slots: [
+      { id: 'cl:901#1', number: 1, filled: ['anizip:901-1'] },
+      { id: 'cl:901#2', number: 2, filled: ['anizip:901-2'] },
+    ],
+    runLength: null,
+    own: new Set(['anizip:901-1', 'anizip:901-2']),
+    pairs: [{ uri: 'cr:901-2', toUri: 'anizip:901-2', toNumber: 2, supports: ['h:cr:901-2', 'l:cr:901-2'] }],
+  })
+  expect(fills.map(f => f.uri)).toEqual(['cr:901-2'])
+
+  await ingestAnswers([
+    await answer('media', media('anilist:901', {
+      score: 0.8, type: 'TV', episodeCount: 1, titles: [title('en', 'Uncorroborated Fill')],
+      handles: [sameAs(media('anizip:901', {}))],
+    })),
+    await answer('media', media('anizip:901', {
+      type: 'TV', episodeCount: 2, titles: [title('en', 'Uncorroborated Fill')],
+      episodes: [
+        episode('anizip:901-1', 'anizip:901', { episodeNumber: 1, titles: [title('en', 'One')], releaseDate: '2026-01-01' }),
+        episode('anizip:901-2', 'anizip:901', { episodeNumber: 2, titles: [title('en', 'Two')], releaseDate: '2026-01-08' }),
+      ],
+    })),
+  ])
+  await runPass()
+  const cluster = await clusterOf('anilist:901')
+  expect(Number(cluster!.runLength)).toBe(2)
+  expect((await slotsOf('anilist:901')).map(slot => slot.number)).toEqual([1, 2])
 })
 
 // THE TRIM, through the graph: two witnesses at 12, tmdb at 0.4 in a strictly lower tier than 0.9,
