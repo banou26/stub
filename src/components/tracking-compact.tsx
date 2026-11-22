@@ -15,7 +15,7 @@ import type { Watched } from '../tracking/watched'
 import { NAME_LIST, wordsOf } from '../i18n'
 import { forPage } from '../i18n/said'
 import {
-  LIST_STATUSES, activityOf, canRemove, countDiffers, createSaveQueue, holds, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, targetOf, unsettled, whyNot, writable,
+  LIST_STATUSES, activityOf, canRemove, countDiffers, createSaveQueue, holds, patchFor, pickerScale, rowOf, rowOfEntry, shownOf, stepsProgress, syncPatches, targetOf, unsettled, whyNot, writable,
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import { WATCHED_AT, watchedPatches } from '../tracking/watched'
@@ -282,7 +282,7 @@ const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) 
  * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false, statuses, clearable }:
+  { name, shown, scale, mixed, disabled, listed, removable, onChange, onSyncAll, dots = {}, movie = false, statuses, clearable }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
@@ -299,6 +299,8 @@ const Controls = (
     listed: boolean
     removable: boolean
     onChange: (fields: Fields, immediate: boolean) => void
+    /** Syncs every out-of-sync checked tracker to the summary row when present. */
+    onSyncAll?: () => void
     dots?: Partial<Record<'SCORE' | 'STATUS' | 'PROGRESS', ComponentChild>>
   }
 ) => {
@@ -409,6 +411,9 @@ const Controls = (
         : undefined}
       {!movie && !disabled && total && shown.status === 'COMPLETED' && shown.progress < total
         ? <button type="button" onClick={() => onChange({ progress: total }, true)}>{intl.formatMessage({ id: 'Set {total} / {total}', defaultMessage: 'Set {total} / {total}' }, { total })}</button>
+        : undefined}
+      {!disabled && onSyncAll
+        ? <button type="button" className="sync-all" onClick={onSyncAll}>{intl.formatMessage({ id: 'Sync all', defaultMessage: 'Sync all' })}</button>
         : undefined}
     </div>
   )
@@ -627,6 +632,13 @@ const TrackingCompact = (
   const sendable = targets.filter(({ target }) => target.kind === 'check' && target.sendable).map(({ answer }) => answer)
   const disabled = !sendable.length
   const picker = pickerScale(sendable.map(answer => answer.tracker.scoreScale))
+  const pendingSync = useMemo(() => syncPatches(targets, shown, picker?.scale), [targets, shown, picker?.scale])
+  const hasPendingSync = Object.keys(pendingSync).length > 0
+  const syncAll = () => {
+    if (!hasPendingSync) return
+    tell(shown)
+    stage(pendingSync, true)
+  }
 
   const remember = (scope: string, fields: Fields) => {
     if (!fields.remove) setOverrides(previous => ({ ...previous, [scope]: { ...previous[scope], ...fields } }))
@@ -867,6 +879,7 @@ const TrackingCompact = (
           listed={answers.some(answer => answer.state === 'LISTED')}
           removable={sendable.some(canRemove)}
           onChange={change}
+          onSyncAll={hasPendingSync ? syncAll : undefined}
           dots={{
             SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(intl, answer.entry.score, answer.tracker.scoreScale) : undefined),
             STATUS: differs('STATUS', answer => answer.entry?.status ? statusLabel(intl, answer.entry.status) : undefined),

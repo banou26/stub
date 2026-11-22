@@ -4,7 +4,7 @@ import type { TrackerAnswer } from '../../../src/generated/schema/types.generate
 import type { CompactAnswer, Fields, Outcome, Row } from '../../../src/tracking/compact'
 
 import { aggregateTracking } from '../../../src/tracking/aggregate'
-import { createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, targetOf, written } from '../../../src/tracking/compact'
+import { createSaveQueue, patchFor, pickerScale, rowOf, rowOfEntry, syncPatchFor, syncPatches, targetOf, written } from '../../../src/tracking/compact'
 import { inEnglish } from '../in-english'
 
 const answer = (id: string, state: string, entry?: CompactAnswer['entry'], extra: Partial<CompactAnswer> = {}): CompactAnswer =>
@@ -157,6 +157,57 @@ describe('patchFor', () => {
       const shown = rowOf(aggregateTracking('m', [cr]), 12)
       expect(shown).toMatchObject({ status: null, progress: 0, score: null })
       expect(patchFor(answer('anilist', 'NOT_LISTED'), { progress: 1 }, { ...shown, progress: 1 })).toEqual({ status: 'WATCHING', progress: 1 })
+    })
+  })
+})
+
+describe('syncPatchFor and syncPatches', () => {
+  const crunchyroll = (state: string, entry: CompactAnswer['entry'] = null) =>
+    answer('cr', state, entry, {
+      tracker: { id: 'cr', name: 'Crunchyroll', canWrite: true, statuses: ['PLANNING'], scoreScale: 'POINT_5', canClearScore: false },
+    })
+
+  test('syncs only differing fields for listed trackers and full entry for unlisted trackers', () => {
+    expect(syncPatchFor(answer('anilist', 'LISTED', { status: 'PAUSED', progress: 10, score: 80 }), row, 'POINT_10'))
+      .toEqual({ status: 'WATCHING', progress: 13 })
+    expect(syncPatchFor(answer('stub', 'NOT_LISTED'), row, 'POINT_100'))
+      .toEqual({ status: 'WATCHING', progress: 13, score: 80 })
+  })
+
+  test('returns undefined when already synced or nothing is set on the row', () => {
+    expect(syncPatchFor(answer('anilist', 'LISTED', { status: 'WATCHING', progress: 13, score: 80 }), row, 'POINT_10')).toBeUndefined()
+    expect(syncPatchFor(answer('stub', 'NOT_LISTED'), { status: null, progress: 0, score: null, total: 14, differs: [] })).toBeUndefined()
+  })
+
+  test('compares scores on the coarser scale and respects canClearScore', () => {
+    const fineRow: Row = { status: 'WATCHING', progress: 13, score: 85, total: 14, differs: [] }
+    expect(syncPatchFor(answer('anilist', 'LISTED', { status: 'WATCHING', progress: 13, score: 80 }, { tracker: { id: 'anilist', name: 'AniList', canWrite: true, scoreScale: 'POINT_10' } }), fineRow, 'POINT_10'))
+      .toBeUndefined()
+
+    const clearedRow: Row = { status: 'WATCHING', progress: 13, score: null, total: 14, differs: [] }
+    expect(syncPatchFor(answer('anilist', 'LISTED', { status: 'WATCHING', progress: 13, score: 80 }), clearedRow)).toEqual({ score: null })
+    expect(syncPatchFor(crunchyroll('LISTED', { progress: 13, score: 80 }), clearedRow)).toBeUndefined()
+  })
+
+  test('respects countDiffers and partial-status trackers like Crunchyroll', () => {
+    expect(syncPatchFor(answer('anilist', 'LISTED', { status: 'PAUSED', progress: 5, score: 80, episodeCount: 28 }), row))
+      .toEqual({ status: 'WATCHING' })
+    expect(syncPatchFor(crunchyroll('LISTED', { progress: 14, score: 80 }), row)).toBeUndefined()
+    expect(syncPatchFor(crunchyroll('LISTED', { progress: 5, score: 80 }), row)).toEqual({ progress: 13 })
+    expect(syncPatchFor(crunchyroll('NOT_LISTED'), { status: 'PLANNING', progress: 0, score: null, total: 14, differs: [] }))
+      .toEqual({ status: 'PLANNING' })
+  })
+
+  test('syncPatches skips unchecked, signed-out, and read-only trackers', () => {
+    const patches = syncPatches([
+      { answer: answer('anilist', 'LISTED', { status: 'PAUSED', progress: 13, score: 60 }, { tracker: { id: 'anilist', name: 'AniList', canWrite: true, scoreScale: 'POINT_10' } }), target: { kind: 'check', checked: true, sendable: true } },
+      { answer: answer('mal', 'SIGNED_OUT'), target: { kind: 'login' } },
+      { answer: answer('kitsu', 'NOT_LISTED'), target: { kind: 'check', checked: false, sendable: false } },
+      { answer: answer('stub', 'NOT_LISTED'), target: { kind: 'check', checked: true, sendable: true } },
+    ], row, 'POINT_10')
+    expect(patches).toEqual({
+      anilist: { status: 'WATCHING', score: 80 },
+      stub: { status: 'WATCHING', progress: 13, score: 80 },
     })
   })
 })

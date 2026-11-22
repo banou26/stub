@@ -337,6 +337,32 @@ describe('the compact tracking row', () => {
     expect(picked.onSaveFields).toHaveBeenCalledWith(['anilist'], { status: 'COMPLETED' })
   })
 
+  test('offers Sync all when any checked tracker is out of sync, sends patches at once, and hides once synced', async () => {
+    const stubListed: CompactAnswer = { ...stub, state: 'LISTED', entry: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 } }
+    const { host, onSaveFields, setTracking } = render({
+      tracking: {
+        summary: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 },
+        disagreements: ['STATUS', 'SCORE'],
+        answers: [anilist, mal, stub],
+      },
+    })
+    const syncButton = button(host, 'Sync all')
+    expect(syncButton).toBeTruthy()
+    await click(syncButton!)
+    expect(onSaveFields.mock.calls).toEqual([
+      [['anilist'], { status: 'WATCHING', score: 80 }],
+      [['stub'], { status: 'WATCHING', progress: 13, score: 80 }],
+    ])
+
+    await setTracking({
+      summary: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 },
+      disagreements: [],
+      answers: [{ ...anilist, entry: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 } }, mal, stubListed],
+    })
+    expect(button(host, 'Sync all')).toBeFalsy()
+    expect(button(render({ tracking: nothing }).host, 'Sync all')).toBeFalsy()
+  })
+
   test('names every control for a screen reader', () => {
     const { host } = render()
     expect(q(host, 'input[name="compact-target-anilist"]').getAttribute('aria-label')).toBe('Save to AniList')

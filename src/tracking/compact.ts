@@ -200,6 +200,61 @@ export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Field
 }
 
 /**
+ * The fields needed to bring one checked writable tracker in line with `row`, or undefined when it
+ * already matches what the row shows (within its own scale, status set, and episode count).
+ */
+export const syncPatchFor = (answer: CompactAnswer, row: Row, shownScale?: string | null): Fields | undefined => {
+  if (!writable(answer)) return undefined
+  if (!row.status && row.progress === 0 && !isScored(row.score)) return undefined
+  const { statuses, scoreScale, canClearScore } = answer.tracker
+  const targetStatus = answer.state === 'NOT_LISTED' && !statuses ? (row.status ?? 'WATCHING') : row.status
+  const wantStatus = targetStatus && (!statuses || statuses.includes(targetStatus)) ? targetStatus : undefined
+  const canProgress = !countDiffers(answer, row.total)
+  const targetProgress = Math.max(0, Math.min(row.total ?? Infinity, row.progress))
+  const entry = answer.entry
+  const fields: Fields = {}
+
+  if (answer.state === 'NOT_LISTED' && !statuses) {
+    if (wantStatus) fields.status = wantStatus
+    if (canProgress) fields.progress = targetProgress
+    if (isScored(row.score)) fields.score = onScale(row.score, scoreScale)
+    return Object.keys(fields).length ? fields : undefined
+  }
+
+  if (wantStatus && entry?.status !== wantStatus) fields.status = wantStatus
+  if (canProgress) {
+    const currentProgress = entry?.progress ?? 0
+    if (statuses ? targetProgress > currentProgress : currentProgress !== targetProgress) {
+      fields.progress = targetProgress
+    }
+  }
+  const currentScore = isScored(entry?.score) ? entry!.score : null
+  const compareScale = coarser(scoreScale, shownScale ?? scoreScale)
+  if (isScored(row.score)) {
+    const matches = currentScore !== null && onScale(currentScore, compareScale) === onScale(row.score, compareScale)
+    if (!matches) fields.score = onScale(row.score, scoreScale)
+  } else if (answer.state === 'LISTED' && currentScore !== null && canClearScore !== false) {
+    fields.score = null
+  }
+  return Object.keys(fields).length ? fields : undefined
+}
+
+/** The per-tracker patches needed to sync every checked sendable tracker with `row`. */
+export const syncPatches = (
+  targets: readonly { answer: CompactAnswer, target: Target }[],
+  row: Row,
+  shownScale?: string | null,
+): Record<string, Fields> => {
+  const patches: Record<string, Fields> = {}
+  for (const { answer, target } of targets) {
+    if (target.kind !== 'check' || !target.sendable) continue
+    const patch = syncPatchFor(answer, row, shownScale)
+    if (patch) patches[answer.tracker.id] = patch
+  }
+  return patches
+}
+
+/**
  * Whether a tracker takes each raise of progress as a save of its own (`createSaveQueue`'s `steps`): one
  * that keeps each field on its own, Crunchyroll, where a save marks the one episode it names.
  */
