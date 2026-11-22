@@ -593,6 +593,74 @@ test('390 px wide, an episode row is as tall with its source icons and descripti
   expect(outside).toEqual(outside.map(() => 0))
 })
 
+test('1440 px and 900 px wide, episode synopses clip to whole lines without cutting two-line synopses short or slicing under a two-line title', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(`${origin}/title/tmdb:93405-s1`)
+  const row = page.locator('[data-episodes] .episode:not(.placeholder)').first()
+  await expect(row).toBeVisible({ timeout: 30_000 })
+  await expect(row.locator('.description .ellipsis')).toHaveAttribute('style', /max-height/)
+
+  const measure = () => row.evaluate(episode => {
+    const title = episode.querySelector('.title')!.getBoundingClientRect()
+    const ellipsis = episode.querySelector('.description .ellipsis')!
+    const box = ellipsis.getBoundingClientRect()
+    const style = getComputedStyle(ellipsis)
+    const rowBox = episode.getBoundingClientRect()
+    return {
+      titleHeight: title.height,
+      clamp: style.webkitLineClamp,
+      lineHeight: parseFloat(style.lineHeight),
+      height: box.height,
+      scrollHeight: ellipsis.scrollHeight,
+      overflowBottom: box.bottom - rowBox.bottom,
+    }
+  })
+
+  // 1) A natural 2-line synopsis at 16px (38.4px) must stay 2 lines, not clamp to 1.
+  await row.evaluate(episode => {
+    episode.querySelector('.title')!.textContent = 'Short episode title'
+    episode.querySelector('.description .ellipsis')!.textContent = 'First line of synopsis.\nSecond line of synopsis.'
+  })
+  await page.setViewportSize({ width: 1000, height: 900 })
+  await expect.poll(async () => (await measure()).clamp, '2-line synopsis keeps both lines').toBe('2')
+  const twoLine = await measure()
+  expect(twoLine.scrollHeight).toBeLessThanOrEqual(twoLine.height + 1)
+  expect(twoLine.overflowBottom).toBeLessThanOrEqual(0.5)
+
+  // 2) A 5-line synopsis under a 1-line title clamps to 3 whole lines inside the 10rem row.
+  await row.evaluate(episode => {
+    episode.querySelector('.title')!.textContent = 'Short episode title with more width'
+    episode.querySelector('.description .ellipsis')!.textContent = 'Line 1.\nLine 2.\nLine 3.\nLine 4.\nLine 5.'
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect.poll(async () => (await measure()).clamp, 'long synopsis with 1-line title clamps to 3 lines').toBe('3')
+  const threeLine = await measure()
+  expect(Math.abs(threeLine.height - 3 * threeLine.lineHeight)).toBeLessThan(1)
+  expect(threeLine.overflowBottom).toBeLessThanOrEqual(0.5)
+
+  // 3) When the episode title wraps to 2 lines, the synopsis clamps to 2 lines without slicing mid-line.
+  await row.evaluate(episode => {
+    episode.querySelector('.title')!.textContent = 'A Terrifying Mysterious Power! Captain Buggy Now!'
+  })
+  await page.setViewportSize({ width: 900, height: 900 })
+  await expect.poll(async () => (await measure()).titleHeight, 'title wraps to 2 lines at 900px').toBeGreaterThan(35)
+  await expect.poll(async () => (await measure()).clamp, 'synopsis under 2-line title clamps to 2 lines').toBe('2')
+  const wrapped = await measure()
+  expect(Math.abs(wrapped.height - 2 * wrapped.lineHeight)).toBeLessThan(1)
+  expect(wrapped.overflowBottom, 'synopsis is not sliced by the row bottom edge').toBeLessThanOrEqual(0.5)
+
+  // 4) Widening back so the title unwraps to 1 line recovers the synopsis from 2 lines to 3 lines.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect.poll(async () => (await measure()).titleHeight, 'title unwraps to 1 line at 1440px').toBeLessThan(35)
+  await expect.poll(async () => (await measure()).clamp, 'synopsis recovers to 3 lines').toBe('3')
+  const unwrapped = await measure()
+  expect(Math.abs(unwrapped.height - 3 * unwrapped.lineHeight)).toBeLessThan(1)
+  expect(unwrapped.overflowBottom).toBeLessThanOrEqual(0.5)
+  expect(errors).toEqual([])
+})
+
 test('a wider spelling of the same title keeps the page as it is', async ({ page }) => {
   await page.goto(`${origin}/title/${SEQUEL}`)
   await expect(heading(page)).toHaveText('Spec Sequel', { timeout: 30_000 })

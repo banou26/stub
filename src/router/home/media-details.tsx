@@ -598,9 +598,11 @@ const episodesStyle = css`
       display: flex;
       flex-direction: column;
       justify-content: center;
+      min-height: 0;
 
       & > .header {
         display: flex;
+        flex-shrink: 0;
 
         & > .title {
          font-size: 2rem;
@@ -616,12 +618,13 @@ const episodesStyle = css`
       }
 
       & > .description {
+        flex: 0 1 auto;
+        min-height: 0;
         margin-top: 0.5rem;
         max-height: 6rem;
         overflow: hidden;
 
-        * > .ellipsis {
-          max-height: 6rem;
+        & > .ellipsis {
           white-space: pre-wrap;
           overflow: hidden;
         }

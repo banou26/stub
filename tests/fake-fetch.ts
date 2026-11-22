@@ -181,7 +181,7 @@ const MAZE = {
 const TMDB: Record<string, string> = {
   '/tv/93405': SQUID_GAME_SHOW,
   '/tv/93405/seasons': SQUID_GAME_SEASONS,
-  '/tv/93405/season/1': '<div class="card" data-episode-number="1"><h3><a href="#">Red Light, Green Light</a></h3><span class="date">September 17, 2021</span></div>',
+  '/tv/93405/season/1': '<div class="card" data-episode-number="1"><h3><a href="#">Red Light, Green Light</a></h3><span class="date">September 17, 2021</span><div class="overview"><p>Hundreds of cash-strapped players accept a strange invitation to compete in children\'s games for a tempting prize, with deadly high stakes.</p></div></div>',
   '/tv/93405/season/2': '<div class="card" data-episode-number="1"><h3><a href="#">Bread and Lottery</a></h3><span class="date">December 26, 2024</span></div>',
   '/tv/209867': FRIEREN_SHOW,
   '/tv/209867/seasons': FRIEREN_SEASONS,
