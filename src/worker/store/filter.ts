@@ -191,6 +191,8 @@ export const pageRows = <T extends Pick<GQLMedia, 'uri' | 'handles' | 'categorie
   return pair && pair !== row ? { ...row, season: pair.season, seasonYear: pair.seasonYear, popularity: pair.popularity } : row
 })
 
+const primaryTitle = (media: GQLMedia) => stripTitle(media.titles?.[0]?.title ?? '')
+
 /**
  * A page as `mediaPage` draws it, the same on both stores: `pageRows`, a search's relevance cut and order, the seasons
  * whose show is drawn left off, then the sorts. It runs after the hide, which on the graph path is store-wide and
@@ -222,7 +224,11 @@ export const sortPage = async <T extends GQLMedia & Seasoned>(
         b.score - a.score
         || (b.media.followers ?? 0) - (a.media.followers ?? 0)
         || Number(b.exact) - Number(a.exact)
-        || b.similarity - a.similarity)
+        || b.similarity - a.similarity
+        || (b.media.averageScore ?? 0) - (a.media.averageScore ?? 0)
+        || primaryTitle(a.media).localeCompare(primaryTitle(b.media))
+        || (b.media.startDate ?? '').localeCompare(a.media.startDate ?? '')
+        || a.media.uri.localeCompare(b.media.uri))
       .map(entry => entry.media))
   }
   return applyMediaSorts(lessShownSeasons(page), input)

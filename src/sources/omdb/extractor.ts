@@ -55,7 +55,7 @@ type Name = { id?: string, nameText?: { text?: string } | null, primaryImage?: {
 const TITLE_FIELDS = 'id titleText { text } titleType { id } releaseYear { year } primaryImage { url }'
 const SEARCH_QUERY = `query Search($q: String!) { mainSearch(first: 10, options: { searchTerm: $q, type: TITLE }) { edges { node { entity { ... on Title { ${TITLE_FIELDS} ratingsSummary { aggregateRating voteCount } } } } } } }`
 // The first season's episodes ride along, and are kept only when the series has that one season.
-const titleQuery = (details: string) => `query Title($id: ID!) { title(id: $id) { ${TITLE_FIELDS} releaseDate { year month day } ratingsSummary { aggregateRating } plot { plotText { plainText } } episodes { seasons { number } episodes(first: 250, filter: { includeSeasons: ["1"] }) { edges { node { id titleText { text } plot { plotText { plainText } } releaseDate { year month day } primaryImage { url } series { episodeNumber { seasonNumber episodeNumber } } } } } }${details} } }`
+const titleQuery = (details: string) => `query Title($id: ID!) { title(id: $id) { ${TITLE_FIELDS} releaseDate { year month day } ratingsSummary { aggregateRating voteCount } plot { plotText { plainText } } episodes { seasons { number } episodes(first: 250, filter: { includeSeasons: ["1"] }) { edges { node { id titleText { text } plot { plotText { plainText } } releaseDate { year month day } primaryImage { url } series { episodeNumber { seasonNumber episodeNumber } } } } } }${details} } }`
 // The relay caches on the whole body, so the modal's leaves out what only the title page's `details` reads
 const TITLE_QUERY = titleQuery('')
 const NAME_FIELDS = 'id nameText { text } primaryImage { url }'

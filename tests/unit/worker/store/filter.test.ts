@@ -320,4 +320,16 @@ describe('search relevance ranking on stub', () => {
     const flagship = hit('ag:(anilist:154587)', 'Sousou no Frieren', 300000, ['ANIME', 'SERIES'])
     expect(uris(await sortPage([obscure, flagship], { search: 'frieren' }, [], 'stub'))).toEqual([flagship.uri, obscure.uri])
   })
+
+  test('keeps search order deterministic across input permutations and release dates when follower counts are absent', async () => {
+    const dune2021 = { ...hit('ag:(jw:101)', 'Dune', null, ['MOVIE']), startDate: '2021-10-22' }
+    const dune1984 = { ...hit('ag:(jw:102)', 'Dune', null, ['MOVIE']), startDate: '1984-12-14' }
+    const partTwo = { ...hit('ag:(jw:103)', 'Dune: Part Two', null, ['MOVIE']), startDate: '2024-03-01' }
+    const drifter = { ...hit('ag:(jw:104)', 'Dune Drifter', null, ['MOVIE']), startDate: '2020-12-01' }
+    const planet = { ...hit('ag:(jw:105)', 'Planet Dune', null, ['MOVIE']), startDate: '2021-10-29' }
+    const baseline = uris(await sortPage([dune2021, dune1984, partTwo, drifter, planet], { search: 'dune' }, [], 'movie'))
+    expect(baseline.slice(0, 2)).toEqual([dune2021.uri, dune1984.uri])
+    expect(uris(await sortPage([planet, drifter, partTwo, dune1984, dune2021], { search: 'dune' }, [], 'movie'))).toEqual(baseline)
+    expect(uris(await sortPage([partTwo, planet, dune2021, drifter, dune1984], { search: 'dune' }, [], 'movie'))).toEqual(baseline)
+  })
 })
