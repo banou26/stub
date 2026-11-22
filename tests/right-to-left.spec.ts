@@ -169,8 +169,8 @@ for (const language of ['ar', 'he']) {
       expect(await page.locator('.chips').first().evaluate(element => getComputedStyle(element).maskImage), 'the chips fade at their end, the left').toContain('to left')
 
       await page.goto(at('/media/ag:(anilist:1,mal:1)'))
-      await expect(page.locator('h2.title')).toBeVisible({ timeout: 45_000 })
-      const heading = (await page.locator('h2.title').boundingBox())!
+      await expect(page.locator('.modal h2.title')).toBeVisible({ timeout: 45_000 })
+      const heading = (await page.locator('.modal h2.title').boundingBox())!
       const description = (await page.locator('.description').first().boundingBox())!
       expect(heading.x + heading.width, 'the modal\'s title starts at the right').toBeGreaterThan(640)
       expect(description.x + description.width, 'and so does its synopsis').toBeGreaterThan(640)

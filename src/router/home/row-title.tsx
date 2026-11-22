@@ -17,7 +17,13 @@ const titleStyle = css`
   padding-bottom: 0.5rem;
   user-select: none;
 
+  &:has(> a) {
+    padding-bottom: 0;
+  }
+
   a {
+    display: block;
+    padding-bottom: 0.5rem;
     color: inherit;
     text-decoration: none;
   }
