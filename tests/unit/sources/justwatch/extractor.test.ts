@@ -744,3 +744,26 @@ test.each([
   viewerIn(timeZone)
   expect(region()).toBe(country)
 })
+
+test('Media.episodes returns nothing for a bare show container, while seasons and films still return theirs', async () => {
+  const epNode = (epId: number, sNum: number) => ({
+    objectId: epId,
+    content: { title: `Ep ${epId}`, episodeNumber: 1, seasonNumber: sNum, isReleased: true, shortDescription: 'Real plot.', originalReleaseDate: '2026-10-01', runtime: 24 },
+  })
+  const multi = {
+    ...node,
+    seasons: [
+      { ...season(111, 1), episodes: [epNode(501, 1)] },
+      { ...season(222, 2), episodes: [epNode(502, 2)] },
+    ],
+  }
+  const ctx = {
+    fetch: async () => ({ json: async () => ({ data: { node: multi } }) }),
+  } as never
+  const resolveEpisodes = (resolvers.Media as any).episodes
+  expect(await resolveEpisodes({ origin: 'jw', id: '12345', uri: 'jw:12345', type: 'SHOW', titles: [{ title: 'A Show With Several Seasons' }] }, {}, ctx)).toEqual([])
+  expect(await resolveEpisodes({ origin: 'jw', id: '12345-111', uri: 'jw:12345-111', type: 'SHOW', titles: [{ title: 'A Show With Several Seasons' }] }, {}, ctx))
+    .toHaveLength(1)
+  expect(await resolveEpisodes({ origin: 'jw', id: '999', uri: 'jw:999', type: 'MOVIE', categories: ['MOVIE'], titles: [{ title: 'A Film' }], covers: [], descriptions: [] }, {}, ctx))
+    .toHaveLength(1)
+})

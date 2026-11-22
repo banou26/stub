@@ -1255,6 +1255,7 @@ export const resolvers: Resolvers = {
         ? node.seasons.find(season => season.objectId === seasonObjectId)?.content.seasonNumber
         : undefined
       const seasonNumber = pinned ?? (parent.titles?.[0]?.title ? parseSeasonNumber(parent.titles[0].title) : undefined)
+      if (seasonObjectId == null && seasonNumber == null) return []
       const seasons = seasonNumber != null
         ? node.seasons.filter(s => s.content.seasonNumber === seasonNumber)
         : node.seasons

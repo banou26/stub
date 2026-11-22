@@ -31,14 +31,14 @@ vi.mock('urql', async () => {
       { query, variables, pause }:
       { query: { definitions: { name?: { value: string } }[] }, variables: { input: { uri: string } }, pause?: boolean }
     ) => {
-      const last = useRef<unknown>(undefined)
+      const last = useRef<{ data?: unknown, operation: { variables: { input: { uri: string } } } } | undefined>(undefined)
       const name = query.definitions[0]?.name?.value
       const data = pause ? undefined
         : name === 'GetMediaDetails' ? answer.details[variables.input.uri] && { media: answer.details[variables.input.uri] }
         : name === 'MediaTracking' ? answer.tracking && { tracking: answer.tracking }
         : undefined
-      if (data) last.current = data
-      return [{ data: last.current }]
+      if (data) last.current = { data, operation: { variables } }
+      return [last.current ?? { data: undefined, operation: { variables } }]
     },
   }
 })
@@ -607,4 +607,30 @@ test('on a connection read as 2G, or with data saving on, the hero holds its tra
 
   link.change({ saveData: false })
   expect(shown().trailer).toBe('https://www.youtube.com/watch?v=a')
+})
+
+test('when the home hero is a bare show container, Play follows its first season', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const showUri = 'ag:(jw:369881)'
+  const seasonUri = 'jw:369881-101'
+  const bareShow = {
+    ...show('jw-show', { title: 'Crystal Lake' }),
+    _id: 'cl:jw:369881',
+    uri: showUri,
+    handles: [{ relation: 'SAME_AS', node: { uri: 'jw:369881' } }],
+  }
+  answer.details[showUri] = {
+    ...bareShow,
+    seasons: [{ number: 1, uri: seasonUri }],
+    episodes: [{ uri: 'ag:(jw:6980914)', episodeNumber: 1, releaseDate: '2026-10-01', handles: [] }],
+  }
+  answer.details[`ag:(${seasonUri})`] = {
+    ...bareShow,
+    uri: `ag:(${seasonUri})`,
+    handles: [{ relation: 'SAME_AS', node: { uri: seasonUri } }],
+    seasons: [{ number: 1, uri: seasonUri }],
+    episodes: [{ uri: 'ag:(amazon:gti1,jw:6980914)', episodeNumber: 1, releaseDate: '2026-10-01', handles: [] }],
+  }
+  const { play } = hero([bareShow])
+  expect(play()).toEqual({ label: 'Play', href: `/watch/ag:(${seasonUri})/ag:(amazon:gti1,jw:6980914)` })
 })

@@ -26,7 +26,7 @@ import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
 import ShareButton from '../../components/share-button'
 import MediaTracking from '../../components/media-tracking'
-import MediaSeasons from '../../components/media-seasons'
+import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { serveEmbedFullscreen } from '../../embed-fullscreen'
@@ -941,7 +941,21 @@ const Watch = () => {
   // kept with the episode's picture then, so the page under it never moves
   const empty = !noSource && !viaPlugin && !embedUrl && !needsExtension
   const holding = empty && !(media?.settled && !episode) && (guest || !(selectedSourceUri ? everyAnswered : stuck))
-  useAutoPick(pick, { ...params, guest, cannotPlay, search }, navigate)
+  const playing = currentMedia(watchMedia, params.mediaUri)
+  const playingUris = (playing?.handles ?? []).map(handle => handle.node.uri)
+  const bareSeason = !guest && playing
+    ? firstSeasonRedirect(playing.seasons, [playing.uri, ...playingUris])
+    : undefined
+  useEffect(() => {
+    if (!bareSeason) return
+    const target = getRoutePath(Route.WATCH, {
+      mediaUri: asAggregatedUri(bareSeason),
+      episodeUri: params.episodeUri,
+      sourceUri: params.sourceUri,
+    })
+    navigate(search ? `${target}?${search}` : target, { replace: true })
+  }, [bareSeason, params.episodeUri, params.sourceUri, search, navigate])
+  useAutoPick(bareSeason ? undefined : pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
   // only a run's first or last episode has a neighbour in another run, so only there is it asked for
@@ -978,8 +992,6 @@ const Watch = () => {
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
   const [season, setSeason] = useState<{ uri: string, on: string }>()
-  const playing = currentMedia(watchMedia, params.mediaUri)
-  const playingUris = playing?.handles.map(handle => handle.node.uri) ?? []
   const picked = season?.on === params.episodeUri ? playing?.seasons?.find(each => each.uri === season.uri && !playingUris.includes(each.uri)) : undefined
   const pickedUri = picked && asAggregatedUri(picked.uri)
   const pickedRun = useRun(pickedUri)
@@ -988,7 +1000,7 @@ const Watch = () => {
 
   // an episode no source names ends there too, once every source has answered, unless the address names a source that
   // plays without it
-  if (notKept(watchMedia, params.mediaUri) || (playing?.settled && !pending && !episode && !selected)) return <NotFound/>
+  if (!bareSeason && (notKept(watchMedia, params.mediaUri) || (playing?.settled && !pending && !episode && !selected))) return <NotFound/>
 
   return (
     <div css={style}>

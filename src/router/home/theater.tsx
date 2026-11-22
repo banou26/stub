@@ -14,9 +14,12 @@ import TextEllipsis from '../../components/text-ellipsis'
 import Placeholder, { PlaceholderLines } from '../../components/placeholder'
 import { SOURCES_WAIT_MS, THEATER_WAIT_MS, fromGoodSource, holdTheaterPick, isSameShow, slowConnection, theaterCandidates, theaterKey, type ConnectionReading } from '../../utils/theater'
 import { headerImages, useCoverUrl } from '../../utils/use-cover-url'
+import { asAggregatedUri } from '../../utils/uri'
 import { onPluginsChange, pluginStatuses } from '../../plugins'
+import { firstSeasonRedirect } from '../../components/media-seasons'
 import { getRouterRoutePath, Route } from '../path'
 import { GET_MEDIA_DETAILS, MediaPlay } from './media-details'
+import { currentMedia } from './modal-media'
 
 const style = css`
 height: 70vh;
@@ -179,13 +182,25 @@ const onConnectionChange = (listener: () => void) => {
   return () => link?.removeEventListener('change', listener)
 }
 
-/** The show's Play, Continue or Rewatch. Keyed by the show, since urql keeps the last show's answer when the uri changes. */
-const TheaterPlay = ({ uri }: { uri: string }) => {
-  const [{ data }] = useSubscription({
+const TheaterSeasonPlay = ({ uri }: { uri: string }) => {
+  const [result] = useSubscription({
     query: GET_MEDIA_DETAILS,
     variables: { input: { uri }, descriptionInput: { type: MediaDescriptionContentType.Html } },
   })
-  return <MediaPlay media={data?.media}/>
+  return <MediaPlay media={currentMedia(result, uri)}/>
+}
+
+/** The show's Play, Continue or Rewatch. Keyed by the show, since urql keeps the last show's answer when the uri changes. */
+const TheaterPlay = ({ uri }: { uri: string }) => {
+  const [result] = useSubscription({
+    query: GET_MEDIA_DETAILS,
+    variables: { input: { uri }, descriptionInput: { type: MediaDescriptionContentType.Html } },
+  })
+  const media = currentMedia(result, uri)
+  const currentUris = media ? [media.uri, ...(media.handles ?? []).map(handle => handle.node.uri)] : []
+  const firstSeason = firstSeasonRedirect(media?.seasons, currentUris)
+  if (firstSeason) return <TheaterSeasonPlay key={firstSeason} uri={asAggregatedUri(firstSeason)}/>
+  return <MediaPlay media={media}/>
 }
 
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {

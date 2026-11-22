@@ -4284,3 +4284,28 @@ test('orders the watch page sources list by a saved custom play order and reorde
   await settle()
   expect(sourceOrder(host)).toEqual(['nf', 'cr', 'nyaa', 'hulu'])
 })
+
+test('opening Watch on a bare show container redirects to its first season while preserving episode, source, and search', async () => {
+  vi.useFakeTimers()
+  const showUri = 'ag:(jw:369881)'
+  const seasonUri = 'jw:369881-101'
+  params = { mediaUri: showUri, episodeUri: 'ag:(jw:6980914)', sourceUri: 'cr:GX1' }
+  search = 't=42'
+  media = {
+    uri: showUri,
+    settled: true,
+    titles: [{ title: 'Crystal Lake' }],
+    categories: ['SERIES'],
+    seasons: [{ number: 1, uri: seasonUri }],
+    handles: [{ relation: 'SAME_AS', node: { uri: 'jw:369881' } }],
+    episodes: [],
+  }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(host.textContent).not.toContain('Not found')
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(
+    `/watch/ag:(${seasonUri})/ag:(jw:6980914)/cr:GX1?t=42`,
+    { replace: true },
+  )
+})
