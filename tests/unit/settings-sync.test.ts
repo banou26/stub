@@ -12,6 +12,7 @@ import { HIDDEN_ICONS_KEY as ICONS, readHiddenIcons } from '../../src/sources/hi
 import { MERGE_ORDER_KEY as MERGE } from '../../src/sources/merge-order'
 import { PLAY_ORDER_KEY as PLAY, readPlayOrder } from '../../src/sources/play-order'
 import { AUTOPLAY_KEY as AUTOPLAY, readAutoplay, watchAutoplay } from '../../src/utils/autoplay'
+import { OPEN_IN_NEW_TAB_KEY as OPEN_NEW_TAB, readOpenInNewTab, watchOpenInNewTab } from '../../src/utils/open-in-new-tab'
 import { PLAYER_VOLUME_KEY as VOLUME } from '../../src/utils/player-volume'
 import { ALWAYS_SUBTITLES_KEY as ALWAYS, AUDIO_LANGUAGE_KEY as AUDIO, SUBTITLE_LANGUAGE_KEY as SUBTITLES, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, readTrackLanguages } from '../../src/utils/track-languages'
 import { COUNTRY_KEY as COUNTRY, readPickedCountry } from '../../src/sources/country'
@@ -517,21 +518,25 @@ describe('the page\'s settings', () => {
     expect(other.settings.getItem(LANGUAGE)).toBe('ja')
   })
 
-  test('the worker\'s watcher and the Autoplay switch\'s hear a change a sync step applied', async () => {
+  test('the worker\'s watcher and the Autoplay and Open episodes in a new tab switches hear a change a sync step applied', async () => {
     const { storage } = memoryStorage()
     vi.stubGlobal('localStorage', storage)
     const world = fknWorld()
-    holds(world, 'alice', { [OFF]: '["simkl"]', [AUTOPLAY]: 'off' })
+    holds(world, 'alice', { [OFF]: '["simkl"]', [AUTOPLAY]: 'off', [OPEN_NEW_TAB]: 'on' })
     const realm = world.browser({ account: 'alice' }).realm()
     const sync = settingsSync({ settings: pageSettings, cloud: fknTrackerCloud(realm.lib, { timeoutMs: 20 }), onAccountChange: realm.onChange, lock: mutex() })
     const sources = vi.fn()
     const autoplay = vi.fn()
+    const openNewTab = vi.fn()
     watchDisabledSources(sources)
     watchAutoplay(autoplay)
+    watchOpenInNewTab(openNewTab)
     await sync.check()
     expect(sources).toHaveBeenCalledTimes(1)
     expect(readDisabledSources()).toEqual(['simkl'])
     expect(autoplay).toHaveBeenCalledTimes(1)
     expect(readAutoplay()).toBe(false)
+    expect(openNewTab).toHaveBeenCalledTimes(1)
+    expect(readOpenInNewTab()).toBe(true)
   })
 })

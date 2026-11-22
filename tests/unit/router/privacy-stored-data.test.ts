@@ -21,6 +21,7 @@ import { UPDATE_RELOADS_KEY } from '../../../src/update/gate'
 import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
+import { OPEN_IN_NEW_TAB_KEY } from '../../../src/utils/open-in-new-tab'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
 
@@ -37,7 +38,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('tab-source-settings').keys).toEqual({ store: 'session', names: [TAB_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
-      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
+      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, OPEN_IN_NEW_TAB_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
     })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })

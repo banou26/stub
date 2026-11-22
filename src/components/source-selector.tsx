@@ -4,7 +4,7 @@ import type { IntlShape } from 'react-intl'
 import { css } from '@emotion/react'
 import { useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
-import { Link } from 'wouter'
+import { useRouter, Link } from 'wouter'
 
 import { NAME_LIST } from '../i18n'
 import { useHiddenIcons } from '../sources/hidden-icons'
@@ -562,14 +562,25 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
   )
 }
 
+/** Internal route link that uses client navigation by default, or a native new-tab anchor preserving router hrefs. */
+export const RouteLink = (
+  { newTab, href, ...props }:
+  { newTab?: boolean, href: string, className?: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true' | 'page', children?: ComponentChildren }
+) => {
+  const router = useRouter()
+  if (!newTab) return <Link {...props} href={href}/>
+  const resolved = router.hrefs(href[0] === '~' ? href.slice(1) : router.base + href, router)
+  return <a {...props} href={resolved} target="_blank" rel="noopener noreferrer"/>
+}
+
 // a source played in stub is a client side navigation, which keeps the worker and every match it made this session
 const SourceLink = (
-  { external, href, ...props }:
-  { external: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true', children: ComponentChildren }
+  { external, openInNewTab, href, ...props }:
+  { external: boolean, openInNewTab?: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true', children: ComponentChildren }
 ) =>
   external || !href
     ? <a {...props} href={href} target="_blank" rel="noreferrer"/>
-    : <Link {...props} href={href}/>
+    : <RouteLink {...props} href={href} newTab={openInNewTab}/>
 
 /**
  * Where an episode plays or can be watched. `compact` draws up to five icons. `film` draws a film's buttons on its own
@@ -577,8 +588,8 @@ const SourceLink = (
  * `pending`. Both leave out a source whose icon is hidden in Settings.
  */
 export const SourceSelector = (
-  { sources, compact = false, film = false, pending = false, onPickRelease }:
-  { sources: WatchSource[], compact?: boolean, film?: boolean, pending?: boolean, onPickRelease?: (uri: string) => void }
+  { sources, compact = false, film = false, pending = false, openInNewTab = false, onPickRelease }:
+  { sources: WatchSource[], compact?: boolean, film?: boolean, pending?: boolean, openInNewTab?: boolean, onPickRelease?: (uri: string) => void }
 ) => {
   const intl = useIntl()
   const [picking, setPicking] = useState<WatchSource | null>(null)
@@ -597,6 +608,7 @@ export const SourceSelector = (
             style={{ '--brand': brandColor(source) }}
             href={source.href}
             external={source.external}
+            openInNewTab={openInNewTab}
             title={intl.formatMessage({ id: 'Watch on {name}', defaultMessage: 'Watch on {name}' }, { name: source.name })}
           >
             <SourceIcon source={source} />

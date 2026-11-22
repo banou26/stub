@@ -217,23 +217,32 @@ test('on a phone the categories are a row above the panel, the page stays at the
   }
 })
 
-test('Playback has two switches, autoplay on by default, and autoplay turned off stays off across a reload', async ({ page }) => {
+test('Playback has three switches, autoplay on by default, open episodes in a new tab off by default, and changes stay across a reload', async ({ page }) => {
   await page.goto(`${origin}/settings#playback`)
   await expect(panel(page)).toHaveAttribute('data-section', 'playback')
   const autoplay = page.getByRole('switch', { name: 'Autoplay next episode', exact: true })
-  await expect(page.getByRole('switch'), 'autoplay and Always show subtitles').toHaveCount(2)
+  const openInNewTab = page.getByRole('switch', { name: 'Open episodes in a new tab', exact: true })
+  await expect(page.getByRole('switch'), 'autoplay, Open episodes in a new tab and Always show subtitles').toHaveCount(3)
   await expect(autoplay).toBeChecked()
+  await expect(openInNewTab).not.toBeChecked()
   await expect(panel(page).locator('p'), 'labels only, and the play order is on the source cards').toHaveCount(0)
 
   await autoplay.click()
+  await openInNewTab.click()
   await expect(autoplay).not.toBeChecked()
+  await expect(openInNewTab).toBeChecked()
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBe('off')
+  expect(await page.evaluate(() => localStorage.getItem('stub.episodes.open-in-new-tab'))).toBe('on')
   await page.reload()
   await expect(autoplay, 'kept in this browser').not.toBeChecked()
+  await expect(openInNewTab, 'kept in this browser').toBeChecked()
 
   await autoplay.click()
+  await openInNewTab.click()
   await expect(autoplay).toBeChecked()
+  await expect(openInNewTab).not.toBeChecked()
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('stub.episodes.open-in-new-tab'))).toBeNull()
 })
 
 // STUB-352 (players start in the viewer's language): the settings a pick in a player also writes

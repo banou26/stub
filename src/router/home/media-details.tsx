@@ -19,7 +19,7 @@ import Loading, { LOADING_ROOM } from '../../components/loading'
 import Placeholder from '../../components/placeholder'
 import TextEllipsis from '../../components/text-ellipsis'
 import OriginIcon from '../../components/origin-icon'
-import SourceSelector from '../../components/source-selector'
+import SourceSelector, { RouteLink } from '../../components/source-selector'
 import { MEDIA_TRACKING } from '../../components/media-tracking-query'
 import { AggregatedUri, fromAggregatedUri } from '../../utils/uri'
 import { releasedAtOf, scheduledAt, timedAt, unreleasedEpisodes, unreleasedOf } from './episodes'
@@ -27,7 +27,9 @@ import { nextThumbnail } from '../../utils/thumbnails'
 import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { formatCountdown } from '../../utils/countdown'
+import { readOpenInNewTab, watchOpenInNewTab } from '../../utils/open-in-new-tab'
 import { useNow } from '../../utils/use-now'
+import { useSetting } from '../../utils/use-setting'
 import { canPlay } from '../../sources/playable'
 import { useHiddenIcons } from '../../sources/hidden-icons'
 import { viewerCountry } from '../../sources/country'
@@ -720,10 +722,10 @@ const episodesStyle = css`
 `
 
 const Episode = (
-  { episode, index, mediaUri, sourceUri, current, origins, loading, backend, unreleased, airingAt, scheduled, now, watched, progress }:
+  { episode, index, mediaUri, sourceUri, current, origins, loading, backend, unreleased, airingAt, scheduled, now, watched, progress, openInNewTab = false }:
   {
     episode: ListEpisode, index: number, mediaUri: string, sourceUri?: string, current: boolean, origins: readonly Origin[], loading: boolean
-    backend: FknBackend | undefined, unreleased: boolean, airingAt?: string, scheduled?: string, now: number, watched: boolean, progress?: number
+    backend: FknBackend | undefined, unreleased: boolean, airingAt?: string, scheduled?: string, now: number, watched: boolean, progress?: number, openInNewTab?: boolean
   }
 ) => {
   const intl = useIntl()
@@ -741,9 +743,10 @@ const Episode = (
       {
         episode.uri && !unreleased
           ? (
-            <Link
+            <RouteLink
               className="episode-link"
               href={getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })}
+              newTab={openInNewTab}
               aria-current={current ? 'page' : undefined}
             />
           )
@@ -761,7 +764,7 @@ const Episode = (
         <div className="header">
           <div className="title">{episode.titles?.at(0)?.title ?? (unreleased ? intl.formatMessage({ id: 'Unreleased episode', defaultMessage: 'Unreleased episode' }) : intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: index + 1 }))}</div>
           <span className="origins">
-            <SourceSelector compact sources={sources} />
+            <SourceSelector compact openInNewTab={openInNewTab} sources={sources} />
             {loading ? <Loading/> : undefined}
           </span>
         </div>
@@ -883,6 +886,7 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
   const loading = settled !== undefined && !clear.current
   const backend = useBackend()
   const positions = usePositions()
+  const openInNewTab = useSetting(readOpenInNewTab, watchOpenInNewTab)
   if (!media.episodes.length) {
     return media.settled
       ? <div className="episodes" css={episodesStyle}><div className="empty">{intl.formatMessage({ id: 'No episodes found', defaultMessage: 'No episodes found' })}</div></div>
@@ -940,6 +944,7 @@ export const Episodes = ({ media, tracked, current, mediaUri = media.uri, source
                   now={now}
                   watched={watchedEpisode(episode.episodeNumber, tracked, media.episodeCount)}
                   progress={saved?.[2] ? saved[1] / saved[2] : undefined}
+                  openInNewTab={openInNewTab}
                 />
               )
             })}

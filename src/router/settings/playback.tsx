@@ -9,6 +9,7 @@ import { switchStyle } from '../../components/switch-style'
 import { bestLanguage, contentLanguage, OFFERED } from '../../i18n/languages'
 import { settings } from '../../settings-store'
 import { readAutoplay, setAutoplay, watchAutoplay } from '../../utils/autoplay'
+import { readOpenInNewTab, setOpenInNewTab, watchOpenInNewTab } from '../../utils/open-in-new-tab'
 import { useSetting } from '../../utils/use-setting'
 import {
   ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, OFF, ON, ORIGINAL,
@@ -100,6 +101,7 @@ const LanguageRow = ({ title, setting, value, first, pick }: {
 export const PlaybackSection = () => {
   const intl = useIntl()
   const autoplay = useSetting(readAutoplay, watchAutoplay)
+  const openInNewTab = useSetting(readOpenInNewTab, watchOpenInNewTab)
   const audio = useSetting(() => settings.getItem(AUDIO_LANGUAGE_KEY), watchTrackLanguages)
   const subtitles = useSetting(() => settings.getItem(SUBTITLE_LANGUAGE_KEY), watchTrackLanguages)
   const always = useSetting(() => settings.getItem(ALWAYS_SUBTITLES_KEY) === ON, watchTrackLanguages)
@@ -107,6 +109,9 @@ export const PlaybackSection = () => {
     <div css={switchesStyle}>
       <Switch on={autoplay} set={setAutoplay}>
         {intl.formatMessage({ id: 'Autoplay next episode', defaultMessage: 'Autoplay next episode' })}
+      </Switch>
+      <Switch on={openInNewTab} set={setOpenInNewTab}>
+        {intl.formatMessage({ id: 'Open episodes in a new tab', defaultMessage: 'Open episodes in a new tab' })}
       </Switch>
       <LanguageRow
         title={intl.formatMessage({ id: 'Audio language', defaultMessage: 'Audio language' })}

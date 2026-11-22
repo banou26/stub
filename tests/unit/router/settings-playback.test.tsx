@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { startLanguage } from '../../../src/i18n'
 import { OFFERED } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
+import { OPEN_IN_NEW_TAB_KEY, readOpenInNewTab } from '../../../src/utils/open-in-new-tab'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAudioLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
 
 const { PlaybackSection } = await import('../../../src/router/settings/playback')
@@ -47,11 +48,12 @@ const render = () => {
   })
   const options = (setting: string) => [...select(setting).querySelectorAll('option')].map(option => [option.value, option.textContent])
   const always = () => [...host.querySelectorAll<HTMLInputElement>('input[role="switch"]')].find(input => input.closest('label')!.textContent === 'Always show subtitles')!
+  const openInNewTab = () => [...host.querySelectorAll<HTMLInputElement>('input[role="switch"]')].find(input => input.closest('label')!.textContent === 'Open episodes in a new tab')!
   const flip = (input: HTMLInputElement, on: boolean) => act(() => {
     Object.assign(input, { checked: on })
     input.dispatchEvent(new Event('change', { bubbles: true }))
   })
-  return { host, select, pick, options, always, flip }
+  return { host, select, pick, options, always, openInNewTab, flip }
 }
 
 test('each language select is labelled, offers Automatic naming the offered language serving the viewer\'s, then its own row, then every offered language by name', () => {
@@ -99,6 +101,22 @@ test('Always show subtitles shows on once kept on, here or by a player', () => {
   expect(render().always().hasAttribute('checked')).toBe(true)
 })
 
+test('Open episodes in a new tab is off until turned on, writes nothing when off, and follows account updates', async () => {
+  const { openInNewTab, flip } = render()
+  expect(openInNewTab().hasAttribute('checked')).toBe(false)
+  expect(readOpenInNewTab()).toBe(false)
+  await flip(openInNewTab(), true)
+  expect(stored.get(OPEN_IN_NEW_TAB_KEY)).toBe('on')
+  expect(readOpenInNewTab()).toBe(true)
+  await flip(openInNewTab(), false)
+  expect(stored.has(OPEN_IN_NEW_TAB_KEY)).toBe(false)
+  expect(readOpenInNewTab()).toBe(false)
+
+  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [OPEN_IN_NEW_TAB_KEY]: 'on' }))
+  await act(() => { for (const listener of listeners) listener({ key: ACCOUNT_SETTINGS_KEY }) })
+  expect(openInNewTab().checked).toBe(true)
+})
+
 test('a language a player reported that no row is, is listed by its name, or as reported when it names none', () => {
   stored.set(AUDIO_LANGUAGE_KEY, 'English (US)')
   stored.set(SUBTITLE_LANGUAGE_KEY, 'Signs & Songs')
@@ -133,7 +151,7 @@ describe('in French', () => {
   test('the rows read in French, each language named as a menu row writes it, with a capital', () => {
     const { host, options } = render()
     expect([...host.querySelectorAll('h3, label')].map(element => element.textContent)).toEqual([
-      'Lecture automatique de l’épisode suivant', 'Langue audio', 'Langue des sous-titres', 'Toujours afficher les sous-titres',
+      'Lecture automatique de l’épisode suivant', 'Ouvrir les épisodes dans un nouvel onglet', 'Langue audio', 'Langue des sous-titres', 'Toujours afficher les sous-titres',
     ])
     expect(options('audio-language').slice(0, 4)).toEqual([['', 'Automatique (Français)'], ['original', 'Version originale'], ['de', 'Allemand'], ['en', 'Anglais']])
     expect(options('subtitle-language')[1]).toEqual(['off', 'Désactivés'])
