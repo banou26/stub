@@ -102,6 +102,7 @@ const style = css`
   }
 
   .heading {
+    margin: 0;
     font-size: 2.4rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
@@ -478,7 +479,7 @@ const Search = ({ covered = false }: { covered?: boolean }) => {
   return (
     <div css={style}>
       <div className="heading-row">
-        <div className="heading">{scene ? intl.formatMessage({ id: 'Scene search', defaultMessage: 'Scene search' }) : searchHeading(filters)}</div>
+        <h1 className="heading">{scene ? intl.formatMessage({ id: 'Scene search', defaultMessage: 'Scene search' }) : searchHeading(filters)}</h1>
         <DisplayModeToggle mode={displayMode} onChange={pickDisplayMode}/>
       </div>
       {

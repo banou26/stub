@@ -1518,7 +1518,7 @@ test('a genre on a title\'s page and in its preview opens the search for it, the
 
 test('a work opened from a search opens over its results, and closing it, or Back, returns to them where they were, at 1440 and 390 px', async ({ page }) => {
   await page.goto(`${origin}/`)
-  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  const season = await page.locator('h2.title a[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
   const cards = page.locator('.grid a.card.link[href^="/media/"]')
   for (const [width, height] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
@@ -1534,7 +1534,7 @@ test('a work opened from a search opens over its results, and closing it, or Bac
     await expect(page).toHaveURL(/\/media\//)
     await expect(modal(page).locator('h2.title')).toHaveText(/\S/, { timeout: 30_000 })
     await expect(cards, `${width} px: the results under it`).toHaveCount(results)
-    await expect(page.locator('a.title[href^="/search"]'), `${width} px: not the home page`).toHaveCount(0)
+    await expect(page.locator('h2.title a[href^="/search"]'), `${width} px: not the home page`).toHaveCount(0)
 
     await page.locator('[data-party-scroll]').click({ position: { x: 4, y: height / 2 } })
     await expect(page).toHaveURL(`${origin}${season}`)
@@ -1566,7 +1566,7 @@ test('a work opened from a search opens over its results, and closing it, or Bac
 test('over a search, a picture pasted on the preview is left alone, and one pasted in the header\'s bar is one step', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${origin}/`)
-  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  const season = await page.locator('h2.title a[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
   await page.goto(`${origin}${season}`)
   await page.locator('.grid a.card.link[href^="/media/"]').first().click({ timeout: 30_000 })
   await expect(modal(page).locator('h2.title')).toHaveText(/\S/, { timeout: 30_000 })
@@ -1602,7 +1602,7 @@ test('a work opened from the home page still closes to the home page', async ({ 
   await page.goto(`${origin}/`)
   await page.locator('a[href^="/media/"]').first().click({ timeout: 30_000 })
   await expect(modal(page).locator('h2.title')).toHaveText(/\S/, { timeout: 30_000 })
-  await expect(page.locator('a.title[href^="/search"]'), 'the home page under it').toHaveCount(1)
+  await expect(page.locator('h2.title a[href^="/search"]'), 'the home page under it').toHaveCount(1)
   await page.locator('[data-party-scroll]').click({ position: { x: 4, y: 450 } })
   await expect(page).toHaveURL(`${origin}/`)
   await expect(modal(page)).toHaveCount(0)
@@ -1623,7 +1623,7 @@ test('the score follows a gold star, on a title\'s page, in a series\' preview a
 
   // the season's works, scored by the bundled catalogue
   await page.goto(`${origin}/`)
-  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  const season = await page.locator('h2.title a[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
   for (const [mode, item] of [['card', '.cards > a .detail-top > .score'], ['list', '.rows > a .column > .score']] as const) {
     await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
     await page.goto(`${origin}${season}`)
@@ -1637,7 +1637,7 @@ test('the score follows a gold star, on a title\'s page, in a series\' preview a
 test('a search\'s cards and rows draw genre pills as a title\'s page does, one row inside a card, a row as tall as its cover', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${origin}/`)
-  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
+  const season = await page.locator('h2.title a[href^="/search"]').first().getAttribute('href', { timeout: 30_000 })
   for (const [mode, item, under] of [['card', '.cards > a', '.detail'], ['list', '.rows > a', '.heading']] as const) {
     await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
     await page.goto(`${origin}${season}`)
@@ -2665,7 +2665,7 @@ const homeWords = async (page: Page, width: number) => {
   await page.goto(`${origin}/`)
   await expect(page.locator('.theater .actions .play')).toBeVisible({ timeout: 30_000 })
   await read()
-  const season = await page.locator('a.title[href^="/search"]').first().getAttribute('href')
+  const season = await page.locator('h2.title a[href^="/search"]').first().getAttribute('href')
   for (const mode of ['card', 'list']) {
     await page.evaluate(([key, value]) => localStorage.setItem(key!, value!), [DISPLAY_MODE_KEY, mode])
     await page.goto(`${origin}${season}`)

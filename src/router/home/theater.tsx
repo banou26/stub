@@ -94,6 +94,7 @@ height: 70vh;
   }
 
   .title {
+    margin: 0;
     font-size: 4rem;
     font-weight: bold;
     margin-bottom: 1rem;
@@ -305,7 +306,7 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
           </div>
         )}
         {/* held while the hero waits for a show, and no longer, so a row that never fills does not keep it loading */}
-        <div className="title">{title ?? (media || !waiting ? undefined : <Placeholder className="pending"/>)}</div>
+        <h1 className="title">{title ?? (media || !waiting ? undefined : <Placeholder className="pending"/>)}</h1>
         {
           media || !waiting
             ? (

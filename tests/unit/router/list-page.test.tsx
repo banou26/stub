@@ -84,7 +84,7 @@ const settle = () => act(async () => { await new Promise(resolve => setTimeout(r
 
 test('opens on Watching, every tab saying how many it holds, and All shows the whole list', () => {
   const host = show()
-  expect(host.querySelector('.heading')?.textContent).toBe('My list')
+  expect(host.querySelector('h1.heading')?.textContent).toBe('My list')
   expect(tabs(host)).toEqual(['Watching1', 'Plan to watch0', 'Completed1', 'Paused0', 'Dropped0', 'All2'])
   expect(titles(host)).toEqual(['Frieren'])
   click([...host.querySelectorAll('.tab')].at(-1))

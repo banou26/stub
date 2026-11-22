@@ -306,7 +306,7 @@ describe('its English', () => {
     expect([stream.pickers['Genres & Tags']!.searchable, stream.pickers['Year']!.searchable]).toEqual(['Filter genres & tags', 'Filter year'])
     const field = hosts.at(-1)!.querySelector('.text-field input')!
     expect([field.getAttribute('placeholder'), field.getAttribute('aria-label')]).toEqual(['Any title', 'Search by title'])
-    expect(text('.heading')).toEqual(['Search'])
+    expect(text('h1.heading')).toEqual(['Search'])
     expect(text('.status')).toEqual(['Search by title, or pick a filter.'])
   })
 
@@ -320,7 +320,7 @@ describe('its English', () => {
     ]
     for (const [path, heading] of headings) {
       open(path!)
-      expect(text('.heading'), path).toEqual([heading])
+      expect(text('h1.heading'), path).toEqual([heading])
     }
     expect(text('.status'), 'the category alone asks nothing').toEqual(['Add a title or another filter.'])
   })

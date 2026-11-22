@@ -60,6 +60,7 @@ const style = css`
   }
 
   .heading {
+    margin: 0;
     font-size: 2.4rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
@@ -388,7 +389,7 @@ const List = () => {
   return (
     <div css={style}>
       <div className="heading-row">
-        <div className="heading">{label}</div>
+        <h1 className="heading">{label}</h1>
         <DisplayModeToggle mode={mode} modes={MODES} onChange={setMode}/>
       </div>
       <div className="tabs">

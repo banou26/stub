@@ -316,6 +316,7 @@ test('trailer playback and mute buttons expose accessible names and toggle state
 
   const playback = document.body.querySelector('.player-controls button.playback')!
   const mute = document.body.querySelector('.player-controls button.volume-icon')!
+  expect(document.body.querySelector('h1.title')?.textContent).toBe('a title')
   expect(playback).not.toBeNull()
   expect(playback.getAttribute('type')).toBe('button')
   expect(playback.getAttribute('aria-label')).toBe('Pause trailer')

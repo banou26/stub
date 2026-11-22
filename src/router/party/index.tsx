@@ -20,6 +20,7 @@ const style = css`
   max-width: 72rem;
 
   .heading {
+    margin: 0;
     font-size: 2.4rem;
     font-weight: 600;
     margin-bottom: 1rem;
@@ -208,7 +209,7 @@ const Party = () => {
 
   return (
     <div css={style}>
-      <div className="heading">{intl.formatMessage({ id: 'Watch party', defaultMessage: 'Watch party' })}</div>
+      <h1 className="heading">{intl.formatMessage({ id: 'Watch party', defaultMessage: 'Watch party' })}</h1>
       <div className="status">
         {
           broken ? broke

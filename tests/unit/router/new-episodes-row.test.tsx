@@ -97,7 +97,7 @@ test("asks stub's merged data only about the show airing with no schedule, and d
   act(() => {})
 
   expect(urql.asked).toEqual(['mal:21'])
-  const heading = host.querySelector('section > .title')
+  const heading = host.querySelector('section > h2.title > a')
   expect([heading?.textContent, heading?.getAttribute('href')], 'its heading opens its own page, as the season row\'s opens its search').toEqual(['Continue watching', '/continue'])
   expect(cards(host)).toEqual([
     ['/media/mal:21/one-piece', 'One Piece', 'Episode 11002 new'],
@@ -121,7 +121,7 @@ test('the page says there is none once the lists answer with nothing new, and no
   expect(show(undefined, true).querySelector('.status'), 'the lists not answered yet').toBeNull()
   for (const rows of [[], [row('mal:1', 'Cowboy Bebop', 'FINISHED', 12, ago(DAY))]]) {
     const host = show(rows, true)
-    expect(host.querySelector('.heading')?.textContent).toBe('Continue watching')
+    expect(host.querySelector('h1.heading')?.textContent).toBe('Continue watching')
     expect(host.querySelector('.status')?.textContent).toBe('No new episodes')
     expect(cards(host)).toEqual([])
   }

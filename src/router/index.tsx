@@ -92,9 +92,9 @@ const RouterRoot = () => (
       {/* first in stub's page, so Tab reaches it before the header: it stays until answered, and paints where it is fixed */}
       <PluginNotice/>
       <Header/>
-      <div className="content">
+      <main className="content">
         <Pages/>
-      </div>
+      </main>
       <Footer/>
       <PartySync/>
       <PartyCursor/>

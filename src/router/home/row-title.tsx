@@ -2,9 +2,10 @@ import { css } from '@emotion/react'
 import { Link } from 'wouter'
 
 const titleStyle = css`
+  margin: 0;
   /* positioned, so the theater's picture, which hangs below its own box, paints under it rather than over it */
   position: relative;
-  /* A row is a flex COLUMN, which blockifies this <a> and stretches it across the viewport, so the heading's box
+  /* A row is a flex COLUMN, which blockifies this heading and stretches it across the viewport, so the heading's box
      (and its hover and focus ring) ran the full width of the screen for a few words of text. Cross-axis start keeps
      the box the size of the words in it. */
   align-self: flex-start;
@@ -16,6 +17,11 @@ const titleStyle = css`
   padding-bottom: 0.5rem;
   user-select: none;
 
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
   @media (max-width: 768px) {
     margin-inline-start: 1.5rem;
     font-size: 2.4rem;
@@ -23,9 +29,10 @@ const titleStyle = css`
 `
 
 /** A home row's heading, first in the row's flex column: a link to the row's own page when it has one. */
-const RowTitle = ({ title, to }: { title: string, to?: string }) =>
-  to
-    ? <Link to={to} css={titleStyle} className='title'>{title}</Link>
-    : <span css={titleStyle} className='title'>{title}</span>
+const RowTitle = ({ title, to }: { title: string, to?: string }) => (
+  <h2 css={titleStyle} className='title'>
+    {to ? <Link to={to}>{title}</Link> : title}
+  </h2>
+)
 
 export default RowTitle

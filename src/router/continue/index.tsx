@@ -9,6 +9,7 @@ const style = css`
   min-height: 100vh;
 
   .heading {
+    margin: 0;
     margin-bottom: 2rem;
     font-size: 2.4rem;
     font-weight: 600;
@@ -50,7 +51,7 @@ const New = () => {
   return (
     <div css={style}>
       {asks}
-      <div className="heading">{intl.formatMessage({ id: 'Continue watching', defaultMessage: 'Continue watching' })}</div>
+      <h1 className="heading">{intl.formatMessage({ id: 'Continue watching', defaultMessage: 'Continue watching' })}</h1>
       {
         episodes.length
           ? <div className="grid">{episodes.map(episode => <NewEpisodeCard key={episode.work._id} episode={episode}/>)}</div>
