@@ -179,6 +179,21 @@ describe('the locale dates and numbers are written in', () => {
     expect(formatLocale('ja', ['ja-JP'])).toBe('ja-JP')
   })
 
+  test('uses Latin digits 0 to 9 across regions whose default numbering system is not latn', () => {
+    expect(formatLocale('ar', ['ar-EG'])).toBe('ar-EG-u-nu-latn')
+    expect(formatLocale('ar', ['ar-SA'])).toContain('nu-latn')
+    expect(formatLocale('ar', [])).toBe('ar')
+    for (const region of ['ar-EG', 'ar-SA']) {
+      const tag = formatLocale('ar', [region])
+      const formattedNumber = new Intl.NumberFormat(tag).format(1234)
+      const formattedDate = new Intl.DateTimeFormat(tag).format(date)
+      expect(formattedNumber, region).toMatch(/[0-9]/)
+      expect(formattedNumber, region).not.toMatch(/[\u0660-\u0669]/)
+      expect(formattedDate, region).toMatch(/[0-9]/)
+      expect(formattedDate, region).not.toMatch(/[\u0660-\u0669]/)
+    }
+  })
+
   test('the browser\'s languages are read when none are given', () => {
     vi.stubGlobal('navigator', { languages: ['en-AU'] })
     expect(formatLocale()).toBe('en-AU')

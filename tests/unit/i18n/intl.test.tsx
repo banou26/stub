@@ -227,6 +227,16 @@ describe('starting a language', () => {
     }
   })
 
+  test('an Arabic page writes plural counts and dates in Latin digits even in Egypt or Saudi Arabia', async () => {
+    expect(new Intl.NumberFormat('ar-EG').format(12), 'the control: ar-EG defaults to Arabic-Indic digits').toBe('١٢')
+    for (const region of ['ar-EG', 'ar-SA']) {
+      const ar = await startLanguage({ language: 'ar', languages: [region], catalogues: { '../locales/ar.json': async () => ({ [EPISODES.id]: '{count, plural, other {# حلقات}}' }) } })
+      expect(ar.formatMessage(EPISODES, { count: 12 }), region).toBe('12 حلقات')
+      expect(releaseDateLabel('2026-01-07', { locale: ar.locale }), region).toMatch(/[0-9]/)
+      expect(releaseDateLabel('2026-01-07', { locale: ar.locale }), region).not.toMatch(/[\u0660-\u0669]/)
+    }
+  })
+
   test('<html> takes the language and, right to left, its direction', async () => {
     const { document } = parseHTML('<!doctype html><html lang="en"><body></body></html>')
     const html = document.documentElement

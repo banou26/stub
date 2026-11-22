@@ -76,8 +76,8 @@ export const uiLanguage = (languages = browserLanguages(), offered = OFFERED) =>
 /**
  * The locale dates, numbers and lists are written in: the browser's first language in `shown`'s language and
  * script, as it writes it, so an en-GB browser keeps 26/10/2026 and es-MX keeps 1,234.5; else `shown` itself. Always
- * in the Gregorian calendar, which a season's year and the year filter are numbers of: Thai's own is the Buddhist one,
- * whose 2569 is 2026.
+ * in the Gregorian calendar, which a season's year and the year filter are numbers of (Thai's own is the Buddhist
+ * one, whose 2569 is 2026), and always with Latin digits (0 to 9), as YouTube writes them.
  */
 export const formatLocale = (shown = uiLanguage(), languages = browserLanguages()) => {
   const { language, script } = localeOf(shown)?.maximize() ?? {}
@@ -85,7 +85,12 @@ export const formatLocale = (shown = uiLanguage(), languages = browserLanguages(
     const locale = localeOf(tag)?.maximize()
     return !!locale && locale.language === language && locale.script === script
   }) ?? shown
-  return new Intl.DateTimeFormat(tag).resolvedOptions().calendar === 'gregory' ? tag : new Intl.Locale(tag, { calendar: 'gregory' }).toString()
+  const { calendar, numberingSystem } = new Intl.DateTimeFormat(tag).resolvedOptions()
+  const options = {
+    ...calendar === 'gregory' ? {} : { calendar: 'gregory' },
+    ...numberingSystem === 'latn' ? {} : { numberingSystem: 'latn' },
+  }
+  return Object.keys(options).length ? new Intl.Locale(tag, options).toString() : tag
 }
 
 /** The language content is wanted in: the one picked, else the browser's first whatever it is, as it writes it (`fr-CA`), else English. */
