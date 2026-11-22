@@ -293,3 +293,31 @@ test('a season is left off only beside a live-action show the page draws', async
   const run = row(['cr:GG5H5XQX4-GYE5CQMQ5'], 'Frieren Season 2', ['ANIME', 'SERIES'])
   expect(uris(await sortPage([anime, run], {}, [], 'anime'))).toEqual([anime.uri, run.uri])
 })
+
+describe('search relevance ranking on stub', () => {
+  const hit = (uri: string, title: string, followers: number | null, categories: string[] = ['SERIES']) => media(uri, {
+    categories,
+    titles: [{ title }],
+    followers,
+    startDate: '2013',
+    covers: [],
+    banners: [],
+    handles: [],
+  })
+
+  test('ranks a more followed live-action show above a containing anime spin-off', async () => {
+    const anime = hit('ag:(anilist:176311)', 'Rick and Morty: The Anime', 40000, ['ANIME', 'SERIES'])
+    const show = hit('ag:(jw:1,omdb:tt2861424)', 'Rick and Morty', 719207, ['SERIES'])
+    expect(uris(await sortPage([anime, show], { search: 'Rick and Morty' }, [], 'stub'))).toEqual([show.uri, anime.uri])
+  })
+
+  test('breaks follower ties by exact normalized match and title similarity, preserving popular non-exact hits', async () => {
+    const spinoff = hit('ag:(tmdb:1)', 'Rick and Morty: The Anime', null, ['ANIME', 'SERIES'])
+    const show = hit('ag:(tmdb:2)', 'Rick and Morty', null, ['SERIES'])
+    expect(uris(await sortPage([spinoff, show], { search: 'rick and morty' }, [], 'stub'))).toEqual([show.uri, spinoff.uri])
+
+    const obscure = hit('ag:(mal:9)', 'Frieren', 100, ['ANIME', 'SERIES'])
+    const flagship = hit('ag:(anilist:154587)', 'Sousou no Frieren', 300000, ['ANIME', 'SERIES'])
+    expect(uris(await sortPage([obscure, flagship], { search: 'frieren' }, [], 'stub'))).toEqual([flagship.uri, obscure.uri])
+  })
+})

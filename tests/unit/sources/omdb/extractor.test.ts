@@ -146,6 +146,54 @@ test('a hit that is no film or series, an episode or a game, is no row', async (
   expect((value.mediaPage.nodes as Row[]).map(row => row.uri)).toEqual(['omdb:tt3'])
 })
 
+test('search requests IMDb vote counts and maps them to followers when present', async () => {
+  const sent: Sent[] = []
+  const subscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const ctx = {
+    fetch: async (url: string, init: { method?: string, headers?: Record<string, string>, body: string }) => {
+      sent.push({ url, method: init.method, headers: init.headers ?? {}, body: JSON.parse(init.body) as Sent['body'] })
+      return {
+        json: async () => ({
+          data: {
+            mainSearch: {
+              edges: [
+                {
+                  node: {
+                    entity: {
+                      id: 'tt2861424',
+                      titleText: { text: 'Rick and Morty' },
+                      titleType: { id: 'tvSeries' },
+                      releaseYear: { year: 2013 },
+                      ratingsSummary: { aggregateRating: 9, voteCount: 719207 },
+                    },
+                  },
+                },
+                {
+                  node: {
+                    entity: {
+                      id: 'tt9999999',
+                      titleText: { text: 'No Votes' },
+                      titleType: { id: 'movie' },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }),
+      }
+    },
+  } as never
+
+  const { value } = await subscribe(undefined, { input: { search: 'Rick and Morty' } }, ctx).next()
+  const rows = value.mediaPage.nodes as (Row & { followers?: number })[]
+  expect(sent[0]!.body.query).toContain('voteCount')
+  expect(rows.map(row => [row.uri, row.followers])).toEqual([
+    ['omdb:tt2861424', 719207],
+    ['omdb:tt9999999', undefined],
+  ])
+})
+
 test('the source names IMDb, whose data it reads', () => {
   expect(name).toBe('IMDb')
   expect(originUrl).toBe('https://www.imdb.com')

@@ -8,7 +8,7 @@ import type { Media as GQLMedia } from '../../generated/schema/types.generated'
 
 import { site, siteAllows, type Site } from '../../site'
 import { genreKey } from '../../sources/justwatch/genres'
-import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance } from '../../sources/utils'
+import { SEARCH_RELEVANCE_THRESHOLD, searchRelevance, stripTitle, titleSimilarity } from '../../sources/utils'
 import { idParentCandidate } from '../graph/plugins/profile'
 
 /**
@@ -206,13 +206,23 @@ export const sortPage = async <T extends GQLMedia & Seasoned>(
   let page = pageRows(rows, input, answered, current)
   const { search } = input
   if (search) {
-    const scored = await Promise.all(page.map(async media => ({
-      media,
-      score: await searchRelevance(search, (media.titles ?? []).map(title => title.title)),
-    })))
+    const queryKey = stripTitle(search)
+    const scored = await Promise.all(page.map(async media => {
+      const titles = (media.titles ?? []).map(title => title.title)
+      return {
+        media,
+        score: await searchRelevance(search, titles),
+        exact: Boolean(queryKey) && titles.some(title => stripTitle(title) === queryKey),
+        similarity: titles.length ? Math.max(...await Promise.all(titles.map(title => titleSimilarity(search, title)))) : 0,
+      }
+    }))
     page = thinLast(scored
       .filter(entry => entry.score >= SEARCH_RELEVANCE_THRESHOLD)
-      .sort((a, b) => b.score - a.score || (b.media.followers ?? 0) - (a.media.followers ?? 0))
+      .sort((a, b) =>
+        b.score - a.score
+        || (b.media.followers ?? 0) - (a.media.followers ?? 0)
+        || Number(b.exact) - Number(a.exact)
+        || b.similarity - a.similarity)
       .map(entry => entry.media))
   }
   return applyMediaSorts(lessShownSeasons(page), input)

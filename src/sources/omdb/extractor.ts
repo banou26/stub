@@ -43,7 +43,7 @@ type Title = {
   titleType?: { id?: string } | null
   releaseYear?: { year?: number | null } | null
   releaseDate?: Day
-  ratingsSummary?: { aggregateRating?: number | null } | null
+  ratingsSummary?: { aggregateRating?: number | null, voteCount?: number | null } | null
   plot?: Plot
   primaryImage?: { url?: string } | null
   episodes?: { seasons?: { number?: number }[] | null, episodes?: { edges?: { node?: EpisodeNode | null }[] | null } | null } | null
@@ -53,7 +53,7 @@ type Title = {
 type Name = { id?: string, nameText?: { text?: string } | null, primaryImage?: { url?: string } | null }
 
 const TITLE_FIELDS = 'id titleText { text } titleType { id } releaseYear { year } primaryImage { url }'
-const SEARCH_QUERY = `query Search($q: String!) { mainSearch(first: 10, options: { searchTerm: $q, type: TITLE }) { edges { node { entity { ... on Title { ${TITLE_FIELDS} } } } } } }`
+const SEARCH_QUERY = `query Search($q: String!) { mainSearch(first: 10, options: { searchTerm: $q, type: TITLE }) { edges { node { entity { ... on Title { ${TITLE_FIELDS} ratingsSummary { aggregateRating voteCount } } } } } } }`
 // The first season's episodes ride along, and are kept only when the series has that one season.
 const titleQuery = (details: string) => `query Title($id: ID!) { title(id: $id) { ${TITLE_FIELDS} releaseDate { year month day } ratingsSummary { aggregateRating } plot { plotText { plainText } } episodes { seasons { number } episodes(first: 250, filter: { includeSeasons: ["1"] }) { edges { node { id titleText { text } plot { plotText { plainText } } releaseDate { year month day } primaryImage { url } series { episodeNumber { seasonNumber episodeNumber } } } } } }${details} } }`
 // The relay caches on the whole body, so the modal's leaves out what only the title page's `details` reads
@@ -118,6 +118,7 @@ const normalizeMedia = (title: Title): GQLMedia | undefined => {
     ...desc(title.plot?.plotText?.plainText, SCORE),
     covers: img(title.primaryImage?.url, SCORE),
     averageScore: percentScore(title.ratingsSummary?.aggregateRating, 10),
+    followers: title.ratingsSummary?.voteCount ?? undefined,
     startDate: dayOf(title.releaseDate) ?? (year ? String(year) : undefined),
   })
 }
