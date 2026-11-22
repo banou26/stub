@@ -53,11 +53,15 @@ const style = css`
 
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem 1.2rem; }
   .group { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.2rem; }
-  .platforms { justify-content: flex-end; }
+  .platforms {
+    justify-content: flex-end;
+    > .sync-all { order: -1; }
+  }
   /* a line of its own where the trackers may not fit beside the controls once they answer, the chips
      below 768 px and the tiles on a phone, so it is there before they are */
   @media (max-width: 768px) {
     .row, .platforms { justify-content: flex-start; }
+    .platforms > .sync-all { order: 1; }
     .platforms.expanded { flex-basis: 100%; }
   }
   @media (max-width: 480px) {
@@ -282,7 +286,7 @@ const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) 
  * tracker's own entry and writes to that tracker alone.
  */
 const Controls = (
-  { name, shown, scale, mixed, disabled, listed, removable, onChange, onSyncAll, dots = {}, movie = false, statuses, clearable }:
+  { name, shown, scale, mixed, disabled, listed, removable, onChange, dots = {}, movie = false, statuses, clearable }:
   {
     /** Prefixes the field names and the episode input's id, one per instance on the page. */
     name: string
@@ -299,8 +303,6 @@ const Controls = (
     listed: boolean
     removable: boolean
     onChange: (fields: Fields, immediate: boolean) => void
-    /** Syncs every out-of-sync checked tracker to the summary row when present. */
-    onSyncAll?: () => void
     dots?: Partial<Record<'SCORE' | 'STATUS' | 'PROGRESS', ComponentChild>>
   }
 ) => {
@@ -411,9 +413,6 @@ const Controls = (
         : undefined}
       {!movie && !disabled && total && shown.status === 'COMPLETED' && shown.progress < total
         ? <button type="button" onClick={() => onChange({ progress: total }, true)}>{intl.formatMessage({ id: 'Set {total} / {total}', defaultMessage: 'Set {total} / {total}' }, { total })}</button>
-        : undefined}
-      {!disabled && onSyncAll
-        ? <button type="button" className="sync-all" onClick={onSyncAll}>{intl.formatMessage({ id: 'Sync all', defaultMessage: 'Sync all' })}</button>
         : undefined}
     </div>
   )
@@ -868,6 +867,9 @@ const TrackingCompact = (
               </Chip>
             )
           })}
+          {!disabled && hasPendingSync
+            ? <button type="button" className="sync-all" onClick={syncAll}>{intl.formatMessage({ id: 'Sync all', defaultMessage: 'Sync all' })}</button>
+            : undefined}
         </div>
         <Controls
           name="compact"
@@ -879,7 +881,6 @@ const TrackingCompact = (
           listed={answers.some(answer => answer.state === 'LISTED')}
           removable={sendable.some(canRemove)}
           onChange={change}
-          onSyncAll={hasPendingSync ? syncAll : undefined}
           dots={{
             SCORE: differs('SCORE', answer => isScored(answer.entry?.score) ? scoreText(intl, answer.entry.score, answer.tracker.scoreScale) : undefined),
             STATUS: differs('STATUS', answer => answer.entry?.status ? statusLabel(intl, answer.entry.status) : undefined),

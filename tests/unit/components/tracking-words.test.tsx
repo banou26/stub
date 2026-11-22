@@ -86,9 +86,9 @@ describe('the tracking row', () => {
       'Save to Kitsu', 'MyAnimeList entry', 'M', 'Log in', 'Log in to MyAnimeList', 'Stub entry', 'S', 'Save to Stub',
       'Shikimori entry', 'S', 'Shikimori cannot track this media: Names shiki:1 and shiki:2, cannot tell which',
       'Simkl entry', 'S', 'Simkl loading', 'Trakt entry', 'T', 'Save to Trakt', 'Paused for a while', 'Annict entry',
-      'A', 'Save to Annict', 'Could not answer', 'Score, 8 out of 10', '8', 'AniList 6 / 10, Kitsu 7.5 / 10',
+      'A', 'Save to Annict', 'Could not answer', 'Sync all', 'Score, 8 out of 10', '8', 'AniList 6 / 10, Kitsu 7.5 / 10',
       'Status', 'Watching', 'Rewatching', 'Plan to watch', 'Completed', 'Paused', 'Dropped', 'Remove from list',
-      'AniList Paused, Kitsu Watching', 'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more', 'Sync all',
+      'AniList Paused, Kitsu Watching', 'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more',
     ])
   })
 
@@ -97,10 +97,10 @@ describe('the tracking row', () => {
       'Quick tracking', 'AniList: connected', 'AniList: connected', 'A', 'Kitsu: connected', 'Kitsu: connected', 'K',
       'MyAnimeList: signed out', 'MyAnimeList: signed out', 'M', 'Stub: off', 'Stub: off', 'S',
       'Shikimori: cannot track this media', 'Shikimori: cannot track this media', 'S', 'Simkl: loading',
-      'Simkl: loading', 'S', 'Trakt: paused', 'Trakt: paused', 'T', 'Annict: error', 'Annict: error', 'A',
+      'Simkl: loading', 'S', 'Trakt: paused', 'Trakt: paused', 'T', 'Annict: error', 'Annict: error', 'A', 'Sync all',
       'Score, 8 out of 10', '8', 'AniList 6 / 10, Kitsu 7.5 / 10', 'Status', 'Watching', 'Rewatching',
       'Plan to watch', 'Completed', 'Paused', 'Dropped', 'Remove from list', 'AniList Paused, Kitsu Watching',
-      'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more', 'Sync all',
+      'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more',
     ])
   })
 
