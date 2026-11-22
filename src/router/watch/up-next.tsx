@@ -8,7 +8,7 @@ import { useIntl } from 'react-intl'
 import { useLocation } from 'wouter'
 
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
-import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt } from '../../utils/next-offer'
+import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt, tailOfferAt } from '../../utils/next-offer'
 
 /** How long the next episode waits once the one playing has ended. */
 export const UP_NEXT_MS = 5_000
@@ -82,7 +82,7 @@ const style = css`
 const ownOfferAt = (link: PlaybackLink, chapters: MediaChapter[], duration: number | undefined) => {
   const closes = chaptersBesideNext(chapters, duration).length < chapters.length
   link.offerEnding?.(!closes)
-  return closes && link.endingOffered?.() !== false ? undefined : nextOfferAt(chapters, duration)
+  return closes && link.endingOffered?.() !== false ? undefined : (nextOfferAt(chapters, duration) ?? tailOfferAt(duration))
 }
 
 /**
@@ -140,6 +140,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
   marks.current = chapters
   const ahead = useRef(release)
   ahead.current = release
+  const recheck = useRef(() => {})
 
   useEffect(() => {
     setShown(undefined)
@@ -150,16 +151,21 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
     let played = false
     let prepared = false
     let last: number | undefined
+    let latestState: Parameters<Parameters<typeof link.onReport>[0]>[0] | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
     // the early button waits for a press: only the end counts down
     const offer = () => setShown('offered')
     const skipOffer = followSkipOffer(setAboveSkip)
-    const stop = link.onReport(state => {
-      const { paused, time, rate } = state
+    const evaluate = (state: NonNullable<typeof latestState>, timed: boolean) => {
+      const { paused, time, rate, at: reportedAt } = state
       clearTimeout(timer)
+      const nowTime = timed && !paused && rate > 0
+        ? time + Math.max(0, (Date.now() - reportedAt) / 1000) * rate
+        : time
+      if (!timed) latestState = state
       const before = last
-      last = time
-      skipOffer.hear(offeredOn(link, marks.current, link.duration?.()), state)
+      if (!timed) last = time
+      skipOffer.hear(offeredOn(link, marks.current, link.duration?.()), timed ? { ...state, time: nowTime, at: Date.now() } : state)
       if (link.ended?.()) {
         if (!played) return
         played = false
@@ -170,24 +176,33 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
       played ||= !paused
       const own = link.chapters?.()
       const duration = link.duration?.()
-      if (!prepared && ahead.current && link.prepare && duration && time >= duration * PREPARE_AT) {
+      if (!prepared && ahead.current && link.prepare && duration && nowTime >= duration * PREPARE_AT) {
         prepared = true
         link.prepare(ahead.current)
       }
-      const at = own && hasEnding(own) ? ownOfferAt(link, own, duration) : nextOfferAt(marks.current, duration)
-      if (at !== undefined && time >= at) offer()
+      const offerAt = own && hasEnding(own)
+        ? ownOfferAt(link, own, duration)
+        : (nextOfferAt(marks.current, duration) ?? tailOfferAt(duration))
+      if (offerAt !== undefined && nowTime >= offerAt) offer()
       // a stall reaches the page only as a playing report behind the timer, which keeps the button; one gone
       // back is a seek, and a paused one is where the player is
-      else if (at === undefined || before === undefined || paused || time < before) setShown(undefined)
-      if (at !== undefined && time < at && !paused && rate > 0) timer = setTimeout(offer, (at - time) / rate * 1000)
-    })
+      else if (offerAt === undefined || before === undefined || paused || timed || time < before) setShown(undefined)
+      if (offerAt !== undefined && nowTime < offerAt && !paused && rate > 0) timer = setTimeout(offer, (offerAt - nowTime) / rate * 1000)
+    }
+    recheck.current = () => { if (latestState && !link.ended?.()) evaluate(latestState, true) }
+    const stop = link.onReport(state => evaluate(state, false))
     return () => {
+      recheck.current = () => {}
       stop()
       clearTimeout(timer)
       skipOffer.stop()
     }
     // whether there is a next, not its address: that grows as sources join the episode, mid-countdown too
   }, [link, Boolean(href), episode])
+
+  useEffect(() => {
+    recheck.current()
+  }, [chapters])
 
   useEffect(() => {
     if (shown !== 'counting' || !href) return

@@ -51,6 +51,7 @@ import { crunchyroll, prime, sites, status } from '../settings/wiring'
 import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
 import { useFallbackEnding } from './fallback-ending'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
+import { hasEnding } from '../../utils/next-offer'
 import NoSource from './no-source'
 import SourceChecks from './source-checks'
 import { startOf, useResume } from './resume'
@@ -953,8 +954,9 @@ const Watch = () => {
   const nextHandle = nextUri ? playableHandlesOf(next?.episode.handles).find(handle => handle.uri === nextUri) : undefined
   const nextRelease = nextHandle ? { uri: nextHandle.uri, url: nextHandle.url ?? undefined } : undefined
   const malId = media?.uri ? extractAggregatedUriOrigin(media.uri, 'mal')?.id : undefined
-  // asked only where there is a Next episode to time
-  const fallback = useFallbackEnding(viaPlugin && upNext ? playbackLink : undefined, {
+  // asked only where there is a Next episode to time and no Crunchyroll skip-events of its own
+  const needsFallback = Boolean(upNext && (viaPlugin || (selected?.origin !== 'cr' && !hasEnding(chapters))))
+  const fallback = useFallbackEnding(needsFallback ? playbackLink : undefined, {
     crunchyroll: episodeHandles.find(handle => handle.origin === 'cr' && handle.url)?.url ?? undefined,
     mal: malId && Number.isInteger(episodeNumber) ? { id: malId, episode: episodeNumber! } : undefined,
   })
@@ -1018,7 +1020,7 @@ const Watch = () => {
                       `}
                     />
                   )}
-                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : chapters} stage={stage} episode={params.episodeUri} release={nextRelease}/>
+                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease}/>
               </div>
             )
             : needsExtension

@@ -253,10 +253,11 @@ vi.mock('../../../../src/sources/crunchyroll/relay-check', () => ({
     return lengths.byUrl[url]
   },
 }))
-const direct = vi.hoisted(() => ({ answers: {} as Record<string, unknown>, asked: [] as string[] }))
+const direct = vi.hoisted(() => ({ held: Promise.resolve() as Promise<unknown>, answers: {} as Record<string, unknown>, asked: [] as string[] }))
 vi.mock('../../../../src/worker/browser-fetch', () => ({
   browserFetch: async (input: string) => {
     direct.asked.push(String(input))
+    await direct.held
     return String(input) in direct.answers ? Response.json(direct.answers[String(input)]) : new Response('', { status: 404 })
   },
 }))
@@ -353,6 +354,7 @@ afterEach(() => {
   relay.asked = []
   lengths.byUrl = {}
   lengths.asked = []
+  direct.held = Promise.resolve()
   direct.answers = {}
   direct.asked = []
   tracking = undefined
@@ -2316,6 +2318,47 @@ test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async
   await settle()
   expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent('cr:GX2')}`)
   expect([lengths.asked, direct.asked]).toEqual([[], []])
+})
+
+test('without ending chapters, Next episode appears 30 s before the end on embeds and plugins and counts down only at ended', async () => {
+  for (const source of [undefined, 'nyaa:a'] as const) {
+    bridge.duration = 1420
+    const { host } = await atTheEnd({}, source)
+    await report({ paused: false, time: 1380 })
+    await wait(9_900)
+    expect(nextShown(host), `${source ?? 'embed'} at 1389.9 s`).toBeUndefined()
+    await wait(100)
+    expect(nextShown(host), `${source ?? 'embed'} at 1390 s`).toBe('E3 - Title 3')
+    expect(host.querySelector('.up-next.counting')).toBeNull()
+    await report({ paused: false, time: 1200 })
+    expect(nextShown(host), `${source ?? 'embed'} withdrawn on seek back`).toBeUndefined()
+    await report({ ...ended, time: 1420 })
+    expect(host.querySelector('.up-next.counting')).not.toBeNull()
+    unmount(hosts.pop()!)
+    bridge.links = []
+  }
+})
+
+test('a non-Crunchyroll built-in embed falls back to AniSkip and late chapters offer Next at once while paused', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf']
+  backend = 'extension'
+  let release!: () => void
+  direct.held = new Promise<void>(resolve => { release = resolve })
+  bridge.duration = 1395
+  direct.answers[aniskipUrl('5', 2, 1395)] = { found: true, results: [{ interval: { startTime: 1300, endTime: 1390 }, skipType: 'ed', episodeLength: 1395 }] }
+  media = { uri: 'ag:(anilist:1,mal:5,tvdb:1)', handles: [], episodes: [row(1, crunchyroll(1)), row(2, handle('nf:82', 'nf', 'https://www.netflix.com/watch/82')), row(3, crunchyroll(3))] }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nf:82' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+  await report({ paused: false, time: 1320 })
+  await report({ paused: true, time: 1320 })
+  expect(nextShown(host), 'not shown before AniSkip settles').toBeUndefined()
+  release()
+  await settle()
+  expect(direct.asked).toEqual([aniskipUrl('5', 2, 1395)])
+  expect(nextShown(host), 'shown immediately on chapter arrival even while paused').toBe('E3 - Title 3')
 })
 
 test('a torrent\'s player is asked once, at PREPARE_AT of the episode, to prepare the release Next opens', async () => {

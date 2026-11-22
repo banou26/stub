@@ -37,6 +37,15 @@ const lastEnding = (chapters: MediaChapter[], duration: number) => {
 /** Whether `chapters` mark an ending, as the player's own Skip Ending reads one. */
 export const hasEnding = (chapters: MediaChapter[]) => classifyChapters(chapters).includes('ending')
 
+/** How many seconds before the end to offer Next episode when chapters mark no ending. */
+export const TAIL_OFFER_S = 30
+/** Shortest episode length in seconds that gets the tail offer. */
+export const MIN_TAIL_DURATION_S = 60
+
+/** Fallback moment to offer Next episode when chapters mark no ending, or undefined on short or unknown lengths. */
+export const tailOfferAt = (duration: number | undefined): number | undefined =>
+  known(duration) && duration >= MIN_TAIL_DURATION_S ? duration - TAIL_OFFER_S : undefined
+
 /**
  * When to offer the next episode, in seconds into the one playing, from its chapters: a second before
  * its last ending when less than 10 s follows it, a second before what follows when that runs 10 s to

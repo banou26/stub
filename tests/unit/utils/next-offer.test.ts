@@ -3,7 +3,7 @@ import type { MediaChapter } from '@banou/media-player'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { skipEventsToChapters } from '../../../src/sources/crunchyroll/skip-events'
-import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt } from '../../../src/utils/next-offer'
+import { chaptersBesideNext, followSkipOffer, hasEnding, nextOfferAt, tailOfferAt } from '../../../src/utils/next-offer'
 import { CREDITS_KEY_ONLY, EVERY_EVENT, OPENING_ONLY } from '../sources/crunchyroll/skip-events-fixture'
 
 // an episode of `duration` s marked `title` from `start` to `end`, in the shape skip-events.ts hands chapters over
@@ -173,6 +173,15 @@ test('chapters have an ending only where Skip Ending would read one', () => {
   expect(hasEnding([{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }])).toBe(false)
   expect(hasEnding(skipEventsToChapters(OPENING_ONLY, 1440))).toBe(false)
   expect(hasEnding([])).toBe(false)
+})
+
+test('tail fallback offers Next episode 30 s before the end for episodes 60 s or longer', () => {
+  expect(tailOfferAt(1420)).toBe(1390)
+  expect(tailOfferAt(60)).toBe(30)
+  expect(tailOfferAt(59.9)).toBeUndefined()
+  for (const duration of [undefined, 0, Number.NaN, Infinity]) {
+    expect(tailOfferAt(duration), String(duration)).toBeUndefined()
+  }
 })
 
 describe('media-player\'s skip offer, followed from its reports', () => {
