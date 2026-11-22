@@ -566,8 +566,8 @@ test('below 1220 px the bar is one row with no visible site links', async ({ pag
 
 const wordmark = (page: Page) => page.locator('header').getByRole('link', { name: 'stub', exact: true })
 
-// STUB-357 (stub's logo at the left of its title)
-test('the wordmark is stub\'s icon then its word in one link, at the word\'s left in Arabic too', async ({ page }) => {
+// STUB-357 (stub's logo at the left of its title) and STUB-429 (icon alone on mobile)
+test('the wordmark is stub\'s icon then its word on desktop and its icon alone at 768 px and below, at the word\'s left in Arabic too', async ({ page }) => {
   for (const language of ['en', 'ar']) {
     await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
     await page.goto(at('stub.localhost', '/settings'))
@@ -576,34 +576,44 @@ test('the wordmark is stub\'s icon then its word in one link, at the word\'s lef
       await page.setViewportSize({ width, height: 800 })
       const [icon, word] = [wordmark(page).locator('svg'), wordmark(page).getByText('stub', { exact: true })]
       await expect(icon, `${language} at ${width}`).toBeVisible()
-      await expect(word, `${language} at ${width}`).toHaveCSS('clip-path', 'none')
-      const [left, right] = [(await icon.boundingBox())!, (await word.boundingBox())!]
-      expect(left.x + left.width, `${language} at ${width}: the icon at the word's left`).toBeLessThanOrEqual(right.x)
-      expect(left.y < right.y + right.height && right.y < left.y + left.height, `${language} at ${width}: on the word's line`).toBe(true)
+      if (width > 768) {
+        await expect(word, `${language} at ${width}`).toHaveCSS('clip-path', 'none')
+        const [left, right] = [(await icon.boundingBox())!, (await word.boundingBox())!]
+        expect(left.x + left.width, `${language} at ${width}: the icon at the word's left`).toBeLessThanOrEqual(right.x)
+        expect(left.y < right.y + right.height && right.y < left.y + left.height, `${language} at ${width}: on the word's line`).toBe(true)
+      } else {
+        await expect(word, `${language} at ${width}`).toHaveCSS('clip-path', 'inset(50%)')
+      }
     }
   }
 })
 
-// STUB-347 (below about 350 px the search button sat over the wordmark)
-test('the wordmark keeps its word from 375 px beside the site arrow and 350 px without it, then is its icon alone, a 24 px link named stub, clear of the search button down to 320 px', async ({ page }) => {
+// STUB-347 and STUB-429: on mobile (768 px and below) the wordmark shows stub's icon alone
+test('the wordmark keeps its word above 768 px, then is its icon alone on mobile, a 24 px link named stub, clear of the search control down to 320 px', async ({ page }) => {
   for (const host of ['stub.localhost', 'anime.localhost', 'series.localhost', 'movies.localhost', '127.0.0.1']) {
-    const wordFrom = host === '127.0.0.1' ? 350 : 375
-    await page.setViewportSize({ width: 409, height: 800 })
+    await page.setViewportSize({ width: 769, height: 800 })
     await page.goto(at(host, '/settings'))
-    await expect(searchButton(page), host).toBeVisible()
+    await expect(searchField(page), host).toBeVisible()
     await page.addStyleTag({ content: WIDER_FONT })
-    for (const width of [409, 390, 375, 374, 360, 350, 349, 320]) {
+    for (const width of [769, 768, 480, 409, 390, 375, 374, 360, 350, 349, 320]) {
       await page.setViewportSize({ width, height: 800 })
       const where = `${host} at ${width}`
+      const showsWord = width > 768
       await expect(wordmark(page).locator('svg'), where).toBeVisible()
-      await expect(wordmark(page).getByText('stub', { exact: true }), `${where}: the word ${width >= wordFrom ? 'shows' : 'is hidden'}`)
-        .toHaveCSS('clip-path', width >= wordFrom ? 'none' : 'inset(50%)')
-      if (width < wordFrom) expect((await wordmark(page).boundingBox())!.width, `${where}: a 24 px target`).toBeGreaterThanOrEqual(24)
-      await expect.poll(async () => {
+      await expect(wordmark(page).getByText('stub', { exact: true }), `${where}: the word ${showsWord ? 'shows' : 'is hidden'}`)
+        .toHaveCSS('clip-path', showsWord ? 'none' : 'inset(50%)')
+      if (!showsWord) expect((await wordmark(page).boundingBox())!.width, `${where}: a 24 px target`).toBeGreaterThanOrEqual(24)
+      if (width < 480) {
+        await expect.poll(async () => {
+          const start = (await page.locator('header .start').boundingBox())!
+          const button = (await searchButton(page).boundingBox())!
+          return button.x - (start.x + start.width)
+        }, `${where}: room between the wordmark and the button`).toBeGreaterThanOrEqual(4)
+      } else {
         const start = (await page.locator('header .start').boundingBox())!
-        const button = (await searchButton(page).boundingBox())!
-        return button.x - (start.x + start.width)
-      }, `${where}: room between the wordmark and the button`).toBeGreaterThanOrEqual(4)
+        const field = (await searchField(page).boundingBox())!
+        expect(start.x + start.width, `${where}: clear of the search field`).toBeLessThanOrEqual(field.x)
+      }
       const actions = (await page.locator('header .actions').boundingBox())!
       expect(actions.x + actions.width, `${where}: the account in view`).toBeLessThanOrEqual(width)
       expect(await page.evaluate(() => document.documentElement.scrollWidth), `${where}: no sideways scroll`).toBeLessThanOrEqual(width)
@@ -611,11 +621,22 @@ test('the wordmark keeps its word from 375 px beside the site arrow and 350 px w
   }
 })
 
-// HOR-1066 (FKN's logo beside the wordmark)
-test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, its card opens on hover, and it leaves the search its room, first beside the site arrow', async ({ page }) => {
+// HOR-1066 and STUB-429: FKN's mark stands on the wordmark's baseline on desktop and hides on mobile (768 px and below)
+test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals on desktop, its card opens on hover, and it hides on mobile', async ({ page }) => {
   const mark = page.getByRole('button', { name: 'Powered by FKN' })
   const card = page.getByRole('group', { name: 'Powered by FKN' })
-  for (const [host, width, height] of [['movies.localhost', 1440, 900], ['movies.localhost', 1024, 800], ['movies.localhost', 410, 844], ['movies.localhost', 390, 844], ['127.0.0.1', 390, 844], ['127.0.0.1', 360, 800]] as const) {
+  for (const [host, width, height] of [
+    ['movies.localhost', 1440, 900],
+    ['movies.localhost', 1024, 800],
+    ['movies.localhost', 769, 800],
+    ['127.0.0.1', 769, 800],
+    ['movies.localhost', 768, 844],
+    ['movies.localhost', 410, 844],
+    ['movies.localhost', 390, 844],
+    ['127.0.0.1', 768, 844],
+    ['127.0.0.1', 390, 844],
+    ['127.0.0.1', 360, 800],
+  ] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(at(host))
     await expect(width < 480 ? searchButton(page) : searchField(page), `${width}: the control, the row is drawn`).toBeVisible()
@@ -626,7 +647,7 @@ test('FKN\'s mark stands on the wordmark\'s baseline as tall as its capitals, it
     }))
     expect(start, `${width}: clear of the search`).toBeLessThanOrEqual(search)
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${width}`).toBeLessThanOrEqual(width)
-    if (width < (host === '127.0.0.1' ? 380 : 410)) {
+    if (width <= 768) {
       await expect(mark, `${host} at ${width}`).toBeHidden()
       continue
     }
