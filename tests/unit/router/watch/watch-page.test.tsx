@@ -310,6 +310,7 @@ const { PREPARE_AT, UP_NEXT_MS } = await import('../../../../src/router/watch/up
 const { skipEventsUrl } = await import('../../../../src/sources/crunchyroll/skip-events')
 const { aniskipUrl } = await import('../../../../src/sources/aniskip')
 const { AUTOPLAY_KEY, setAutoplay } = await import('../../../../src/utils/autoplay')
+const { PLAY_ORDER_KEY, writePlayOrder } = await import('../../../../src/sources/play-order')
 const { ACCOUNT_WAIT_MS } = await import('../../../../src/worker/plugin-sources')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
@@ -4143,4 +4144,43 @@ test('no answer on the next episode is not signed in, though the source said so 
     lookups.down = false
     said.reset()
   }
+})
+
+// STUB-438: the watch page sources list follows the viewer's playback preference ranking
+const sourceOrder = (host: HTMLElement) => [...host.querySelectorAll('.watch .list .source .name')].map(name => name.textContent)
+
+test('orders the watch page sources list by playback preference and keeps unranked sources in order after ranked ones', async () => {
+  vi.useFakeTimers()
+  origins = ['tubi', 'hulu', 'nyaa', 'nf', 'cr']
+  Object.assign(episode, {
+    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a,hulu:1,tubi:1)',
+    handles: [
+      handle('tubi:1', 'tubi', 'https://tubitv.com/tv-shows/1'),
+      handle('hulu:1', 'hulu', 'https://www.hulu.com/watch/1'),
+      ...allHandles,
+    ],
+  })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(sourceOrder(host), 'default playback order places Crunchyroll, Netflix, Nyaa, then unranked in arrival order')
+    .toEqual(['cr', 'nf', 'nyaa', 'tubi', 'hulu'])
+})
+
+test('orders the watch page sources list by a saved custom play order and reorders when it changes', async () => {
+  vi.useFakeTimers()
+  origins = ['hulu', 'cr', 'nf', 'nyaa']
+  stored.set(PLAY_ORDER_KEY, JSON.stringify(['nyaa', 'nf', 'cr']))
+  Object.assign(episode, {
+    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a,hulu:1)',
+    handles: [handle('hulu:1', 'hulu', 'https://www.hulu.com/watch/1'), ...allHandles],
+  })
+  const host = page()
+  hosts.push(host)
+  await settle()
+  expect(sourceOrder(host)).toEqual(['nyaa', 'nf', 'cr', 'hulu'])
+
+  await act(async () => { writePlayOrder(['nf', 'cr', 'nyaa']) })
+  await settle()
+  expect(sourceOrder(host)).toEqual(['nf', 'cr', 'nyaa', 'hulu'])
 })

@@ -17,7 +17,8 @@ import { builtInSources } from '../../sources/built-in'
 import { crunchyrollEpisodeId, skipEventsToChapters, useSkipEvents } from '../../sources/crunchyroll/skip-events'
 import { readDisabledSources } from '../../sources/disabled-sources'
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
-import { playOrder, readPlayOrder } from '../../sources/play-order'
+import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-order'
+import { useSetting } from '../../utils/use-setting'
 import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
 import PluginPlayer from '../../components/plugin-player'
@@ -633,6 +634,8 @@ const Watch = () => {
   // a plugin source renders its own picker; which added sources do is only known to the worker holding
   // the plugin connection, so it is resolved here and folded into the source list
   const lookupOrigins = added.join(',')
+  const keptPlayOrder = useSetting(readPlayOrder, watchPlayOrder)
+  const orderedOrigins = useMemo(() => playOrder(keptPlayOrder, added), [keptPlayOrder, lookupOrigins])
   const [pickers, setPickers] = useState<Record<string, string>>({})
   // and separately, which origins play their own releases: stub mounts the package in the player box
   // and the source renders whatever it wants there. Read together, in one pass over the same origins.
@@ -784,8 +787,12 @@ const Watch = () => {
   }, [viaPlugin, embedUrl, selectedSourceUri])
 
   const sources: WatchSource[] = useMemo(
-    () =>
-      (originData?.originPage?.nodes ?? []).map(origin => {
+    () => {
+      const rank = (id: string) => {
+        const at = orderedOrigins.indexOf(id)
+        return at === -1 ? orderedOrigins.length : at
+      }
+      return (originData?.originPage?.nodes ?? []).map(origin => {
         const handles = episodeHandles.filter(h => h.origin === origin.id)
         // a source that plays its own releases makes every one of them playable IN stub, so the link
         // goes to the watch route rather than out to whatever the raw url opens (for a torrent index
@@ -826,8 +833,10 @@ const Watch = () => {
           audioLanguages: shown?.audioLanguages,
           subtitleLanguages: shown?.subtitleLanguages,
         }
-      }).filter(source => source.href || source.releases),
-    [originData, episodeHandles, episode?.thumbnails, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend]
+      }).filter(source => source.href || source.releases)
+        .sort((a, b) => rank(a.id) - rank(b.id))
+    },
+    [originData, episodeHandles, episode?.thumbnails, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend, orderedOrigins]
   )
 
   // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
@@ -862,7 +871,7 @@ const Watch = () => {
     builtIn: (origin, url) => canPlay(origin, url, 'extension'),
     selfPlaying: players && (origin => Boolean(players[origin])),
     off,
-    order: playOrder(readPlayOrder(), added),
+    order: orderedOrigins,
     possible: origin => !off(origin) && (PLAYABLE_ORIGINS.has(origin)
       ? addable || !EXTENSION_ONLY_ORIGINS.has(origin)
       : connecting || added.includes(origin)),
