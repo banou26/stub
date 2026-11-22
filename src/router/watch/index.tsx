@@ -674,16 +674,30 @@ const Watch = () => {
 
   // The source's own player wins over stub's built-in ones: it is the source saying how its releases
   // are played, and a release stub cannot open any other way (a magnet) is exactly the case for it.
+  // A background worker disconnect/reconnect clears `players[origin]` while the mounted player frame
+  // itself is still alive, so hold the active mount until the plugin is removed or the viewer moves on.
+  const activePluginPlayer = useRef<{ pluginUri: string, release: { uri: string, url?: string } } | undefined>(undefined)
   const pluginPlayer = useMemo(() => {
-    if (!selectedSourceUri) return undefined
+    if (!selectedSourceUri) {
+      activePluginPlayer.current = undefined
+      return undefined
+    }
     const { origin } = fromUri(selectedSourceUri as `${string}:${string}`)
     const pluginUri = players?.[origin]
-    if (!pluginUri) return undefined
     // mounted without its handle, the source is asked to play a release it cannot read and declines it for good
     const handle = episodeHandles.find(h => h.uri === selectedSourceUri)
-    if (!handle) return undefined
-    return { pluginUri, release: { uri: selectedSourceUri, url: handle.url ?? undefined } }
-  }, [selectedSourceUri, players, episodeHandles])
+    if (pluginUri && handle) {
+      const next = { pluginUri, release: { uri: selectedSourceUri, url: handle.url ?? undefined } }
+      activePluginPlayer.current = next
+      return next
+    }
+    const held = activePluginPlayer.current
+    if (held && held.release.uri === selectedSourceUri && plugins.some(plugin => plugin.uri === held.pluginUri)) {
+      return held
+    }
+    activePluginPlayer.current = undefined
+    return undefined
+  }, [selectedSourceUri, players, episodeHandles, plugins])
 
   // a source that declined this release falls back to whatever stub would have done, which is the
   // external link the selector already offers

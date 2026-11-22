@@ -500,6 +500,37 @@ test('a release the address names before the episode holds it plays once its han
   expect(host.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:a')
 })
 
+test('a plugin player stays mounted across a background plugin worker reconnect, and unmounts if removed', async () => {
+  vi.useFakeTimers()
+  const nyaaPlugin = { uri: 'plugin:nyaa', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }
+  plugins.statuses = [nyaaPlugin]
+  params = { ...params, sourceUri: 'nyaa:a' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+
+  const initial = host.querySelector('.plugin-player')
+  expect(initial?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:a')
+  expect(pluginPlayers.stages).toHaveLength(1)
+
+  // Background worker drops and schedules reconnect: the mounted player frame must stay put
+  await pluginsChange({ uri: 'plugin:nyaa', state: 'connecting', retry: true })
+  await settle()
+  expect(host.querySelector('.plugin-player'), 'unmounted while reconnecting').toBe(initial)
+  expect(pluginPlayers.stages).toHaveLength(1)
+
+  // Background worker reconnects: still the same mounted player, never torn down and autoplayed again
+  await pluginsChange(nyaaPlugin)
+  await settle()
+  expect(host.querySelector('.plugin-player'), 'remounted after reconnect').toBe(initial)
+  expect(pluginPlayers.stages).toHaveLength(1)
+
+  // Plugin actually removed by the viewer: player unmounts cleanly
+  await pluginsChange()
+  await settle()
+  expect(host.querySelector('.plugin-player'), 'stayed mounted after removal').toBeNull()
+})
+
 // an episode's own Prime Video handle, as JustWatch's episode offer mints it, with the deep link as its url
 const PRIME = 'amazon:amzn1.dv.gti.fe903f64'
 const PRIME_LINK = 'https://watch.amazon.co.jp/watch?gti=amzn1.dv.gti.fe903f64'
