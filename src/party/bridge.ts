@@ -30,6 +30,8 @@ export type PlaybackLink = {
    * that whole.
    */
   seek: (time: number) => void
+  /** Start playback if paused, using `autoplay` where the player has one; absent where not supported. */
+  play?: () => void
   /**
    * Keep the player with a host whose player is at `state`, `state.at` on this clock, as a follower does on every
    * state it hears and every report of its own (see `followCorrection`), and say what it did; `exact` puts it where
@@ -107,6 +109,7 @@ export const linkMedia = (media: LinkableMedia, onClose: () => void = () => {}):
   return {
     apply: (wanted, measured) => { move(playbackCorrection(stateOf(media), wanted, Date.now(), measured)) },
     seek: time => { media.currentTime = time },
+    play: () => { if (media.paused) (media.autoplay ? media.autoplay() : media.play()).catch(() => {}) },
     follow: (wanted, exact) => {
       const now = Date.now()
       const { correction, follow } = followCorrection(following, { ...stateOf(media), seeking: media.seeking }, wanted, now, exact)

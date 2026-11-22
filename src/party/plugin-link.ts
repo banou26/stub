@@ -143,6 +143,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
     // converts before applying), so the package's own cap on a report's age never binds.
     apply: state => { applyPlayback(state).catch(() => {}) },
     seek: time => { if (!disposed && last) tell({ paused: last.paused, time, rate: last.rate, at: Date.now() }, { seek: time }) },
+    play: () => { if (!disposed && last && last.paused) tell({ ...last, paused: false, at: Date.now() }, { play: true }) },
     follow: (wanted, atOnce) => {
       const now = Date.now()
       const own = local(now)

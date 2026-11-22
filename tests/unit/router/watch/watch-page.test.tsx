@@ -178,7 +178,7 @@ vi.mock('../../../../src/tracking/fkn-cloud-live', () => ({ unlockTracker: async
 type Report = { paused: boolean, ended?: boolean, time?: number, rate?: number }
 // each player the page attaches, which a test makes report as a person or the browser would; with
 // `greets`, a new listener hears the last report at once, after dispose too, as the real link does
-const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, seek: Mock<(time: number) => void> }[], greets: false, duration: 1000 }))
+const bridge = vi.hoisted(() => ({ links: [] as { report: (state: Report) => void, seek: Mock<(time: number) => void>, play: Mock<() => void> }[], greets: false, duration: 1000 }))
 vi.mock('../../../../src/party/bridge', () => ({
   attachPlaybackBridge: () => {
     const listeners = new Set<(state: object) => void>()
@@ -187,6 +187,7 @@ vi.mock('../../../../src/party/bridge', () => ({
     const link = {
       apply: () => {},
       seek: vi.fn<(time: number) => void>(),
+      play: vi.fn<() => void>(),
       onReport: (listener: (state: object) => void) => {
         listeners.add(listener)
         if (bridge.greets) queueMicrotask(() => listener({ ...last, at: Date.now() }))
@@ -2529,6 +2530,63 @@ test('auto-advancing through Next forces focus onto the next player unless a tex
   } finally {
     Reflect.deleteProperty(document, 'activeElement')
   }
+})
+
+test('auto-advancing through Next starts playback once when the next embed or plugin player reports paused', async () => {
+  const { rerender } = await atTheEnd({}, 'nyaa:a')
+  const { episodes } = media as { episodes: object[] }
+  episodes.push(row(4, crunchyroll(4), release('c')))
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+
+  await toTheNext(rerender)
+  // stale ended report must not trigger play; paused report on next episode triggers play once
+  await report({ paused: true, ended: true })
+  expect(bridge.links.at(-1)!.play).not.toHaveBeenCalled()
+  await report({ paused: true, time: 0 })
+  expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
+
+  // subsequent manual pause must not be unpaused again
+  await report({ paused: true, time: 12 })
+  expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
+
+  // works for built-in embeds too
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledWith(watchPath(4, 'cr:GX4'))
+  params = { ...params, episodeUri: 'ag:(anilist:1-4)', sourceUri: 'cr:GX4' }
+  rerender()
+  await settle()
+  await report({ paused: true, time: 0 })
+  expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
+})
+
+test('auto-advance does not play if already playing, navigated manually, or as a party guest', async () => {
+  // already playing
+  const first = await atTheEnd()
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  await toTheNext(first.rerender)
+  await report({ paused: false, time: 0 })
+  expect(bridge.links.at(-1)!.play).not.toHaveBeenCalled()
+
+  // manual navigation without UpNext
+  params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
+  first.rerender()
+  await settle()
+  await report({ paused: true, time: 0 })
+  expect(bridge.links.at(-1)!.play).not.toHaveBeenCalled()
+
+  // party guest
+  unmount(hosts.pop()!)
+  party = { status: 'active', role: 'guest' } as typeof party
+  const guestRun = await atTheEnd()
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+  guestRun.rerender()
+  await settle()
+  await report({ paused: true, time: 0 })
+  expect(bridge.links.at(-1)!.play).not.toHaveBeenCalled()
 })
 
 test('with no player in it yet, the stage holds the episode\'s picture and title, and with one, the player', async () => {

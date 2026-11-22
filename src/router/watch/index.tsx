@@ -753,6 +753,8 @@ const Watch = () => {
   // moved back onto the player unless the viewer is typing in a text field.
   const framed = useRef(false)
   const autoAdvanced = useRef(false)
+  const autoplayTarget = useRef<string | undefined>(undefined)
+  const prevEpisodeUri = useRef(params.episodeUri)
   const isTextControl = (element: Element | null) =>
     Boolean(element && ((element as HTMLElement).isContentEditable || /^(input|textarea|select)$/i.test(element.tagName)))
   useEffect(() => {
@@ -958,6 +960,32 @@ const Watch = () => {
   useAutoPick(bareSeason ? undefined : pick, { ...params, guest, cannotPlay, search }, navigate)
   useResume(playbackLink, selectedSourceUri, episodeHandles.map(handle => handle.uri), guest, startOf(search))
 
+  // When UpNext advances to the next episode, start playback once the next player reports paused.
+  // Keyed on the target episode uri so it survives useAutoPick's replace navigation, ignores any
+  // stale report from the previous episode, never fires for party guests, and runs at most once.
+  useEffect(() => {
+    const target = autoplayTarget.current
+    const prev = prevEpisodeUri.current
+    prevEpisodeUri.current = params.episodeUri
+    if (!target) return
+    if (params.episodeUri !== target) {
+      if (prev !== params.episodeUri) autoplayTarget.current = undefined
+      return
+    }
+    if (guest || !playbackLink) return
+    let stopped = false
+    let stop: (() => void) | undefined
+    stop = playbackLink.onReport(state => {
+      if (stopped || playbackLink.ended?.()) return
+      stopped = true
+      stop?.()
+      if (autoplayTarget.current !== target) return
+      autoplayTarget.current = undefined
+      if (state.paused) playbackLink.play?.()
+    })
+    return () => { stopped = true; stop?.() }
+  }, [playbackLink, params.episodeUri, selectedSourceUri, guest])
+
   // only a run's first or last episode has a neighbour in another run, so only there is it asked for
   const before = useRun(media && index === 0 ? adjacentRun(media, -1) : undefined)
   const after = useRun(media && index >= 0 && index === episodes.length - 1 ? adjacentRun(media, 1) : undefined)
@@ -1047,7 +1075,7 @@ const Watch = () => {
                       `}
                     />
                   )}
-                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true }}/>
+                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true; autoplayTarget.current = next?.episode.uri }}/>
               </div>
             )
             : needsExtension

@@ -78,6 +78,22 @@ describe('linkMedia', () => {
     link.dispose()
   })
 
+  test('play starts a paused player (preferring autoplay when provided) and leaves a playing one alone', () => {
+    const link = linkMedia(media)
+    link.play?.()
+    expect(media.play).toHaveBeenCalledTimes(1)
+    media.paused = false
+    link.play?.()
+    expect(media.play).toHaveBeenCalledTimes(1)
+    link.dispose()
+
+    const autoplay = vi.fn(async () => ({ muted: true }))
+    const wrapped = linkMedia(Object.assign(fakeMedia(), { autoplay }))
+    wrapped.play?.()
+    expect(autoplay).toHaveBeenCalledTimes(1)
+    wrapped.dispose()
+  })
+
   test('a new ear is told where the player is, then every event', async () => {
     const link = linkMedia(media)
     const heard = vi.fn()

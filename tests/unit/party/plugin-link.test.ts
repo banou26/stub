@@ -122,6 +122,19 @@ describe('pluginPlaybackLink', () => {
     expect(applied).toEqual([STATE])
   })
 
+  test('play asks the package with exact play only when the player is paused', () => {
+    const { source, report, applied } = fakeSource()
+    const link = pluginPlaybackLink(source)!
+    link.play?.()
+    expect(applied).toEqual([])
+    report({ ...STATE, paused: false })
+    link.play?.()
+    expect(applied).toEqual([])
+    report({ ...STATE, paused: true })
+    link.play?.()
+    expect(applied).toEqual([expect.objectContaining({ paused: false, exact: { play: true } })])
+  })
+
   // The package keeps calling the ear it was given for as long as its player lives, which can be
   // after the page has moved on. A disposed link has to swallow those rather than move a player the
   // party has stopped watching. The listener is added AFTER dispose on purpose: dispose also empties
