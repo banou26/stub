@@ -737,6 +737,11 @@ const Episode = (
   const released = airsIn ? intl.formatMessage({ id: 'in {countdown}', defaultMessage: 'in {countdown}' }, { countdown: airsIn }) : releaseDateDisplay(releasedAt, { upcoming: unreleased, locale: intl.locale })
   const sources = unreleased ? [] : watchSources(episode, mediaUri, origins, backend)
   const bar = unreleased ? undefined : progress ?? (watched ? 1 : undefined)
+  const namedTitle = episode.titles?.at(0)?.title
+  const episodeTitle = namedTitle ?? (unreleased ? intl.formatMessage({ id: 'Unreleased episode', defaultMessage: 'Unreleased episode' }) : intl.formatMessage({ id: 'Episode {number}', defaultMessage: 'Episode {number}' }, { number: index + 1 }))
+  const episodeLabel = namedTitle
+    ? (episode.episodeNumber != null ? `${episode.episodeNumber} ${namedTitle}` : namedTitle)
+    : episodeTitle
 
   return (
     <div className={unreleased ? 'episode unreleased' : 'episode'}>
@@ -748,6 +753,7 @@ const Episode = (
               href={getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })}
               newTab={openInNewTab}
               aria-current={current ? 'page' : undefined}
+              aria-label={episodeLabel}
             />
           )
           : undefined

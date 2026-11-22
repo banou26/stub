@@ -565,7 +565,7 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
 /** Internal route link that uses client navigation by default, or a native new-tab anchor preserving router hrefs. */
 export const RouteLink = (
   { newTab, href, ...props }:
-  { newTab?: boolean, href: string, className?: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true' | 'page', children?: ComponentChildren }
+  { newTab?: boolean, href: string, className?: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true' | 'page', 'aria-label'?: string, children?: ComponentChildren }
 ) => {
   const router = useRouter()
   if (!newTab) return <Link {...props} href={href}/>

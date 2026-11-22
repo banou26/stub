@@ -5,6 +5,7 @@ import { css } from '@emotion/react'
 import { Grid, useGridCallbackRef } from 'react-window'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/compat'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useIntl } from 'react-intl'
 
 import Draggable from '../../components/draggable'
 import { rowLeft, showRow } from '../scroll-reset'
@@ -37,6 +38,10 @@ const style = css`
     transition: background 0.2s ease;
     &:hover {
       background: rgba(0, 0, 0, 0.9);
+    }
+    &:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
     }
     &.previous {
       inset-inline-start: 20px;
@@ -96,6 +101,7 @@ export type RowCellProps<P> = P & { style: CSSProperties, columnIndex: number, c
 export const CardRow = <P extends object>(
   { name, count, cell, cellProps }: { name: string, count: number, cell: (props: RowCellProps<P>) => JSX.Element | null, cellProps: P }
 ) => {
+  const intl = useIntl()
   const card = useRowCard()
   const [visibleStartIndex, setVisibleStartIndex] = useState(0)
   const [visibleEndIndex, setVisibleEndIndex] = useState(0)
@@ -148,11 +154,21 @@ export const CardRow = <P extends object>(
           }}
         />
       </Draggable>
-      <button className='scroll-button previous' onClick={() => scrollTo('previous')}>
-        <ChevronLeft />
+      <button
+        type='button'
+        className='scroll-button previous'
+        aria-label={intl.formatMessage({ id: 'Previous', defaultMessage: 'Previous' })}
+        onClick={() => scrollTo('previous')}
+      >
+        <ChevronLeft aria-hidden='true' />
       </button>
-      <button className='scroll-button next' onClick={() => scrollTo('next')}>
-        <ChevronRight />
+      <button
+        type='button'
+        className='scroll-button next'
+        aria-label={intl.formatMessage({ id: 'Next', defaultMessage: 'Next' })}
+        onClick={() => scrollTo('next')}
+      >
+        <ChevronRight aria-hidden='true' />
       </button>
     </div>
   )

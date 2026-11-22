@@ -992,3 +992,18 @@ describe('Share', () => {
     expect(opens).toBe(`https://anime.fkn.app/title/ag:(anilist:1)/frieren${PLUGINS}`)
   })
 })
+
+test('episode row links carry accessible names for titled and untitled episodes', () => {
+  const base = work(1, 'Steel Ball Run')
+  const { answer } = preview(base.uri)
+  const sbr = {
+    ...base,
+    episodes: base.episodes.map((episode, index) => ({
+      ...episode,
+      titles: index === 0 ? [{ title: 'Steel Ball Run' }] : [],
+    })),
+  }
+  answer(sbr)
+  const labels = [...modal().querySelectorAll('.episode-link')].map(link => link.getAttribute('aria-label'))
+  expect(labels).toEqual(['1 Steel Ball Run', 'Episode 2'])
+})
