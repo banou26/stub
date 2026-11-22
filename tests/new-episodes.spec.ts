@@ -79,7 +79,7 @@ test.beforeEach(async ({ page }) => {
 const sawNone = (page: Page) => page.evaluate(() => Boolean((window as { sawNone?: boolean }).sawNone))
 
 const season = (page: Page) => page.locator('.title', { hasText: /^Current season$/ })
-const heading = (page: Page) => page.getByRole('link', { name: 'New episodes', exact: true })
+const heading = (page: Page) => page.getByRole('link', { name: 'Continue watching', exact: true })
 
 const box = async (locator: Locator) => {
   const { x, y, width, height } = (await locator.boundingBox())!

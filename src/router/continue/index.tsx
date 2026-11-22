@@ -43,14 +43,14 @@ const style = css`
   }
 `
 
-/** Every new episode of the shows the viewer is watching: the page home's New episodes heading opens. */
+/** Every new episode of the shows the viewer is watching: the page home's Continue watching heading opens. */
 const New = () => {
   const intl = useIntl()
   const { episodes, asks, reading } = useNewEpisodes()
   return (
     <div css={style}>
       {asks}
-      <div className="heading">{intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })}</div>
+      <div className="heading">{intl.formatMessage({ id: 'Continue watching', defaultMessage: 'Continue watching' })}</div>
       {
         episodes.length
           ? <div className="grid">{episodes.map(episode => <NewEpisodeCard key={episode.work._id} episode={episode}/>)}</div>

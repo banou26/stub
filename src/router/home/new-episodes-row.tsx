@@ -165,7 +165,7 @@ const NewEpisodes = () => {
         episodes.length
           ? (
             <section css={rowStyle} className='home-row'>
-              <RowTitle title={intl.formatMessage({ id: 'New episodes', defaultMessage: 'New episodes' })} to={getRoutePath(Route.CONTINUE)}/>
+              <RowTitle title={intl.formatMessage({ id: 'Continue watching', defaultMessage: 'Continue watching' })} to={getRoutePath(Route.CONTINUE)}/>
               <CardRow name='new-episodes' count={Math.min(episodes.length, MOST)} cell={Cell} cellProps={{ episodes }}/>
             </section>
           )
