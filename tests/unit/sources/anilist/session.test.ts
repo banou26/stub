@@ -1,5 +1,6 @@
 // How the sign-in window tells that someone signed in to anilist.co: the nav's free marker first, then
 // the site's own Viewer through the page script.
+import { parseHTML } from 'linkedom'
 import { describe, expect, test, vi } from 'vitest'
 
 import type { Frame } from '@fkn/lib'
@@ -31,5 +32,13 @@ describe('whether the sign-in window is signed in', () => {
 
     const signedIn = loginWindow({ marker: true, viewer: true })
     expect(await anilistSignedIn(signedIn.login, PAGE_SCRIPT)).toBe(true)
+  })
+
+  test('marker matches both desktop and narrow mobile signed-in navs, and neither guest nav', () => {
+    const matches = (html: string) => Boolean(parseHTML(html).document.querySelector(SIGNED_IN_MARKER))
+    expect(matches('<div id="nav"><div class="wrap"><div class="user-wrap"></div></div></div>')).toBe(true)
+    expect(matches('<div class="mobile-nav"><div class="menu"></div></div>')).toBe(true)
+    expect(matches('<div id="nav"><div class="wrap guest"><a href="/login">Login</a></div></div>')).toBe(false)
+    expect(matches('<div class="mobile-nav guest"><div class="menu"></div></div>')).toBe(false)
   })
 })

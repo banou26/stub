@@ -16,11 +16,12 @@ export const ANILIST_LOGIN_URL = 'https://anilist.co/login'
 export const ANILIST_SESSION_URL = 'https://anilist.co/terms'
 
 /**
- * What anilist.co's nav draws for a signed-in viewer. `#nav` holds `.wrap` with the avatar's
- * `.user-wrap` when the site's `auth` getter answers, and `.wrap.guest` with a Login link otherwise
- * (the nav template in main.1dc97617.js, 2026-09-27).
+ * What anilist.co's nav draws for a signed-in viewer. On desktop widths `#nav` holds `.wrap` with
+ * the avatar's `.user-wrap` when `auth` answers and `.wrap.guest` otherwise; on narrower widths
+ * AniList swaps `#nav` out for `.mobile-nav`, which carries `.guest` only when `auth` is absent
+ * (measured in main.c8cbb5a5.js and live 500x700 window, 2026-11-23).
  */
-export const SIGNED_IN_MARKER = '#nav .user-wrap'
+export const SIGNED_IN_MARKER = '#nav .user-wrap, .mobile-nav:not(.guest)'
 
 /**
  * Whether the page in the sign-in window is signed in.
