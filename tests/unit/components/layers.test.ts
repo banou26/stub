@@ -98,8 +98,8 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
     why: 'inside one episode row: the full-row link under the source chips that sit on top of it',
   },
   'src/router/home/media-modal.tsx': {
-    values: [1],
-    why: "inside the preview's trailer: its controls, and the poster, title and a film's Play over the picture's fade; inside a service's card: its logo and mark over its picture's fade",
+    values: [1, 2],
+    why: "inside the preview's trailer: its controls, and the poster, title and a film's Play over the picture's fade (1), and the preview's Close button over the hero (2); inside a service's card: its logo and mark over its picture's fade (1)",
   },
   'src/components/media-franchise.tsx': {
     values: [1],
