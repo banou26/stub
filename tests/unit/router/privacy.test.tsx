@@ -130,3 +130,12 @@ test('names the hosts of the theme videos, the trailer embeds and the fonts', ()
   const { text: page } = text()
   for (const host of ['v.animethemes.moe', 'www.youtube.com', 'fonts.googleapis.com', 'fonts.gstatic.com']) expect(page, host).toContain(host)
 })
+
+// Framed Ripple defaults peer traffic to the FKN VPN, and switching it off exposes the viewer's address directly
+test("says what sees the viewer's address when the player's VPN is switched off", () => {
+  const { text: page } = text()
+  expect(page).toContain('through the FKN VPN by default')
+  expect(page).toContain('connects directly from your browser instead')
+  for (const host of ['tracker.openwebtorrent.com', 'tracker.webtorrent.dev', 'stun.l.google.com']) expect(page, host).toContain(host)
+  expect(page).toContain("does not change Ripple's own site")
+})

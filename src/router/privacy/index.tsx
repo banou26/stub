@@ -38,7 +38,7 @@ const sentence = (text: string) => text.endsWith('.') ? text : `${text}.`
 const Privacy = () => (
   <LegalDoc>
     <h1>Privacy</h1>
-    <div className="updated">Last updated 10 November 2026</div>
+    <div className="updated">Last updated 23 November 2026</div>
 
     <p>
       stub is an independent, non-commercial personal project. In short: it has no accounts and no server
@@ -152,6 +152,13 @@ const Privacy = () => (
       picked there, or else your browser's, and the audio and subtitle languages you picked there or last picked in a player, so they can offer releases in
       them. A source also receives what you enter for it there, such as an access key, and its own code decides where
       that goes.
+    </p>
+    <p>
+      Playing a torrent uses Ripple, whose peer traffic goes through the FKN VPN by default. If you switch the
+      player's VPN off, the player connects directly from your browser instead, so the torrent's other peers, the
+      trackers tracker.openwebtorrent.com and tracker.webtorrent.dev (and any WebSocket tracker a torrent names), the
+      STUN host stun.l.google.com, and your device's own DNS resolver see your IP address. That switch applies only
+      inside stub's player and does not change Ripple's own site.
     </p>
 
     <h2>The optional browser extension</h2>
