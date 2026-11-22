@@ -310,6 +310,25 @@ test('a category change that moves the pick shows no Play until the new show\'s 
   expect(play()?.href).toBe(`/watch/${uriOf('b')}/ag:(anilist:b-1)`)
 })
 
+test('trailer playback and mute buttons expose accessible names and toggle state on click', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  hero([show('a')])
+
+  const playback = document.body.querySelector('.player-controls button.playback')!
+  const mute = document.body.querySelector('.player-controls button.volume-icon')!
+  expect(playback).not.toBeNull()
+  expect(playback.getAttribute('type')).toBe('button')
+  expect(playback.getAttribute('aria-label')).toBe('Pause trailer')
+
+  act(() => { playback.dispatchEvent(new Event('click', { bubbles: true })) })
+  expect(playback.getAttribute('aria-label')).toBe('Play trailer')
+
+  expect(mute.getAttribute('type')).toBe('button')
+  expect(mute.getAttribute('aria-label')).toBe('Unmute')
+  act(() => { mute.dispatchEvent(new Event('click', { bubbles: true })) })
+  expect(mute.getAttribute('aria-label')).toBe('Mute')
+})
+
 // The cluster's id the hero held was retired by the merge, and it picked another show.
 test('the hero keeps its show when its cluster merges with another of the same show', () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)

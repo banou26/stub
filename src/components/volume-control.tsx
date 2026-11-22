@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react'
 
 import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useIntl } from 'react-intl'
 import { css } from '@emotion/react'
 
 import useScrub from '../utils/use-scrub'
@@ -16,10 +17,16 @@ gap: 0.5rem;
   position: relative;
   width: 3rem;
   height: 3rem;
+  padding: 0;
+  border-radius: 0.4rem;
   cursor: pointer;
   background-color: transparent;
   border: none;
   outline: none;
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
   .icon-body {
     position: absolute;
     top: 50%;
@@ -32,6 +39,13 @@ gap: 0.5rem;
     left: 50%;
     transform: translate(-50%, -50%);
   }
+}
+
+&:focus-within .volume-area .volume-panel {
+  width: 6rem;
+  margin-right: 3px;
+  -webkit-transition: margin .2s cubic-bezier(0,0,0.2,1),width .2s cubic-bezier(0,0,0.2,1);
+  transition: margin .2s cubic-bezier(0,0,0.2,1),width .2s cubic-bezier(0,0,0.2,1);
 }
 
 .volume-area {
@@ -59,7 +73,13 @@ gap: 0.5rem;
       cursor: pointer;
       outline: 0;
 
-      &.volume-control-hover {
+      &:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+        border-radius: 0.4rem;
+      }
+
+      &.volume-control-hover, &:focus-visible {
         width: 6rem;
         /* width: 52px; */
         margin-right: 3px;
@@ -114,6 +134,7 @@ export const VolumeControl = (
   { defaultMuted = true, defaultVolume = 1, onMutedUpdate, onVolumeUpdate }:
   { defaultMuted?: boolean, onMutedUpdate: (muted: boolean) => void, defaultVolume?: number, onVolumeUpdate: (adjustedVolume: number, volume: number) => void }
 ) => {
+  const intl = useIntl()
   const [volume, setVolume] = useState(defaultVolume)
   const [isMuted, setMuted] = useState(defaultMuted)
   const [volumeBarElement, setVolumeBarElement] = useState<HTMLDivElement | null>(null)
@@ -132,6 +153,36 @@ export const VolumeControl = (
     onMutedUpdate(isMuted ? false : true)
   }, [setMuted, setVolume, volumeScrubValue, isMuted])
 
+  const updateVolume = useCallback((next: number) => {
+    const clamped = Math.min(1, Math.max(0, Math.round(next * 100) / 100))
+    setVolume(clamped)
+    onVolumeUpdate(clamped ** 2, clamped)
+    if (isMuted && clamped > 0) {
+      setMuted(false)
+      onMutedUpdate(false)
+    } else if (!isMuted && clamped === 0) {
+      setMuted(true)
+      onMutedUpdate(true)
+    }
+  }, [isMuted, onMutedUpdate, onVolumeUpdate])
+
+  const onSliderKeyDown = useCallback((event: KeyboardEvent) => {
+    const step = 0.05
+    const page = 0.1
+    const current = isMuted ? 0 : (volume ?? 0)
+    const next =
+      event.key === 'ArrowRight' || event.key === 'ArrowUp' ? current + step
+      : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? current - step
+      : event.key === 'PageUp' ? current + page
+      : event.key === 'PageDown' ? current - page
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? 1
+      : undefined
+    if (next === undefined) return
+    event.preventDefault()
+    updateVolume(next)
+  }, [isMuted, updateVolume, volume])
+
   const hoverVolumeArea: HTMLAttributes<HTMLDivElement | HTMLButtonElement>['onMouseOver'] = useCallback(() => {
     setHiddenVolumeArea(false)
   }, [setHiddenVolumeArea])
@@ -149,20 +200,36 @@ export const VolumeControl = (
 
   const volumeIcon = (
     <>
-      <VolumeIcon className="icon-outline" size={30} strokeWidth={3} stroke="black"/>
-      <VolumeIcon className="icon-body" size={30}/>
+      <VolumeIcon className="icon-outline" size={30} strokeWidth={3} stroke="black" aria-hidden="true"/>
+      <VolumeIcon className="icon-body" size={30} aria-hidden="true"/>
     </>
   )
 
   return (
     <div css={style} dir="ltr" onMouseLeave={mouseOutBottom}>
-      <button className="volume-icon" onClick={toggleMuteButton} onMouseOver={hoverVolumeArea}>
+      <button
+        type="button"
+        className="volume-icon"
+        aria-label={isMuted
+          ? intl.formatMessage({ id: 'Unmute', defaultMessage: 'Unmute' })
+          : intl.formatMessage({ id: 'Mute', defaultMessage: 'Mute' })}
+        aria-pressed={isMuted}
+        onClick={toggleMuteButton}
+        onMouseOver={hoverVolumeArea}
+      >
         {volumeIcon}
       </button>
       <div className="volume-area" onMouseOver={hoverVolumeArea}>
         <div
           ref={ref => setVolumeBarElement(ref)}
           className={`volume-panel${hiddenVolumeArea ? '' : ' volume-control-hover'}`}
+          role="slider"
+          tabIndex={0}
+          aria-label={intl.formatMessage({ id: 'Volume', defaultMessage: 'Volume' })}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round((isMuted ? 0 : (volume ?? 0)) * 100)}
+          onKeyDown={onSliderKeyDown}
           onMouseDown={scrubHandler}
         >
           <div className="slider">

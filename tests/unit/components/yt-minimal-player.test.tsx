@@ -308,3 +308,9 @@ test('a new video gets a new frame, hidden until its own embed answers', () => {
   expect(listening(embed())).toBe(1)
   expect(frame().style.display).toBe('')
 })
+
+test('the trailer frame stays out of keyboard tab order', () => {
+  const { frame } = player({ url: TRAILER, onError: () => {} })
+  expect(frame().getAttribute('tabIndex')).toBe('-1')
+  expect(frame().hasAttribute('inert')).toBe(true)
+})

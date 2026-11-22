@@ -132,11 +132,21 @@ scrollbar-gutter: stable;
       align-items: center;
       gap: 1rem;
 
-      & > span {
+      & > .playback {
         position: relative;
         width: 3rem;
         height: 3rem;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        border-radius: 0.4rem;
         cursor: pointer;
+
+        &:focus-visible {
+          outline: 2px solid #fff;
+          outline-offset: 2px;
+        }
 
         .icon-body {
           position: absolute;
@@ -927,10 +937,11 @@ const MediaModal = ({ mediaNodes, closeTo = '/' }: { mediaNodes: GetReleasingMed
     )
   }
 
+  const fallbackLabel = title ? undefined : (media?.titles?.at(0)?.title || 'Stub')
   return (
     /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party
        has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
-    <ModalBackdrop data-party-scroll css={style} labelledBy={title ? headingId : undefined} label={title ? undefined : (media?.titles?.at(0)?.title || 'Stub')} onClose={() => onOpenChange(false)}>
+    <ModalBackdrop data-party-scroll css={style} labelledBy={title ? headingId : undefined} label={fallbackLabel} onClose={() => onOpenChange(false)}>
       {closeButton}
       {/* until the details say it is a film, the preview draws a series' */}
       <div className={movie ? 'hero film' : 'hero'}>
@@ -950,18 +961,25 @@ const MediaModal = ({ mediaNodes, closeTo = '/' }: { mediaNodes: GetReleasingMed
               : undefined
           }
           <div className={`player-controls ${!selectedTrailer?.url ? 'hidden' : ''}`}>
-            <span className="playback">
+            <button
+              type="button"
+              className="playback"
+              aria-label={playerPaused
+                ? intl.formatMessage({ id: 'Play trailer', defaultMessage: 'Play trailer' })
+                : intl.formatMessage({ id: 'Pause trailer', defaultMessage: 'Pause trailer' })}
+              onClick={() => setPlayerPaused(paused => !paused)}
+            >
               {
                 playerPaused
-                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(false)} />
-                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(true)} />
+                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" aria-hidden="true"/>
+                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" aria-hidden="true"/>
               }
               {
                 playerPaused
-                  ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
-                  : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
+                  ? <LucidePlay className="icon-body" size={30} aria-hidden="true"/>
+                  : <LucidePause className="icon-body" size={30} aria-hidden="true"/>
               }
-            </span>
+            </button>
             <VolumeControl
               defaultMuted={playerMuted}
               onMutedUpdate={setPlayerMuted}

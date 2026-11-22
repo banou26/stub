@@ -3,6 +3,7 @@ import type { GetReleasingMediaPageSubscription } from '../../generated/graphql'
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'preact/compat'
 import { LucidePause, LucidePlay } from 'lucide-react'
+import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { useRoute } from 'wouter'
 
@@ -61,11 +62,21 @@ height: 70vh;
     align-items: center;
     gap: 1rem;
 
-    & > span {
+    & > .playback {
       position: relative;
       width: 3rem;
       height: 3rem;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: inherit;
+      border-radius: 0.4rem;
       cursor: pointer;
+
+      &:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
 
       .icon-body {
         position: absolute;
@@ -177,6 +188,7 @@ const TheaterPlay = ({ uri }: { uri: string }) => {
 }
 
 const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'] }) => {
+  const intl = useIntl()
   const [matchMediaRoute] = useRoute(getRouterRoutePath(Route.MEDIA))
   const [waiting, setWaiting] = useState(true)
   useEffect(() => {
@@ -265,18 +277,25 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
       <div className="information" css={style}>
         {trailer?.url && (
           <div className="player-controls">
-            <span className="playback">
+            <button
+              type="button"
+              className="playback"
+              aria-label={playerPaused
+                ? intl.formatMessage({ id: 'Play trailer', defaultMessage: 'Play trailer' })
+                : intl.formatMessage({ id: 'Pause trailer', defaultMessage: 'Pause trailer' })}
+              onClick={() => setPlayerPaused(paused => !paused)}
+            >
               {
                 playerPaused
-                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(false)} />
-                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" onClick={() => setPlayerPaused(true)} />
+                  ? <LucidePlay className="icon-outline" size={30} strokeWidth={3} stroke="black" aria-hidden="true"/>
+                  : <LucidePause className="icon-outline" size={30} strokeWidth={3} stroke="black" aria-hidden="true"/>
               }
               {
                 playerPaused
-                  ? <LucidePlay className="icon-body" size={30} onClick={() => setPlayerPaused(false)}/>
-                  : <LucidePause className="icon-body" size={30} onClick={() => setPlayerPaused(true)}/>
+                  ? <LucidePlay className="icon-body" size={30} aria-hidden="true"/>
+                  : <LucidePause className="icon-body" size={30} aria-hidden="true"/>
               }
-            </span>
+            </button>
             <VolumeControl
               defaultMuted={playerMuted}
               onMutedUpdate={setPlayerMuted}

@@ -221,6 +221,8 @@ export const YoutubeMinimalPlayer = (
       allow="autoplay; encrypted-media; picture-in-picture"
       referrerPolicy="strict-origin-when-cross-origin"
       loading="eager"
+      tabIndex={-1}
+      inert
       style={{ display: isReady ? '' : 'none' }}
     />
   )
