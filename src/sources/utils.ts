@@ -214,6 +214,12 @@ export const stripTitle = (title: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const spaceTitle = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+
 /** Both wasm modules initialise once, lazily, because only the matching paths need them. */
 let frizbeeReady: Promise<unknown> | undefined
 const readyFrizbee = () => (frizbeeReady ??= initFrizbee())
@@ -303,6 +309,21 @@ export const searchScore = async (query: string, title: string): Promise<number>
   // separately here because frizbee pays a positional bonus the query only collects at position 0,
   // so "frieren" inside "sousou no frieren" reaches 116 of its own 132 rather than all of it.
   if (containsNeedle(q, t)) return 1
+  const sq = spaceTitle(query)
+  const st = spaceTitle(title)
+  if (sq && st) {
+    if (containsNeedle(sq, st)) return 1
+    const words = sq.split(' ')
+    if (words.length > 1) {
+      const tokens = st.split(' ')
+      const allWordsMatch = words.every(word =>
+        word.length >= 2
+          ? containsNeedle(word, st) || containsNeedle(word, t)
+          : tokens.some(token => token.startsWith(word))
+      )
+      if (allWordsMatch) return 0.9
+    }
+  }
   const ceiling = selfScore(q)
   if (!ceiling) return 0
   return Math.min(1, alignScore(q, t) / ceiling)
@@ -312,10 +333,11 @@ export const searchRelevance = async (query: string, titles: string[]): Promise<
   titles.length ? Math.max(...await Promise.all(titles.map(title => searchScore(query, title)))) : 0
 
 /**
- * The least `searchRelevance` a search result needs to be shown. Sources match loosely, sometimes
- * semantically, server side: Apple returns "WondLa" for "frieren".
+ * The least `searchRelevance` a search result needs to be shown. At 0.8, near-spelling or scattered
+ * subsequence matches such as "frieren" against "Shangri-La Frontier Season 3" (0.727) or "bleach"
+ * against "Beach Therapy" (0.750) are dropped while multi-word typos and real matches still clear.
  */
-export const SEARCH_RELEVANCE_THRESHOLD = 0.7
+export const SEARCH_RELEVANCE_THRESHOLD = 0.8
 
 // A catalogue search ranks a free-text query over the WHOLE catalogue, so results[0] is whatever came
 // back, and linking it asserts identity permanently: graph.link has no inverse. Measured against 62 live

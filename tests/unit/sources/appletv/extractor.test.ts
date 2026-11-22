@@ -228,13 +228,13 @@ test('a search answers every row before it reads any, then the rows it read', as
   expect(answers.map(answer => [answer.asked, answer.nodes.length])).toEqual([[1, 11], [2, 1]])
 })
 
-// The page keeps a result whose title scores at least 0.7 against the query, and only those are read,
-// each once although the shelves list it twice. "Wolfs" keeps Wolfwalkers (0.82) and Wolfboy (0.71) and
-// drops Five Days at Memorial (0.33); "house" keeps nothing, its best being Slow Horses (0.62).
+// The page keeps a result whose title scores at least 0.8 against the query, and only those are read,
+// each once although the shelves list it twice. "Wolfs" keeps Wolfwalkers (0.82) and drops
+// Wolfboy (0.71) and Five Days at Memorial (0.33); "house" keeps nothing, its best being Slow Horses (0.62).
 test.each([
   ['Tehran', SEARCH_TEHRAN, ['Tehran']],
   ['Napoleon', SEARCH_NAPOLEON, ['Napoleon', 'Napoleon: The Director’s Cut']],
-  ['Wolfs', SEARCH_WOLFS, ['Wolfs', 'Wolfwalkers', 'Wolfboy and the Everything Factory']],
+  ['Wolfs', SEARCH_WOLFS, ['Wolfs', 'Wolfwalkers']],
   ['house', SEARCH_HOUSE, []],
 ])('a search for %s reads only the items the page keeps, each once', async (term, answer, read) => {
   const { asked } = await searchRecorded(term, searchTable(term, answer))

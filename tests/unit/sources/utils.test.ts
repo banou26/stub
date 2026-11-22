@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import type { ExtractorServerContext } from '../../../src/worker/extractor'
 
-import { buildHandlesFromUri, desc, dropCredit, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity, waitForMedia } from '../../../src/sources/utils'
+import { SEARCH_RELEVANCE_THRESHOLD, buildHandlesFromUri, desc, dropCredit, makeMedia, mergeHandles, partOf, pickTitleMatch, searchScore, searchRelevance, simplifyTitle, stripTitle, titleSimilarity, waitForMedia } from '../../../src/sources/utils'
 import SAMPLES from '../../fixtures/descriptions/samples.json'
 
 // The home and search pages filter on searchRelevance at 0.7, so a query that normalizes to nothing
@@ -25,6 +25,20 @@ test('a latin query is unchanged', async () => {
   expect(await searchScore('frieren', 'Sousou no Frieren')).toBe(1)
   expect(await searchScore('one piece', 'One Piece')).toBe(1)
   expect(await searchScore('frieren', 'Cowboy Bebop')).toBeLessThan(0.7)
+})
+
+test('loose near-spelling or scattered matches stay under SEARCH_RELEVANCE_THRESHOLD while multi-word and punctuation queries match', async () => {
+  expect(await searchScore('frieren', 'Shangri-La Frontier Season 3')).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('bleach', 'Beach Therapy')).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('gintama', 'Nintama Rantaro')).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('frieren', "My Girlfriend's Friend")).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('the office', 'Death Office')).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('doctor who', 'Doctor Cha')).toBeLessThan(SEARCH_RELEVANCE_THRESHOLD)
+  expect(await searchScore('re zero', 'Re:Zero kara Hajimeru Isekai Seikatsu')).toBe(1)
+  expect(await searchScore('steins gate', 'Steins;Gate')).toBe(1)
+  expect(await searchScore('frieren season 2', 'Sousou no Frieren 2nd Season')).toBe(0.9)
+  expect(await searchScore('frieren season 3', 'Sousou no Frieren 3rd Season')).toBe(0.9)
+  expect(await searchScore('shingeki no kyojn', 'Shingeki no Kyojin')).toBeGreaterThanOrEqual(SEARCH_RELEVANCE_THRESHOLD)
 })
 
 // the matcher counts code points; String.length counts utf-16 units, so an astral-plane title used to
