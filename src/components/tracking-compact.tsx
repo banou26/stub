@@ -632,11 +632,11 @@ const TrackingCompact = (
   const sendable = targets.filter(({ target }) => target.kind === 'check' && target.sendable).map(({ answer }) => answer)
   const disabled = !sendable.length
   const picker = pickerScale(sendable.map(answer => answer.tracker.scoreScale))
-  const pendingSync = useMemo(() => syncPatches(targets, shown, picker?.scale), [targets, shown, picker?.scale])
+  const pendingSync = answers.length > 1 && queue.idle() ? syncPatches(targets, row, picker?.scale) : {}
   const hasPendingSync = Object.keys(pendingSync).length > 0
   const syncAll = () => {
     if (!hasPendingSync) return
-    tell(shown)
+    tell(row)
     stage(pendingSync, true)
   }
 

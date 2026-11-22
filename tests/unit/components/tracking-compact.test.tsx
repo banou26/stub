@@ -360,7 +360,10 @@ describe('the compact tracking row', () => {
       answers: [{ ...anilist, entry: { status: 'WATCHING', progress: 13, score: 80, episodeCount: 14 } }, mal, stubListed],
     })
     expect(button(host, 'Sync all')).toBeFalsy()
+    await click(q(host, '.more'))
+    expect(button(host, 'Sync all'), 'does not flash during an optimistic +1 save').toBeFalsy()
     expect(button(render({ tracking: nothing }).host, 'Sync all')).toBeFalsy()
+    expect(button(render({ tracking: { summary: { status: 'WATCHING', progress: 14, episodeCount: 14 }, disagreements: [], answers: [anilist] } }).host, 'Sync all'), 'hidden when only one tracker answers').toBeFalsy()
   })
 
   test('names every control for a screen reader', () => {

@@ -88,7 +88,7 @@ describe('the tracking row', () => {
       'Simkl entry', 'S', 'Simkl loading', 'Trakt entry', 'T', 'Save to Trakt', 'Paused for a while', 'Annict entry',
       'A', 'Save to Annict', 'Could not answer', 'Score, 8 out of 10', '8', 'AniList 6 / 10, Kitsu 7.5 / 10',
       'Status', 'Watching', 'Rewatching', 'Plan to watch', 'Completed', 'Paused', 'Dropped', 'Remove from list',
-      'AniList Paused, Kitsu Watching', 'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more',
+      'AniList Paused, Kitsu Watching', 'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more', 'Sync all',
     ])
   })
 
@@ -100,7 +100,7 @@ describe('the tracking row', () => {
       'Simkl: loading', 'S', 'Trakt: paused', 'Trakt: paused', 'T', 'Annict: error', 'Annict: error', 'A',
       'Score, 8 out of 10', '8', 'AniList 6 / 10, Kitsu 7.5 / 10', 'Status', 'Watching', 'Rewatching',
       'Plan to watch', 'Completed', 'Paused', 'Dropped', 'Remove from list', 'AniList Paused, Kitsu Watching',
-      'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more',
+      'Episodes', '/ 14', 'AniList 13, Kitsu 12', 'One episode more', 'Sync all',
     ])
   })
 
