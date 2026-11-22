@@ -564,6 +564,25 @@ describe('the title page', () => {
     expect(['aria-label', 'title'].flatMap(name => attributes('.actions .icon', name))).toEqual(['Share', 'Trailer', 'Share', 'Trailer'])
   })
 
+  test('renders a theme version badge only for grouped variants', () => {
+    const withVariants = {
+      ...work(1, 'One Piece'),
+      themes: [
+        { kind: 'OP', sequence: 1, group: null, title: 'We Are!', artists: ['Hiroshi Kitadani'], video: null },
+        { kind: 'OP', sequence: 1, group: 'English Version', title: 'We Are!', artists: [], video: null },
+        { kind: 'OP', sequence: 1, group: 'English Version - 4Kids', title: 'One Piece Theme', artists: [], video: null },
+      ],
+    }
+    const { host, answer } = titlePage(withVariants.uri)
+    answer(withVariants)
+    const rows = [...host.querySelectorAll('[data-themes] .theme')]
+    expect(rows).toHaveLength(3)
+    expect(rows[0]!.querySelector('.group')).toBeNull()
+    expect(rows[1]!.querySelector('.group')?.textContent).toBe('English Version')
+    expect(rows[1]!.querySelector('.group')?.getAttribute('dir')).toBe('auto')
+    expect(rows[2]!.querySelector('.group')?.textContent).toBe('English Version - 4Kids')
+  })
+
   test('holds a full page of relations: three cards and the page buttons under them', () => {
     const { host } = titlePage(work(1, 'Frieren').uri)
     expect(host.querySelectorAll('.relations.placeholder > .grid > *')).toHaveLength(3)

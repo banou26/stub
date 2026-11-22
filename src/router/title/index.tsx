@@ -521,6 +521,15 @@ const style = css`
       color: rgba(255, 255, 255, 0.55);
     }
 
+    .group {
+      flex: none;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.2rem;
+    }
+
     .song {
       flex: 1 1 0;
       min-width: 0;
@@ -626,7 +635,7 @@ const Staff = ({ staff }: { staff: (Credit & { roles?: string[] | null })[] }) =
   )
 }
 
-type Theme = { kind: string, sequence?: number | null, title?: string | null, artists: string[], video?: string | null }
+type Theme = { kind: string, sequence?: number | null, group?: string | null, title?: string | null, artists: string[], video?: string | null }
 
 // the player and videojs behind it load on the first Play, never with the page
 const ThemeVideo = ({ url }: { url: string }) => {
@@ -661,6 +670,7 @@ const ThemeRows = ({ themes }: { themes: Theme[] }) => {
                   : <span className="toggle"/>
               }
               <span className="kind">{theme.kind}{theme.sequence ?? ''}</span>
+              {theme.group ? <span className="group" dir="auto">{theme.group}</span> : undefined}
               <span className="song">{theme.title}</span>
               <span className="artists"><bdi>{intl.formatList(theme.artists, NAME_LIST)}</bdi></span>
             </div>

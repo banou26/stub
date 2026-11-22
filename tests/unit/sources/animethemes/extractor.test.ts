@@ -41,6 +41,20 @@ test('a group credited once per member is one artist', () => {
   expect(themes[0]!.artists).toEqual(['Aqours'])
 })
 
+test('grouped variants carry their label and follow ungrouped themes in source group order', () => {
+  const [op1, ed1, , op2] = anime.animethemes
+  const dub = { ...op1!, group: { name: 'English Version' } }
+  const fourKids = { ...op1!, group: { name: 'English Version - 4Kids' }, song: { ...op1!.song, title: { romaji: 'One Piece Theme', native: null } } }
+  const themes = normalizeThemes({ ...anime, animethemes: [dub, op2!, fourKids, ed1!, op1!] })
+  expect(themes.map(theme => [theme.kind, theme.sequence, theme.group, theme.title])).toEqual([
+    ['OP', 1, null, 'Yuusha'],
+    ['OP', 2, null, 'Haru'],
+    ['ED', 1, null, 'Anytime Anywhere'],
+    ['OP', 1, 'English Version', 'Yuusha'],
+    ['OP', 1, 'English Version - 4Kids', 'One Piece Theme'],
+  ])
+})
+
 const rig = () => {
   const bodies: { query: string, variables: Record<string, unknown> }[] = []
   const ctx = {

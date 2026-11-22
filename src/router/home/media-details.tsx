@@ -207,6 +207,7 @@ export const GET_MEDIA_DETAILS = gql(`
       themes @include(if: $details) {
         kind
         sequence
+        group
         title
         artists
         video

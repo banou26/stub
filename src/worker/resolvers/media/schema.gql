@@ -519,6 +519,8 @@ type MediaTheme {
   kind: String!
   """Its number among its kind, null where the source gives none."""
   sequence: Int
+  """Variant group (for example "English Version"), null for the main list."""
+  group: String
   title: String
   artists: [String!]!
   """Null where the source lists the song before any video of it."""

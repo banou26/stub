@@ -24,6 +24,9 @@ const QUERY = `
       animethemes {
         type
         sequence
+        group {
+          name
+        }
         song {
           title {
             romaji
@@ -55,6 +58,7 @@ export type AnimeThemesAnime = {
   animethemes: {
     type: string
     sequence?: number | null
+    group?: { name: string } | null
     song?: { title?: { romaji?: string | null, native?: string | null } | null, performances?: { artist: { name: { main: string } } }[] | null } | null
     animethemeentries: { videos: { nodes: { link: string }[] } }[]
   }[]
@@ -64,18 +68,26 @@ const KINDS = ['OP', 'ED', 'IN']
 
 const SITES: Record<string, string> = { mal: 'MAL', anilist: 'ANILIST' }
 
-/** Openings, then endings, then inserts, each by number, an unnumbered one read as a first. */
-export const normalizeThemes = (anime: AnimeThemesAnime): MediaTheme[] =>
-  anime.animethemes
+/** Openings, then endings, then inserts per group (ungrouped first, then groups in source order), an unnumbered one read as a first. */
+export const normalizeThemes = (anime: AnimeThemesAnime): MediaTheme[] => {
+  const groupOrder = new Map<string, number>()
+  for (const theme of anime.animethemes) {
+    const name = theme.group?.name
+    if (name && !groupOrder.has(name)) groupOrder.set(name, groupOrder.size + 1)
+  }
+  const rankOf = (group: string | null | undefined) => group ? (groupOrder.get(group) ?? groupOrder.size + 1) : 0
+  return anime.animethemes
     .map(theme => ({
       kind: theme.type,
       sequence: theme.sequence ?? null,
+      group: theme.group?.name ?? null,
       title: theme.song?.title?.romaji ?? theme.song?.title?.native ?? null,
       // a group comes once per member it credits: Aqours nine times on Love Live! Sunshine!!'s opening (2026-10-12)
       artists: [...new Set(theme.song?.performances?.map(({ artist }) => artist.name.main))],
       video: theme.animethemeentries.flatMap(entry => entry.videos.nodes)[0]?.link ?? null,
     }))
-    .sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || (a.sequence ?? 1) - (b.sequence ?? 1))
+    .sort((a, b) => rankOf(a.group) - rankOf(b.group) || KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || (a.sequence ?? 1) - (b.sequence ?? 1))
+}
 
 /**
  * An enricher: asked with the MyAnimeList id the title already carries (AniList's when it has none),
