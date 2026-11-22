@@ -307,6 +307,30 @@ describe('the preview', () => {
     expect(document.body.querySelector('.modal'), 'the preview closed').toBeNull()
   })
 
+  test('exposes an accessible dialog that closes on Escape or via its Close button', () => {
+    const { answer, history } = preview(work(1, 'Frieren').uri)
+    answer(work(1, 'Frieren'))
+    const dialog = modal()
+    expect(dialog.getAttribute('role')).toBe('dialog')
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    const labelledBy = dialog.getAttribute('aria-labelledby')
+    expect(labelledBy).toBeTruthy()
+    expect(document.getElementById(labelledBy!)?.textContent).toBe('Frieren')
+
+    const more = dialog.querySelector('.links > .more')!
+    act(() => { more.dispatchEvent(Object.assign(new Event('keydown', { bubbles: true, cancelable: true }), { key: 'Escape' })) })
+    expect(document.body.querySelector('.modal')).toBeNull()
+    expect(history.at(-1)).toBe('/')
+
+    const second = preview(work(2, 'Dungeon Meshi').uri)
+    second.answer(work(2, 'Dungeon Meshi'))
+    const closeBtn = modal().querySelector('button.close')!
+    expect(closeBtn.getAttribute('aria-label')).toBe('Close')
+    click(closeBtn)
+    expect(document.body.querySelector('.modal')).toBeNull()
+    expect(second.history.at(-1)).toBe('/')
+  })
+
   // a source joining later turns the media unsettled again, as JustWatch answering after the rest have does
   test('holds nothing a second time once every source has answered, though a source joins later', () => {
     const late = { ...partial(3), type: 'MOVIE' }

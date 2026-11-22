@@ -3,14 +3,14 @@ import type { MediaParams } from '../path'
 import type { DetailsMedia } from './media-details'
 
 import { css } from '@emotion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter'
 
 import { MediaDescriptionContentType } from '../../generated/graphql'
 import YoutubeMinimalPlayer from '../../components/yt-minimal-player'
-import { LucidePause, LucidePlay } from 'lucide-react'
+import { LucidePause, LucidePlay, X } from 'lucide-react'
 import VolumeControl from '../../components/volume-control'
 import Collapsible from '../../components/collapsible'
 import MediaCategories, { categoriesStyle } from '../../components/media-categories'
@@ -69,6 +69,26 @@ scrollbar-gutter: stable;
   /* it takes the focus on open (see ModalBackdrop), and a box is not a control to ring */
   outline: none;
 
+  & > .close {
+    position: absolute;
+    top: 1.6rem;
+    inset-inline-end: 1.6rem;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+
+    &:hover { color: #fff; border-color: rgba(255, 255, 255, 0.5); background: rgba(0, 0, 0, 0.7); }
+    &:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  }
+
   @media (min-width: 1024px) {
       max-width: 100rem;
   }
@@ -105,9 +125,9 @@ scrollbar-gutter: stable;
     .player-controls {
       position: absolute;
       top: 0;
-      inset-inline-end: 0;
+      inset-inline-end: 6.4rem;
       z-index: 1;
-      padding: 2.5rem;
+      padding: 1.8rem 0;
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -623,9 +643,15 @@ scrollbar-gutter: stable;
   padding: 4rem 0.6rem;
 
   .modal {
+    & > .close {
+      top: 1.2rem;
+      inset-inline-end: 1.2rem;
+    }
+
     .trailer {
       .player-controls {
-        padding: 1.5rem;
+        inset-inline-end: 5.6rem;
+        padding: 1.4rem 0;
       }
     }
 
@@ -748,6 +774,7 @@ const SideFacts = ({ media, movie }: { media: DetailsMedia, movie: boolean }) =>
 /** `closeTo` is the page under the preview, which closing it returns to. */
 const MediaModal = ({ mediaNodes, closeTo = '/' }: { mediaNodes: GetReleasingMediaPageSubscription['mediaPage']['nodes'], closeTo?: string }) => {
   const intl = useIntl()
+  const headingId = useId()
   const rawParams = useParams<MediaParams>()
   const params = { ...rawParams, uri: routeMediaUri(rawParams.uri) }
   const [, navigate] = useLocation()
@@ -883,15 +910,28 @@ const MediaModal = ({ mediaNodes, closeTo = '/' }: { mediaNodes: GetReleasingMed
       <Link className="more" href={`${getRoutePath(Route.TITLE, { uri: media?.uri ?? params.uri, name: title })}${search}`}>{intl.formatMessage({ id: 'More details', defaultMessage: 'More details' })}</Link>
     </div>
   )
-  const heading = title || settled ? <h2 className="title">{title}</h2> : <Placeholder className="title-pending"/>
+  const heading = title || settled ? <h2 id={title ? headingId : undefined} className="title">{title}</h2> : <Placeholder className="title-pending"/>
+  const closeButton = (
+    <button type="button" className="close" aria-label={intl.formatMessage({ id: 'Close', defaultMessage: 'Close' })} onClick={() => onOpenChange(false)}>
+      <X size={20} aria-hidden="true"/>
+    </button>
+  )
 
   if (!open) return <Redirect to={closeTo} />
-  if (notKept({ data, operation }, uri)) return <ModalBackdrop css={style} onClose={() => onOpenChange(false)}><NotFound/></ModalBackdrop>
+  if (notKept({ data, operation }, uri)) {
+    return (
+      <ModalBackdrop css={style} label={intl.formatMessage({ id: '404 No page found', defaultMessage: '404 No page found' })} onClose={() => onOpenChange(false)}>
+        {closeButton}
+        <NotFound/>
+      </ModalBackdrop>
+    )
+  }
 
   return (
     /* `data-party-scroll`: this overlay locks the body and scrolls inside itself, so the watch party
        has to follow THIS box rather than the frozen page (see components/party-sync.tsx). */
-    <ModalBackdrop data-party-scroll css={style} onClose={() => onOpenChange(false)}>
+    <ModalBackdrop data-party-scroll css={style} labelledBy={title ? headingId : undefined} label={title ? undefined : (media?.titles?.at(0)?.title || 'Stub')} onClose={() => onOpenChange(false)}>
+      {closeButton}
       {/* until the details say it is a film, the preview draws a series' */}
       <div className={movie ? 'hero film' : 'hero'}>
         <div className="trailer" style={!selectedTrailer?.url && headerUrl ? { backgroundImage: `url(${headerUrl})` } : {}}>
