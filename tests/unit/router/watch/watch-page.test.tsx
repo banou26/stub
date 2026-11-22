@@ -2474,6 +2474,63 @@ test('Cancel hands the keys back to a torrent\'s player through the plugin', asy
   expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
 })
 
+test('auto-advancing through Next forces focus onto the next player unless a text input is focused', async () => {
+  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  const { episodes } = media as { episodes: object[] }
+  episodes.push(row(4, crunchyroll(4), release('c')))
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+
+  const control = host.querySelector('.episode-step')!
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
+  try {
+    await toTheNext(rerender)
+    const next = host.querySelector('iframe')!
+    const nextFocus = vi.spyOn(next, 'focus')
+    next.dispatchEvent(new Event('load'))
+    expect(nextFocus, 'non-text control loses focus to the auto-advanced embed').toHaveBeenCalledTimes(1)
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+
+  // Auto-advance from ep 3 to ep 4 (plugin player) while a button outside stage holds focus
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  expect(navigate).toHaveBeenCalledWith(watchPath(4, 'cr:GX4'))
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
+  try {
+    params = { ...params, episodeUri: 'ag:(anilist:1-4)', sourceUri: 'nyaa:c' }
+    rerender()
+    await settle()
+    await report(played)
+    expect(pluginPlayers.focus[1], 'non-text control loses focus to the auto-advanced plugin player').toHaveBeenCalledTimes(1)
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+
+  // While an input is focused, auto-advance leaves focus where the user is typing
+  await report(played, ended)
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'cr:GX2' }
+  rerender()
+  await settle()
+  await report(played, ended)
+  await wait(UP_NEXT_MS)
+  const input = document.createElement('input')
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => input })
+  try {
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'cr:GX3' }
+    rerender()
+    await settle()
+    const guarded = host.querySelector('iframe')!
+    const guardedFocus = vi.spyOn(guarded, 'focus')
+    guarded.dispatchEvent(new Event('load'))
+    expect(guardedFocus, 'a text input keeps focus during auto-advance').not.toHaveBeenCalled()
+  } finally {
+    Reflect.deleteProperty(document, 'activeElement')
+  }
+})
+
 test('with no player in it yet, the stage holds the episode\'s picture and title, and with one, the player', async () => {
   const { host, rerender } = await atTheEnd({ handles: [], thumbnails: [{ url: 'https://img.example/e3.jpg' }] })
   expect(host.querySelector('.stage')!.children.length, 'the player beside it').toBeGreaterThan(1)

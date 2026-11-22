@@ -416,16 +416,32 @@ describe('a package\'s chapters', () => {
 // two frames down, a focus on the package's frame stops in the package's document, so the package hands the keys on,
 // once its document holds the focus the page gave it
 describe('a package\'s focus', () => {
-  test('focuses the package\'s frame afresh, then asks the package to hand the keys on', () => {
+  test('focuses the package\'s frame afresh, then yields before asking the package to hand the keys on', async () => {
     const order: string[] = []
     const frame = { blur: () => { order.push('blur') }, focus: () => { order.push('frame') } } as unknown as HTMLIFrameElement
     const focus = vi.fn(async () => { order.push('package') })
     pluginPlaybackLink({ ...fakeSource().source, focus }, frame)!.focus!()
+    expect(order).toEqual(['blur', 'frame'])
+    await new Promise(resolve => setTimeout(resolve, 0))
     expect(order).toEqual(['blur', 'frame', 'package'])
   })
 
+  test('exposes focus for a bare frame without package focus, and skips queued inner focus if disposed first', async () => {
+    const frameOnlyOrder: string[] = []
+    const bareFrame = { blur: () => { frameOnlyOrder.push('blur') }, focus: () => { frameOnlyOrder.push('frame') } } as unknown as HTMLIFrameElement
+    pluginPlaybackLink(fakeSource().source, bareFrame)!.focus!()
+    expect(frameOnlyOrder).toEqual(['blur', 'frame'])
+
+    const focus = vi.fn(async () => {})
+    const link = pluginPlaybackLink({ ...fakeSource().source, focus }, bareFrame)!
+    link.focus!()
+    link.dispose()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(focus).not.toHaveBeenCalled()
+  })
+
   // a plain function, since a vi.fn handles the promise it returns and a refusal through it is never unhandled
-  test('is absent for a package without it, and does nothing once the link is disposed or refused', async () => {
+  test('is absent for a package without it or a frame, and does nothing once the link is disposed or refused', async () => {
     expect(pluginPlaybackLink(fakeSource().source)!.focus).toBeUndefined()
     let asked = 0
     const focus = async () => { asked++; throw new Error('gone') }

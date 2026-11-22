@@ -749,8 +749,12 @@ const Watch = () => {
   }, [viaPlugin, embedUrl])
 
   // A frame in place of another takes the keys: the one they were in went with its frame, and a press on Next left
-  // them on a button that went too, which in fullscreen is the page's only control.
+  // them on a button that went too, which in fullscreen is the page's only control. When UpNext advances, keys are
+  // moved back onto the player unless the viewer is typing in a text field.
   const framed = useRef(false)
+  const autoAdvanced = useRef(false)
+  const isTextControl = (element: Element | null) =>
+    Boolean(element && ((element as HTMLElement).isContentEditable || /^(input|textarea|select)$/i.test(element.tagName)))
   useEffect(() => {
     const iframe = embedFrame.current
     if (viaPlugin || !embedUrl || !iframe) return
@@ -758,7 +762,12 @@ const Watch = () => {
       framed.current = true
       return
     }
-    const focus = () => { if (!document.activeElement || document.activeElement === document.body) iframe.focus() }
+    const focus = () => {
+      const forced = autoAdvanced.current
+      autoAdvanced.current = false
+      const active = document.activeElement
+      if (forced ? !isTextControl(active) : (!active || active === document.body)) iframe.focus()
+    }
     iframe.addEventListener('load', focus)
     return () => iframe.removeEventListener('load', focus)
   }, [viaPlugin, embedUrl])
@@ -771,14 +780,20 @@ const Watch = () => {
     if (!pluginLink) return
     const replaced = framed.current
     framed.current = true
-    if (!replaced || !pluginLink.focus) return
+    if (!replaced) return
     const stop = pluginLink.onReport(() => {
       stop()
+      const forced = autoAdvanced.current
+      autoAdvanced.current = false
       const active = document.activeElement
-      if (!active || active === document.body || stage.current?.contains(active)) pluginLink.focus?.()
+      const canTake = forced ? !isTextControl(active) : (!active || active === document.body || stage.current?.contains(active))
+      if (canTake) {
+        if (pluginLink.focus) pluginLink.focus()
+        else stage.current?.querySelector('iframe')?.focus()
+      }
     })
     return stop
-  }, [pluginLink])
+  }, [pluginLink, params.episodeUri, selectedSourceUri])
 
   const [unplayable, setUnplayable] = useState<readonly string[]>([])
   useEffect(() => {
@@ -1020,7 +1035,7 @@ const Watch = () => {
                       `}
                     />
                   )}
-                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease}/>
+                <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true }}/>
               </div>
             )
             : needsExtension

@@ -166,14 +166,18 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
     ended: () => ended,
     duration: () => duration,
     chapters: () => chapters,
-    ...focus ? {
+    ...(focus || frame) ? {
       focus: () => {
         if (disposed) return
         // blurred first: once the package removed a player's frame that had the keys, Chromium 155 has taken the
-        // focus out of the package's document while this page still names its frame focused (2026-10-26)
+        // focus out of the package's document while this page still names its frame focused (2026-10-26).
+        // Yield a turn before delegating into the inner frame when `frame` is present (Chrome 156 focus race).
         frame?.blur()
         frame?.focus()
-        focus().catch(() => {})
+        if (focus) {
+          if (frame) setTimeout(() => { if (!disposed) focus().catch(() => {}) }, 0)
+          else focus().catch(() => {})
+        }
       },
     } : {},
     ...offerEnding ? {

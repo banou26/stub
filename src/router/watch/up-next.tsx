@@ -106,13 +106,15 @@ const offeredOn = (link: PlaybackLink, chapters: MediaChapter[], duration: numbe
  * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
  * `episode` carries into the next, whose player may be the same link.
  */
-const UpNext = ({ link, next, chapters, stage, episode, release }: {
+const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
   link: PlaybackLink | undefined
   next: { href: string, title?: string } | undefined
   chapters: MediaChapter[]
   stage: RefObject<HTMLElement | null>
   episode?: string
   release?: { uri: string, url?: string }
+  /** Called right as Next opens the following episode, manually or at countdown end. */
+  onAdvance?: () => void
 }) => {
   const intl = useIntl()
   const [, navigate] = useLocation()
@@ -125,6 +127,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release }: {
     ? document.exitFullscreen().catch(() => {})
     : undefined
   const open = (to: string) => {
+    onAdvance?.()
     const leaving = leaveFrameFullscreen()
     if (leaving) void leaving.then(() => navigate(to))
     else navigate(to)
