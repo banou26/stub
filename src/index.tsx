@@ -56,7 +56,7 @@ const style = css`
      out of this, but a fact's dd (GLOSSARY.md): a line opening on a Latin word would turn left to right. So does an inline
      inside a listed block, whose letters would be hidden from the block choosing the direction. Chrome 156 reads only
      the prefixed match-parent */
-  :where(h1, h2, h4, dd, input, textarea, .name, .from, .second, .song, .person .detail, .line .who, .line .text, [class*='title']:not(.title-text), .title-text div, [class*='description'], [class*='description'] :is(div, p)):where(:dir(rtl)) {
+  :where(h1, h2, h4, dd, input, textarea, .name, .from, .second, .song, .person .detail, .line .who, .line .text, [class*='title']:not(.title-text), .title-text div, [class*='description'], [class*='description'] :is(div, p)):where(:dir(rtl)):where(:not([dir='auto'])) {
     unicode-bidi: plaintext;
     text-align: -webkit-match-parent;
     text-align: match-parent;

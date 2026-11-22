@@ -807,7 +807,7 @@ const TitlePage = () => {
           }
           {
             description
-              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dangerouslySetInnerHTML={{ __html: description }}/>
+              ? <div ref={descriptionRef} className={open ? 'description' : 'description clamped'} dir="auto" dangerouslySetInnerHTML={{ __html: description }}/>
               : settled ? undefined : <PlaceholderLines count={5} className="description"/>
           }
           {description && (clamped || open) ? <button type="button" className="expand" onClick={() => setOpen(!open)}>{open ? intl.formatMessage({ id: 'Collapse', defaultMessage: 'Collapse' }) : intl.formatMessage({ id: 'Expand', defaultMessage: 'Expand' })}</button> : undefined}

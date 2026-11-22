@@ -81,6 +81,7 @@ export const TextEllipsis = (
 
   return (
     <div
+      dir={rest.dir ?? 'auto'}
       {...rest}
       ref={setRef}
       css={style}

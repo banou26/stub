@@ -28,3 +28,32 @@ export const entryLabel = (
   const title = episode?.titles?.at(0)?.title
   return isSingleFilm(media) ? media?.titles?.at(0)?.title ?? title : episodeLabel(episode?.episodeNumber, title)
 }
+
+const MARKER = '\uE000'
+
+/**
+ * Splits `entryLabel` around the episode title so RTL views can isolate and ellipsize the title at
+ * its own end without clipping the leading words of an LTR title behind an RTL episode prefix.
+ */
+export const entryLabelParts = (
+  media: Media | null | undefined,
+  episode: Titled & { episodeNumber?: number | null } | null | undefined,
+): { prefix: string, title: string, suffix: string } | undefined => {
+  const title = episode?.titles?.at(0)?.title
+  if (isSingleFilm(media)) {
+    const resolved = media?.titles?.at(0)?.title ?? title
+    return resolved ? { prefix: '', title: resolved, suffix: '' } : undefined
+  }
+  if (!title) return undefined
+  if (episode?.episodeNumber == null) return { prefix: '', title, suffix: '' }
+  const formatted = intl.formatMessage({ id: 'E{number} - {title}', defaultMessage: 'E{number} - {title}' }, { number: episode.episodeNumber, title: MARKER })
+  const at = formatted.indexOf(MARKER)
+  if (at === -1) return undefined
+  const before = formatted.slice(0, at)
+  const after = formatted.slice(at + MARKER.length)
+  return {
+    prefix: before.endsWith('\u2068') ? before.slice(0, -1) : before,
+    title,
+    suffix: after.startsWith('\u2069') ? after.slice(1) : after,
+  }
+}

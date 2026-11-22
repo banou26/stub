@@ -778,7 +778,7 @@ const Episode = (
         {
           episode.shortDescriptions?.at(0)
             ? (
-              <div className="description">
+              <div className="description" dir="auto">
                 <TextEllipsis className="ellipsis">
                   {episode.shortDescriptions?.at(0)?.shortDescription}
                 </TextEllipsis>

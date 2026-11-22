@@ -1,7 +1,7 @@
 import { expect, test } from 'vite-plus/test'
 
 import { startLanguage } from '../../../src/i18n'
-import { entryLabel, episodeLabel } from '../../../src/utils/episode-label'
+import { entryLabel, entryLabelParts, episodeLabel } from '../../../src/utils/episode-label'
 
 test('an episode is named by its number and title, whichever of the two it has', () => {
   expect(episodeLabel(5, 'The Rain Stops')).toBe('E5 - The Rain Stops')
@@ -37,4 +37,35 @@ test('a film is named by its own title alone, its entry\'s when it has none, and
   const part = { episodeNumber: 2, titles: [{ title: 'Part 1 of 2' }] }
   expect(entryLabel({ type: 'MOVIE', titles: [{ title: 'Spirited Away' }], episodes: [entry, part] }, part), 'a film in parts').toBe('E2 - Part 1 of 2')
   expect(entryLabel({ type: 'MOVIE', titles: [{ title: 'Halloween' }], episodes: [entry] }, entry), 'a film of one entry').toBe('Halloween')
+})
+
+test('entryLabelParts isolates the title cleanly across RTL and LTR locales', async () => {
+  const tv = { type: 'TV', titles: [{ title: 'Frieren' }] }
+  expect(entryLabelParts(tv, { episodeNumber: 2, titles: [{ title: 'Hero of the South' }] })).toEqual({
+    prefix: 'E2 - ',
+    title: 'Hero of the South',
+    suffix: '',
+  })
+  expect(entryLabelParts({ type: 'MOVIE', titles: [{ title: 'Spirited Away' }] }, { episodeNumber: 1, titles: [{ title: 'Other' }] })).toEqual({
+    prefix: '',
+    title: 'Spirited Away',
+    suffix: '',
+  })
+  expect(entryLabelParts(tv, { episodeNumber: null, titles: [{ title: 'Special' }] })).toEqual({
+    prefix: '',
+    title: 'Special',
+    suffix: '',
+  })
+  expect(entryLabelParts(tv, { episodeNumber: 2 })).toBeUndefined()
+
+  try {
+    await startLanguage({ language: 'ar', languages: ['ar-EG'] })
+    expect(entryLabelParts(tv, { episodeNumber: 2, titles: [{ title: 'Hero of the South' }] })).toEqual({
+      prefix: 'الحلقة \u20682\u2069 - ',
+      title: 'Hero of the South',
+      suffix: '',
+    })
+  } finally {
+    await startLanguage({ language: 'en', languages: ['en-US'] })
+  }
 })

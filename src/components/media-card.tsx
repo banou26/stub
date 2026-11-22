@@ -157,7 +157,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
     <Link to={to} css={style} style={accentVars(accent)}>
       <div className="cover" style={coverUrl ? { backgroundImage: `url(${coverUrl})` } : undefined}>
         <div className="cover-text">
-          <div className="title">{media.titles?.at(0)?.title}</div>
+          <div className="title" dir="auto">{media.titles?.at(0)?.title}</div>
           {season && <div className="season">{season}</div>}
         </div>
       </div>
@@ -178,7 +178,7 @@ const MediaCard = ({ media, to }: { media: ListedMedia, to: Path }) => {
           {media.averageScore != null && <StarScore percent={media.averageScore}/>}
         </div>
         {meta && <div className="meta">{meta}</div>}
-        <div className="description">{media.shortDescriptions?.at(0)?.shortDescription}</div>
+        <div className="description" dir="auto">{media.shortDescriptions?.at(0)?.shortDescription}</div>
         <MediaCategories genres={media.genres?.slice(0, 2)}/>
       </div>
     </Link>

@@ -219,6 +219,39 @@ for (const language of ['ar', 'he']) {
       await expect(synopsis).toBeInViewport()
     })
 
+    test('clamped English episode synopses isolate direction for ellipses, and watch step titles cut at their own end', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(at('/media/tmdb:93405-s1'))
+      const ellipsis = page.locator('.episode .description .ellipsis').first()
+      await expect(ellipsis).toBeVisible({ timeout: 45_000 })
+      expect(await ellipsis.evaluate(element => {
+        const style = getComputedStyle(element)
+        return { dir: element.getAttribute('dir'), direction: style.direction, unicodeBidi: style.unicodeBidi, textAlign: style.textAlign }
+      })).toEqual({ dir: 'auto', direction: 'ltr', unicodeBidi: 'isolate', textAlign: 'start' })
+
+      await page.goto(at(WATCH))
+      const stepTitle = page.locator('.episode-step.next .step-title')
+      await expect(stepTitle).toBeAttached({ timeout: 45_000 })
+      const metrics = await stepTitle.evaluate(element => {
+        element.textContent = 'Hero of the South and the Long Journey Back to the Magic City'
+        const range = document.createRange()
+        range.setStart(element.firstChild!, 0)
+        range.setEnd(element.firstChild!, 1)
+        const charRect = range.getBoundingClientRect()
+        const boxRect = element.getBoundingClientRect()
+        return {
+          dir: element.getAttribute('dir'),
+          direction: getComputedStyle(element).direction,
+          firstCharOffset: charRect.left - boxRect.left,
+          overflowing: element.scrollWidth > element.clientWidth,
+        }
+      })
+      expect(metrics.dir).toBe('auto')
+      expect(metrics.direction).toBe('ltr')
+      expect(metrics.overflowing, 'the control: long English title overflows the narrow step button').toBe(true)
+      expect(metrics.firstCharOffset, 'the H stays inside the box so the end is ellipsized instead of the start').toBeGreaterThanOrEqual(0)
+    })
+
     test('a name in its source\'s words keeps its marks after its last letter, on each page that draws one', async ({ page }) => {
       test.setTimeout(240_000)
       const read = async (path: string, selectors: string[]) => {

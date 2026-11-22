@@ -35,7 +35,7 @@ import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
 import { hearUnplayable } from '../../embed-unplayable'
 import { serveEmbedTitle } from '../../embed-title'
 import { embedTracks, type TracksLink } from '../../embed-tracks'
-import { entryLabel, isSingleFilm } from '../../utils/episode-label'
+import { entryLabel, entryLabelParts, isSingleFilm } from '../../utils/episode-label'
 import { useNow } from '../../utils/use-now'
 import { useDocumentTitle } from '../../utils/use-document-title'
 import { usePluginStatuses } from '../../utils/use-plugin-statuses'
@@ -453,6 +453,10 @@ const style = css`
       justify-content: flex-end;
       margin-inline-start: 2rem;
       text-align: end;
+
+      .step-target {
+        justify-content: flex-end;
+      }
     }
 
     svg {
@@ -476,9 +480,23 @@ const style = css`
     }
 
     .step-target {
+      display: flex;
+      min-width: 0;
       overflow: hidden;
       font-size: 1.2rem;
       opacity: 0.6;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .step-prefix {
+      flex-shrink: 0;
+      white-space: pre;
+    }
+
+    .step-title {
+      min-width: 0;
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -496,7 +514,7 @@ const style = css`
   }
 `
 
-type EpisodeLink = { href: string, title?: string }
+type EpisodeLink = { href: string, title?: string, parts?: ReturnType<typeof entryLabelParts> }
 
 const EpisodeStep = ({ link, previous = false }: { link: EpisodeLink, previous?: boolean }) => {
   const intl = useIntl()
@@ -507,7 +525,25 @@ const EpisodeStep = ({ link, previous = false }: { link: EpisodeLink, previous?:
         <span className="step-label">
           {previous ? intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' }) : intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })}
         </span>
-        {link.title ? <span className="step-target">{link.title}</span> : undefined}
+        {
+          link.title
+            ? (
+              <span className="step-target">
+                {
+                  link.parts
+                    ? (
+                      <>
+                        {link.parts.prefix ? <span className="step-prefix">{link.parts.prefix}</span> : undefined}
+                        <span className="step-title" dir="auto">{link.parts.title}</span>
+                        {link.parts.suffix ? <span className="step-prefix">{link.parts.suffix}</span> : undefined}
+                      </>
+                    )
+                    : link.title
+                }
+              </span>
+            )
+            : undefined
+        }
       </span>
       {previous ? undefined : <ChevronRight/>}
     </Link>
@@ -994,14 +1030,19 @@ const Watch = () => {
   const playingOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
   const playingUrl = episodeHandles.find(handle => handle.uri === selectedSourceUri)?.url ?? undefined
   const sourceOf = (handles: Parameters<typeof sourceFor>[0]) => sourceFor(handles, playingOrigin, ways, playingUrl)
-  const linkTo = (target: typeof next): EpisodeLink | undefined => target?.episode.uri ? {
-    href: getRoutePath(Route.WATCH, {
-      mediaUri: target.mediaUri,
-      episodeUri: target.episode.uri,
-      sourceUri: sourceOf(playableHandlesOf(target.episode.handles)),
-    }),
-    title: entryLabel([before, media, after].find(run => run?.episodes.includes(target.episode)), target.episode),
-  } : undefined
+  const linkTo = (target: typeof next): EpisodeLink | undefined => {
+    if (!target?.episode.uri) return undefined
+    const run = [before, media, after].find(each => each?.episodes.includes(target.episode))
+    return {
+      href: getRoutePath(Route.WATCH, {
+        mediaUri: target.mediaUri,
+        episodeUri: target.episode.uri,
+        sourceUri: sourceOf(playableHandlesOf(target.episode.handles)),
+      }),
+      title: entryLabel(run, target.episode),
+      parts: entryLabelParts(run, target.episode),
+    }
+  }
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there

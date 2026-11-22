@@ -151,7 +151,7 @@ const WorkCard = ({ card, search, route }: { card: Card, search: string, route: 
       {cover ? <img className="cover" src={cover} alt=""/> : <div className="cover"/>}
       <div className="body">
         {card.label ? <div className="relation">{card.label}</div> : undefined}
-        <div className="title">{title ?? card.node.uri}</div>
+        <div className="title" dir="auto">{title ?? card.node.uri}</div>
         {card.meta ? <div className="meta">{card.meta}</div> : undefined}
       </div>
     </Link>
