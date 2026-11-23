@@ -392,7 +392,7 @@ const runChunked = async (
     // THE WRITER'S ONLY WRITE STATEMENT, so this is the one place the guards' component snapshot can
     // go stale. Bumping here is what lets `readComponents` answer every proposal of one batch from a
     // single read instead of re-scanning the graph per proposal (see guards.ts).
-    invalidateComponents()
+    invalidateComponents(cypher)
   }
 }
 

@@ -49,13 +49,13 @@ export type Graph = {
  */
 const WRITES = /\b(CREATE|MERGE|SET|DELETE|DETACH|DROP|ALTER|COPY|INSTALL|LOAD)\b/i
 
-const writeListeners: (() => void)[] = []
+const writeListeners: ((cypher: string) => void)[] = []
 
-export const onGraphWrite = (listener: () => void): void => { writeListeners.push(listener) }
+export const onGraphWrite = (listener: (cypher: string) => void): void => { writeListeners.push(listener) }
 
 const announceWrite = (cypher: string): void => {
   if (!WRITES.test(cypher)) return
-  for (const listener of writeListeners) listener()
+  for (const listener of writeListeners) listener(cypher)
 }
 
 let turn: Promise<unknown> = Promise.resolve()

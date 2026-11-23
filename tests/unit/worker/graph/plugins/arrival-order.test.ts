@@ -38,7 +38,7 @@ import { resetPassState } from '../../../../../src/worker/graph/plugins/runner'
 import { clearReadCache, episodesOf, resolveMedia } from '../../../../../src/worker/graph/read'
 import { graphReady, GRAPH_NODE_TABLES } from '../../../../../src/worker/graph/schema'
 import {
-  DEFAULT_PLUGINS, passSettled, startScheduler, stopScheduler,
+  DEFAULT_PLUGINS, passSettled, schedulePass, startScheduler, stopScheduler,
 } from '../../../../../src/worker/graph/scheduler'
 import { answer, episode, media, rowsOf, sameAs, title } from './fixtures'
 
@@ -459,22 +459,10 @@ const turnedRound: Rows = {
 }
 
 /**
- * KNOWN GAP, skipped rather than pinned because these plans each build a different graph. A contested
- * row whose own answer claims a row on EACH side is refused to both, but over those rows guard 5 reads
- * its side from its links, and its links are that contest's own verdicts. Its side moves with every
- * verdict, the contests over those rows read it, the pass never settles, and the iteration cap keeps
- * whichever graph arrival order reached: on the Re:ZERO rows these five plans build five graphs, the
- * third welding both runs.
- *
- * NO RULE INSIDE GUARD 5 HAS CLOSED IT (2026-10-16). Read the row's sides from what its claimants CLAIM
- * and they cannot move, but a claim another contest refuses still counts, and an id a side holds only
- * through another row's claim does not: weighing the row alone there welds two titles or hands a
- * disputed id to one side (the controls below), or leaves this shape as it is. Read them from LINKS,
- * or sever the row's verdict links for every guard, and the rule waits on the verdicts it decides,
- * which keeps the order dependence. Closing it needs guard 5 to settle such a row without reading the
- * links it is deciding.
+ * A contested row whose own answer claims a row on EACH side is refused to both, and the joint
+ * claim-settled ledger resolves every arrival order identically without cycling on its own links.
  */
-test.skip('KNOWN GAP: a contested row claiming a row on each side builds one graph in every arrival order', async () => {
+test('a contested row claiming a row on each side builds one graph in every arrival order', async () => {
   const graph = [
     'cluster anilist:189046',
     'cluster kitsu:49746 mal:61316',
@@ -787,8 +775,8 @@ test('a link naming both stages opens the first stage in every arrival order', a
 
 /**
  * Mebius Dust as answered live on 2026-10-16: Kitsu names MyAnimeList 39473, an id the offline
- * database does not hold, while Offline's row and AniList both name 63802. Wherever Offline's row
- * lands no later than Kitsu's, Kitsu's id is the one left out and the trackers read the card.
+ * database does not hold, while Offline's row and AniList both name 63802. Joint guard 4 and guard 5
+ * claim settlement ranks Offline's claims first, so Kitsu's wrong id is refused in every order.
  */
 const SUMMER = { type: 'TV', season: 'SUMMER', seasonYear: 2026, titles: [title('en', 'Mebius Dust')] }
 const MEBIUS_DUST: Rows = {
@@ -802,15 +790,125 @@ const MEBIUS_DUST: Rows = {
   anilist: () => answer('media', media('anilist:108992', { ...SUMMER, episodeCount: 12, handles: [sameAs(media('mal:63802'))] })),
 }
 
-test('Kitsu\'s MyAnimeList id for Mebius Dust is refused wherever Offline\'s row lands no later than Kitsu\'s', async () => {
+test('Kitsu\'s MyAnimeList id for Mebius Dust is refused in every arrival order', async () => {
   const keys = Object.keys(MEBIUS_DUST)
-  for (const plan of [[keys], ...permutations(keys).filter(landsBy('offline', 'kitsu')).map(order => order.map(key => [key]))]) {
+  for (const plan of [[keys], ...permutations(keys).map(order => order.map(key => [key]))]) {
     const shape = await reZeroBuild(MEBIUS_DUST, plan)
     expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan)).toEqual([
       'cluster anilist:108992 kitsu:42337 mal:63802 offline:mal-63802',
       'cluster mal:39473',
     ])
     expect(await trackedAs('anilist:108992'), JSON.stringify(plan)).toBe('catalogue')
+  }
+})
+
+test('Mebius Dust turned round still prefers Offline and welds nothing in every arrival order', async () => {
+  const turnedMebius: Rows = {
+    offline: () => answer('media', media('offline:kitsu-63802', {
+      ...SUMMER,
+      episodeCount: 12,
+      handles: [sameAs(media('kitsu:63802')), sameAs(media('mal:108992')), sameAs(media('anidb:42337'))],
+    })),
+    kitsu: () => answer('media', media('anidb:42337', { ...SUMMER, handles: [sameAs(media('mal:108992')), sameAs(media('kitsu:39473'))] })),
+    mal: () => answer('media', media('kitsu:63802', { ...SUMMER, episodeCount: 12 })),
+    anilist: () => answer('media', media('mal:108992', { ...SUMMER, episodeCount: 12, handles: [sameAs(media('kitsu:63802'))] })),
+  }
+  const keys = Object.keys(turnedMebius)
+  for (const plan of [[keys], ...permutations(keys).map(order => order.map(key => [key]))]) {
+    const shape = await reZeroBuild(turnedMebius, plan)
+    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan)).toEqual([
+      'cluster anidb:42337 kitsu:63802 mal:108992 offline:kitsu-63802',
+      'cluster kitsu:39473',
+    ])
+  }
+})
+
+/** Verify representative batch plans (one-batch, forward, reversed, and each answer isolated last) settle to one graph. */
+const samplePlans = (keys: string[]): string[][][] => [
+  [keys],
+  keys.map(key => [key]),
+  [...keys].reverse().map(key => [key]),
+  ...keys.map(last => [...keys.filter(key => key !== last).map(key => [key]), [last]]),
+  ...keys.map(last => [keys.filter(key => key !== last), [last]]),
+]
+
+const buildSettled = async (rows: Rows, plan: string[][]): Promise<string[]> => {
+  await truncate()
+  resetPassState()
+  startScheduler({ plugins: DEFAULT_PLUGINS, audit: false })
+  for (const batch of plan) {
+    await ingestAnswers(await Promise.all(batch.map(key => rows[key]!())))
+    await passSettled()
+  }
+  await passSettled()
+  const shape = await shapeOf()
+  const manual = await schedulePass('manual')
+  stopScheduler()
+  expect(manual.changes, `manual pass after ${JSON.stringify(plan)}`).toEqual([])
+  return shape
+}
+
+test('n1x settles to the designed Season 4 graph across arrival orders', async () => {
+  const row = (uri: string, fields: Record<string, unknown>, handles: string[] = []): Rows[string] =>
+    () => answer('media', media(uri, { ...fields, handles: handles.map(handle => sameAs(media(handle))) }))
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const rows = reZero([sameAs(media('mal:61316')), sameAs(media('anidb:5'))], {
+    kitsu: row('kitsu:49746', SEASON, ['anilist:189046', 'mal:61316', 'anidb:4']),
+    breakTime: row('kitsu:50665', BREAK_TIME, ['anilist:189046', 'mal:63830', 'anidb:5', 'livechart:1']),
+    w: row('livechart:2', THIRD, ['anidb:5']),
+    anidb5: row('anidb:5', THIRD, ['livechart:2']),
+  })
+  const plans = samplePlans(Object.keys(rows))
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anidb:4 anilist:189046 kitsu:49746 mal:61316',
+    'cluster anidb:5 livechart:2',
+    'cluster kitsu:50665 livechart:1 mal:63830',
+  ])
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
+  }
+})
+
+test('f6xs breaks its cyclic contest cleanly with zero welds across arrival orders', async () => {
+  const row = (uri: string, fields: Record<string, unknown>, handles: string[] = []): Rows[string] =>
+    () => answer('media', media(uri, { ...fields, handles: handles.map(handle => sameAs(media(handle))) }))
+  const episodes = Array.from({ length: 19 }, (_, index) => episode(`mal:61316-${index + 1}`, 'mal:61316', { episodeNumber: index + 1 }))
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const rows = reZero([sameAs(media('mal:61316')), sameAs(media('anizip:777'))], {
+    mal: () => answer('media', media('mal:61316', { ...SEASON, episodes, handles: [sameAs(media('anidb:5'))] })),
+    stray: row('anizip:999', THIRD, ['anilist:189046', 'mal:61316', 'anidb:6']),
+  })
+  const plans = samplePlans(Object.keys(rows))
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anidb:5 kitsu:49746 mal:61316',
+    'cluster anidb:6 anizip:999',
+    'cluster anilist:189046 anizip:777',
+    'cluster kitsu:50665 mal:63830',
+  ])
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
+  }
+})
+
+test('f6wf guard 4 chain builds one graph with zero welds in every arrival order', async () => {
+  const episodes = Array.from({ length: 19 }, (_, index) => episode(`mal:61316-${index + 1}`, 'mal:61316', { episodeNumber: index + 1 }))
+  const rows: Rows = {
+    mal: () => answer('media', media('mal:61316', { ...SEASON, episodes, handles: [sameAs(media('anidb:5'))] })),
+    stray: () => answer('media', media('anizip:999', { ...OTHER, handles: [sameAs(media('mal:61316')), sameAs(media('anidb:6'))] })),
+    anidb5: () => answer('media', media('anidb:5', SEASON)),
+    anidb6: () => answer('media', media('anidb:6', OTHER)),
+  }
+  const keys = Object.keys(rows)
+  const plans = [[keys], ...permutations(keys).map(order => order.map(key => [key]))]
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anidb:5 mal:61316',
+    'cluster anidb:6 anizip:999',
+  ])
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
   }
 })
 
@@ -824,8 +922,9 @@ test('the first stage alone joins across its catalogues in every arrival order',
   const keys = Object.keys(rows)
   for (const plan of [[keys], ...permutations(keys).map(order => order.map(key => [key]))]) {
     const shape = await reZeroBuild(rows, plan)
-    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan))
-      .toEqual(['cluster anilist:190327 mal:61469 offline:mal-61469'])
+    expect(shape.filter(line => line.startsWith('cluster')), JSON.stringify(plan)).toEqual([
+      'cluster anilist:190327 mal:61469 offline:mal-61469',
+    ])
     expect(await trackedAs('mal:61469')).toBe('catalogue')
     const [cluster] = await rowsOf('MATCH (m:Media {uri: $uri})-[:MEMBER_OF]->(c:Cluster) RETURN c.anomalies AS anomalies', { uri: 'mal:61469' })
     expect(JSON.stringify(cluster?.anomalies ?? null), JSON.stringify(plan)).not.toContain('disagreeing-ids')

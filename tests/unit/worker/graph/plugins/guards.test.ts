@@ -21,7 +21,7 @@ import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { graphReady } from '../../../../../src/worker/graph/schema'
 import { resetPassState, runPlugins } from '../../../../../src/worker/graph/plugins/runner'
 import { profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
-import { contestSites, contestedBy, prepareGuards, readComponents } from '../../../../../src/worker/graph/plugins/guards'
+import { prepareGuards, readComponents, readLedger, settleLedger } from '../../../../../src/worker/graph/plugins/guards'
 import { orderLinkProposals, precedenceClassOf } from '../../../../../src/worker/graph/plugins/sameness'
 import { applyPluginOutput } from '../../../../../src/worker/graph/plugins/writer'
 import { answer, episode, media, rowsOf, title } from './fixtures'
@@ -305,157 +305,133 @@ test('the control: two offline ids borrowed from the SAME catalogue still disagr
     .toMatchObject({ status: 'refused', reason: 'disagreeing-ids' })
 })
 
-/**
- * `contestedBy` is a COUNTERFACTUAL, and "already contested" is not a shortcut for it.
- *
- * Driven directly, because reaching this branch through the writer needs a proposal that merges the
- * two straddling claimants of a THIRD row, which is a five row stage for one boolean.
- *
- * A site is contested when accepting the proposal would leave two of the target's claimants in
- * DIFFERENT components that disagree. A merge only ever JOINS, so a proposal that puts the two
- * straddling claimants into ONE component removes the very disagreement that made the site contested
- * with nothing merged. Reading `standing` first and returning early gets that backwards, and guard 4
- * then cuts a row it should have measured through.
- *
- * Mutation: hoist `if (site.standing) { contested.add(site.target); continue }` above the
- * reachability branch in `contestedBy`, which is what the fast-looking version does, and the first
- * assertion below reports the target as contested.
- */
-test('a proposal that joins the two disagreeing claimants un-contests their target', async () => {
-  const { query } = await graphReady()
-  const components = await readComponents(query)
-  // two claimants of one target, in their own components, disagreeing by their `mal` ids
-  const claimsInto = new Map([
-    ['kitsu:9000', [
-      { claimant: 'mal:9001', claimer: 'mal' },
-      { claimant: 'mal:9002', claimer: 'mal' },
-    ]],
+test('settleLedger settles a contested row naming both sides from claims alone', () => {
+  const profiles = new Map(
+    ['anilist:189046', 'mal:61316', 'mal:63830', 'kitsu:49746', 'kitsu:50665']
+      .map(uri => [uri, { scope: 'RUN', idParent: null }])
+  )
+  const claim = (claimant: string, target: string) => ({
+    claimant, target, claimer: claimant.slice(0, claimant.indexOf(':')), provenance: 'source',
+  })
+  const ledger = settleLedger(profiles, [
+    claim('anilist:189046', 'mal:61316'),
+    claim('anilist:189046', 'mal:63830'),
+    claim('kitsu:49746', 'anilist:189046'),
+    claim('kitsu:49746', 'mal:61316'),
+    claim('kitsu:50665', 'anilist:189046'),
+    claim('kitsu:50665', 'mal:63830'),
   ])
-  const parentOf = () => null
-  // the reverse index guard 5 cuts with: neither claimant shares a second target here
-  const claims = new Map([['mal:9001', new Set(['kitsu:9000'])], ['mal:9002', new Set(['kitsu:9000'])]])
-  const sites = contestSites(claimsInto, claims, components, parentOf)
 
-  expect(sites.length, 'the control: one site, and it is contested with nothing merged').toBe(1)
-  expect(sites[0]!.standing).toBe(true)
-
-  // the proposal IS the join between them, so under the graph it would leave behind the two claimants
-  // are one component and there is no longer a disagreement across the target
-  expect(contestedBy('mal:9001', 'mal:9002', { sites, parentOf, components, claims })).toEqual(new Set())
-
-  // and the control in the other direction: a proposal that reaches neither claimant leaves the
-  // standing verdict exactly as it was, which is the branch the line above must not swallow
-  expect(contestedBy('anilist:9500', 'kitsu:9500', { sites, parentOf, components, claims })).toEqual(new Set(['kitsu:9000']))
+  expect(ledger.contested.has('anilist:189046')).toBe(true)
+  expect(ledger.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(ledger.components.membersOf('kitsu:49746')).toEqual(['kitsu:49746', 'mal:61316'])
+  expect(ledger.components.membersOf('kitsu:50665')).toEqual(['kitsu:50665', 'mal:63830'])
 })
 
-/**
- * A proposal weighs only the contest sites it can reach, and answers every other one from `standing`
- * (the cost is measured at `reachOf` in guards.ts).
- *
- * Mutation: walk `facts.sites` instead of the sites the proposal's two keys reach and the cut count
- * goes from 0 to one per site per proposal.
- */
-test('a proposal weighs only the contest sites it can reach', async () => {
-  const { query } = await graphReady()
-  const plain = await readComponents(query)
-  let cuts = 0
-  const components = { ...plain, without: (excluded: string | Iterable<string>) => { cuts += 1; return plain.without(excluded) } }
-  // forty targets, each claimed by two `mal` rows that disagree, so every site is contested
-  const claimsInto = new Map<string, { claimant: string, claimer: string }[]>()
-  const claims = new Map<string, Set<string>>()
-  for (let index = 0; index < 40; index += 1) {
-    const target = `kitsu:${9200 + index}`
-    const pair = [`mal:${9300 + index * 2}`, `mal:${9301 + index * 2}`]
-    claimsInto.set(target, pair.map(claimant => ({ claimant, claimer: 'mal' })))
-    for (const claimant of pair) claims.set(claimant, new Set([target]))
-  }
-  const parentOf = () => null
-  const sites = contestSites(claimsInto, claims, components, parentOf)
-  const facts = { sites, parentOf, components, claims }
-  const every = new Set(claimsInto.keys())
+test('settleLedger prefers Offline claims in guard 4 even when a wrong claim sorts first', () => {
+  const profiles = new Map(
+    ['anidb:42337', 'kitsu:39473', 'kitsu:63802', 'mal:108992', 'offline:kitsu-63802']
+      .map(uri => [uri, { scope: 'RUN', idParent: null }])
+  )
+  const claim = (claimant: string, target: string) => ({
+    claimant, target, claimer: claimant.slice(0, claimant.indexOf(':')), provenance: 'source',
+  })
+  const ledger = settleLedger(profiles, [
+    claim('anidb:42337', 'kitsu:39473'),
+    claim('anidb:42337', 'mal:108992'),
+    claim('mal:108992', 'kitsu:63802'),
+    claim('offline:kitsu-63802', 'anidb:42337'),
+    claim('offline:kitsu-63802', 'kitsu:63802'),
+    claim('offline:kitsu-63802', 'mal:108992'),
+  ])
 
-  expect(sites.filter(site => site.standing).length, 'the control: forty sites, every one contested').toBe(40)
-  expect(contestedBy('anilist:9900', 'kitsu:9900', facts)).toEqual(every)
-
-  cuts = 0
-  for (let index = 0; index < 10; index += 1) {
-    expect(contestedBy(`anilist:${9901 + index}`, `kitsu:${9901 + index}`, facts)).toEqual(every)
-  }
-  expect(cuts, 'ten proposals that reach no site cut nothing').toBe(0)
-
-  // the control: a proposal that joins one site's two claimants is still weighed, and un-contests it
-  const joined = new Set(every)
-  joined.delete('kitsu:9200')
-  expect(contestedBy('mal:9300', 'mal:9301', facts)).toEqual(joined)
+  expect(ledger.refused4.has('anidb:42337\u0000kitsu:39473')).toBe(true)
+  expect(ledger.components.membersOf('anidb:42337')).toEqual([
+    'anidb:42337', 'kitsu:63802', 'mal:108992', 'offline:kitsu-63802',
+  ])
+  expect(ledger.components.membersOf('kitsu:39473')).toEqual(['kitsu:39473'])
 })
 
-/**
- * Which sites a proposal reaches is worked out once per set of facts, and a new set of facts is
- * weighed afresh: the Offline weighing in `prepareGuards` keeps the batch's sites and swaps in the
- * relation with Offline's pairs joined, and every batch of one write epoch shares one relation.
- *
- * The proposal reaches `kitsu:9100` only through the row that site cuts: `simkl:9450` joins the
- * target's component in the second relation, and nowhere in the first.
- *
- * Mutation: remember the reach by `facts.sites` instead of by `facts` and the second weighing answers
- * from the first relation, so the contest it makes is missed. Index the reach by the claimant keys
- * alone, without the cut rows' own components, and it is missed the same way. Remember it by
- * `facts.components` and a batch with no sites answers from the first batch's.
- */
-test('a proposal is weighed afresh for every set of facts', async () => {
-  const { query } = await graphReady()
-  const components = (await readComponents(query)).joined([])
-  // two claimants that agree (their ids share no catalogue), so the site is not contested
-  const claimsInto = new Map([
-    ['kitsu:9100', [{ claimant: 'anilist:9102', claimer: 'anilist' }, { claimant: 'mal:9101', claimer: 'mal' }]],
+test('settleLedger breaks cyclic guard 5 contests deterministically', () => {
+  const profiles = new Map(
+    ['anilist:189046', 'anidb:5', 'anidb:6', 'anizip:777', 'anizip:999', 'kitsu:49746', 'kitsu:50665', 'mal:61316', 'mal:63830']
+      .map(uri => [uri, { scope: 'RUN', idParent: null }])
+  )
+  const claim = (claimant: string, target: string) => ({
+    claimant, target, claimer: claimant.slice(0, claimant.indexOf(':')), provenance: 'source',
+  })
+  const ledger = settleLedger(profiles, [
+    claim('anilist:189046', 'mal:61316'),
+    claim('anilist:189046', 'anizip:777'),
+    claim('mal:61316', 'anidb:5'),
+    claim('kitsu:49746', 'anilist:189046'),
+    claim('kitsu:49746', 'mal:61316'),
+    claim('kitsu:50665', 'anilist:189046'),
+    claim('kitsu:50665', 'mal:63830'),
+    claim('anizip:999', 'anilist:189046'),
+    claim('anizip:999', 'mal:61316'),
+    claim('anizip:999', 'anidb:6'),
   ])
-  const claims = new Map([['anilist:9102', new Set(['kitsu:9100'])], ['mal:9101', new Set(['kitsu:9100'])]])
-  const parentOf = () => null
-  const sites = contestSites(claimsInto, claims, components, parentOf)
-  const facts = { sites, parentOf, components, claims }
 
-  expect(sites.map(site => site.standing), 'the control: one site, not contested with nothing merged').toEqual([false])
-  expect(contestedBy('simkl:9450', 'anilist:9103', facts), 'the control: the proposal reaches nothing yet').toEqual(new Set())
-
-  // the target's component gains `anidb:9104`, which now names it, and `mal:9101` with `simkl:9450`
-  // hanging off it: the proposal would put `anilist:9103` beside `mal:9101`, against `anilist:9102`
-  const joined = {
-    ...facts,
-    components: components.joined([['kitsu:9100', 'anidb:9104'], ['kitsu:9100', 'mal:9101'], ['mal:9101', 'simkl:9450']]),
-  }
-  expect(contestedBy('simkl:9450', 'anilist:9103', joined)).toEqual(new Set(['kitsu:9100']))
-
-  // the control: joining `anilist:9103` to `mal:9101` contests the target in this batch, and in a
-  // batch with no sites over the same relation it contests nothing
-  expect(contestedBy('mal:9101', 'anilist:9103', facts)).toEqual(new Set(['kitsu:9100']))
-  expect(contestedBy('mal:9101', 'anilist:9103', { sites: [], parentOf, components, claims: new Map() })).toEqual(new Set())
+  expect(ledger.unsettled.size).toBeGreaterThan(0)
+  expect(ledger.components.membersOf('kitsu:49746')).toContain('mal:61316')
+  expect(ledger.components.membersOf('anizip:999')).not.toContain('mal:61316')
 })
 
-/**
- * Two claimants are cut from every row they both claim, so a proposal reaches their site through any
- * of those rows' components, not only the target's.
- *
- * Mutation: index the reach by the target's component alone (`const cut = site.target` in `reachOf`)
- * and the proposal below is answered from `standing`, so `kitsu:9600` stays contested although the
- * proposal joins its two claimants.
- */
-test('a proposal reaches a site through every row its two claimants share', async () => {
+test('readLedger stays warm across LINK writes and refreshes on CLAIMS writes', async () => {
   const { query } = await graphReady()
-  // each `mal` row hangs off a different shared row, and the proposal joins what hangs off them
-  const components = (await readComponents(query)).joined([
-    ['anidb:9620', 'mal:9601'], ['mal:9601', 'simkl:9607'],
-    ['anidb:9630', 'mal:9602'], ['mal:9602', 'tvdb:9603'],
-  ])
-  const shared = ['kitsu:9600', 'anidb:9620', 'anidb:9630']
-  const claimsInto = new Map(shared.map(target => [target, [{ claimant: 'mal:9601', claimer: 'mal' }, { claimant: 'mal:9602', claimer: 'mal' }]]))
-  const claims = new Map([['mal:9601', new Set(shared)], ['mal:9602', new Set(shared)]])
-  const parentOf = () => null
-  const sites = contestSites(claimsInto, claims, components, parentOf)
-  const facts = { sites, parentOf, components, claims }
+  const first = await readLedger(query)
 
-  expect(sites.map(site => site.standing), 'the control: three sites, every one contested').toEqual([true, true, true])
-  expect(contestedBy('anilist:9690', 'kitsu:9690', facts), 'the control: a proposal reaching none').toEqual(new Set(shared))
-  expect(contestedBy('simkl:9607', 'tvdb:9603', facts)).toEqual(new Set())
+  await query(
+    `MATCH (a:Media {uri: 'mal:101'}), (b:Media {uri: 'kitsu:101'})
+     CREATE (a)-[:LINK {key: 'ledger-probe', kind: 'SAME_AS', status: 'active', by: 'plugin:test', version: 1}]->(b)`
+  )
+  expect(await readLedger(query), 'LINK writes do not invalidate the claim ledger').toBe(first)
+
+  await query(
+    `MATCH (a:Media {uri: 'mal:101'})-[l:LINK {key: 'ledger-probe'}]->(b:Media {uri: 'kitsu:101'}) DELETE l`
+  )
+  expect(await readLedger(query), 'LINK deletes do not invalidate the claim ledger').toBe(first)
+
+  await ingestAnswers([
+    await answer('media', media('anidb:9990', { titles: [title('en', 'Ledger Probe')] })),
+  ])
+  await query(
+    `MATCH (a:Media {uri: 'mal:101'}), (b:Media {uri: 'anidb:9990'})
+     CREATE (a)-[:CLAIMS {key: 'ledger-claim-probe', kind: 'SAME_AS', provenance: 'source', claimer: 'mal',
+       targetScope: 'RUN', node: '{}', hash: '', answerSeq: cast('0' AS INT64), seq: cast('0' AS INT64)}]->(b)`
+  )
+  const afterClaim = await readLedger(query)
+  expect(afterClaim, 'CLAIMS writes refresh the ledger').not.toBe(first)
+  expect(afterClaim.claims.get('mal:101')?.has('anidb:9990')).toBe(true)
+
+  await query(
+    `MATCH (a:Media {uri: 'mal:101'})-[c:CLAIMS {key: 'ledger-claim-probe'}]->(b:Media {uri: 'anidb:9990'}) DELETE c`
+  )
+})
+
+test('settleLedger excludes pairwise-refused claims while keeping unprofiled ownClaims', () => {
+  const claim = (claimant: string, target: string) => ({
+    claimant, target, claimer: claimant.slice(0, claimant.indexOf(':')), provenance: 'source',
+  })
+  const profiles = new Map([
+    ['mal:5114', { scope: 'RUN', idParent: null, folding: false, countStated: 64, status: 'FINISHED' }],
+    ['cr:FMA-S1', { scope: 'RUN', idParent: null, folding: true, countStated: 13 }],
+    ['cr:FMA-S2', { scope: 'RUN', idParent: null, folding: true, countStated: 13 }],
+    ['kitsu:42337', { scope: 'RUN', idParent: null }],
+    ['offline:mal-63802', { scope: 'RUN', idParent: null }],
+  ])
+  const ledger = settleLedger(profiles, [
+    claim('mal:5114', 'cr:FMA-S1'),
+    claim('mal:5114', 'cr:FMA-S2'),
+    claim('kitsu:42337', 'mal:39473'),
+    claim('offline:mal-63802', 'kitsu:42337'),
+  ])
+
+  expect(ledger.components.membersOf('mal:5114')).toEqual(['mal:5114'])
+  expect(ledger.refused4.size).toBe(0)
+  expect(ledger.ownClaims.get('kitsu:42337')).toEqual(['mal:39473'])
+  expect(ledger.claims.get('kitsu:42337')?.has('mal:39473')).toBe(true)
 })
 
 // (5) CONTESTED, evaluated over every CLAIM rather than over active links, so two claimants landing

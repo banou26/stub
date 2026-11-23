@@ -488,3 +488,50 @@ test('a stream of scoped passes builds the graph one full pass builds, on the re
     expect(scoped[key], `${key} (${rows.length} rows)`).toEqual(whole[key])
   }
 }, 900_000)
+
+test('a scoped pass re-proposes a refused claim whose settled guard verdict flipped to active', async () => {
+  await truncate()
+  resetPassState()
+  startScheduler({ plugins: DEFAULT_PLUGINS, audit: false })
+
+  // Pad past WHOLE_GRAPH_FRACTION so Batch 2 runs plugin:direct in scoped mode.
+  const padding = await Promise.all(
+    Array.from({ length: 32 }, (_, index) => answer('media', media(`simkl:${5000 + index}`, { titles: [title('en', `Filler ${index}`)] })))
+  )
+  await ingestAnswers([
+    ...padding,
+    await answer('media', media('anilist:1', { titles: [title('en', 'Scoped Flip')], handles: [sameAs(media('mal:10'))] })),
+    await answer('media', media('kitsu:1', { titles: [title('en', 'Scoped Flip')], handles: [sameAs(media('anilist:1')), sameAs(media('anizip:1'))] })),
+    await answer('media', media('kitsu:2', { titles: [title('en', 'Scoped Flip Other')], handles: [sameAs(media('anilist:1')), sameAs(media('mal:20'))] })),
+    await answer('media', media('mal:10', { titles: [title('en', 'Scoped Flip')] })),
+    await answer('media', media('mal:20', { titles: [title('en', 'Scoped Flip Other')] })),
+    await answer('media', media('anizip:1', { titles: [title('en', 'Scoped Flip')] })),
+  ])
+  await passSettled()
+
+  const linkRow = async (fromUri: string, toUri: string, kind: string) =>
+    (await rowsOf(
+      `MATCH (a:Media {uri: $fromUri})-[l:LINK]->(b:Media {uri: $toUri})
+       WHERE l.kind = $kind RETURN l.status AS status, l.reason AS reason`,
+      { fromUri, toUri, kind }
+    ))[0]
+
+  expect(await linkRow('kitsu:1', 'anilist:1', 'SAME_AS')).toMatchObject({ status: 'refused', reason: 'contested' })
+  expect(await linkRow('kitsu:2', 'anilist:1', 'SAME_AS')).toMatchObject({ status: 'refused', reason: 'contested' })
+  expect(await linkRow('kitsu:1', 'anilist:1', 'PART_OF')).toMatchObject({ status: 'active', reason: 'contested' })
+
+  // Two hops from kitsu:1 -> anilist:1: neither kitsu:1 nor anilist:1 is in the wake delta.
+  await ingestAnswers([
+    await answer('media', media('anizip:1', { titles: [title('en', 'Scoped Flip')], handles: [sameAs(media('mal:10'))] })),
+  ])
+  await passSettled()
+
+  expect(await linkRow('kitsu:1', 'anilist:1', 'SAME_AS')).toMatchObject({ status: 'active', reason: 'asserted' })
+  expect(await linkRow('kitsu:2', 'anilist:1', 'SAME_AS')).toMatchObject({ status: 'refused', reason: 'contested' })
+  expect(await linkRow('kitsu:1', 'anilist:1', 'PART_OF')).toBeUndefined()
+  expect(await linkRow('kitsu:2', 'anilist:1', 'PART_OF')).toBeUndefined()
+
+  const full = await schedulePass('manual')
+  stopScheduler()
+  expect(full.changes).toEqual([])
+})

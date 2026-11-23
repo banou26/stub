@@ -156,7 +156,19 @@ const scan = async (ctx: PluginContext, uris: string[] | undefined): Promise<Can
  */
 const subjectsOf = async (ctx: PluginContext): Promise<string[] | undefined> => {
   if (ctx.delta.full) return undefined
-  const subjects = [...new Set([...ctx.delta.media, ...await claimEndpoints(ctx, ctx.delta.claims)])]
+  // A claim whose settled Guard 4 or Guard 5 verdict changed from refused to accepted is not in
+  // `ctx.delta` when a distant edge moved the settlement, so previously refused rows re-enter scope.
+  const refused = await ctx.query<{ fromUri: string, toUri: string }>(
+    `MATCH (a:Media)-[l:LINK]->(b:Media)
+     WHERE l.by = 'plugin:direct' AND l.kind = 'SAME_AS' AND l.status = 'refused'
+       AND l.reason IN ['disagreeing-ids', 'contested']
+     RETURN a.uri AS fromUri, b.uri AS toUri`
+  )
+  const subjects = [...new Set([
+    ...ctx.delta.media,
+    ...await claimEndpoints(ctx, ctx.delta.claims),
+    ...refused.flatMap(row => [row.fromUri, row.toUri]),
+  ])]
   const [row] = await ctx.query<{ total: number }>('MATCH (m:Media) RETURN count(m) AS total')
   return subjects.length * WHOLE_GRAPH_FRACTION >= Number(row?.total ?? 0) ? undefined : subjects
 }
