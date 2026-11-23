@@ -6,7 +6,7 @@ import type { Resolvers, Media as GQLMedia, MediaPageInput, RequestContext } fro
 import { MediaRelation as GQLMediaRelation, MediaStatus as GQLMediaStatus, MediaType as GQLMediaType } from '../../generated/graphql'
 import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/uri'
 import { ExternalLinkType, Maybe, Media, MediaExternalLink, MediaStatus, MediaTag, Page } from './types'
-import { desc, img, makeMedia, normalizePage } from '../utils'
+import { desc, img, makeEpisode, makeMedia, makeMovieEpisode, normalizePage } from '../utils'
 import { MEDIA_SEASONS, MediaSeasonName } from '../season'
 import { createAnilistFrontendSession } from './frontend'
 import { FRANCHISE_EDGES, foldFranchises, franchiseDate, recommendedPicks } from './franchise'
@@ -434,6 +434,44 @@ const fetchAnilist = async <T>(request: { query: string, variables: any }, conte
   return frontend.query<T>(request)
 }
 
+const FALLBACK_EPISODE_SCORE = 0.1
+
+const fallbackEpisodes = (media: Media, normalized: GQLMedia, startDate: string | undefined) => {
+  if (media.status === MediaStatus.NotYetReleased) return []
+  if ((media.format === 'MOVIE' || media.format === 'SPECIAL') && media.episodes === 1) {
+    return [makeMovieEpisode({
+      ...normalized,
+      score: FALLBACK_EPISODE_SCORE,
+      titles: (normalized.titles ?? []).map(title => ({ ...title, score: FALLBACK_EPISODE_SCORE })),
+      descriptions: (normalized.descriptions ?? []).map(entry => ({ ...entry, score: FALLBACK_EPISODE_SCORE })),
+      shortDescriptions: (normalized.shortDescriptions ?? []).map(entry => ({ ...entry, score: FALLBACK_EPISODE_SCORE })),
+      covers: (normalized.covers ?? []).map(cover => ({ ...cover, score: FALLBACK_EPISODE_SCORE })),
+    }, { releaseDate: startDate })]
+  }
+  if (media.episodes != null && media.episodes > 1) {
+    const byNumber = new Map<number, number>()
+    for (const edge of media.airingSchedule?.edges ?? []) {
+      const ep = edge?.node?.episode
+      const at = edge?.node?.airingAt
+      if (ep != null && Number.isInteger(ep) && ep >= 1 && ep <= media.episodes && typeof at === 'number' && !byNumber.has(ep)) {
+        byNumber.set(ep, at)
+      }
+    }
+    return [...byNumber.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([episodeNumber, airingAt]) => makeEpisode({
+        origin,
+        id: `${media.id}-${episodeNumber}`,
+        mediaUri: normalized.uri,
+        url: normalized.url ?? undefined,
+        score: FALLBACK_EPISODE_SCORE,
+        episodeNumber,
+        releaseDate: new Date(airingAt * 1000).toISOString(),
+      }))
+  }
+  return []
+}
+
 const fetchMedia = async (
   { id, idMal }: { id?: number, idMal?: number },
   context: ExtractorServerContext,
@@ -473,7 +511,10 @@ const fetchMedia = async (
     })
   )).filter((handle): handle is GQLMedia => Boolean(handle))
 
-  return normalizeMedia(data.Media, handles)
+  const media = normalizeMedia(data.Media, handles)
+  const episodes = fallbackEpisodes(data.Media, media, media.startDate ?? undefined)
+  if (episodes.length) media.episodes = episodes
+  return media
 }
 
 const fetchBrowsePage = (variables: BrowseVariables, page: number, context: ExtractorServerContext) =>

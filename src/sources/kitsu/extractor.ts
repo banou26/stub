@@ -21,7 +21,7 @@ export const origin = 'kitsu'
 export const official = false
 export const metadataOnly = true
 export const isApiOnly = true
-export const supportedUris = ['kitsu']
+export const supportedUris = ['kitsu', 'anilist']
 export const color = '#f75239'
 
 interface KitsuImage { medium?: string, large?: string, original?: string }
@@ -307,13 +307,32 @@ const askedSeason = (
   return spelling && seasonYear ? { season: spelling, year: seasonYear } : undefined
 }
 
+interface KitsuMappingLookup {
+  data?: { relationships?: { item?: { data?: { type?: string, id?: string } | null } } }[]
+  included?: { id?: string, type?: string }[]
+}
+
+const findKitsuIdByAnilist = async (anilistId: string, ctx: ExtractorServerContext): Promise<string | undefined> => {
+  const res = await ctx
+    .fetch(`${API}/mappings?filter%5BexternalSite%5D=anilist%2Fanime&filter%5BexternalId%5D=${encodeURIComponent(anilistId)}&include=item`)
+    .then(r => r.json() as Promise<KitsuMappingLookup>)
+    .catch(() => undefined)
+  const item = res?.included?.find(entry => entry.type === 'anime' && entry.id)
+  if (item?.id) return item.id
+  const rel = res?.data?.[0]?.relationships?.item?.data
+  return rel?.type === 'anime' ? rel.id : undefined
+}
+
 export const resolvers: Resolvers = {
   Subscription: {
     media: {
       subscribe: async function* (_, { input: { uri } }, ctx: ExtractorServerContext) {
         if (!uri || !(isUri(uri) || isAggregatedUri(uri))) return yield { media: null }
         const kitsuUri = extractAggregatedUriOrigin(uri, origin)
-        yield { media: kitsuUri ? (await getMedia(kitsuUri.id, ctx)) ?? null : null }
+        if (kitsuUri) return yield { media: (await getMedia(kitsuUri.id, ctx)) ?? null }
+        const anilistUri = extractAggregatedUriOrigin(uri, 'anilist')
+        const kitsuId = anilistUri ? await findKitsuIdByAnilist(anilistUri.id, ctx) : undefined
+        yield { media: kitsuId ? (await getMedia(kitsuId, ctx)) ?? null : null }
       }
     },
     mediaPage: {

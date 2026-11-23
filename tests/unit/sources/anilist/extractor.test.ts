@@ -597,3 +597,72 @@ test('the details query goes out only when asked, and the modal and listing bodi
   await openMediaPage(browse.ctx, { season: 'SUMMER', seasonYear: 2026 })
   expect(sha256(JSON.stringify(browse.requests[0])), 'the listing body').toBe('ef9fa082a7a73bf96b995763b0e88e40b67baebd95775a832a40f4d56887b726')
 })
+
+test('STUB-390 & STUB-411: media fallback builds 1-episode specials/movies and multi-episode airing schedules without altering browse or unreleased entries', async () => {
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const baseMedia = (overrides: Record<string, unknown>) => ({
+    ...MEDIA_178789,
+    externalLinks: [],
+    ...overrides,
+  })
+  const fetchMedia = async (media: Record<string, unknown>) => {
+    const fetch = async () => ({ status: 200, json: async () => ({ data: { Media: media } }) })
+    const { value } = await subscribe(undefined, { input: { uri: `anilist:${media.id}` } }, { fetch, similarMedia: async () => undefined }).next()
+    return value.media
+  }
+
+  const special = await fetchMedia(baseMedia({
+    id: 162314,
+    format: 'SPECIAL',
+    episodes: 1,
+    status: 'FINISHED',
+    startDate: { year: 2023, month: 11, day: 5 },
+    title: { english: 'Attack on Titan Special 2', romaji: 'Shingeki no Kyojin', native: null },
+  }))
+  expect(special.episodes).toHaveLength(1)
+  expect(special.episodes[0].score).toBe(0.1)
+  expect(special.episodes[0].episodeNumber).toBe(1)
+
+  const unreleased = await fetchMedia(baseMedia({ id: 999001, format: 'SPECIAL', episodes: 1, status: 'NOT_YET_RELEASED' }))
+  expect(unreleased.episodes ?? []).toEqual([])
+
+  const singleOna = await fetchMedia(baseMedia({
+    id: 190327,
+    format: 'ONA',
+    episodes: 1,
+    status: 'FINISHED',
+    airingSchedule: { edges: [{ node: { episode: 1, airingAt: 1773903600 } }] },
+  }))
+  expect(singleOna.episodes ?? []).toEqual([])
+
+  const stage2 = await fetchMedia(baseMedia({
+    id: 210482,
+    format: 'ONA',
+    episodes: 11,
+    status: 'RELEASING',
+    airingSchedule: {
+      edges: Array.from({ length: 11 }, (_, i) => ({
+        node: { episode: 11 - i, airingAt: 1790323200 + (10 - i) * 7 * 86400 },
+      })),
+    },
+  }))
+  expect(stage2.episodes).toHaveLength(11)
+  expect(stage2.episodes[0].episodeNumber).toBe(1)
+  expect(stage2.episodes[0].score).toBe(0.1)
+  expect(stage2.episodes[10].episodeNumber).toBe(11)
+
+  const pageSubscribe = (resolvers.Subscription as any).mediaPage.subscribe
+  const browseFetch = async () => ({
+    status: 200,
+    json: async () => ({
+      data: {
+        Page: {
+          pageInfo: { lastPage: 1, hasNextPage: false, total: 1 },
+          media: [baseMedia({ id: 162314, format: 'SPECIAL', episodes: 1, status: 'FINISHED' })],
+        },
+      },
+    }),
+  })
+  const page = await pageSubscribe(undefined, { input: { search: 'Attack' } }, { fetch: browseFetch, similarMedia: async () => undefined }).next()
+  expect(page.value.mediaPage.nodes[0].episodes ?? []).toEqual([])
+})

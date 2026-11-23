@@ -138,3 +138,60 @@ test('a title carries its users and its all-time rank, and no share of a season'
 
   expect([value.media.followers, value.media.popularityRank, value.media.popularity]).toEqual([3843, 3292, undefined])
 })
+
+test('STUB-390: an AniList-only aggregated URI resolves through Kitsu external mappings and returns episodes', async () => {
+  const asked: string[] = []
+  const ctx = {
+    fetch: async (url: string) => {
+      asked.push(url)
+      if (url === `${API}/mappings?filter%5BexternalSite%5D=anilist%2Fanime&filter%5BexternalId%5D=162314&include=item`) {
+        return {
+          json: async () => ({
+            data: [{ id: '325844', type: 'mappings', relationships: { item: { data: { type: 'anime', id: '47132' } } } }],
+            included: [{ id: '47132', type: 'anime', attributes: { canonicalTitle: 'Attack on Titan Special 2', subtype: 'special', episodeCount: 1 } }],
+          }),
+        }
+      }
+      if (url === `${API}/anime/47132?include=mappings`) {
+        return {
+          json: async () => ({
+            data: {
+              id: '47132',
+              attributes: { canonicalTitle: 'Attack on Titan Special 2', subtype: 'special', episodeCount: 1 },
+              relationships: { mappings: { data: [{ id: 'm1' }] } },
+            },
+            included: [{ id: 'm1', attributes: { externalSite: 'anilist/anime', externalId: '162314' } }],
+          }),
+        }
+      }
+      if (url === `${API}/anime/47132/streaming-links`) return { json: async () => ({ data: [] }) }
+      if (url.startsWith(`${API}/anime/47132/episodes`)) {
+        return {
+          json: async () => ({
+            data: [{ id: 'ep1', attributes: { canonicalTitle: 'The Battle of Heaven and Earth', seasonNumber: 1, number: 1 } }],
+          }),
+        }
+      }
+      throw new Error(`unexpected URL: ${url}`)
+    },
+  } as never
+
+  const subscribe = (resolvers.Subscription as any).media.subscribe
+  const { value } = await subscribe(undefined, { input: { uri: 'ag:(anilist:162314)' } }, ctx).next()
+  expect(asked[0]).toBe(`${API}/mappings?filter%5BexternalSite%5D=anilist%2Fanime&filter%5BexternalId%5D=162314&include=item`)
+  expect(value.media.uri).toBe('kitsu:47132')
+  expect(value.media.episodes).toHaveLength(1)
+  expect(value.media.handles.map((edge: Edge) => [edge.relation, edge.node.uri])).toContainEqual(['SAME_AS', 'anilist:162314'])
+
+  // skips /mappings lookup when kitsu id is already present in the aggregated URI
+  asked.length = 0
+  await subscribe(undefined, { input: { uri: 'ag:(anilist:162314,kitsu:47132)' } }, ctx).next()
+  expect(asked.some(url => url.includes('/mappings'))).toBe(false)
+
+  // returns null when Kitsu has no mapping for the AniList id
+  const missingCtx = {
+    fetch: async () => ({ json: async () => ({ data: [] }) }),
+  } as never
+  const missing = await subscribe(undefined, { input: { uri: 'ag:(anilist:999999)' } }, missingCtx).next()
+  expect(missing.value.media).toBeNull()
+})
