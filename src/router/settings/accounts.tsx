@@ -221,6 +221,7 @@ const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, head
 const TRACKER_SITES = ([
   { site: 'anilist', name: 'AniList', host: 'anilist.co' },
   { site: 'mal', name: 'MyAnimeList', host: 'myanimelist.net' },
+  { site: 'trakt', name: 'Trakt', host: 'app.trakt.tv' },
 ] satisfies { site: TrackerSite, name: string, host: string }[]).filter(entry => siteAsks(entry.site))
 
 const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof TRACKER_SITES)[number] & { heading: Heading } & Pick<AccountsProps, 'backend' | 'sites' | 'status'>) => {

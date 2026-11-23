@@ -74,7 +74,7 @@ const Privacy = () => (
 
     <h2>Sign-ins to other sites</h2>
     <p>
-      stub plays Crunchyroll and Prime Video and tracks your AniList and MyAnimeList lists with your own
+      stub plays Crunchyroll and Prime Video and tracks your AniList, MyAnimeList and Trakt lists with your own
       accounts on those sites. Without the FKN browser extension, you sign in on each site's own page, in an
       FKN window, and the cookies that sign-in sets are kept by FKN, in a cookie jar every fkn.app app shares,
       and not by stub. Signing out in <Link to="/settings#sources">Settings, under Sources</Link>, removes

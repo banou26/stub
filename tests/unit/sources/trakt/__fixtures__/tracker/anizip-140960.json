@@ -1,0 +1,123 @@
+{
+ "mappings": {
+  "type": "TV",
+  "anilist_id": 140960,
+  "mal_id": 50265,
+  "anidb_id": 16947,
+  "thetvdb_id": 405920,
+  "themoviedb_id": "120089",
+  "imdb_id": "tt13706018"
+ },
+ "episodes": {
+  "1": {
+   "tvdbId": 8811841,
+   "seasonNumber": 1,
+   "episodeNumber": 1
+  },
+  "2": {
+   "tvdbId": 9066746,
+   "seasonNumber": 1,
+   "episodeNumber": 2
+  },
+  "3": {
+   "tvdbId": 9066747,
+   "seasonNumber": 1,
+   "episodeNumber": 3
+  },
+  "4": {
+   "tvdbId": 9066748,
+   "seasonNumber": 1,
+   "episodeNumber": 4
+  },
+  "5": {
+   "tvdbId": 9066749,
+   "seasonNumber": 1,
+   "episodeNumber": 5
+  },
+  "6": {
+   "tvdbId": 9066750,
+   "seasonNumber": 1,
+   "episodeNumber": 6
+  },
+  "7": {
+   "tvdbId": 9066751,
+   "seasonNumber": 1,
+   "episodeNumber": 7
+  },
+  "8": {
+   "tvdbId": 9066752,
+   "seasonNumber": 1,
+   "episodeNumber": 8
+  },
+  "9": {
+   "tvdbId": 9066753,
+   "seasonNumber": 1,
+   "episodeNumber": 9
+  },
+  "10": {
+   "tvdbId": 9066754,
+   "seasonNumber": 1,
+   "episodeNumber": 10
+  },
+  "11": {
+   "tvdbId": 9066755,
+   "seasonNumber": 1,
+   "episodeNumber": 11
+  },
+  "12": {
+   "tvdbId": 9066756,
+   "seasonNumber": 1,
+   "episodeNumber": 12
+  },
+  "S2": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S3": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S1": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S4": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S5": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S6": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S7": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S8": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S9": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S10": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  }
+ }
+}

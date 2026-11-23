@@ -34,7 +34,7 @@ test('no module reads a key from the viewer, and nothing keeps one', async () =>
   const files = (readdirSync(SRC, { recursive: true }) as string[])
     .filter(file => /\.tsx?$/.test(file) && !file.startsWith('generated'))
     .map(file => ({ file, text: readFileSync(join(SRC, file), 'utf-8') }))
-  expect(files.find(({ file }) => file === join('sources', 'trakt', 'extractor.ts'))?.text, 'the scan reads the sources').toContain('trakt-api-version')
+  expect(files.find(({ file }) => file === join('sources', 'trakt', 'api.ts'))?.text, 'the scan reads the sources').toContain('trakt-api-version')
 
   const KEY_READS = /\bctx\.key\b|\bkey\(origin\)|\buserKeys\b|\bsetUserKeys\b|[?&]api_?key=|simkl-api-key|key-configs|utils\/keys\b/i
   expect(files.filter(({ text }) => KEY_READS.test(text)).map(({ file }) => file)).toEqual([])

@@ -11,6 +11,7 @@ import { builtInSources } from '../../src/sources/built-in'
 import { CRUNCHYROLL_LOGIN_URL, CRUNCHYROLL_SESSION_URL } from '../../src/sources/crunchyroll/session'
 import { serviceLogo } from '../../src/sources/justwatch/logos'
 import { MAL_LOGIN_URL, MAL_SESSION_URL } from '../../src/sources/mal/session'
+import { TRAKT_LOGIN_URL, TRAKT_SESSION_URL } from '../../src/sources/trakt/session'
 import { historyEntry, historyMedia, SHARDS } from '../../src/sources/offline/history'
 import { loadShard } from '../../src/sources/offline/history-shards'
 import { seasonMedia, type ManamiRecord } from '../../src/sources/offline/normalize'
@@ -38,7 +39,7 @@ test('names every host stub asks from the browser, every source icon it draws an
     ...[...DIRECT_FETCH_ORIGINS].map(hostOf),
     ...builtInSources.flatMap(({ icon }) => icon ? [hostOf(icon)] : []),
     hostOf(serviceLogo('nf')!),
-    ...[ANILIST_LOGIN_URL, ANILIST_SESSION_URL, CRUNCHYROLL_LOGIN_URL, CRUNCHYROLL_SESSION_URL, MAL_LOGIN_URL, MAL_SESSION_URL].map(hostOf),
+    ...[ANILIST_LOGIN_URL, ANILIST_SESSION_URL, CRUNCHYROLL_LOGIN_URL, CRUNCHYROLL_SESSION_URL, MAL_LOGIN_URL, MAL_SESSION_URL, TRAKT_LOGIN_URL, TRAKT_SESSION_URL].map(hostOf),
     ...['US', 'GB', 'DE', 'JP', 'FR'].map(country => hostOf(primeSignInUrl(primeSiteFor(country)))),
   ]
   expect(unlisted(needed)).toEqual([])

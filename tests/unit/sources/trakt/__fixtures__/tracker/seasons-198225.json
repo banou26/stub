@@ -1,0 +1,524 @@
+[
+ {
+  "number": 0,
+  "episodes": [
+   {
+    "season": 0,
+    "number": 1,
+    "ids": {
+     "trakt": 10961618,
+     "tvdb": 10117637
+    }
+   },
+   {
+    "season": 0,
+    "number": 2,
+    "ids": {
+     "trakt": 11001052,
+     "tvdb": 10117638
+    }
+   },
+   {
+    "season": 0,
+    "number": 3,
+    "ids": {
+     "trakt": 11052946,
+     "tvdb": 10147845
+    }
+   },
+   {
+    "season": 0,
+    "number": 4,
+    "ids": {
+     "trakt": 11135218,
+     "tvdb": 10168248
+    }
+   },
+   {
+    "season": 0,
+    "number": 5,
+    "ids": {
+     "trakt": 11209872,
+     "tvdb": 10191390
+    }
+   },
+   {
+    "season": 0,
+    "number": 6,
+    "ids": {
+     "trakt": 11234437,
+     "tvdb": 10213762
+    }
+   },
+   {
+    "season": 0,
+    "number": 7,
+    "ids": {
+     "trakt": 11318320,
+     "tvdb": 10242956
+    }
+   },
+   {
+    "season": 0,
+    "number": 8,
+    "ids": {
+     "trakt": 11341823,
+     "tvdb": 10268632
+    }
+   },
+   {
+    "season": 0,
+    "number": 9,
+    "ids": {
+     "trakt": 11462715,
+     "tvdb": 10302411
+    }
+   },
+   {
+    "season": 0,
+    "number": 10,
+    "ids": {
+     "trakt": 11517367,
+     "tvdb": 10320088
+    }
+   },
+   {
+    "season": 0,
+    "number": 11,
+    "ids": {
+     "trakt": 11617273,
+     "tvdb": 10372696
+    }
+   },
+   {
+    "season": 0,
+    "number": 12,
+    "ids": {
+     "trakt": 11664314,
+     "tvdb": null
+    }
+   },
+   {
+    "season": 0,
+    "number": 13,
+    "ids": {
+     "trakt": 11664315,
+     "tvdb": 10408134
+    }
+   },
+   {
+    "season": 0,
+    "number": 14,
+    "ids": {
+     "trakt": 11689785,
+     "tvdb": 10422277
+    }
+   },
+   {
+    "season": 0,
+    "number": 15,
+    "ids": {
+     "trakt": 12958194,
+     "tvdb": 11066776
+    }
+   },
+   {
+    "season": 0,
+    "number": 16,
+    "ids": {
+     "trakt": 13079667,
+     "tvdb": 11129349
+    }
+   },
+   {
+    "season": 0,
+    "number": 17,
+    "ids": {
+     "trakt": 13165461,
+     "tvdb": 11165468
+    }
+   },
+   {
+    "season": 0,
+    "number": 18,
+    "ids": {
+     "trakt": 13257004,
+     "tvdb": 11224647
+    }
+   },
+   {
+    "season": 0,
+    "number": 19,
+    "ids": {
+     "trakt": 13363916,
+     "tvdb": 11268427
+    }
+   },
+   {
+    "season": 0,
+    "number": 20,
+    "ids": {
+     "trakt": 13481558,
+     "tvdb": 11323584
+    }
+   },
+   {
+    "season": 0,
+    "number": 21,
+    "ids": {
+     "trakt": 13926925,
+     "tvdb": 11323588
+    }
+   },
+   {
+    "season": 0,
+    "number": 22,
+    "ids": {
+     "trakt": 13970681,
+     "tvdb": 11599484
+    }
+   },
+   {
+    "season": 0,
+    "number": 23,
+    "ids": {
+     "trakt": 14009337,
+     "tvdb": 11622957
+    }
+   },
+   {
+    "season": 0,
+    "number": 24,
+    "ids": {
+     "trakt": 14036629,
+     "tvdb": 11651781
+    }
+   },
+   {
+    "season": 0,
+    "number": 25,
+    "ids": {
+     "trakt": 14061017,
+     "tvdb": 11679869
+    }
+   },
+   {
+    "season": 0,
+    "number": 26,
+    "ids": {
+     "trakt": 14201921,
+     "tvdb": null
+    }
+   }
+  ]
+ },
+ {
+  "number": 1,
+  "episodes": [
+   {
+    "season": 1,
+    "number": 1,
+    "ids": {
+     "trakt": 6706012,
+     "tvdb": 9350138
+    }
+   },
+   {
+    "season": 1,
+    "number": 2,
+    "ids": {
+     "trakt": 10860100,
+     "tvdb": 9993737
+    }
+   },
+   {
+    "season": 1,
+    "number": 3,
+    "ids": {
+     "trakt": 10860104,
+     "tvdb": 9993738
+    }
+   },
+   {
+    "season": 1,
+    "number": 4,
+    "ids": {
+     "trakt": 10860108,
+     "tvdb": 9993739
+    }
+   },
+   {
+    "season": 1,
+    "number": 5,
+    "ids": {
+     "trakt": 10860111,
+     "tvdb": 9993740
+    }
+   },
+   {
+    "season": 1,
+    "number": 6,
+    "ids": {
+     "trakt": 10860113,
+     "tvdb": 9993741
+    }
+   },
+   {
+    "season": 1,
+    "number": 7,
+    "ids": {
+     "trakt": 10860116,
+     "tvdb": 9993742
+    }
+   },
+   {
+    "season": 1,
+    "number": 8,
+    "ids": {
+     "trakt": 10860121,
+     "tvdb": 9993743
+    }
+   },
+   {
+    "season": 1,
+    "number": 9,
+    "ids": {
+     "trakt": 10860125,
+     "tvdb": 9993744
+    }
+   },
+   {
+    "season": 1,
+    "number": 10,
+    "ids": {
+     "trakt": 10860132,
+     "tvdb": 9993745
+    }
+   },
+   {
+    "season": 1,
+    "number": 11,
+    "ids": {
+     "trakt": 10860139,
+     "tvdb": 9993746
+    }
+   },
+   {
+    "season": 1,
+    "number": 12,
+    "ids": {
+     "trakt": 10860147,
+     "tvdb": 9993747
+    }
+   },
+   {
+    "season": 1,
+    "number": 13,
+    "ids": {
+     "trakt": 10860151,
+     "tvdb": 10057050
+    }
+   },
+   {
+    "season": 1,
+    "number": 14,
+    "ids": {
+     "trakt": 10860154,
+     "tvdb": 10057051
+    }
+   },
+   {
+    "season": 1,
+    "number": 15,
+    "ids": {
+     "trakt": 10860157,
+     "tvdb": 10057052
+    }
+   },
+   {
+    "season": 1,
+    "number": 16,
+    "ids": {
+     "trakt": 10860161,
+     "tvdb": 10057054
+    }
+   },
+   {
+    "season": 1,
+    "number": 17,
+    "ids": {
+     "trakt": 10860165,
+     "tvdb": 10057056
+    }
+   },
+   {
+    "season": 1,
+    "number": 18,
+    "ids": {
+     "trakt": 10860170,
+     "tvdb": 10057058
+    }
+   },
+   {
+    "season": 1,
+    "number": 19,
+    "ids": {
+     "trakt": 10860175,
+     "tvdb": 10057061
+    }
+   },
+   {
+    "season": 1,
+    "number": 20,
+    "ids": {
+     "trakt": 10860178,
+     "tvdb": 10057064
+    }
+   },
+   {
+    "season": 1,
+    "number": 21,
+    "ids": {
+     "trakt": 10860184,
+     "tvdb": 10057067
+    }
+   },
+   {
+    "season": 1,
+    "number": 22,
+    "ids": {
+     "trakt": 10860186,
+     "tvdb": 10057069
+    }
+   },
+   {
+    "season": 1,
+    "number": 23,
+    "ids": {
+     "trakt": 10860189,
+     "tvdb": 10057071
+    }
+   },
+   {
+    "season": 1,
+    "number": 24,
+    "ids": {
+     "trakt": 10860192,
+     "tvdb": 10057072
+    }
+   },
+   {
+    "season": 1,
+    "number": 25,
+    "ids": {
+     "trakt": 10961625,
+     "tvdb": 10057073
+    }
+   },
+   {
+    "season": 1,
+    "number": 26,
+    "ids": {
+     "trakt": 10961626,
+     "tvdb": 10086091
+    }
+   },
+   {
+    "season": 1,
+    "number": 27,
+    "ids": {
+     "trakt": 10961627,
+     "tvdb": 10086092
+    }
+   },
+   {
+    "season": 1,
+    "number": 28,
+    "ids": {
+     "trakt": 10961628,
+     "tvdb": 10086093
+    }
+   },
+   {
+    "season": 1,
+    "number": 29,
+    "ids": {
+     "trakt": 13551453,
+     "tvdb": 10719109
+    }
+   },
+   {
+    "season": 1,
+    "number": 30,
+    "ids": {
+     "trakt": 13904723,
+     "tvdb": 11447765
+    }
+   },
+   {
+    "season": 1,
+    "number": 31,
+    "ids": {
+     "trakt": 13904724,
+     "tvdb": 11447766
+    }
+   },
+   {
+    "season": 1,
+    "number": 32,
+    "ids": {
+     "trakt": 13904725,
+     "tvdb": 11447767
+    }
+   },
+   {
+    "season": 1,
+    "number": 33,
+    "ids": {
+     "trakt": 13904726,
+     "tvdb": 11447768
+    }
+   },
+   {
+    "season": 1,
+    "number": 34,
+    "ids": {
+     "trakt": 13904727,
+     "tvdb": 11447769
+    }
+   },
+   {
+    "season": 1,
+    "number": 35,
+    "ids": {
+     "trakt": 13904728,
+     "tvdb": 11447770
+    }
+   },
+   {
+    "season": 1,
+    "number": 36,
+    "ids": {
+     "trakt": 13904729,
+     "tvdb": 11447771
+    }
+   },
+   {
+    "season": 1,
+    "number": 37,
+    "ids": {
+     "trakt": 13904730,
+     "tvdb": 11447772
+    }
+   },
+   {
+    "season": 1,
+    "number": 38,
+    "ids": {
+     "trakt": 13904731,
+     "tvdb": 11447773
+    }
+   }
+  ]
+ }
+]

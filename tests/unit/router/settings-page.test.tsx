@@ -96,11 +96,11 @@ test('names the page and its list of categories', async () => {
 })
 
 test('with no fragment, shows Sources and only Sources, its cards holding the sign-ins', async () => {
-  expect(shown(await open())).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
+  expect(shown(await open())).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 6 })
 })
 
 test('#sources shows Sources and only Sources', async () => {
-  expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
+  expect(shown(await open('#sources'))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 6 })
 })
 
 test('#playback shows Playback, autoplay on until turned off, and the audio and subtitles a player starts in', async () => {
@@ -266,7 +266,7 @@ test('a merge move is kept as the whole order, leaves the play order, and anothe
 
 for (const removed of ['#accounts', '#data']) {
   test(`${removed}, a category that is gone, shows Sources`, async () => {
-    expect(shown(await open(removed))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
+    expect(shown(await open(removed))).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 6 })
   })
 }
 
@@ -281,7 +281,7 @@ test('a change of fragment switches the panel, and back', async () => {
 test('a pushState that drops the fragment, as the header\'s Settings link sends, shows Sources', async () => {
   const host = await open('#playback')
   await go('', 'pushState')
-  expect(shown(host)).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 5 })
+  expect(shown(host)).toEqual({ panels: ['sources'], heading: 'Sources', current: ['Sources'], accountRows: 6 })
 })
 
 // a panel with that id would be a fragment target, which the browser scrolls to on a reload

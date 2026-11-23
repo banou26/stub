@@ -1,0 +1,118 @@
+{
+ "mappings": {
+  "type": "TV",
+  "anilist_id": 110277,
+  "mal_id": 40028,
+  "anidb_id": 14977,
+  "thetvdb_id": 267440,
+  "themoviedb_id": "1429",
+  "imdb_id": "tt2560140"
+ },
+ "episodes": {
+  "1": {
+   "tvdbId": 7771368,
+   "seasonNumber": 4,
+   "episodeNumber": 1
+  },
+  "2": {
+   "tvdbId": 8068624,
+   "seasonNumber": 4,
+   "episodeNumber": 2
+  },
+  "3": {
+   "tvdbId": 8068625,
+   "seasonNumber": 4,
+   "episodeNumber": 3
+  },
+  "4": {
+   "tvdbId": 8068626,
+   "seasonNumber": 4,
+   "episodeNumber": 4
+  },
+  "5": {
+   "tvdbId": 8068627,
+   "seasonNumber": 4,
+   "episodeNumber": 5
+  },
+  "6": {
+   "tvdbId": 8085622,
+   "seasonNumber": 4,
+   "episodeNumber": 6
+  },
+  "7": {
+   "tvdbId": 8085623,
+   "seasonNumber": 4,
+   "episodeNumber": 7
+  },
+  "8": {
+   "tvdbId": 8085625,
+   "seasonNumber": 4,
+   "episodeNumber": 8
+  },
+  "9": {
+   "tvdbId": 8085627,
+   "seasonNumber": 4,
+   "episodeNumber": 9
+  },
+  "10": {
+   "tvdbId": 8085629,
+   "seasonNumber": 4,
+   "episodeNumber": 10
+  },
+  "11": {
+   "tvdbId": 8085631,
+   "seasonNumber": 4,
+   "episodeNumber": 11
+  },
+  "12": {
+   "tvdbId": 8085633,
+   "seasonNumber": 4,
+   "episodeNumber": 12
+  },
+  "13": {
+   "tvdbId": 8085635,
+   "seasonNumber": 4,
+   "episodeNumber": 13
+  },
+  "14": {
+   "tvdbId": 8085636,
+   "seasonNumber": 4,
+   "episodeNumber": 14
+  },
+  "15": {
+   "tvdbId": 8085637,
+   "seasonNumber": 4,
+   "episodeNumber": 15
+  },
+  "16": {
+   "tvdbId": 8085638,
+   "seasonNumber": 4,
+   "episodeNumber": 16
+  },
+  "S1": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S2": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S3": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S4": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S5": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  }
+ }
+}

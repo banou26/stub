@@ -1,0 +1,44 @@
+{
+ "type": "data",
+ "nodes": [
+  {
+   "type": "data",
+   "data": [
+    {
+     "theme": 1,
+     "oidcAuth": 2,
+     "isLegitimateBot": 4,
+     "isBot": 4,
+     "device": 5,
+     "typesense": 6
+    },
+    "system",
+    {
+     "token": 3,
+     "expiresAt": 3,
+     "isAuthorized": 4,
+     "hasSession": 4
+    },
+    null,
+    false,
+    "unknown",
+    {
+     "keys": 7,
+     "server": 11
+    },
+    {
+     "media": 8,
+     "people": 10
+    },
+    {
+     "default": 9
+    },
+    "WXZYb09MdFZUZEVXNURnT05xOWdxdGRVT2JWOWhIelBQNHVEWmxoaEkyUT1TMEpDeyJwcmVzZXQiOiJzZWFyY2g6bWVkaWEiLCJsaW1pdF9oaXRzIjo1MCwicGVyX3BhZ2UiOjUwLCJzZWFyY2hfY3V0b2ZmX21zIjoyNTAsImV4cGlyZXNfYXQiOjE3OTE2NjE4NDF9",
+    "SFpDTkU0bG4vTUhKeGNrWVBZcjkyTDVVQ2FiTnNibnp6eFZxME5vQkxUdz1TMEpDeyJwcmVzZXQiOiJzZWFyY2g6cGVvcGxlIiwibGltaXRfaGl0cyI6NTAsInBlcl9wYWdlIjo1MCwic2VhcmNoX2N1dG9mZl9tcyI6MjUwLCJleHBpcmVzX2F0IjoxNzkxNjYxODQxfQ==",
+    "search.trakt.tv"
+   ],
+   "uses": {}
+  },
+  null
+ ]
+}

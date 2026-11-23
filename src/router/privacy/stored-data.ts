@@ -63,7 +63,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'connected-sites',
     title: 'Connected tracking sites',
-    what: 'Which of AniList, MyAnimeList and Crunchyroll you signed in to through stub on this device, so stub reaches only those.',
+    what: 'Which of AniList, MyAnimeList, Trakt and Crunchyroll you signed in to through stub on this device, so stub reaches only those.',
     where: LOCAL,
     lasts: "Until you sign out of them, or clear this site's data in your browser",
     keys: { store: 'local', names: [CONNECTED_KEY] },
@@ -71,7 +71,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-status',
     title: 'Site sign-in states',
-    what: 'Whether you were signed in to Crunchyroll, Prime Video, AniList and MyAnimeList when stub last learned it, when, and whether you were signed in to it on this browser before. Never your name there.',
+    what: 'Whether you were signed in to Crunchyroll, Prime Video, AniList, MyAnimeList and Trakt when stub last learned it, when, and whether you were signed in to it on this browser before. Never your name there.',
     where: LOCAL,
     lasts: "Until stub learns it again, or you clear this site's data in your browser. That you were signed in before stays through the sign outs stub finds after it, and goes when you sign out in stub's Settings",
     keys: { store: 'local', names: [SITE_STATUS_KEY] },
@@ -118,7 +118,7 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-sign-ins',
     title: 'Site sign-ins',
-    what: 'Your Crunchyroll, Prime Video, AniList and MyAnimeList sessions, which stub plays and tracks with.',
+    what: "Your Crunchyroll, Prime Video, AniList, MyAnimeList and Trakt sessions, which stub plays and tracks with: the cookies each site sets, and for Trakt also the sign-in Trakt's own page keeps in its storage.",
     where: 'Without the FKN extension, FKN keeps them for every fkn.app app. With it, your browser does.',
     lasts: 'Until you sign out, or the site ends the session',
   },

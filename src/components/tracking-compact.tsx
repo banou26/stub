@@ -531,6 +531,7 @@ const TrackingCompact = (
   const [, setTick] = useState(0)
   // the viewer's own values, by ROW or by the tracker whose card took them
   const [overrides, setOverrides] = useState<Record<string, Fields>>({})
+  const [pendingTraktLower, setPendingTraktLower] = useState<{ patch: Fields, targetProgress: number, fromCard?: boolean }>()
   const [announced, setAnnounced] = useState<Settled & { name: string }>()
   const [signingIn, setSigningIn] = useState<ReadonlySet<string>>(new Set())
   const [notes, setNotes] = useState<Record<string, Said>>({})
@@ -574,9 +575,56 @@ const TrackingCompact = (
   const staged = useRef(new Map<string, number>())
   const own = useRef(new Map<string, number | null | undefined>())
   const counted = kept ?? own.current
-  const stage = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
+  const traktChecked = tracking?.answers.find(answer => answer.tracker.id === 'trakt' && answer.state !== 'NO_ID')
+  const traktTarget = traktChecked ? targetOf(traktChecked, prefs.targets.trakt) : undefined
+  const traktActive = Boolean(traktTarget && traktTarget.kind === 'check' && traktTarget.sendable)
+  const traktSavedProgress = traktChecked?.entry?.progress ?? 0
+
+  useEffect(() => {
+    if (pendingTraktLower && (!traktActive || pendingTraktLower.targetProgress >= traktSavedProgress)) {
+      setPendingTraktLower(undefined)
+    }
+  }, [pendingTraktLower, traktActive, traktSavedProgress])
+
+  const stageNow = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
     for (const [id, { progress }] of Object.entries(patches)) if (progress !== undefined) staged.current.set(id, progress)
     queue.stage(patches, immediate, fromCard)
+  }
+
+  const stage = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
+    const traktPatch = patches.trakt
+    if (traktPatch && !traktPatch.remove && traktPatch.progress !== undefined && traktPatch.progress !== null) {
+      if (traktPatch.progress < traktSavedProgress) {
+        const { trakt: _held, ...rest } = patches
+        if (Object.keys(rest).length) stageNow(rest, immediate, fromCard)
+        setPendingTraktLower({ patch: traktPatch, targetProgress: traktPatch.progress, fromCard })
+        return
+      }
+      setPendingTraktLower(undefined)
+    }
+    stageNow(patches, immediate, fromCard)
+  }
+
+  const confirmTraktLower = () => {
+    if (!pendingTraktLower) return
+    const held = pendingTraktLower
+    setPendingTraktLower(undefined)
+    stageNow({ trakt: held.patch }, true, held.fromCard)
+  }
+
+  const cancelTraktLower = () => {
+    if (!pendingTraktLower) return
+    setPendingTraktLower(undefined)
+    setOverrides(previous => {
+      const next = { ...previous }
+      delete next.trakt
+      if (next[ROW]?.progress !== undefined) {
+        const { progress: _drop, ...rest } = next[ROW]!
+        if (Object.keys(rest).length) next[ROW] = rest
+        else delete next[ROW]
+      }
+      return next
+    })
   }
 
   useEffect(() => {
@@ -907,6 +955,24 @@ const TrackingCompact = (
               : undefined,
           ].filter(Boolean)
         })}
+        {pendingTraktLower && traktActive && pendingTraktLower.targetProgress < traktSavedProgress
+          ? (
+            <div key="trakt-confirm-lower" className="note" data-note="trakt" data-confirm="trakt-lower">
+              <span>
+                {intl.formatMessage(
+                  { id: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.', defaultMessage: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.' },
+                  { target: pendingTraktLower.targetProgress },
+                )}
+              </span>
+              <button type="button" onClick={confirmTraktLower}>
+                {intl.formatMessage({ id: 'Remove Trakt plays', defaultMessage: 'Remove Trakt plays' })}
+              </button>
+              <button type="button" onClick={cancelTraktLower}>
+                {intl.formatMessage({ id: 'Cancel', defaultMessage: 'Cancel' })}
+              </button>
+            </div>
+          )
+          : undefined}
       </div>
       <div className="sr-only" role="status">{announced ? heard(announced) : ''}</div>
     </section>

@@ -169,7 +169,7 @@ describe('what stub keeps per viewer', () => {
 
   // with the extension stub offers no Crunchyroll sign out, so a sign out is not the only way it goes
   test('names every site a sign in through stub connects, Crunchyroll included, and how its entry goes without a sign out', () => {
-    expect(byId('connected-sites').what).toContain('AniList, MyAnimeList and Crunchyroll')
+    expect(byId('connected-sites').what).toContain('AniList, MyAnimeList, Trakt and Crunchyroll')
     expect(byId('connected-sites').lasts).toContain("or clear this site's data in your browser")
   })
 

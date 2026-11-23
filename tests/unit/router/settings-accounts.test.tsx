@@ -92,7 +92,7 @@ const signedInTo = (site: StatusSite) => {
 
 test('lists the sites stub signs in to, and not the FKN account the header already shows', () => {
   const { host } = render()
-  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account')!).sort((a, b) => a.localeCompare(b))).toEqual(['anilist', 'crunchyroll', 'mal', 'netflix', 'prime'])
+  expect([...host.querySelectorAll('[data-account]')].map(row => row.getAttribute('data-account')!).sort((a, b) => a.localeCompare(b))).toEqual(['anilist', 'crunchyroll', 'mal', 'netflix', 'prime', 'trakt'])
 })
 
 describe('Crunchyroll on the cloud', () => {
@@ -320,7 +320,7 @@ describe('Netflix', () => {
 
 test('while it is not known yet whether the extension runs, no site offers an action', () => {
   const { row } = render({ backend: undefined, sites: fakeSites(['anilist']) })
-  for (const id of ['crunchyroll', 'prime', 'anilist', 'mal', 'netflix']) expect(row(id).querySelectorAll('button'), id).toHaveLength(0)
+  for (const id of ['crunchyroll', 'prime', 'anilist', 'mal', 'trakt', 'netflix']) expect(row(id).querySelectorAll('button'), id).toHaveLength(0)
 })
 
 describe('for a screen reader', () => {

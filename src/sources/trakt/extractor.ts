@@ -5,14 +5,14 @@ import { extractAggregatedUriOrigin, isAggregatedUri, isUri } from '../../utils/
 import { makeMedia, makeEpisode, desc } from '../utils'
 import { askedLocale, withTranslation } from '../translation-requests'
 import { bestLanguage } from '../../i18n/best-language'
+import {
+  TRAKT_ICON, traktApi as api,
+  type TraktEpisode, type TraktIds, type TraktSearchResult, type TraktSeason, type TraktShow, type TraktTranslation,
+} from './api'
 
 const SCORE = 0.3
-const BASE = 'https://apiz.trakt.tv'
-// app.trakt.tv's own client id, a public value in its bundle (chunk D5VL6z_E.js, read 2026-10-07).
-// Metadata needs no sign-in with it; without it every read answers 403.
-const CLIENT_ID = '201dc70c5ec6af530f12f079ea1922733f6e1085ad7b02f36d8e011b75bcea7d'
 
-export const icon = 'https://walter.trakt.tv/hotlink-ok/public/favicon.ico'
+export const icon = TRAKT_ICON
 export const originUrl = 'https://trakt.tv'
 export const categories = ['SERIES'] as const
 export const name = 'Trakt'
@@ -22,62 +22,6 @@ export const metadataOnly = true
 export const isApiOnly = true
 export const supportedUris = ['trakt']
 export const color = '#ed1c24'
-
-type TraktIds = {
-  trakt?: number
-  slug?: string
-  imdb?: string
-  tmdb?: number
-  tvdb?: number
-}
-
-type TraktShow = {
-  title?: string
-  year?: number
-  overview?: string
-  rating?: number
-  first_aired?: string
-  ids?: TraktIds
-  genres?: string[]
-  country?: string
-  /** the languages `/translations` has the show in, which `extended=full` names */
-  available_translations?: string[]
-}
-
-type TraktTranslation = { title?: string | null, overview?: string | null, language?: string, country?: string }
-
-type TraktSearchResult = {
-  type?: string
-  score?: number
-  show?: TraktShow
-}
-
-type TraktEpisode = {
-  season?: number
-  number?: number
-  title?: string
-  overview?: string
-  rating?: number
-  first_aired?: string
-  ids?: TraktIds
-}
-
-type TraktSeason = {
-  number?: number
-  episodes?: TraktEpisode[]
-}
-
-const api = <T>(path: string, ctx: ExtractorServerContext): Promise<T | undefined> =>
-  ctx
-    .fetch(`${BASE}${path}`, {
-      headers: {
-        'trakt-api-key': CLIENT_ID,
-        'trakt-api-version': '2',
-        'Content-Type': 'application/json',
-      },
-    })
-    .then(r => r.json() as Promise<T>)
-    .catch(() => undefined)
 
 // `first_aired` is an INSTANT (`2008-01-21T02:00:00.000Z`), and an instant and a day are not
 // interchangeable: utils/release-date.ts renders a bare `YYYY-MM-DD` as that calendar day in UTC and

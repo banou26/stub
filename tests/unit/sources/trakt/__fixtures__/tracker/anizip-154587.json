@@ -1,0 +1,278 @@
+{
+ "mappings": {
+  "type": "TV",
+  "anilist_id": 154587,
+  "mal_id": 52991,
+  "anidb_id": 17617,
+  "thetvdb_id": 424536,
+  "themoviedb_id": "209867",
+  "imdb_id": "tt22248376"
+ },
+ "episodes": {
+  "1": {
+   "tvdbId": 9350138,
+   "seasonNumber": 1,
+   "episodeNumber": 1
+  },
+  "2": {
+   "tvdbId": 9993737,
+   "seasonNumber": 1,
+   "episodeNumber": 2
+  },
+  "3": {
+   "tvdbId": 9993738,
+   "seasonNumber": 1,
+   "episodeNumber": 3
+  },
+  "4": {
+   "tvdbId": 9993739,
+   "seasonNumber": 1,
+   "episodeNumber": 4
+  },
+  "5": {
+   "tvdbId": 9993740,
+   "seasonNumber": 1,
+   "episodeNumber": 5
+  },
+  "6": {
+   "tvdbId": 9993741,
+   "seasonNumber": 1,
+   "episodeNumber": 6
+  },
+  "7": {
+   "tvdbId": 9993742,
+   "seasonNumber": 1,
+   "episodeNumber": 7
+  },
+  "8": {
+   "tvdbId": 9993743,
+   "seasonNumber": 1,
+   "episodeNumber": 8
+  },
+  "9": {
+   "tvdbId": 9993744,
+   "seasonNumber": 1,
+   "episodeNumber": 9
+  },
+  "10": {
+   "tvdbId": 9993745,
+   "seasonNumber": 1,
+   "episodeNumber": 10
+  },
+  "11": {
+   "tvdbId": 9993746,
+   "seasonNumber": 1,
+   "episodeNumber": 11
+  },
+  "12": {
+   "tvdbId": 9993747,
+   "seasonNumber": 1,
+   "episodeNumber": 12
+  },
+  "13": {
+   "tvdbId": 10057050,
+   "seasonNumber": 1,
+   "episodeNumber": 13
+  },
+  "14": {
+   "tvdbId": 10057051,
+   "seasonNumber": 1,
+   "episodeNumber": 14
+  },
+  "15": {
+   "tvdbId": 10057052,
+   "seasonNumber": 1,
+   "episodeNumber": 15
+  },
+  "16": {
+   "tvdbId": 10057054,
+   "seasonNumber": 1,
+   "episodeNumber": 16
+  },
+  "17": {
+   "tvdbId": 10057056,
+   "seasonNumber": 1,
+   "episodeNumber": 17
+  },
+  "18": {
+   "tvdbId": 10057058,
+   "seasonNumber": 1,
+   "episodeNumber": 18
+  },
+  "19": {
+   "tvdbId": 10057061,
+   "seasonNumber": 1,
+   "episodeNumber": 19
+  },
+  "20": {
+   "tvdbId": 10057064,
+   "seasonNumber": 1,
+   "episodeNumber": 20
+  },
+  "21": {
+   "tvdbId": 10057067,
+   "seasonNumber": 1,
+   "episodeNumber": 21
+  },
+  "22": {
+   "tvdbId": 10057069,
+   "seasonNumber": 1,
+   "episodeNumber": 22
+  },
+  "23": {
+   "tvdbId": 10057071,
+   "seasonNumber": 1,
+   "episodeNumber": 23
+  },
+  "24": {
+   "tvdbId": 10057072,
+   "seasonNumber": 1,
+   "episodeNumber": 24
+  },
+  "25": {
+   "tvdbId": 10057073,
+   "seasonNumber": 1,
+   "episodeNumber": 25
+  },
+  "26": {
+   "tvdbId": 10086091,
+   "seasonNumber": 1,
+   "episodeNumber": 26
+  },
+  "27": {
+   "tvdbId": 10086092,
+   "seasonNumber": 1,
+   "episodeNumber": 27
+  },
+  "28": {
+   "tvdbId": 10086093,
+   "seasonNumber": 1,
+   "episodeNumber": 28
+  },
+  "S21": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S22": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S1": {
+   "tvdbId": 10117637,
+   "seasonNumber": 0,
+   "episodeNumber": 1
+  },
+  "S2": {
+   "tvdbId": 10117638,
+   "seasonNumber": 0,
+   "episodeNumber": 2
+  },
+  "S3": {
+   "tvdbId": 10147845,
+   "seasonNumber": 0,
+   "episodeNumber": 3
+  },
+  "S4": {
+   "tvdbId": 10168248,
+   "seasonNumber": 0,
+   "episodeNumber": 4
+  },
+  "S5": {
+   "tvdbId": 10191390,
+   "seasonNumber": 0,
+   "episodeNumber": 5
+  },
+  "S6": {
+   "tvdbId": 10213762,
+   "seasonNumber": 0,
+   "episodeNumber": 6
+  },
+  "S7": {
+   "tvdbId": 10242956,
+   "seasonNumber": 0,
+   "episodeNumber": 7
+  },
+  "S8": {
+   "tvdbId": 10268632,
+   "seasonNumber": 0,
+   "episodeNumber": 8
+  },
+  "S9": {
+   "tvdbId": 10302411,
+   "seasonNumber": 0,
+   "episodeNumber": 9
+  },
+  "S10": {
+   "tvdbId": 10320088,
+   "seasonNumber": 0,
+   "episodeNumber": 10
+  },
+  "S11": {
+   "tvdbId": 10372696,
+   "seasonNumber": 0,
+   "episodeNumber": 11
+  },
+  "S23": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S24": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S12": {
+   "tvdbId": 10408134,
+   "seasonNumber": 0,
+   "episodeNumber": 12
+  },
+  "S20": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S19": {
+   "tvdbId": 10997618,
+   "seasonNumber": 0,
+   "episodeNumber": 15
+  },
+  "S25": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  },
+  "S13": {
+   "tvdbId": 11066776,
+   "seasonNumber": 0,
+   "episodeNumber": 16
+  },
+  "S14": {
+   "tvdbId": 11129349,
+   "seasonNumber": 0,
+   "episodeNumber": 17
+  },
+  "S15": {
+   "tvdbId": 11165468,
+   "seasonNumber": 0,
+   "episodeNumber": 18
+  },
+  "S16": {
+   "tvdbId": 11224647,
+   "seasonNumber": 0,
+   "episodeNumber": 19
+  },
+  "S17": {
+   "tvdbId": 11268427,
+   "seasonNumber": 0,
+   "episodeNumber": 20
+  },
+  "S18": {
+   "tvdbId": null,
+   "seasonNumber": null,
+   "episodeNumber": null
+  }
+ }
+}

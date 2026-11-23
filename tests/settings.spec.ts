@@ -114,7 +114,7 @@ test('the page lists its four categories and shows Sources alone, its cards hold
   await expect(panel(page)).toHaveCount(1)
   await expect(panel(page)).toHaveAttribute('data-section', 'sources')
   await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText('Sources')
-  await expect(page.locator('[data-source] [data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(5)
+  await expect(page.locator('[data-source] [data-account]'), 'the header shows the FKN account, so this page does not').toHaveCount(6)
   await expect(page.locator('[data-account="fkn"]')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /^(Accounts|Data|Tracking|Playback)$/ })).toHaveCount(0)
 })
@@ -1110,7 +1110,7 @@ test('opening Sources checks a Crunchyroll stub knows of once what it learned is
   expect(await mountedFrames(page), "the trackers' own paced reads keep their sites' states").toEqual(['Sign-in check'])
   await expect(chip(page, 'crunchyroll')).toHaveText('Signed in')
   await expect(chip(page, 'mal')).toHaveText('Signed in')
-  await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', '', ''])
+  await expect(page.locator('[data-account] [role="status"]')).toHaveText(['', '', '', '', ''])
 })
 
 // HOR-755: a session stub never saw cannot be checked without a permission, which Sign in asks for

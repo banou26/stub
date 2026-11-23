@@ -196,7 +196,7 @@ test('the country comes first, and the sources stub signs in to hold their sign-
   const { host } = render()
   expect(host.querySelector('.rows > .row')?.getAttribute('data-setting')).toBe('country')
   const accounts = [...host.querySelectorAll('[data-account]')].map(account => [account.closest('[data-source]')!.getAttribute('data-source'), account.getAttribute('data-account')])
-  expect(accounts).toEqual([['cr', 'crunchyroll'], ['amazon', 'prime'], ['nf', 'netflix'], ['mal', 'mal'], ['anilist', 'anilist']])
+  expect(accounts).toEqual([['cr', 'crunchyroll'], ['amazon', 'prime'], ['nf', 'netflix'], ['mal', 'mal'], ['anilist', 'anilist'], ['trakt', 'trakt']])
 })
 
 test('with nothing added, says so in place of the list', () => {

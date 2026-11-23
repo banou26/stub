@@ -23,6 +23,7 @@ vi.mock('@fkn/lib', async importOriginal => ({
 }))
 vi.mock('../../../src/sources/anilist/session-page.ts?page-script', () => ({ default: 'function () { return "the AniList page script" }' }))
 vi.mock('../../../src/sources/mal/session-page.ts?page-script', () => ({ default: 'function () { return "the MyAnimeList page script" }' }))
+vi.mock('../../../src/sources/trakt/session-page.ts?page-script', () => ({ default: 'function () { return "the Trakt page script" }' }))
 vi.mock('../../../src/sources/crunchyroll/session-page.ts?page-script', () => ({ default: 'function () { return "the Crunchyroll page script" }' }))
 
 const stored = new Map<string, string>()
@@ -127,7 +128,42 @@ describe("MyAnimeList's session on this device", () => {
     expect(attach).toHaveBeenCalledWith(expect.objectContaining({ domains: ['anilist.co'], blank: { url: 'https://anilist.co/terms' } }))
     expect(page.goto).not.toHaveBeenCalled()
     expect(page.evaluate).toHaveBeenCalledWith('function () { return "the AniList page script" }', expect.anything())
-    expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'cr', 'mal'])
+    expect(Object.keys(trackerSignIns).sort()).toEqual(['anilist', 'cr', 'mal', 'trakt'])
+  })
+})
+
+describe("Trakt's session on this device", () => {
+  test("its sign in opens Trakt's app in an FKN window, asking for evaluation up front", async () => {
+    const { trackerSignIns } = await load()
+    const window = closedWindow()
+    attach.mockResolvedValueOnce(window.login)
+
+    expect(await trackerSignIns.trakt!()).toBe('closed')
+    expect(attach).toHaveBeenCalledWith({
+      window: {},
+      domains: ['app.trakt.tv'],
+      cookies: 'persistent',
+      permissions: [{ category: 'evaluation', reason: 'Read and update your Trakt history, watchlist and ratings with your own app.trakt.tv session' }],
+    })
+    expect(window.goto).toHaveBeenCalledWith('https://app.trakt.tv/', { waitUntil: 'commit' })
+    expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['trakt'])
+  })
+
+  test('its hidden frame holds /robots.txt on app.trakt.tv and runs the Trakt page script there', async () => {
+    const { sessionResolvers, signOutOfSite } = await load()
+    stored.set('stub.sessions', JSON.stringify(['trakt']))
+    const page = hiddenFrame()
+    attach.mockResolvedValueOnce(page.frame)
+
+    expect(await sessionResolvers.call('trakt', 'whoami', {})).toEqual({ kind: 'response', response: 'the page answered' })
+    expect(attach).toHaveBeenCalledWith(expect.objectContaining({ domains: ['app.trakt.tv'], blank: { url: 'https://app.trakt.tv/robots.txt' }, cookies: 'persistent' }))
+    expect(page.goto).not.toHaveBeenCalled()
+    expect(page.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.objectContaining({ kind: 'serve' }))
+    expect(page.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: SESSION_PORT_MESSAGE }), 'https://app.trakt.tv', expect.any(Array))
+
+    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
+    await signOutOfSite('trakt', 'cloud')
+    expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: ['app.trakt.tv', 'auth.trakt.tv'], cookies: 'persistent' })
   })
 })
 
@@ -317,7 +353,7 @@ describe('two tabs', () => {
 test("every site's sign in and hidden frame give FKN a reason it takes", async () => {
   const { MAX_REASON_LENGTH } = await vi.importActual<typeof import('@fkn/lib')>('@fkn/lib')
   const { sessionResolvers, trackerSignIns } = await load()
-  const sites = ['anilist', 'mal', 'cr'] as const
+  const sites = ['anilist', 'mal', 'trakt', 'cr'] as const
   for (const site of sites) {
     attach.mockResolvedValueOnce(closedWindow().login)
     await trackerSignIns[site]!()

@@ -43,7 +43,7 @@ test('a site that never asks the anime catalogues keeps a card for each icon it 
   }
   expect(host.querySelector('[data-source="kitsu"]'), 'an anime catalogue stub never draws has no card').toBeNull()
   expect(labels('tvdb'), 'the control').toEqual(['Source', 'Icon'])
-  expect([...host.querySelectorAll('[data-account]')].map(account => account.getAttribute('data-account'))).toEqual(['prime', 'netflix'])
+  expect([...host.querySelectorAll('[data-account]')].map(account => account.getAttribute('data-account'))).toEqual(['prime', 'netflix', 'trakt'])
   expect([...host.querySelectorAll('ol.play-order > li')].map(card => card.getAttribute('data-source')), 'Crunchyroll is not ranked where it is not asked').toEqual(['amazon', 'nf'])
 })
 

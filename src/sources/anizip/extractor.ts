@@ -154,7 +154,7 @@ export const normalizeMedia = (media: AnimeSeries, language?: string) => {
   })
 }
 
-const fetchAnizipJsonMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: string, context: ExtractorServerContext) =>
+export const fetchAnizipJsonMappings = (providerId: 'anilist' | 'mal' | 'anidb', id: string, context: Pick<ExtractorServerContext, 'fetch'>) =>
   context.fetch(`https://api.ani.zip/mappings?${providerId}_id=${id}&specials=1`)
     .then(res => res.json() as Promise<AnimeSeries>)
 
@@ -238,7 +238,7 @@ interface Mappings {
   themoviedb_id: string | null
 }
 
-interface AnimeSeries {
+export interface AnimeSeries {
   titles: { [key: string]: string | undefined; en?: string; ja?: string }
   episodes: { [episodeNumber: string]: Episode }
   episodeCount: number

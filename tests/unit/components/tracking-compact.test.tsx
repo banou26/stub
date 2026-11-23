@@ -1116,3 +1116,55 @@ describe("what a save tells the viewer's FKN Social page", () => {
     expect(onActivity.mock.calls).toEqual([[{ kind: 'watched', episode: 14 }]])
   })
 })
+
+describe('Trakt progress lowering confirmation', () => {
+  const traktListed: CompactAnswer = {
+    state: 'LISTED',
+    candidates: [],
+    tracker: { id: 'trakt', name: 'Trakt', canWrite: true, scoreScale: 'POINT_10' },
+    entry: { status: 'WATCHING', progress: 5, score: 80, episodeCount: 14 },
+  }
+  const anilist5: CompactAnswer = { ...anilist, entry: { ...anilist.entry, progress: 5 } }
+  const both: CompactTracking = { summary: { status: 'WATCHING', progress: 5, score: 80, episodeCount: 14 }, disagreements: [], answers: [anilist5, traktListed] }
+
+  const lowerTo = async (host: HTMLElement, value: string) => {
+    const input = q<HTMLInputElement>(host, 'input[type="number"]')
+    input.value = value
+    await fire(input, 'input')
+    await fire(input, 'keydown', { key: 'Enter' })
+    await settle(1500)
+  }
+
+  test('holds Trakt when lowering progress while saving AniList, and Cancel skips Trakt while confirm sends it', async () => {
+    vi.useFakeTimers()
+    const { host, onSaveFields } = render({ tracking: both })
+    await lowerTo(host, '4')
+    expect(onSaveFields).toHaveBeenCalledTimes(1)
+    expect(onSaveFields).toHaveBeenCalledWith(['anilist'], { progress: 4 })
+    const note = host.querySelector<HTMLElement>('[data-confirm="trakt-lower"]')!
+    expect(note.textContent).toContain('Lowering progress on Trakt to 4 deletes every recorded play above it, including rewatches.')
+
+    await click(button(note, 'Cancel')!)
+    expect(host.querySelector('[data-confirm="trakt-lower"]')).toBeNull()
+    expect(onSaveFields).toHaveBeenCalledTimes(1)
+
+    await lowerTo(host, '4')
+    const confirmNote = host.querySelector<HTMLElement>('[data-confirm="trakt-lower"]')!
+    await click(button(confirmNote, 'Remove Trakt plays')!)
+    expect(host.querySelector('[data-confirm="trakt-lower"]')).toBeNull()
+    expect(onSaveFields).toHaveBeenLastCalledWith(['trakt'], { progress: 4 })
+  })
+
+  test('raising progress and Remove from list do not prompt on Trakt', async () => {
+    vi.useFakeTimers()
+    const { host, onRemove, onSaveFields } = render({ tracking: { ...both, answers: [traktListed] } })
+    await click(named(host, 'One episode more'))
+    await settle(1500)
+    expect(host.querySelector('[data-confirm="trakt-lower"]')).toBeNull()
+    expect(onSaveFields).toHaveBeenCalledWith(['trakt'], { progress: 6 })
+
+    await pickStatus(host, 'REMOVE')
+    expect(host.querySelector('[data-confirm="trakt-lower"]')).toBeNull()
+    expect(onRemove).toHaveBeenCalledWith(['trakt'])
+  })
+})

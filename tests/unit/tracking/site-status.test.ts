@@ -198,9 +198,9 @@ const answer = (tracker: string, state: string) => ({ state, tracker: { id: trac
 
 test('a tracker\'s list read says its site is signed in, and SIGNED_OUT that it is not', () => {
   const record = vi.fn()
-  recordTrackerAnswers([answer('anilist', 'LISTED'), answer('mal', 'SIGNED_OUT')], { record }, () => true)
+  recordTrackerAnswers([answer('anilist', 'LISTED'), answer('mal', 'SIGNED_OUT'), answer('trakt', 'NOT_LISTED')], { record }, () => true)
 
-  expect(record.mock.calls).toEqual([['anilist', 'signed-in'], ['mal', 'signed-out']])
+  expect(record.mock.calls).toEqual([['anilist', 'signed-in'], ['mal', 'signed-out'], ['trakt', 'signed-in']])
 })
 
 test('a site not connected here, an answer that asked nothing, and stub\'s own tracker say nothing', () => {

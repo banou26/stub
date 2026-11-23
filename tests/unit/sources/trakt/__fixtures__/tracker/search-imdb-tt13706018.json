@@ -1,0 +1,18 @@
+[
+ {
+  "show": {
+   "ids": {
+    "imdb": "tt13706018",
+    "slug": "spy-x-family",
+    "tmdb": 120089,
+    "tvdb": 405920,
+    "trakt": 190742
+   },
+   "year": 2022,
+   "title": "SPY x FAMILY",
+   "aired_episodes": 50
+  },
+  "type": "show",
+  "score": 100
+ }
+]

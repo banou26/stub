@@ -10,6 +10,7 @@ import { expose } from 'osra'
 import type { SessionPageApi } from '../../src/sources/anilist/session-page'
 import type { CrunchyrollPageApi } from '../../src/sources/crunchyroll/session-page'
 import type { MalPageApi } from '../../src/sources/mal/session-page'
+import type { TraktPageApi } from '../../src/sources/trakt/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
 import { READ_SESSION_INSTALL, SESSION_INSTALL, SESSION_PORT_MESSAGE } from '../../src/tracking/session-frames'
@@ -112,4 +113,43 @@ test("ships the Crunchyroll page script the same way, reading the season's progr
   expect(saved).toEqual({ status: 200, body: null })
   expect(site.writes().map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual([`POST /content/v2/discover/${ACCOUNT_ID}/mark_as_watched/GJAEP0003`])
   expect(new URLSearchParams(site.asked[0]!.init.body as string).get('device_id'), 'no new device on the account').toBe('the-sites-own-device')
+})
+
+test('ships the Trakt page script the same way, reading the token from /__data.json and posting once without retrying', async () => {
+  const source = await buildPageScript(resolve(__dirname, '../../src/sources/trakt/session-page.ts'))
+
+  const window = new EventTarget()
+  const asked: string[] = []
+  vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+  vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
+    asked.push(`${init.method ?? 'GET'} ${input.split('?')[0]} ${(init.headers as Record<string, string>).authorization ?? init.credentials}`)
+    return input.startsWith('/__data.json')
+      ? new Response(JSON.stringify({ type: 'data', nodes: [{ type: 'data', data: [{ oidcAuth: 1 }, { token: 2 }, 'tok-1'] }] }), { status: 200 })
+      : input.includes('/users/settings')
+        ? new Response(JSON.stringify({ user: { username: 'viewer', email: 'viewer@example.com' } }), { status: 200 })
+        : new Response(JSON.stringify({ added: { shows: 1 } }), { status: 201 })
+  })
+
+  const compiled = inPage(source) as (arg: unknown) => unknown
+  expect(typeof compiled).toBe('function')
+  expect(await compiled({ kind: 'viewer' }), 'the sign-in check asks Trakt who the token is').toBe(true)
+  expect(compiled({ kind: 'serve', appOrigin: 'https://anime.fkn.app', key: 'k1' })).toBe('installed')
+  expect(globalThis, 'nothing but its own state lands on the page').not.toHaveProperty('__stubPageScript')
+
+  const { port1, port2 } = new MessageChannel()
+  window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://anime.fkn.app', ports: [port2] }))
+  const page = await expose<TraktPageApi>({}, { transport: port1 })
+  const whoami = await page.whoami({})
+  const posted = await page.post({ path: '/sync/watchlist', body: { shows: [{ ids: { trakt: 1 } }] } })
+  port1.close()
+
+  expect(whoami).toMatchObject({ kind: 'answer', status: 200, body: 'viewer' })
+  expect(posted).toMatchObject({ kind: 'answer', status: 201 })
+  expect(asked).toEqual([
+    'GET /__data.json include',
+    'GET https://apiz.trakt.tv/users/settings Bearer tok-1',
+    'GET /__data.json include',
+    'GET https://apiz.trakt.tv/users/settings Bearer tok-1',
+    'POST https://apiz.trakt.tv/sync/watchlist Bearer tok-1',
+  ])
 })
