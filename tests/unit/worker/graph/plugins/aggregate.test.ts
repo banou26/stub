@@ -515,6 +515,32 @@ test('a member row beyond the run length from a lower tier is kept out of the sl
   expect(Number(thirteen!.total), 'the row stays in the graph and fills nothing').toBe(0)
 })
 
+test('STUB-411: an unscored member whose episodes carry a high score is still trimmed past corroborated run length', async () => {
+  await ingestAnswers([
+    await answer('media', media('mal:902', {
+      score: 0.9, type: 'TV', episodeCount: 12, titles: [title('en', 'Unscored Trim')],
+      handles: [sameAs(media('anilist:902', {})), sameAs(media('anizip:902', {}))],
+    })),
+    await answer('media', media('anilist:902', {
+      score: 0.8, type: 'TV', episodeCount: 12, titles: [title('en', 'Unscored Trim')],
+      handles: [sameAs(media('mal:902', {})), sameAs(media('anizip:902', {}))],
+    })),
+    await answer('media', media('anizip:902', {
+      type: 'TV', episodeCount: 24, titles: [title('en', 'Unscored Trim')],
+      episodes: [
+        episode('anizip:902-12', 'anizip:902', { episodeNumber: 12, score: 0.9, titles: [title('en', 'Ep 12')], releaseDate: '2026-01-12' }),
+        episode('anizip:902-13', 'anizip:902', { episodeNumber: 13, score: 0.9, titles: [title('en', 'Ep 13')], releaseDate: '2026-01-19' }),
+      ],
+    })),
+  ])
+  await runPass()
+  expect((await slotsOf('mal:902')).map(slot => slot.number)).toEqual([12])
+  const [beyond] = await rowsOf(
+    `MATCH (e:Episode {uri: 'anizip:902-13'}) OPTIONAL MATCH (e)-[f:FILLS]->(s:Slot) RETURN count(f) AS total`
+  )
+  expect(Number(beyond!.total)).toBe(0)
+})
+
 // THE THREE BARS, each with the control that must NOT trim. Every one of them is a measured figure
 // from `consensus.ts` and from 5.4 P5, and each is the difference between hiding a packaging and
 // hiding episodes that aired.

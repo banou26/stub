@@ -983,7 +983,7 @@ export const aggregatePlugin: Plugin = {
           reference,
           equals,
           backingWeight,
-          member: { origin: member?.origin ?? episode.origin, score: member?.score ?? episode.score },
+          member: { origin: member?.origin ?? episode.origin, score: member ? member.score : episode.score },
           number,
         })
       }
