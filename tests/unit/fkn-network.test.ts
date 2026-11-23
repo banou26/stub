@@ -37,7 +37,7 @@ test('every entry is a site fkn-sign accepts and keeps, none an FKN page and nei
 test('names every host stub asks from the browser, every source icon it draws and every sign-in page it opens', () => {
   const needed = [
     ...[...DIRECT_FETCH_ORIGINS].map(hostOf),
-    ...builtInSources.flatMap(({ icon }) => icon ? [hostOf(icon)] : []),
+    ...builtInSources.flatMap(({ icon }) => icon && !icon.startsWith('data:') ? [hostOf(icon)] : []),
     hostOf(serviceLogo('nf')!),
     ...[ANILIST_LOGIN_URL, ANILIST_SESSION_URL, CRUNCHYROLL_LOGIN_URL, CRUNCHYROLL_SESSION_URL, MAL_LOGIN_URL, MAL_SESSION_URL, TRAKT_LOGIN_URL, TRAKT_SESSION_URL].map(hostOf),
     ...['US', 'GB', 'DE', 'JP', 'FR'].map(country => hostOf(primeSignInUrl(primeSiteFor(country)))),

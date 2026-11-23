@@ -1,0 +1,4 @@
+const TRAKT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" rx="10.80" fill="#6438D0"/><g transform="translate(6.240 6.240) scale(0.58230)"><g fill="none" stroke="#FFFFFF" stroke-width="7.2" stroke-linecap="round" stroke-linejoin="round"><path d="M56.00 38.95A27.5 27.5 0 1 1 36.19 3.20"/><path d="M16.93 27.11L35.82 42.96M29.92 34.75L53.89 6.17M56.69 18.31L42.49 35.24M26.88 22.41L23.36 19.45"/></g></g></svg>'
+
+/** Inlined as a data URL because cross-origin <img> requests to app.trakt.tv fail with ERR_BLOCKED_BY_ORB in Chrome. */
+export const TRAKT_ICON = `data:image/svg+xml,${encodeURIComponent(TRAKT_SVG)}`

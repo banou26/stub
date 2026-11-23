@@ -19,7 +19,7 @@ export const TRAKT_HEADERS = {
   'Content-Type': 'application/json',
 }
 
-export const TRAKT_ICON = 'https://app.trakt.tv/favicon.svg'
+export { TRAKT_ICON } from './icon'
 
 export type TraktIds = {
   trakt?: number

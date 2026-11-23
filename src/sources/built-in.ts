@@ -2,6 +2,8 @@
 // (and the wasm they pull in) are never bundled. tests/unit/sources/built-in.test.ts pins it to what
 // ./index.ts runs. `imdb` is left out: it answers nothing, and `omdb` is the source that reads IMDb.
 
+import { TRAKT_ICON } from './trakt/icon'
+
 export type BuiltInSource = {
   origin: string
   name: string
@@ -38,7 +40,7 @@ export const builtInSources: BuiltInSource[] = [
   { origin: 'kitsu', name: 'Kitsu', url: 'https://kitsu.io', icon: 'https://kitsu.io/favicon.ico' },
   { origin: 'livechart', name: 'LiveChart', url: 'https://www.livechart.me' },
   { origin: 'omdb', name: 'IMDb', url: 'https://www.imdb.com', icon: 'https://www.imdb.com/favicon.ico' },
-  { origin: 'trakt', name: 'Trakt', url: 'https://trakt.tv', icon: 'https://app.trakt.tv/favicon.svg' },
+  { origin: 'trakt', name: 'Trakt', url: 'https://trakt.tv', icon: TRAKT_ICON },
   { origin: 'simkl', name: 'Simkl', url: 'https://simkl.com', icon: 'https://simkl.com/favicon.ico' },
   { origin: 'tvdb', name: 'TheTVDB', url: 'https://www.thetvdb.com', icon: 'https://www.thetvdb.com/images/icon.png' },
   { origin: 'offline', name: 'Offline database', url: 'https://github.com/manami-project/anime-offline-database' },

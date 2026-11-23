@@ -19,6 +19,7 @@ import {
 } from '../tracking/compact'
 import { isScored, nativeScore } from '../tracking/score-scale'
 import { WATCHED_AT, watchedPatches } from '../tracking/watched'
+import OriginIcon from './origin-icon'
 import SaveProblems from './save-problems'
 import ScorePicker from './score-picker'
 
@@ -245,7 +246,7 @@ const ROW = ''
 
 const Logo = ({ answer }: { answer: CompactAnswer }) => (
   <span className="logo" style={answer.tracker.color ? { color: answer.tracker.color } : undefined}>
-    {answer.tracker.icon ? <img src={answer.tracker.icon} alt=""/> : answer.tracker.name.slice(0, 1)}
+    <OriginIcon icon={answer.tracker.icon} name={answer.tracker.name}/>
   </span>
 )
 
