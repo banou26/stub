@@ -11,6 +11,7 @@ import LeftToRight from '../../components/player/left-to-right'
 import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage } from '../../embed-languages'
+import { useHostExternalSubtitles } from '../../embed-subtitles'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { useSetting } from '../../utils/use-setting'
@@ -54,6 +55,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
   const fullscreen = useHostFullscreen()
   const episodeNavigation = useHostEpisodeNavigation()
+  const externalSubtitles = useHostExternalSubtitles()
   // the page keeps it: a flip here is told to the page, whose write reaches this document as a storage event
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
@@ -66,6 +68,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         media={media}
         title={title}
         subtitles={subtitles}
+        externalSubtitles={externalSubtitles}
         audioTracks={audioTracks}
         quality={quality}
         thumbnails={thumbnails}

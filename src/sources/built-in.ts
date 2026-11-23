@@ -38,7 +38,7 @@ export const builtInSources: BuiltInSource[] = [
   { origin: 'kitsu', name: 'Kitsu', url: 'https://kitsu.io', icon: 'https://kitsu.io/favicon.ico' },
   { origin: 'livechart', name: 'LiveChart', url: 'https://www.livechart.me' },
   { origin: 'omdb', name: 'IMDb', url: 'https://www.imdb.com', icon: 'https://www.imdb.com/favicon.ico' },
-  { origin: 'trakt', name: 'Trakt', url: 'https://trakt.tv', icon: 'https://walter.trakt.tv/hotlink-ok/public/favicon.ico' },
+  { origin: 'trakt', name: 'Trakt', url: 'https://trakt.tv', icon: 'https://app.trakt.tv/favicon.svg' },
   { origin: 'simkl', name: 'Simkl', url: 'https://simkl.com', icon: 'https://simkl.com/favicon.ico' },
   { origin: 'tvdb', name: 'TheTVDB', url: 'https://www.thetvdb.com', icon: 'https://www.thetvdb.com/images/icon.png' },
   { origin: 'offline', name: 'Offline database', url: 'https://github.com/manami-project/anime-offline-database' },

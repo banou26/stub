@@ -316,6 +316,13 @@ vi.mock('../../../../src/embed-episode', () => ({
     return () => {}
   },
 }))
+const embedSubtitles = vi.hoisted(() => ({ served: [] as [HTMLIFrameElement, unknown][] }))
+vi.mock('../../../../src/embed-subtitles', () => ({
+  serveEmbedExternalSubtitles: (iframe: HTMLIFrameElement, bundle: unknown) => {
+    embedSubtitles.served.push([iframe, bundle])
+    return () => {}
+  },
+}))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
   ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Share2', 'Smile', 'Star'].map(name => [name, () => null])))
@@ -401,6 +408,7 @@ afterEach(() => {
   fullscreens.served = []
   fullscreens.stopped = 0
   episodeNavs.served = []
+  embedSubtitles.served = []
   pluginPlayers.chapters = undefined
   pluginPlayers.focus = []
   pluginPlayers.stages = []
@@ -1749,10 +1757,17 @@ const atTheCredits = async () => {
   return page
 }
 const nextShown = (host: HTMLElement) => host.querySelector('.up-next')?.getAttribute('title')
+const nonSubtitleUrls = (urls: readonly string[]) => urls.filter(url =>
+  !url.startsWith('https://api.ani.zip/')
+  && !url.startsWith('https://opensubtitles-v3.strem.io/')
+  && !url.startsWith('https://subs5.strem.io/')
+  && !url.startsWith('https://api-shoulei-ssl.xunlei.com/')
+  && !url.startsWith('https://subtitle.v.geilijiasu.com/'),
+)
 
 test('Next episode shows a second before the credits and counts down only at the end', async () => {
   const { host } = await atTheCredits()
-  expect(relay.asked).toEqual([skipEventsUrl('GX2')])
+  expect(nonSubtitleUrls(relay.asked)).toEqual([skipEventsUrl('GX2')])
   await wait(23_900)
   expect(nextShown(host), 'at 1323.9 s').toBeUndefined()
   await wait(100)
@@ -1783,7 +1798,7 @@ test('only a Crunchyroll episode asks for skip events', async () => {
     hosts.push(host)
     await settle()
     expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent(sourceUri)}`)
-    expect(relay.asked, sourceUri).toEqual(asked)
+    expect(nonSubtitleUrls(relay.asked), sourceUri).toEqual(asked)
     unmount(hosts.pop()!)
   }
 })
@@ -2256,13 +2271,6 @@ const torrentOf = async (chapters: object[] | undefined, third: object = {}) => 
 const PARTS = [{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }]
 const CREDITS = { credits: { start: 1300, end: 1390 } }
 const crunchyrollUrl = (n: number) => `https://www.crunchyroll.com/watch/GX${n}`
-const nonSubtitleUrls = (urls: readonly string[]) => urls.filter(url =>
-  !url.startsWith('https://api.ani.zip/')
-  && !url.startsWith('https://opensubtitles-v3.strem.io/')
-  && !url.startsWith('https://subs5.strem.io/')
-  && !url.startsWith('https://api-shoulei-ssl.xunlei.com/')
-  && !url.startsWith('https://subtitle.v.geilijiasu.com/'),
-)
 
 test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when its length is Crunchyroll\'s', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
@@ -2350,7 +2358,7 @@ test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async
   await report({ paused: false, time: 1290 })
   await settle()
   expect(host.querySelector('iframe')?.getAttribute('src'), 'it plays').toContain(`sourceUri=${encodeURIComponent('cr:GX2')}`)
-  expect([lengths.asked, direct.asked]).toEqual([[], []])
+  expect([lengths.asked, nonSubtitleUrls(direct.asked)]).toEqual([[], []])
 })
 
 test('without ending chapters, Next episode appears 30 s before the end on embeds and plugins and counts down only at ended', async () => {
@@ -2390,7 +2398,7 @@ test('a non-Crunchyroll built-in embed falls back to AniSkip and late chapters o
   expect(nextShown(host), 'not shown before AniSkip settles').toBeUndefined()
   release()
   await settle()
-  expect(direct.asked).toEqual([aniskipUrl('5', 2, 1395)])
+  expect(nonSubtitleUrls(direct.asked)).toEqual([aniskipUrl('5', 2, 1395)])
   expect(nextShown(host), 'shown immediately on chapter arrival even while paused').toBe('E3 - Title 3')
 })
 
@@ -4485,7 +4493,7 @@ test('STUB-436: previous/next episode controls move into the player bar for embe
   expect(pluginPlayers.episodeNav).toBeUndefined()
 })
 
-test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay only for plugin playback, and decodes selected tracks lazily', async () => {
+test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay for both built-in embeds and plugin playback, and decodes selected tracks lazily', async () => {
   vi.useFakeTimers()
   origins = ['cr', 'nyaa']
   series({}, 'cr:GX2')
@@ -4508,10 +4516,25 @@ test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay only for plu
   hosts.push(host)
   await settle()
 
-  // Built-in embed playback never fetches external subtitles or passes externalSubtitles
-  expect(direct.asked).toEqual([])
-  expect(relay.asked.some(url => url.includes('xunlei'))).toBe(false)
+  expect(direct.asked).toEqual([
+    'https://api.ani.zip/mappings?anilist_id=1&specials=1',
+    'https://opensubtitles-v3.strem.io/subtitles/series/tt1234567:1:2.json',
+  ])
+  expect(relay.asked).toEqual([
+    skipEventsUrl('GX2'),
+    'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name=Title%202',
+  ])
+  const servedBundle = embedSubtitles.served.at(-1)?.[1] as {
+    tracks: { id: string, language: string, format: string }[]
+    load: (id: string) => Promise<string>
+  } | undefined
+  expect(servedBundle?.tracks.map(t => ({ id: t.id, language: t.language, format: t.format }))).toEqual([
+    { id: 'opensubtitles:en:9', language: 'en', format: 'srt' },
+    { id: 'xunlei:xl2', language: 'zh-Hans', format: 'ass' },
+  ])
   expect(pluginPlayers.externalSubtitles).toBeUndefined()
+  expect(await servedBundle!.load('opensubtitles:en:9')).toBe('1\n00:00:01,000 --> 00:00:02,000\nOpenSubtitles line\n')
+  expect(direct.asked).toContain('https://subs5.strem.io/ep2.srt')
 
   relay.asked = []
   direct.asked = []
@@ -4519,20 +4542,14 @@ test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay only for plu
   act(() => { render(tree(), host) })
   await settle()
 
-  expect(direct.asked).toEqual([
-    'https://api.ani.zip/mappings?anilist_id=1&specials=1',
-    'https://opensubtitles-v3.strem.io/subtitles/series/tt1234567:1:2.json',
-  ])
-  expect(relay.asked).toEqual([
-    'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name=Title%202',
-  ])
+  // Switching to another source on the same episode reuses the already-fetched subtitle bundle
+  expect(direct.asked).toEqual([])
+  expect(relay.asked).toEqual([])
   expect(pluginPlayers.externalSubtitles?.tracks.map(t => ({ id: t.id, language: t.language, format: t.format }))).toEqual([
     { id: 'opensubtitles:en:9', language: 'en', format: 'srt' },
     { id: 'xunlei:xl2', language: 'zh-Hans', format: 'ass' },
   ])
 
-  expect(await pluginPlayers.externalSubtitles!.load('opensubtitles:en:9')).toBe('1\n00:00:01,000 --> 00:00:02,000\nOpenSubtitles line\n')
-  expect(direct.asked).toContain('https://subs5.strem.io/ep2.srt')
   expect(await pluginPlayers.externalSubtitles!.load('xunlei:xl2')).toBe('[Script Info]\nTitle: Xunlei\n')
   expect(relay.asked).toContain('https://subtitle.v.geilijiasu.com/ep2.ass')
 })

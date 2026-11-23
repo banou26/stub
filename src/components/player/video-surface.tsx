@@ -1,10 +1,15 @@
+import type { RemoteVideoElement } from '@fkn/lib'
+import type { ExternalSubtitleTrack } from '@banou/media-player'
 import type { ComponentChildren, FunctionComponent } from 'preact'
-import type { PlayerCapabilities, PlayerSelection } from './types'
+import type { PlayerCapabilities, PlayerChoice, PlayerSelection } from './types'
 
-import { useEffect, useState } from 'preact/hooks'
+import { activeSubtitleCues, parseSubtitleCues, type SubtitleCue } from '@banou/media-player/engine'
+import { css } from '@emotion/react'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { useHostEpisodeNavigation } from '../../embed-episode'
+import { useHostExternalSubtitles } from '../../embed-subtitles'
 import {
   AlertDialog,
   BufferingIndicator,
@@ -91,6 +96,112 @@ const VolumeSliderRoot = asFC<{ className?: string, orientation?: string, thumbA
 const MediaHotkeyC = asFC<{ keys: string, action: string, value?: number }>(MediaHotkey)
 const MediaGestureC = asFC<{ type: string, action: string, value?: number, pointer?: string, region?: string }>(MediaGesture)
 const ContainerC = asFC<{ className?: string, children?: ComponentChildren } & Record<string, unknown>>(Container)
+const EXT_SUBTITLE_PREFIX = 'ext:'
+const EMPTY_SUBTITLE_CUES: readonly SubtitleCue[] = []
+
+const cueContainerStyle = css`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6% 8%;
+`
+
+const cueLineStyle = css`
+  max-width: 90%;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: clamp(14px, 2.4cqw, 28px);
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-line;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+`
+
+const SubtitleCueOverlay = ({ cues, media }: {
+  cues: readonly SubtitleCue[]
+  media: RemoteVideoElement | null
+}) => {
+  const [active, setActive] = useState<SubtitleCue[]>([])
+
+  useEffect(() => {
+    if (!media || !cues.length) {
+      setActive([])
+      return
+    }
+    let anchorTime = media.currentTime || 0
+    let anchorAt = performance.now()
+    let rate = media.playbackRate || 1
+    let paused = media.paused ?? true
+    let lastKey = ''
+    let frame = 0
+
+    const paintAt = (time: number) => {
+      const visible = activeSubtitleCues(cues, time)
+      const key = visible.map(cue => cue.text).join('\u0000')
+      if (key === lastKey) return
+      lastKey = key
+      setActive(visible)
+    }
+
+    const sync = () => {
+      anchorTime = media.currentTime || 0
+      anchorAt = performance.now()
+      rate = media.playbackRate || 1
+      paused = media.paused ?? true
+      paintAt(anchorTime)
+    }
+
+    const tick = () => {
+      frame = 0
+      if (!paused) {
+        const elapsed = (performance.now() - anchorAt) / 1000
+        paintAt(anchorTime + elapsed * rate)
+        frame = requestAnimationFrame(tick)
+      }
+    }
+
+    const onPlayState = () => {
+      sync()
+      if (!paused && !frame) frame = requestAnimationFrame(tick)
+      else if (paused && frame) {
+        cancelAnimationFrame(frame)
+        frame = 0
+      }
+    }
+
+    const events = ['timeupdate', 'seeked', 'ratechange', 'loadedmetadata'] as const
+    for (const event of events) media.addEventListener(event, sync)
+    media.addEventListener('play', onPlayState)
+    media.addEventListener('pause', onPlayState)
+
+    onPlayState()
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      for (const event of events) media.removeEventListener(event, sync)
+      media.removeEventListener('play', onPlayState)
+      media.removeEventListener('pause', onPlayState)
+    }
+  }, [cues, media])
+
+  if (!active.length) return null
+
+  return (
+    <div className="subtitle-cues" css={cueContainerStyle} dir="auto">
+      {active.map((cue, index) => (
+        <div key={`${cue.start}:${index}`} css={cueLineStyle}>{cue.text}</div>
+      ))}
+    </div>
+  )
+}
 
 type IntrinsicButton = {
   type?: 'button' | 'submit' | 'reset'
@@ -109,6 +220,7 @@ const IconButton = ({ className, ...props }: IntrinsicButton) => (
 )
 
 const SelectionMenu = ({ selection, icon }: { selection: PlayerSelection, icon: ComponentChildren }) => {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -166,6 +278,13 @@ const SelectionMenu = ({ selection, icon }: { selection: PlayerSelection, icon: 
               >
                 <span className="stub-menu__check">{selected ? <CheckIcon className="media-icon" /> : null}</span>
                 <span className="stub-menu__label">{choice.label}</span>
+                {'kind' in choice && choice.kind ? (
+                  <span className={`stub-menu__tag${choice.kind === 'external' ? ' stub-menu__tag--external' : ''}`}>
+                    {choice.kind === 'external'
+                      ? intl.formatMessage({ id: 'External', defaultMessage: 'External' })
+                      : intl.formatMessage({ id: 'Native', defaultMessage: 'Native' })}
+                  </span>
+                ) : null}
                 {'description' in choice && choice.description
                   ? <span className="stub-menu__description">{choice.description}</span>
                   : null}
@@ -205,13 +324,108 @@ const VolumePopover = () => (
 
 export type VideoSurfaceProps = {
   capabilities?: PlayerCapabilities
+  remote?: RemoteVideoElement | null
   children?: ComponentChildren
   className?: string
 } & Record<string, unknown>
 
-const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfaceProps) => {
+const VideoSurface = ({ capabilities, remote, children, className, ...rest }: VideoSurfaceProps) => {
   const intl = useIntl()
   const episodeNavigation = useHostEpisodeNavigation()
+  const hostExternalSubtitles = useHostExternalSubtitles()
+  const nativeSubtitles = capabilities?.subtitles
+  const [activeExternalId, setActiveExternalId] = useState<string | null>(null)
+  const [externalCues, setExternalCues] = useState<readonly SubtitleCue[]>(EMPTY_SUBTITLE_CUES)
+  const cueCacheRef = useRef(new Map<string, readonly SubtitleCue[]>())
+  const loadSeqRef = useRef(0)
+  const prevNativeSelectedRef = useRef<string | null>(nativeSubtitles?.selectedId ?? null)
+
+  useEffect(() => {
+    cueCacheRef.current.clear()
+  }, [hostExternalSubtitles])
+
+  useEffect(() => {
+    if (!activeExternalId) return
+    if (!hostExternalSubtitles?.some(track => track.id === activeExternalId)) {
+      loadSeqRef.current++
+      setActiveExternalId(null)
+      setExternalCues(EMPTY_SUBTITLE_CUES)
+    }
+  }, [hostExternalSubtitles, activeExternalId])
+
+  useEffect(() => {
+    const nextNative = nativeSubtitles?.selectedId ?? null
+    const prevNative = prevNativeSelectedRef.current
+    prevNativeSelectedRef.current = nextNative
+    if (nextNative !== null && nextNative !== prevNative) {
+      loadSeqRef.current++
+      setActiveExternalId(null)
+      setExternalCues(EMPTY_SUBTITLE_CUES)
+    }
+  }, [nativeSubtitles?.selectedId])
+
+  const subtitleSelection = useMemo<PlayerSelection | undefined>(() => {
+    const external = hostExternalSubtitles ?? []
+    if (!nativeSubtitles && !external.length) return undefined
+
+    const options: PlayerChoice[] = [
+      ...(nativeSubtitles?.options.map(option => ({ ...option, kind: option.kind ?? ('native' as const) })) ?? []),
+      ...external.map(track => ({
+        id: `${EXT_SUBTITLE_PREFIX}${track.id}`,
+        label: track.label,
+        kind: 'external' as const,
+      })),
+    ]
+    const activeExternal = activeExternalId && external.some(track => track.id === activeExternalId)
+      ? `${EXT_SUBTITLE_PREFIX}${activeExternalId}`
+      : null
+
+    return {
+      label: nativeSubtitles?.label ?? intl.formatMessage({ id: 'Subtitles', defaultMessage: 'Subtitles' }),
+      offLabel: nativeSubtitles?.offLabel ?? intl.formatMessage({ id: 'Off#subtitles turned off', defaultMessage: 'Off', description: 'subtitles turned off' }),
+      selectedId: activeExternal ?? nativeSubtitles?.selectedId ?? null,
+      options,
+      onSelect: async (id) => {
+        if (id !== null && id.startsWith(EXT_SUBTITLE_PREFIX)) {
+          const trackId = id.slice(EXT_SUBTITLE_PREFIX.length)
+          const track = external.find((entry: ExternalSubtitleTrack) => entry.id === trackId)
+          if (!track) throw new Error('External subtitle track unavailable')
+          const seq = ++loadSeqRef.current
+          let cues = cueCacheRef.current.get(track.id)
+          if (!cues) {
+            const url = 'url' in track && typeof track.url === 'string' ? track.url : undefined
+            const load = 'load' in track && typeof track.load === 'function' ? track.load : undefined
+            const text = load
+              ? await load()
+              : url
+                ? await fetch(url).then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                    return res.text()
+                  })
+                : await Promise.reject(new Error('External subtitle source unavailable'))
+            cues = parseSubtitleCues(text, track.format)
+            cueCacheRef.current.set(track.id, cues)
+          }
+          if (seq !== loadSeqRef.current) return
+          if (nativeSubtitles && nativeSubtitles.selectedId !== null) {
+            await nativeSubtitles.onSelect(null)
+          }
+          if (seq !== loadSeqRef.current) return
+          setActiveExternalId(track.id)
+          setExternalCues(cues)
+          return
+        }
+
+        loadSeqRef.current++
+        if (nativeSubtitles && (id !== null || nativeSubtitles.selectedId !== null)) {
+          await nativeSubtitles.onSelect(id)
+        }
+        setActiveExternalId(null)
+        setExternalCues(EMPTY_SUBTITLE_CUES)
+      },
+    }
+  }, [nativeSubtitles, hostExternalSubtitles, activeExternalId, intl])
+
   const previousLabel = episodeNavigation?.previous
     ? episodeNavigation.previous.title?.trim() || intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' })
     : undefined
@@ -221,6 +435,7 @@ const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfa
   return (
     <ContainerC className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
       {children}
+      {externalCues.length ? <SubtitleCueOverlay cues={externalCues} media={remote ?? null} /> : null}
       <BufferingIndicatorC
         render={(props: Record<string, unknown>) => (
           <div {...props} className="media-buffering-indicator">
@@ -343,11 +558,11 @@ const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfa
               <TooltipPopup className="media-surface media-tooltip">{intl.formatMessage({ id: 'Toggle playback rate', defaultMessage: 'Toggle playback rate' })}</TooltipPopup>
             </TooltipRoot>
             <VolumePopover />
-            {capabilities?.subtitles && (
+            {subtitleSelection && (
               <SelectionMenu
                 key="subtitles"
-                selection={capabilities.subtitles}
-                icon={capabilities.subtitles.selectedId
+                selection={subtitleSelection}
+                icon={subtitleSelection.selectedId
                   ? <CaptionsOnIcon className="media-icon" />
                   : <CaptionsOffIcon className="media-icon" />}
               />

@@ -13,19 +13,61 @@ export const sceneSearchUrl = (code: string) => `${TRACE_MOE_ORIGIN}/search?vect
 // trace.moe's docs: "Similarity lower than 90% are most likely incorrect results."
 export const MIN_SIMILARITY = 0.9
 
-/** One moment a show matched at: its AniList episode, absent for a special, a file of several episodes or one trace.moe could not number, and the second it starts at. */
-export type SceneMoment = { episode: number | null, from: number }
+/** One moment a show matched at: optional season, its episode number (absent for specials/multi-ep/films), and the second it starts at. */
+export type SceneMoment = { season?: number | null, episode: number | null, from: number }
 
-/** A show the picture is from, and each episode it matched in, most similar first. */
-export type SceneMatch = { anilist: number, moments: SceneMoment[] }
+/** A title the picture is from, and each episode moment it matched in, most similar first. */
+export type SceneMatch = { uri?: string, anilist?: number, moments: SceneMoment[] }
+
+/** Which reverse image search backend produced a match or refusal. */
+export type SceneEngine = 'trace.moe' | 'saucenao'
+
+/** Canonical Stub URI for a `SceneMatch` regardless of whether it came from `trace.moe` or SauceNAO. */
+export const sceneMatchUri = (match: SceneMatch): string => match.uri ?? `anilist:${match.anilist}`
 
 /**
- * Why trace.moe gave no matches: its daily limit reached, too busy (a search at once, a full queue, no answer), or the
- * picture refused. The page writes it in the viewer's language (src/router/search/scene.tsx).
+ * Why a scene search gave no matches: daily limit reached, too busy, picture refused, or the browser no longer
+ * holds the image bytes after a reload/direct link on a SauceNAO-only search.
  */
-export type SceneError = 'limit' | 'busy' | 'failed'
+export type SceneError = 'limit' | 'busy' | 'failed' | 'reupload'
 
-export type SceneAnswer = { matches: SceneMatch[] } | { error: SceneError }
+export type SceneAnswer =
+  | { matches: SceneMatch[], engines?: SceneEngine[] }
+  | { error: SceneError, engines?: SceneEngine[] }
+
+const sameMoment = (a: SceneMoment, b: SceneMoment) =>
+  (a.season ?? null) === (b.season ?? null) && a.episode === b.episode
+
+/**
+ * Merges `secondary` matches into `primary` without changing `primary` order, folding duplicate URIs and keeping
+ * the earliest `from` per `(season, episode)`.
+ */
+export const mergeSceneMatches = (
+  primary: readonly SceneMatch[],
+  secondary: readonly SceneMatch[],
+): SceneMatch[] => {
+  const out = new Map<string, SceneMatch>()
+  const add = (match: SceneMatch) => {
+    const key = sceneMatchUri(match)
+    const existing = out.get(key)
+    if (!existing) {
+      out.set(key, {
+        ...match,
+        uri: match.uri ?? key,
+        moments: match.moments.map(moment => ({ ...moment })),
+      })
+      return
+    }
+    for (const moment of match.moments) {
+      const prior = existing.moments.find(candidate => sameMoment(candidate, moment))
+      if (!prior) existing.moments.push({ ...moment })
+      else if (moment.from < prior.from) prior.from = moment.from
+    }
+  }
+  for (const match of primary) add(match)
+  for (const match of secondary) add(match)
+  return [...out.values()]
+}
 
 /** One result as trace.moe answers it, the fields read here only. */
 export type TraceMoeResult = {

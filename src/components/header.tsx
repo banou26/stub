@@ -449,7 +449,7 @@ const style = css`
     /* the close button beside it is its end inset, and the picture button sits between them */
     .search input,
     .search:has(.picture) input {
-      padding-inline-end: 0;
+      padding-inline: 0.8rem 0;
     }
 
     .search .picture {
@@ -642,10 +642,9 @@ export const Header = () => {
   const [query, setQuery] = useState(routeQuery)
   const inputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
-  // trace.moe knows anime alone, and on the search page the page itself takes a pasted or dropped picture
-  const scenes = site === 'anime' || site === 'stub'
+  // on the search page the page itself takes a pasted or dropped picture
   const { searchPicture } = usePictureSearch()
-  usePictureInput(searchPicture, scenes && !onSearch, formRef)
+  usePictureInput(searchPicture, !onSearch, formRef)
   // only a phone's layout reads it: the field is open on the search page and after a tap on its button
   const [searchOpen, setSearchOpen] = useState(onSearch)
 
@@ -703,7 +702,6 @@ export const Header = () => {
           if (!query.trim() && !event.currentTarget.contains(event.relatedTarget as Node | null)) setSearchOpen(false)
         }}
       >
-        {scenes ? undefined : <Search size={20} />}
         <input
           ref={inputRef}
           type="text"
@@ -721,7 +719,7 @@ export const Header = () => {
             inputRef.current?.blur()
           }}
         />
-        {scenes ? <PictureButton onPicture={searchPicture} size={20}/> : undefined}
+        <PictureButton onPicture={searchPicture} size={20}/>
         <button
           type="button"
           className="search-close"

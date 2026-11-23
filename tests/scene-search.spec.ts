@@ -195,17 +195,17 @@ test('the address alone reopens the search on a reload, and a refusal is its one
   expect(asked).toHaveLength(2)
 })
 
-test('movies.fkn.app offers no scene search, and asks trace.moe nothing for a scene address', async ({ page }) => {
+test('movies.fkn.app offers scene search via SauceNAO and never asks trace.moe', async ({ page }) => {
   const { asked } = await traceMoe(page)
-  await page.goto(at('anime.localhost', '/search'))
-  await expect(page.locator('.text-field').getByRole('button', { name: 'Search by picture' }), 'the control').toBeVisible()
-  await page.goto(at('movies.localhost', `/search?scene=${FRAME_CODE}`))
-  await expect(field(page)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Search by picture' })).toHaveCount(0)
-  await expect(page.locator('.heading')).not.toHaveText('Scene search')
-  expect(await handOver(page, 'paste', FRAME, 'shot.png'), 'left to the browser').toEqual([false])
-  await page.waitForTimeout(1_000)
-  await expect(page).toHaveURL(at('movies.localhost', `/search?scene=${FRAME_CODE}`))
+  await page.goto(at('movies.localhost', '/search'))
+  await expect(page.locator('.text-field').getByRole('button', { name: 'Search by picture' })).toBeVisible()
+  await page.locator('.text-field input[type="file"]').setInputFiles({ name: 'shot.png', mimeType: 'image/png', buffer: FRAME })
+  await expect(page).toHaveURL(sceneUrl)
+  await expect(page.locator('.heading')).toHaveText('Scene search')
+  await expect(page.locator('.credit')).toHaveText('Scenes found by SauceNAO')
+  expect(asked).toEqual([])
+  await page.reload()
+  await expect(page.locator('.status')).toHaveText('Select or paste the picture again to search SauceNAO.')
   expect(asked).toEqual([])
 })
 
@@ -271,12 +271,12 @@ test('at 390 px the bar\'s picture button opens with its field, which stays open
   }
 })
 
-test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.app, at its end in either direction, and on neither movies nor series', async ({ page }) => {
+test('the bar\'s picture button is in the field on all four sites, at its end in either direction', async ({ page }) => {
   for (const [language, rtl, label] of [['en', false, 'Search by picture'], ['ar', true, catalogues().ar!['Search by picture']!]] as const) {
     await page.addInitScript(([key, value]) => localStorage.setItem(key!, value!), [LANGUAGE_KEY, language])
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 844 })
-      for (const host of ['anime.localhost', 'stub.localhost']) {
+      for (const host of ['anime.localhost', 'stub.localhost', 'movies.localhost', 'series.localhost']) {
         const where = `${language} on ${host} at ${width}`
         await page.goto(at(host, '/settings'))
         await expect(page.locator('html'), where).toHaveAttribute('lang', language)
@@ -286,7 +286,7 @@ test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.ap
         }
         await expect(page.locator('header .picture'), where).toHaveAttribute('aria-label', label)
         await expect(page.locator('header .picture'), where).toBeVisible()
-        await expect(page.locator('header form > svg'), `${where}: in the glyph's place`).toBeHidden()
+        await expect(page.locator('header form > svg'), `${where}: no search glyph`).toHaveCount(0)
         const row = await page.evaluate(() => {
           const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
           const input = document.querySelector<HTMLInputElement>('header form input:not([type="file"])')!
@@ -302,12 +302,6 @@ test('the bar\'s picture button is in the field on anime.fkn.app and stub.fkn.ap
         expect(form.left >= 0 && form.right <= width, `${where}: the field in view`).toBe(true)
         if (width >= 480) expect(rtl ? form.right <= start.left : start.right <= form.left, `${where}: clear of the wordmark`).toBe(true)
         expect(await page.evaluate(() => document.documentElement.scrollWidth), `${where}: no sideways scroll`).toBeLessThanOrEqual(width)
-      }
-      for (const host of ['movies.localhost', 'series.localhost']) {
-        await page.goto(at(host, '/settings'))
-        await expect(page.locator('header form input:not([type="file"])'), host).toBeAttached()
-        await expect(page.locator('header .picture, header input[type="file"]'), `${host} at ${width}`).toHaveCount(0)
-        await expect(page.locator('header form > svg'), `${host} at ${width}: the glyph`).toHaveCount(1)
       }
     }
   }

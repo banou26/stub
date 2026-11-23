@@ -115,6 +115,23 @@ const style = css`
   .stub-menu__label {
     flex: 1;
   }
+  .stub-menu__tag {
+    padding: 0.1rem 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+  }
+  .stub-menu__tag--external {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
   .stub-menu__description {
     opacity: 0.6;
     font-size: 1.1rem;
@@ -136,7 +153,7 @@ const Player = ({ remote, frame, adapter, capabilities, children }: PlayerProps)
   <LeftToRight>
     <Provider>
       <MediaAttach remote={remote} frame={frame} adapter={adapter} />
-      <VideoSurface capabilities={capabilities} css={style}>
+      <VideoSurface remote={remote} capabilities={capabilities} css={style}>
         {children}
       </VideoSurface>
     </Provider>

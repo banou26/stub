@@ -143,7 +143,9 @@ const Privacy = () => (
     <p>
       Artwork loads from each service's own image servers, theme videos from AnimeThemes (v.animethemes.moe),
       trailers from YouTube (www.youtube.com) and fonts from Google Fonts (fonts.googleapis.com and
-      fonts.gstatic.com), and each of these sees your IP address too.
+      fonts.gstatic.com), and each of these sees your IP address too. When you pick, paste or drop a picture
+      to search by scene, stub also opens SauceNAO (saucenao.com) in an attached frame and sends that picture
+      there, so SauceNAO receives both your IP address and the picture itself under its own privacy policy.
     </p>
     <p>
       JustWatch is asked for the streaming links of your country: the one you picked in{' '}

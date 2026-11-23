@@ -126,9 +126,10 @@ test('says what is entered for a source follows the FKN account, encrypted in th
 })
 
 // a video, an embed and a stylesheet the browser loads itself, outside any source's fetch, so direct-fetch.ts lists none
-test('names the hosts of the theme videos, the trailer embeds and the fonts', () => {
+test('names the hosts of the theme videos, the trailer embeds and the fonts, plus SauceNAO frame search', () => {
   const { text: page } = text()
-  for (const host of ['v.animethemes.moe', 'www.youtube.com', 'fonts.googleapis.com', 'fonts.gstatic.com']) expect(page, host).toContain(host)
+  for (const host of ['v.animethemes.moe', 'www.youtube.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'saucenao.com']) expect(page, host).toContain(host)
+  expect(page).toContain('opens SauceNAO (saucenao.com) in an attached frame and sends that picture there')
 })
 
 // Framed Ripple defaults peer traffic to the FKN VPN, and switching it off exposes the viewer's address directly

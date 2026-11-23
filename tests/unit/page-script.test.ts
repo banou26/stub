@@ -10,6 +10,7 @@ import { expose } from 'osra'
 import type { SessionPageApi } from '../../src/sources/anilist/session-page'
 import type { CrunchyrollPageApi } from '../../src/sources/crunchyroll/session-page'
 import type { MalPageApi } from '../../src/sources/mal/session-page'
+import type { SauceNaoPageApi } from '../../src/scene/saucenao-page'
 import type { TraktPageApi } from '../../src/sources/trakt/session-page'
 
 import { buildPageScript } from '../../scripts/page-script'
@@ -152,4 +153,37 @@ test('ships the Trakt page script the same way, reading the token from /__data.j
     'GET https://apiz.trakt.tv/users/settings Bearer tok-1',
     'POST https://apiz.trakt.tv/sync/watchlist Bearer tok-1',
   ])
+})
+
+test('ships the SauceNAO page script the same way, posting FormData to /search.php on the same origin', async () => {
+  const source = await buildPageScript(resolve(__dirname, '../../src/scene/saucenao-page.ts'))
+
+  const window = new EventTarget()
+  const requests: { input: string, credentials?: RequestCredentials, dbs: string[], fileSize: number }[] = []
+  vi.stubGlobal('addEventListener', window.addEventListener.bind(window))
+  vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
+    const form = init.body as FormData
+    const file = form.get('file') as File
+    requests.push({
+      input,
+      credentials: init.credentials,
+      dbs: form.getAll('dbs[]').map(String),
+      fileSize: file.size,
+    })
+    return new Response('<table class="resulttable"></table>', { status: 200 })
+  })
+
+  const compiled = inPage(source) as (arg: unknown) => unknown
+  expect(typeof compiled).toBe('function')
+  expect(compiled({ kind: 'serve', appOrigin: 'https://movies.fkn.app', key: 'k1' })).toBe('installed')
+  expect(globalThis, 'nothing but its own state lands on the page').not.toHaveProperty('__stubPageScript')
+
+  const { port1, port2 } = new MessageChannel()
+  window.dispatchEvent(new MessageEvent('message', { data: { type: SESSION_PORT_MESSAGE, key: 'k1' }, origin: 'https://movies.fkn.app', ports: [port2] }))
+  const page = await expose<SauceNaoPageApi>({}, { transport: port1 })
+  const answer = await page.search({ bytes: new Uint8Array([9, 8, 7]), mimeType: 'image/jpeg', dbs: [23, 24] })
+  port1.close()
+
+  expect(answer).toEqual({ status: 200, html: '<table class="resulttable"></table>' })
+  expect(requests).toEqual([{ input: '/search.php', credentials: 'same-origin', dbs: ['23', '24'], fileSize: 3 }])
 })

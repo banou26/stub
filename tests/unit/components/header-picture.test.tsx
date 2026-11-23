@@ -70,15 +70,15 @@ const pick = (picker: HTMLInputElement, file: File) => act(() => {
 })
 
 describe('the header bar\'s picture button', () => {
-  test('is in the bar on the anime site and the all-in-one site, and on neither the film nor the series site', () => {
+  test('is in the bar on all four sites', () => {
     const offered = (site: string) => {
       const bar = open('/', site)
       return [Boolean(bar.button()), Boolean(bar.picker())]
     }
     expect(offered('anime')).toEqual([true, true])
     expect(offered('stub')).toEqual([true, true])
-    expect(offered('movie')).toEqual([false, false])
-    expect(offered('series')).toEqual([false, false])
+    expect(offered('movie')).toEqual([true, true])
+    expect(offered('series')).toEqual([true, true])
   })
 
   test('is named as the search page names it, and a click opens the picker', () => {
@@ -153,10 +153,12 @@ describe('the header bar\'s picture button', () => {
     expect(form.className, 'the control: focus leaving the field closes it').toBe('search')
   })
 
-  test('the film and series sites take no picture on the bar', async () => {
-    const bar = open('/', 'movie')
-    expect(bar.hand('paste', picture())).toBe(false)
-    await flush()
-    expect(bar.history).toEqual(['/'])
+  test('the film and series sites also take a picture on the bar', async () => {
+    for (const site of ['movie', 'series'] as const) {
+      const bar = open('/', site)
+      expect(bar.hand('paste', picture()), site).toBe(true)
+      await flush()
+      expect(bar.history, site).toEqual(['/', `/search?scene=${CODE}`])
+    }
   })
 })

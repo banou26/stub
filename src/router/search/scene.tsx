@@ -1,7 +1,7 @@
 import type { JSX } from 'preact'
 import type { SearchCardFragment } from '../../generated/graphql'
 import type { MessageDescriptor } from 'react-intl'
-import type { SceneAnswer, SceneError, SceneMatch } from '../../scene/search'
+import type { SceneAnswer, SceneEngine, SceneError, SceneMatch } from '../../scene/search'
 
 import { LucidePlay } from 'lucide-react'
 import { useEffect, useState } from 'preact/hooks'
@@ -12,7 +12,10 @@ import { Link } from 'wouter'
 import { gql } from '../../generated'
 import { MediaType } from '../../generated/graphql'
 import { searchScene } from '../../worker'
-import { momentTime } from '../../scene/search'
+import { readPicture } from '../../scene/picture-store'
+import { searchSauceNao } from '../../scene/saucenao'
+import { mergeSceneMatches, momentTime, sceneMatchUri } from '../../scene/search'
+import { site } from '../../site'
 import Placeholder from '../../components/placeholder'
 import { getRoutePath, Route } from '../path'
 import { watchFrom } from '../watch/resume'
@@ -25,41 +28,116 @@ const SCENE_MEDIA = gql(`
         _id
         uri
         episodeNumber
+        seasonNumber
       }
     }
   }
 `)
 
-/** What the page says of each refusal, in place of the matches. */
+/** What the page says of each trace.moe refusal, in place of the matches. */
 export const SCENE_ERRORS: Readonly<Record<SceneError, MessageDescriptor>> = defineMessages({
   limit: { id: "trace.moe's daily limit is reached. Try again tomorrow.", defaultMessage: "trace.moe's daily limit is reached. Try again tomorrow." },
   busy: { id: 'trace.moe is busy. Try again in a moment.', defaultMessage: 'trace.moe is busy. Try again in a moment.' },
   failed: { id: 'trace.moe could not search this picture.', defaultMessage: 'trace.moe could not search this picture.' },
+  reupload: { id: 'Select or paste the picture again to search SauceNAO.', defaultMessage: 'Select or paste the picture again to search SauceNAO.' },
 })
 
-/** trace.moe's answer for a color code, asked once each time the page opens it, and nothing while it is out. */
+/** What the page says of each SauceNAO refusal when SauceNAO alone ran. */
+export const SAUCENAO_ERRORS: Readonly<Record<SceneError, MessageDescriptor>> = defineMessages({
+  limit: { id: "SauceNAO's daily limit is reached. Try again tomorrow.", defaultMessage: "SauceNAO's daily limit is reached. Try again tomorrow." },
+  busy: { id: 'SauceNAO is busy. Try again in a moment.', defaultMessage: 'SauceNAO is busy. Try again in a moment.' },
+  failed: { id: 'SauceNAO could not search this picture.', defaultMessage: 'SauceNAO could not search this picture.' },
+  reupload: { id: 'Select or paste the picture again to search SauceNAO.', defaultMessage: 'Select or paste the picture again to search SauceNAO.' },
+})
+
+export const sceneErrorDescriptor = (error: SceneError, engines?: readonly SceneEngine[]): MessageDescriptor =>
+  engines?.length === 1 && engines[0] === 'saucenao' ? SAUCENAO_ERRORS[error] : SCENE_ERRORS[error]
+
+/**
+ * Scene search answer for `code` on the active site.
+ *
+ * `movie` and `series` query SauceNAO directly via its attached frame using the in-memory picture;
+ * `anime` and `stub` run `trace.moe` and SauceNAO in parallel, merging results as they land.
+ */
 export const useScene = (code: string | undefined): SceneAnswer | undefined => {
   const [answered, setAnswered] = useState<{ code: string, answer: SceneAnswer }>()
+  const currentSite = site
+  const liveAction = currentSite === 'movie' || currentSite === 'series'
   useEffect(() => {
     if (!code) return
     let current = true
-    void searchScene(code)
-      .catch((): SceneAnswer => ({ error: 'busy' }))
-      .then(answer => { if (current) setAnswered({ code, answer }) })
+    if (liveAction) {
+      const file = readPicture(code)
+      if (!file) {
+        setAnswered({ code, answer: { error: 'reupload', engines: ['saucenao'] } })
+        return
+      }
+      void searchSauceNao(file, currentSite)
+        .catch((): SceneAnswer => ({ error: 'busy' }))
+        .then(answer => {
+          if (current) setAnswered({ code, answer: { ...answer, engines: ['saucenao'] } })
+        })
+      return () => { current = false }
+    }
+
+    const file = readPicture(code)
+    const tracePromise = searchScene(code).catch((): SceneAnswer => ({ error: 'busy' }))
+    if (!file) {
+      void tracePromise.then(answer => {
+        if (current) setAnswered({ code, answer: { ...answer, engines: ['trace.moe'] } })
+      })
+      return () => { current = false }
+    }
+
+    const saucePromise = searchSauceNao(file, currentSite).catch((): SceneAnswer => ({ error: 'busy' }))
+    let traceDone: SceneAnswer | undefined
+    let sauceDone: SceneAnswer | undefined
+
+    const publish = () => {
+      if (!current || !traceDone) return
+      const traceMatches = 'matches' in traceDone ? traceDone.matches : []
+      if (!sauceDone) {
+        if (traceMatches.length) setAnswered({ code, answer: { matches: traceMatches, engines: ['trace.moe'] } })
+        return
+      }
+      const sauceMatches = 'matches' in sauceDone ? sauceDone.matches : []
+      const engines: SceneEngine[] = [
+        ...'matches' in traceDone && (traceMatches.length > 0 || !sauceMatches.length) ? ['trace.moe' as const] : [],
+        ...'matches' in sauceDone && (sauceMatches.length > 0 || !traceMatches.length) ? ['saucenao' as const] : [],
+      ]
+      if (traceMatches.length || sauceMatches.length) {
+        setAnswered({
+          code,
+          answer: {
+            matches: mergeSceneMatches(traceMatches, sauceMatches),
+            engines: engines.length ? engines : ['trace.moe'],
+          },
+        })
+        return
+      }
+      if ('matches' in traceDone || 'matches' in sauceDone) {
+        setAnswered({ code, answer: { matches: [], engines: engines.length ? engines : ['trace.moe'] } })
+        return
+      }
+      setAnswered({ code, answer: { error: traceDone.error, engines: ['trace.moe'] } })
+    }
+
+    void tracePromise.then(answer => { traceDone = answer; publish() })
+    void saucePromise.then(answer => { sauceDone = answer; publish() })
     return () => { current = false }
-  }, [code])
+  }, [code, currentSite, liveAction])
   return answered && answered.code === code ? answered.answer : undefined
 }
 
 /**
- * One show a scene search found, drawn by the page's own `item`, with a link per episode it matched in that opens
+ * One title a scene search found, drawn by the page's own `item`, with a link per episode it matched in that opens
  * the episode at the scene. A film plays from the time alone; a moment with no episode, a special, opens only the show.
  */
 export const SceneItem = ({ match, item }: { match: SceneMatch, item: (media: SearchCardFragment) => JSX.Element }) => {
   const intl = useIntl()
   const [{ data }] = useSubscription({
     query: SCENE_MEDIA,
-    variables: { input: { uri: `anilist:${match.anilist}` }, shortDescriptionInput: { count: 1 } },
+    variables: { input: { uri: sceneMatchUri(match) }, shortDescriptionInput: { count: 1 } },
   })
   const media = data?.media
   if (!media) return <Placeholder className="pending"/>
@@ -73,8 +151,18 @@ export const SceneItem = ({ match, item }: { match: SceneMatch, item: (media: Se
           const time = momentTime(moment.from)
           const label = film || moment.episode == null
             ? time
-            : intl.formatMessage({ id: 'Episode {number}, {time}', defaultMessage: 'Episode {number}, {time}' }, { number: moment.episode, time })
-          const episode = media.episodes.find(entry => entry.episodeNumber === moment.episode) ?? (film ? media.episodes[0] : undefined)
+            : moment.season != null
+              ? intl.formatMessage(
+                  { id: 'Season {season}, Episode {number}, {time}', defaultMessage: 'Season {season}, Episode {number}, {time}' },
+                  { season: moment.season, number: moment.episode, time },
+                )
+              : intl.formatMessage({ id: 'Episode {number}, {time}', defaultMessage: 'Episode {number}, {time}' }, { number: moment.episode, time })
+          const episode = moment.episode == null
+            ? (film ? media.episodes[0] : undefined)
+            : media.episodes.find(entry =>
+                entry.episodeNumber === moment.episode
+                && (moment.season == null || entry.seasonNumber == null || entry.seasonNumber === moment.season),
+              )
           return episode
             ? (
               <Link key={label} className="moment" href={watchFrom(getRoutePath(Route.WATCH, { mediaUri: media.uri, episodeUri: episode.uri }), moment.from)}>

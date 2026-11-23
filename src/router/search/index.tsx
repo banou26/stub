@@ -16,7 +16,9 @@ import {
   YEAR_MIN, choiceLabel, genreLabel, hasSearchFilters, namesAQuery, parseSearchFilters, sceneOf, searchFiltersQuery,
   searchHeading, searchPath, yearMax,
 } from './params'
-import { SCENE_ERRORS, SceneItem, useScene } from './scene'
+import { SAUCENAO_ORIGIN } from '../../scene/saucenao'
+import { sceneMatchUri } from '../../scene/search'
+import { SceneItem, sceneErrorDescriptor, useScene } from './scene'
 import { PictureButton, usePictureInput, usePictureSearch } from './picture'
 import MediaTitle from '../../components/media-title'
 import MediaCard from '../../components/media-card'
@@ -317,13 +319,14 @@ const Search = ({ covered = false }: { covered?: boolean }) => {
   const search = useSearch()
   const [, navigate] = useLocation()
   const filters = useMemo(() => parseSearchFilters(search), [search])
-  // trace.moe knows anime alone, so the live-action sites offer no scene search and read no scene address
-  const scene = LIVE_ACTION_SITE ? undefined : sceneOf(search)
+  const liveAction = site === 'movie' || site === 'series'
+  const scene = sceneOf(search)
   const sceneAnswer = useScene(scene)
   const asked = !scene && namesAQuery(filters)
+  const sceneEngines = sceneAnswer?.engines ?? (liveAction ? ['saucenao'] : ['trace.moe'])
 
   const { searchPicture, unreadable } = usePictureSearch()
-  usePictureInput(searchPicture, !LIVE_ACTION_SITE && !covered)
+  usePictureInput(searchPicture, !covered)
 
   // The url is the state, so a control writes to it and re-renders from it. `replace` keeps the back
   // button pointing at wherever the user came from rather than at every intermediate filter set.
@@ -486,10 +489,26 @@ const Search = ({ covered = false }: { covered?: boolean }) => {
         scene
           ? (
             <div className="credit">
-              {intl.formatMessage(
-                { id: 'Scenes found by <link>trace.moe</link>', defaultMessage: 'Scenes found by <link>trace.moe</link>' },
-                { link: chunks => <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">{chunks}</a> },
-              )}
+              {sceneEngines.includes('trace.moe') && sceneEngines.includes('saucenao')
+                ? intl.formatMessage(
+                    {
+                      id: 'Scenes found by <trace>trace.moe</trace> and <saucenao>SauceNAO</saucenao>',
+                      defaultMessage: 'Scenes found by <trace>trace.moe</trace> and <saucenao>SauceNAO</saucenao>',
+                    },
+                    {
+                      trace: chunks => <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">{chunks}</a>,
+                      saucenao: chunks => <a href={SAUCENAO_ORIGIN} target="_blank" rel="noreferrer noopener">{chunks}</a>,
+                    },
+                  )
+                : sceneEngines[0] === 'saucenao'
+                  ? intl.formatMessage(
+                      { id: 'Scenes found by <link>SauceNAO</link>', defaultMessage: 'Scenes found by <link>SauceNAO</link>' },
+                      { link: chunks => <a href={SAUCENAO_ORIGIN} target="_blank" rel="noreferrer noopener">{chunks}</a> },
+                    )
+                  : intl.formatMessage(
+                      { id: 'Scenes found by <link>trace.moe</link>', defaultMessage: 'Scenes found by <link>trace.moe</link>' },
+                      { link: chunks => <a href="https://trace.moe" target="_blank" rel="noreferrer noopener">{chunks}</a> },
+                    )}
             </div>
           )
           : undefined
@@ -511,7 +530,7 @@ const Search = ({ covered = false }: { covered?: boolean }) => {
                 setFilters({ query: value })
               }}
             />
-            {LIVE_ACTION_SITE ? undefined : <PictureButton onPicture={searchPicture} size={17}/>}
+            <PictureButton onPicture={searchPicture} size={17}/>
           </div>
         </FilterField>
         <FilterSelect
@@ -598,9 +617,9 @@ const Search = ({ covered = false }: { covered?: boolean }) => {
             ? !sceneAnswer
               ? pendingItems
               : 'error' in sceneAnswer
-                ? <div className="status">{intl.formatMessage(SCENE_ERRORS[sceneAnswer.error])}</div>
+                ? <div className="status">{intl.formatMessage(sceneErrorDescriptor(sceneAnswer.error, sceneAnswer.engines))}</div>
                 : sceneAnswer.matches.length
-                  ? <div className={layout.className}>{sceneAnswer.matches.map(match => <SceneItem key={match.anilist} match={match} item={layout.item}/>)}</div>
+                  ? <div className={layout.className}>{sceneAnswer.matches.map(match => <SceneItem key={sceneMatchUri(match)} match={match} item={layout.item}/>)}</div>
                   : noResults
             : nodes.length
               ? <div className={layout.className}>{nodes.map(layout.item)}</div>

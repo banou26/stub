@@ -30,6 +30,7 @@ import MediaSeasons, { firstSeasonRedirect } from '../../components/media-season
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { serveEmbedEpisodeNavigation } from '../../embed-episode'
+import { serveEmbedExternalSubtitles } from '../../embed-subtitles'
 import { serveEmbedFullscreen } from '../../embed-fullscreen'
 import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
@@ -1099,14 +1100,19 @@ const Watch = () => {
     crunchyroll: episodeHandles.find(handle => handle.origin === 'cr' && handle.url)?.url ?? undefined,
     mal: malId && Number.isInteger(episodeNumber) ? { id: malId, episode: episodeNumber! } : undefined,
   })
-  const pluginExternalSubtitles = useExternalSubtitles({
-    enabled: viaPlugin,
+  const externalSubtitles = useExternalSubtitles({
+    enabled: Boolean(viaPlugin || embedUrl),
     media,
     episode,
     selected,
     film,
     locale: intl.locale,
   })
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe) return
+    return serveEmbedExternalSubtitles(iframe, externalSubtitles)
+  }, [viaPlugin, embedUrl, externalSubtitles])
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
   const [season, setSeason] = useState<{ uri: string, on: string }>()
@@ -1148,7 +1154,7 @@ const Watch = () => {
                       onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
                       stage={stage}
                       episodeNavigation={pluginEpisodeNav}
-                      externalSubtitles={pluginExternalSubtitles}
+                      externalSubtitles={externalSubtitles}
                     />
                   )
                   : (

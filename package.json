@@ -57,6 +57,7 @@
       "opensubtitles-v3.strem.io",
       "pluto.tv",
       "s4.anilist.co",
+      "saucenao.com",
       "simkl.com",
       "simkl.in",
       "sso.crunchyroll.com",
@@ -71,7 +72,6 @@
       "unogs.com",
       "uts-api.itunes.apple.com",
       "v.animethemes.moe",
-      "walter.trakt.tv",
       "watch.amazon.co.jp",
       "watch.amazon.co.uk",
       "watch.amazon.com",
@@ -149,7 +149,7 @@
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },
   "dependencies": {
-    "@banou/media-player": "^0.10.55",
+    "@banou/media-player": "^0.10.56",
     "@banou/ponyfill": "^0.0.13",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

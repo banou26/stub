@@ -4,6 +4,7 @@ import type { Media } from '@videojs/media/dom'
 export type PlayerChoice = {
   id: string
   label: string
+  kind?: 'native' | 'external'
   description?: string
   disabled?: boolean
 }

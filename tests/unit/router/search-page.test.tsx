@@ -9,6 +9,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
 import { startLanguage } from '../../../src/i18n'
+import { clearPictures, rememberPicture } from '../../../src/scene/picture-store'
 import { setSite, site } from '../../../src/site'
 
 // urql is faked as one stream: `publish` answers whatever subscription is running, and `started`
@@ -44,6 +45,13 @@ vi.mock('../../../src/worker', async () => {
   const { vi } = await import('vite-plus/test')
   scenes.search = vi.fn()
   return { searchScene: (code: string) => scenes.search(code) }
+})
+const saucenao = vi.hoisted(() => ({ search: undefined as unknown as Mock<(picture: Blob, currentSite: string) => Promise<unknown>> }))
+vi.mock('../../../src/scene/saucenao', async importOriginal => {
+  const real = await importOriginal<typeof import('../../../src/scene/saucenao')>()
+  const { vi } = await import('vite-plus/test')
+  saucenao.search = vi.fn().mockResolvedValue({ matches: [] })
+  return { ...real, searchSauceNao: (picture: Blob, currentSite: string) => saucenao.search(picture, currentSite) }
 })
 vi.mock('../../../src/scene/code', () => ({
   pictureCode: async (file: File) => {
@@ -81,6 +89,9 @@ afterEach(() => {
   stream.started.length = 0
   stream.running = undefined
   scenes.search.mockReset()
+  saucenao.search.mockReset()
+  saucenao.search.mockResolvedValue({ matches: [] })
+  clearPictures()
   delete (document as { activeElement?: Element }).activeElement
 })
 
@@ -535,5 +546,75 @@ describe('the scene search', () => {
     open('/search')
     expect(hosts.at(-1)!.querySelector('.text-field button[aria-label="Search by picture"]')).not.toBeNull()
     expect(hosts.at(-1)!.querySelector('.text-field input[type="file"][accept="image/*"]')).not.toBeNull()
+  })
+
+  test('on movies.fkn.app and series.fkn.app a pasted picture asks SauceNAO alone and resolves season/episode', async () => {
+    const before = site
+    setSite('series')
+    try {
+      saucenao.search.mockResolvedValue({
+        matches: [{ uri: 'omdb:tt1475582', moments: [{ season: 1, episode: 2, from: 3910 }] }],
+      })
+      const page = open('/search')
+      pasted(picture())
+      await flush()
+      await flush()
+      expect(scenes.search).not.toHaveBeenCalled()
+      expect(saucenao.search).toHaveBeenCalledTimes(1)
+      expect(saucenao.search.mock.calls[0]?.[1]).toBe('series')
+      expect(stream.started).toEqual(expect.arrayContaining([{ uri: 'omdb:tt1475582' }]))
+      const host = hosts.at(-1)!
+      expect(host.querySelector('.credit')?.textContent).toBe('Scenes found by SauceNAO')
+      expect(host.querySelector('.credit a')?.getAttribute('href')).toBe('https://saucenao.com')
+      await act(() => {
+        stream.data = {
+          media: {
+            _id: 'sherlock',
+            uri: 'ag:(omdb:tt1475582)',
+            type: 'TV',
+            episodes: [{ _id: 'e2', uri: 'ep:2', seasonNumber: 1, episodeNumber: 2 }],
+          },
+        }
+        for (const listener of stream.listeners) listener()
+      })
+      const moment = host.querySelector('.moment')
+      expect(moment?.textContent).toBe('Season 1, Episode 2, 1:05:10')
+      expect(moment?.getAttribute('href')).toBe('/watch/ag:(omdb:tt1475582)/ep:2?t=3910')
+
+      // Reload without remembered image asks to re-select/paste.
+      clearPictures()
+      page.go('/search?scene=eOOEIPhB0IQhB8IQg-TPYQg-D0IQ')
+      await flush()
+      expect(page.status()).toBe('Select or paste the picture again to search SauceNAO.')
+    } finally {
+      setSite(before)
+    }
+  })
+
+  test('on anime.fkn.app a pasted picture merges trace.moe and SauceNAO and lets SauceNAO rescue trace.moe quota limit', async () => {
+    scenes.search.mockResolvedValue({ error: 'limit' })
+    saucenao.search.mockResolvedValue({
+      matches: [{ uri: 'anidb:17617', moments: [{ episode: 1, from: 443 }] }],
+    })
+    rememberPicture(CODE, picture())
+    open(`/search?scene=${CODE}`)
+    await flush()
+    await flush()
+    const host = hosts.at(-1)!
+    expect(host.querySelector('.credit')?.textContent).toBe('Scenes found by SauceNAO')
+    expect(stream.started).toEqual(expect.arrayContaining([{ uri: 'anidb:17617' }]))
+
+    scenes.search.mockResolvedValue(rabbit)
+    saucenao.search.mockResolvedValue({
+      matches: [{ uri: 'omdb:tt1475582', moments: [{ season: 1, episode: 2, from: 90 }] }],
+    })
+    const code2 = 'eOOEIPhB0IQhB8IQg-TPYQg-D0IQ'
+    rememberPicture(code2, picture())
+    open(`/search?scene=${code2}`)
+    await flush()
+    await flush()
+    const mergedHost = hosts.at(-1)!
+    expect(mergedHost.querySelector('.credit')?.textContent).toBe('Scenes found by trace.moe and SauceNAO')
+    expect(stream.started).toEqual(expect.arrayContaining([{ uri: 'anilist:21034' }, { uri: 'omdb:tt1475582' }]))
   })
 })

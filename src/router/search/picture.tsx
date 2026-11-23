@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl'
 import { useLocation, useSearch } from 'wouter'
 
 import { pictureCode } from '../../scene/code'
+import { rememberPicture } from '../../scene/picture-store'
 import { getRoutePath, Route } from '../path'
 import { sceneOf, scenePath } from './params'
 
@@ -42,7 +43,10 @@ export const usePictureSearch = () => {
     if (focused instanceof HTMLElement && focused.matches('input')) focused.blur()
     setUnreadableAt(undefined)
     void pictureCode(file).then(
-      code => navigate(scenePath(code), { replace: onSearch && code === sceneOf(search) }),
+      code => {
+        rememberPicture(code, file)
+        navigate(scenePath(code), { replace: onSearch && code === sceneOf(search) })
+      },
       () => {
         if (!onSearch) navigate(getRoutePath(Route.SEARCH))
         setUnreadableAt(onSearch ? here : `${getRoutePath(Route.SEARCH)}?`)
