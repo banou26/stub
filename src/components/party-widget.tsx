@@ -80,6 +80,16 @@ const buttonStyle = css`
     height: 3.4rem;
     padding: 0 0.8rem;
   }
+
+  @media (max-width: 380px) {
+    width: 3.4rem;
+    padding: 0;
+    justify-content: center;
+
+    .count {
+      display: none;
+    }
+  }
 `
 
 const menuStyle = css`

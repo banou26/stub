@@ -67,6 +67,33 @@ const style = css`
   .tier.free { color: rgba(255, 255, 255, 0.45); }
 
   .chevron { flex-shrink: 0; }
+
+  @media (max-width: 768px) {
+    height: 3.4rem;
+    padding-block: 0.2rem;
+    padding-inline: 1rem 0.5rem;
+    gap: 0.5rem;
+
+    .name {
+      max-width: 11rem;
+      font-size: 1.3rem;
+    }
+  }
+
+  @media (max-width: 479px) {
+    padding-inline: 0.8rem 0.4rem;
+    gap: 0.4rem;
+
+    .name {
+      max-width: 8.5rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .name {
+      max-width: 6.5rem;
+    }
+  }
 `
 
 /* Portalled to the body rather than left inside the header, so the bar's own stacking context cannot
