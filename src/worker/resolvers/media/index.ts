@@ -213,12 +213,15 @@ export const resolvers = {
           : undefined
         const iterator = debouncedListenIterator([page ? 'view:changed' : 'media:changed'], 100, { abortSignal: ctx.request.signal })
         const listing = isListing(args.input)
+        const searching = Boolean(args.input?.search?.trim())
         // Whether the page draws what was answered, rather than the whole store. An answer the store
         // already holds changes nothing and so fires no event, and such a page would never draw it, so
         // the answer wakes it. It must not wake one on the whole store, which holds that answer already:
         // the read would swap its cards for the answers so far, so a repeated search shrinks and regrows,
         // and stays short of any source that fails this time.
         let narrowed = listing
+        let closed = false
+        let settling: ReturnType<typeof createSettling> | undefined
         const { subscriptions, insertedUris, close } =
           proxyRequestToExtractors(
             ctx,
@@ -227,7 +230,16 @@ export const resolvers = {
               const uris = result?.data?.mediaPage?.nodes?.map(({ uri }) => uri)
               if (narrowed && uris?.length) iterator.wake()
               return uris
-            }
+            },
+            searching
+              ? (settling = createSettling(() => {
+                queueMicrotask(() => {
+                  if (closed || narrowed || !insertedUris.size) return
+                  narrowed = true
+                  iterator.wake()
+                })
+              }))
+              : undefined
           )
 
         // How many uris the last SEED read. The seed of 6.1 is a function of `insertedUris`, so a
@@ -280,6 +292,8 @@ export const resolvers = {
             yield await getPage()
           }
         } finally {
+          closed = true
+          settling?.close()
           unlisten?.()
           void iterator.return?.()
           close()

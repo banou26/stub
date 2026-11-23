@@ -317,9 +317,9 @@ export const searchScore = async (query: string, title: string): Promise<number>
     if (words.length > 1) {
       const tokens = st.split(' ')
       const allWordsMatch = words.every(word =>
-        word.length >= 2
-          ? containsNeedle(word, st) || containsNeedle(word, t)
-          : tokens.some(token => token.startsWith(word))
+        /^[a-z0-9]+$/i.test(word) || word.length < 2
+          ? tokens.some(token => token.startsWith(word))
+          : containsNeedle(word, st) || containsNeedle(word, t)
       )
       if (allWordsMatch) return 0.9
     }

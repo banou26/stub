@@ -7,17 +7,19 @@ import { expect, onTestFinished, test, vi } from 'vite-plus/test'
 // see tests/unit/worker/graph/read.test.ts: urql's CommonJS build cannot load here, and nothing below calls it
 vi.mock('urql', () => ({ Client: class {}, fetchExchange: {}, mapExchange: () => ({}), getOperationName: () => undefined }))
 
-const fanout = vi.hoisted(() => ({ answer: (_uris: string[]) => {} }))
+const fanout = vi.hoisted(() => ({ answer: (_uris: string[]) => {}, settle: () => {} }))
 
 vi.mock('../../../src/worker/extractor', () => ({
   implementsSimilarMedia: () => true,
   similarOutcomeFrom: () => () => undefined,
-  proxyRequestToExtractors: (_ctx: unknown, _operation: unknown, extractUris: (result: unknown) => string[]) => {
+  proxyRequestToExtractors: (_ctx: unknown, _operation: unknown, extractUris: (result: unknown) => string[], settling?: { ask: () => () => void }) => {
     const insertedUris = new Set<string>()
+    const pending = settling?.ask()
     fanout.answer = uris => {
       for (const uri of extractUris({ data: { mediaPage: { nodes: uris.map(uri => ({ uri })) } } })) insertedUris.add(uri)
     }
-    return { subscriptions: [], insertedUris, close: () => {} }
+    fanout.settle = () => { pending?.() }
+    return { subscriptions: [], insertedUris, close: () => { pending?.() } }
   },
 }))
 const STORE = vi.hoisted(() => ['tvmaze:83119', 'tmdb:93405', 'imdb:tt7203552'])
@@ -80,4 +82,24 @@ test('a listing draws an answer the store already holds, having never drawn the 
   fanout.answer(['tvmaze:83119'])
 
   expect(await drawn(page)).toEqual(['tvmaze:83119'])
+})
+
+test('a repeated warm-store search stays whole on partial answers, narrows once settled, and keeps warm cards on empty settle', async () => {
+  const page = open({ search: 'the morning show' })
+  expect(await drawn(page)).toEqual(['imdb:tt7203552', 'tmdb:93405', 'tvmaze:83119'])
+
+  let arrived = false
+  const pending = page.next().then(result => { arrived = true; return result })
+  fanout.answer(['tvmaze:83119'])
+  await new Promise(resolve => setTimeout(resolve, 200))
+  expect(arrived, 'still whole before every source settles').toBe(false)
+
+  fanout.settle()
+  const narrowed = await pending
+  expect(narrowed.value?.map(media => media.uri), 'narrows to what sources answered once settled').toEqual(['tvmaze:83119'])
+
+  const failed = open({ search: 'the morning show' })
+  expect(await drawn(failed)).toEqual(['imdb:tt7203552', 'tmdb:93405', 'tvmaze:83119'])
+  fanout.settle()
+  expect(await drawn(failed), 'empty settle keeps the warm store instead of wiping to empty').toBeUndefined()
 })
