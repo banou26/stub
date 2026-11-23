@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { ANIME_SEASONS, MEDIA_SEASONS, animeSeasonOf, isOnlySeasonLabel, lowerSeason, mediaSeasonNow, parseSeasonNumber, pickSeasonByEpisodeCount, seasonScopedId, splitSeasonScopedId, upperSeason } from '../../../src/sources/season'
+import { ANIME_SEASONS, MEDIA_SEASONS, animeSeasonOf, isOnlySeasonLabel, lowerSeason, mediaSeasonNow, parseSeasonNumber, pickSeasonByEpisodeCount, seasonMatchesStartDate, seasonScopedId, splitSeasonScopedId, upperSeason } from '../../../src/sources/season'
 
 describe('parseSeasonNumber', () => {
   test('reads the forms a title actually uses', () => {
@@ -233,5 +233,27 @@ describe('isOnlySeasonLabel', () => {
     // the trap the abbreviation opens: a show whose NAME ends in something Pt-shaped
     expect(isOnlySeasonLabel('Ptolemy 2')).toBe(false)
     expect(isOnlySeasonLabel('Cowboy Bebop')).toBe(false)
+  })
+})
+
+describe('seasonMatchesStartDate', () => {
+  test('matches dates inside the season quarter and early premieres, and rejects distant quarters', () => {
+    expect(seasonMatchesStartDate('WINTER', 2026, '2026-03-19')).toBe(true)
+    expect(seasonMatchesStartDate('WINTER', 2026, 'Thu, 19 Mar 2026 00:00:00 GMT')).toBe(true)
+    expect(seasonMatchesStartDate('FALL', 2026, '2026-03-19')).toBe(false)
+    expect(seasonMatchesStartDate('SUMMER', 2026, '2026-03-19')).toBe(false)
+
+    // early premieres up to 21 days before quarter start
+    expect(seasonMatchesStartDate('FALL', 2023, '2023-09-29')).toBe(true)
+    expect(seasonMatchesStartDate('WINTER', 2026, '2025-12-30')).toBe(true)
+    expect(seasonMatchesStartDate('WINTER', 2026, '2025-12-01')).toBe(false)
+
+    // partial dates
+    expect(seasonMatchesStartDate('FALL', 2026, '2026-09')).toBe(true)
+    expect(seasonMatchesStartDate('FALL', 2026, '2026-10')).toBe(true)
+    expect(seasonMatchesStartDate('FALL', 2026, '2026-03')).toBe(false)
+    expect(seasonMatchesStartDate('WINTER', 2026, '2026')).toBe(true)
+    expect(seasonMatchesStartDate('WINTER', 2025, '2026')).toBe(false)
+    expect(seasonMatchesStartDate('WINTER', 2026, null)).toBe(false)
   })
 })

@@ -27,7 +27,7 @@ import type { SeasonPair } from '../../store/filter'
 
 import { getRoutePath, Route } from '../../../router/path'
 import { isRoutableUri } from '../../../utils/uri'
-import { seasonNamesFirst } from '../../../sources/season'
+import { seasonMatchesStartDate, seasonNamesFirst } from '../../../sources/season'
 import { genreKey } from '../../../sources/justwatch/genres'
 import { mainTitles } from '../../../sources/translations'
 import { DEFAULT_MERGE, mergeOrder } from '../../../sources/merge-order'
@@ -551,8 +551,12 @@ export const aggregateFields = (options: {
   })
 
   // the season PAIR, from one member: `SUMMER` and `2026` only mean anything together
-  // (`aggregate.ts:34-53`)
-  const named = owned.find(member => typeof member.raw.season === 'string' && member.raw.season)
+  // (`aggregate.ts:34-53`), preferring a season whose broadcast window matches the resolved `startDate`
+  const startDate = typeof row.startDate === 'string' ? row.startDate : null
+  const withSeason = owned.filter(member => typeof member.raw.season === 'string' && member.raw.season)
+  const named = (startDate
+    ? withSeason.find(member => seasonMatchesStartDate(member.raw.season as string, member.raw.seasonYear as number | null | undefined, startDate))
+    : undefined) ?? withSeason[0]
   const yearOnly = owned.find(member => member.raw.seasonYear !== null && member.raw.seasonYear !== undefined)
   row.season = named ? named.raw.season : null
   row.seasonYear = (named ? named.raw.seasonYear : yearOnly?.raw.seasonYear) ?? null

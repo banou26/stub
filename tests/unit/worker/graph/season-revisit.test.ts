@@ -12,6 +12,7 @@
 import { beforeAll, expect, test } from 'vite-plus/test'
 
 import { enableGraph } from '../../../../src/worker/graph'
+import { aggregateFields } from '../../../../src/worker/graph/plugins/fields'
 import { applyMediaSorts } from '../../../../src/worker/store/filter'
 import { pageAfter } from './page-visits'
 import { media, sameAs, title } from './plugins/fixtures'
@@ -100,4 +101,27 @@ test('and Summer after Fall lists what a fresh Summer lists', async () => {
   ])
   expect(await listed(['SUMMER', 'FALL', 'SUMMER'])).toEqual(fresh)
   expect(await listed(['FALL', 'SUMMER'])).toEqual(fresh)
+})
+
+test('STUB-387: a cluster prefers the season matching its startDate over a conflicting listing stamp', () => {
+  const member = (uri: string, score: number, fields: Record<string, unknown>) => {
+    const origin = uri.slice(0, uri.indexOf(':'))
+    return { uri, origin, id: uri.slice(origin.length + 1), owned: true, score, raw: { uri, origin, categories: ['ANIME', 'SERIES'], ...fields }, fieldSeq: {} }
+  }
+  const agg = aggregateFields({
+    cluster: { id: 'cl:sbr', aggUri: 'ag:(anilist:190327,mal:61469)', scope: 'RUN', runLength: null, runLengthTier: null, runLengthWitnesses: 0, runLengthFrom: [], anomalies: [] },
+    members: [
+      member('mal:61469', 0.9, { season: 'FALL', seasonYear: 2026, startDate: '2026-03-19', seasonPairs: [{ season: 'FALL', seasonYear: 2026, popularity: 1 }] }),
+      member('anilist:190327', 0.8, { season: 'WINTER', seasonYear: 2026, startDate: 'Thu, 19 Mar 2026 00:00:00 GMT', seasonPairs: [{ season: 'WINTER', seasonYear: 2026, popularity: 0.5 }] }),
+    ],
+    related: [],
+    relations: [],
+    locationOrigin: '',
+  })
+  expect(agg.season).toBe('WINTER')
+  expect(agg.seasonYear).toBe(2026)
+  expect(agg.seasonPairs).toEqual(expect.arrayContaining([
+    expect.objectContaining({ season: 'FALL', seasonYear: 2026 }),
+    expect.objectContaining({ season: 'WINTER', seasonYear: 2026 }),
+  ]))
 })

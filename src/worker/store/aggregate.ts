@@ -7,7 +7,7 @@ import { isRoutableUri } from '../../utils/uri'
 import { refinesDate } from '../../utils/release-date'
 import { COERCING_ORIGINS } from '../graph/plugins/origins'
 import { dedupeLabels } from '../graph/plugins/fields'
-import { seasonNamesFirst } from '../../sources/season'
+import { seasonMatchesStartDate, seasonNamesFirst } from '../../sources/season'
 
 // keep ANIME plus exactly ONE of MOVIE/SERIES (highest-scored source's format wins), so a merged media never lands in both the Movies and the Series listing
 const reconcileCategories = (cats: MediaCategory[]): MediaCategory[] => {
@@ -37,8 +37,11 @@ function byScore<T extends { score?: number | null }>(arr: T[]): T[] {
  *
  * `medias` must be sorted by score, descending, which is what `sorted` above is.
  */
-const seasonOf = (medias: Media[]): { season: Media['season'], seasonYear: number | null } => {
-  const named = medias.find(media => media.season)
+const seasonOf = (medias: Media[], startDate?: string | null): { season: Media['season'], seasonYear: number | null } => {
+  const withSeason = medias.filter(media => media.season)
+  const named = (startDate
+    ? withSeason.find(media => seasonMatchesStartDate(media.season, media.seasonYear, startDate))
+    : undefined) ?? withSeason[0]
   return {
     season: named?.season ?? null,
     seasonYear: (named ? named.seasonYear : medias.find(media => media.seasonYear !== null)?.seasonYear) ?? null,
@@ -380,7 +383,7 @@ export function aggregateMedia(medias: Media[], locationOrigin: string): GQLMedi
     episodeCount: runLength(medias) ?? merged.episodeCount ?? null,
     relations: mergeRelations(merged.relations ?? [], medias),
     categories: reconcileCategories(merged.categories ?? []),
-    ...seasonOf(sorted),
+    ...seasonOf(sorted, merged.startDate),
     genres: dedupeLabels('genres', merged.genres),
     tags: dedupeLabels('tags', merged.tags),
     titles: removeDuplicatesByField('title', seasonNamesFirst(byScore(merged.titles ?? []))),

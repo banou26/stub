@@ -252,3 +252,45 @@ export const namesADay = (date: string | null | undefined): boolean => {
   if (Number.isNaN(parsed.getTime())) return false
   return parsed.getUTCDate() !== 1
 }
+
+const SEASON_DAY_MS = 86_400_000
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/
+const ISO_MONTH = /^(\d{4})-(\d{2})$/
+const ISO_YEAR = /^(\d{4})$/
+
+/** Whether a broadcast season and year agree with a member's start date, allowing early premieres. */
+export const seasonMatchesStartDate = (
+  season: string | null | undefined,
+  seasonYear: number | null | undefined,
+  startDate: string | null | undefined
+): boolean => {
+  if (!season || seasonYear == null || !startDate) return false
+  const quarter = MEDIA_SEASONS.indexOf(season as MediaSeasonName)
+  if (quarter < 0) return false
+
+  const trimmed = startDate.trim()
+  const dayMatch = ISO_DAY.exec(trimmed)
+  if (dayMatch) {
+    const t = Date.UTC(Number(dayMatch[1]), Number(dayMatch[2]) - 1, Number(dayMatch[3]))
+    const qStart = Date.UTC(seasonYear, quarter * 3, 1)
+    const qEnd = Date.UTC(seasonYear, quarter * 3 + 3, 0)
+    return t >= qStart - 21 * SEASON_DAY_MS && t <= qEnd + 7 * SEASON_DAY_MS
+  }
+
+  const monthMatch = ISO_MONTH.exec(trimmed)
+  if (monthMatch) {
+    const ym = Number(monthMatch[1]) * 12 + (Number(monthMatch[2]) - 1)
+    const sStart = seasonYear * 12 + quarter * 3
+    return ym >= sStart - 1 && ym <= sStart + 2
+  }
+
+  const yearMatch = ISO_YEAR.exec(trimmed)
+  if (yearMatch) return Number(yearMatch[1]) === seasonYear
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return false
+  const t = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate())
+  const qStart = Date.UTC(seasonYear, quarter * 3, 1)
+  const qEnd = Date.UTC(seasonYear, quarter * 3 + 3, 0)
+  return t >= qStart - 21 * SEASON_DAY_MS && t <= qEnd + 7 * SEASON_DAY_MS
+}
