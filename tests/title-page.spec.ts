@@ -200,40 +200,54 @@ test('on the page, a relation card and a series graph node open the work\'s page
 })
 
 test('STUB-389: relation graph edge labels stay clear of nodes and each other at 1440 px and stay readable at 390 px', async ({ page }) => {
+  const measureGraph = () => page.evaluate(() => {
+    const sheet = document.querySelector('[data-franchise] .sheet')!.getBoundingClientRect()
+    const nodes = [...document.querySelectorAll('[data-franchise] .work-node')].map(el => el.getBoundingClientRect())
+    const labels = [...document.querySelectorAll('[data-franchise] .edge-label')].map(el => ({
+      text: el.textContent?.trim() ?? '',
+      rect: el.getBoundingClientRect(),
+    }))
+    const intersects = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+    const nodeOverlaps = labels.flatMap(label =>
+      nodes.filter(node => intersects(label.rect, node)).map(() => label.text))
+    const labelOverlaps: string[] = []
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        if (intersects(labels[i]!.rect, labels[j]!.rect)) labelOverlaps.push(`${labels[i]!.text}<>${labels[j]!.text}`)
+      }
+    }
+    return { sheetWidth: sheet.width, minNodeWidth: Math.min(...nodes.map(n => n.width)), labelCount: labels.length, nodeOverlaps, labelOverlaps }
+  })
+
   for (const [width, height] of [[1440, 900], [390, 844]] as const) {
     await page.setViewportSize({ width, height })
     await page.goto(`${origin}/title/ag:(anilist:900020)`)
     await page.locator('[data-franchise-open]').click()
     await expect(page.locator('[data-franchise] .work-node').first()).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('[data-franchise] .edge-label').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('[data-franchise] .edge-label')).toHaveCount(3, { timeout: 30_000 })
     await page.waitForTimeout(300)
 
-    const measured = await page.evaluate(() => {
-      const sheet = document.querySelector('[data-franchise] .sheet')!.getBoundingClientRect()
-      const nodes = [...document.querySelectorAll('[data-franchise] .work-node')].map(el => el.getBoundingClientRect())
-      const labels = [...document.querySelectorAll('[data-franchise] .edge-label')].map(el => ({
-        text: el.textContent?.trim() ?? '',
-        rect: el.getBoundingClientRect(),
-      }))
-      const intersects = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-      const nodeOverlaps = labels.flatMap(label =>
-        nodes.filter(node => intersects(label.rect, node)).map(() => label.text))
-      const labelOverlaps: string[] = []
-      for (let i = 0; i < labels.length; i++) {
-        for (let j = i + 1; j < labels.length; j++) {
-          if (intersects(labels[i]!.rect, labels[j]!.rect)) labelOverlaps.push(`${labels[i]!.text}<>${labels[j]!.text}`)
-        }
-      }
-      return { sheetWidth: sheet.width, minNodeWidth: Math.min(...nodes.map(n => n.width)), labelCount: labels.length, nodeOverlaps, labelOverlaps }
-    })
-
-    expect(measured.labelCount, `${width}px`).toBeGreaterThanOrEqual(4)
-    expect(measured.nodeOverlaps, `${width}px node overlaps`).toEqual([])
-    expect(measured.labelOverlaps, `${width}px label overlaps`).toEqual([])
+    const initial = await measureGraph()
+    expect(initial.labelCount, `${width}px initial`).toBe(3)
+    expect(initial.nodeOverlaps, `${width}px initial node overlaps`).toEqual([])
+    expect(initial.labelOverlaps, `${width}px initial label overlaps`).toEqual([])
     if (width === 390) {
-      expect(measured.sheetWidth).toBeGreaterThanOrEqual(370)
-      expect(measured.minNodeWidth).toBeGreaterThanOrEqual(100)
+      expect(initial.sheetWidth).toBeGreaterThanOrEqual(370)
+      expect(initial.minNodeWidth).toBeGreaterThanOrEqual(100)
     }
+
+    for (const box of await page.locator('[data-franchise] .kinds input[type="checkbox"]').all()) {
+      if (!await box.isChecked()) await box.check()
+    }
+    await expect(page.locator('[data-franchise] .edge-label')).toHaveCount(5, { timeout: 30_000 })
+    await page.waitForTimeout(300)
+
+    const expanded = await measureGraph()
+    expect(expanded.labelCount, `${width}px expanded`).toBe(5)
+    expect(expanded.nodeOverlaps, `${width}px expanded node overlaps`).toEqual([])
+    expect(expanded.labelOverlaps, `${width}px expanded label overlaps`).toEqual([])
+    if (width === 390) expect(expanded.minNodeWidth).toBeGreaterThanOrEqual(100)
+
     await page.keyboard.press('Escape')
   }
 })
