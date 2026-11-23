@@ -264,7 +264,7 @@ type ContainedInfo = { keys: Set<string>, key: string }
 type ActiveSnapshot = { components: Components, edges: [string, string][], contained: ContainedInfo }
 
 // Keep the ledger warm across SAME_AS link writes; rebuild on claims, profiles, status, clusters or PART_OF/INCLUDES changes.
-const LEDGER_WRITES = /\b(CLAIMS|MediaProfile|Cluster|MEMBER_OF)\b|(?:CREATE|MERGE)\s*\([^)]*:Media\b|\bm\.status\b|DETACH\s+DELETE|\bDROP\b/i
+const LEDGER_WRITES = /\b(CLAIMS|MediaProfile|Cluster|MEMBER_OF)\b|(?:CREATE|MERGE)\s*\([^)]*:Media\b|\.status\b|DETACH\s+DELETE|\bDROP\b/i
 
 let componentsEpoch = 0
 let activeCache: { epoch: number, value: ActiveSnapshot } | undefined
