@@ -210,11 +210,13 @@ vi.mock('../../../../src/party/bridge', () => ({
 // says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
 // each was put. With `ending`, the plugin relays the player's skip offer: `asked` is what stub said, and `offered`
 // the player's own word, which a test changes when the player would have
-const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[], onPrepare: undefined as ((next: object) => boolean | Promise<boolean> | void) | undefined, ending: undefined as { asked: boolean[], offered: boolean } | undefined }))
+const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[], onPrepare: undefined as ((next: object) => boolean | Promise<boolean> | void) | undefined, ending: undefined as { asked: boolean[], offered: boolean } | undefined, episodeNav: undefined as { previous?: string, next?: string, onStep: (direction: 'previous' | 'next') => void } | undefined, externalSubtitles: undefined as { tracks: { id: string, language: string, label: string, format: string }[], load: (id: string) => Promise<string> } | undefined }))
 vi.mock('../../../../src/components/plugin-player', async () => {
   const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
   return {
-    default: ({ release, onUnplayable, onPlayback, stage }: { release: { url?: string }, onUnplayable: () => void, onPlayback: (link?: object) => void, stage?: { current: unknown } }) => {
+    default: ({ release, onUnplayable, onPlayback, stage, episodeNavigation, externalSubtitles }: { release: { url?: string }, onUnplayable: () => void, onPlayback: (link?: object) => void, stage?: { current: unknown }, episodeNavigation?: { previous?: string, next?: string, onStep: (direction: 'previous' | 'next') => void }, externalSubtitles?: { tracks: { id: string, language: string, label: string, format: string }[], load: (id: string) => Promise<string> } }) => {
+      pluginPlayers.episodeNav = episodeNavigation
+      pluginPlayers.externalSubtitles = externalSubtitles
       useEffect(() => {
         if (!release.url?.startsWith('magnet:')) return onUnplayable()
         pluginPlayers.stages.push(stage?.current)
@@ -245,7 +247,9 @@ const relay = vi.hoisted(() => ({ files: {} as Record<string, unknown>, asked: [
 vi.mock('../../../../src/utils/fetch', () => ({
   fetch: async (input: string) => {
     relay.asked.push(input)
-    return input in relay.files ? Response.json(relay.files[input]) : new Response('', { status: 403 })
+    if (!(input in relay.files)) return new Response('', { status: 403 })
+    const value = relay.files[input]
+    return typeof value === 'string' ? new Response(value) : Response.json(value)
   },
 }))
 // Crunchyroll's length of each episode, read when a torrent plays, and the viewer's own browser, which answers aniskip
@@ -262,7 +266,10 @@ vi.mock('../../../../src/worker/browser-fetch', () => ({
   browserFetch: async (input: string) => {
     direct.asked.push(String(input))
     await direct.held
-    return String(input) in direct.answers ? Response.json(direct.answers[String(input)]) : new Response('', { status: 404 })
+    const key = String(input)
+    if (!(key in direct.answers)) return new Response('', { status: 404 })
+    const value = direct.answers[key]
+    return typeof value === 'string' ? new Response(value) : Response.json(value)
   },
 }))
 vi.mock('../../../../src/embed-tracks', () => ({ embedTracks: () => ({ dispose: () => {} }) }))
@@ -296,6 +303,17 @@ vi.mock('../../../../src/embed-fullscreen', () => ({
   serveEmbedFullscreen: (iframe: HTMLIFrameElement, stage: HTMLElement) => {
     fullscreens.served.push([iframe, stage])
     return () => { fullscreens.stopped++ }
+  },
+}))
+const episodeNavs = vi.hoisted(() => ({ served: [] as [HTMLIFrameElement, { previous?: string | boolean, next?: string | boolean }, (dir: 'previous' | 'next') => void][] }))
+vi.mock('../../../../src/embed-episode', () => ({
+  serveEmbedEpisodeNavigation: (
+    iframe: HTMLIFrameElement,
+    navigation: { previous?: string | boolean, next?: string | boolean },
+    onStep: (dir: 'previous' | 'next') => void,
+  ) => {
+    episodeNavs.served.push([iframe, navigation, onStep])
+    return () => {}
   },
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
@@ -382,12 +400,15 @@ afterEach(() => {
   vi.mocked(wiring.prime.signIn).mockClear()
   fullscreens.served = []
   fullscreens.stopped = 0
+  episodeNavs.served = []
   pluginPlayers.chapters = undefined
   pluginPlayers.focus = []
   pluginPlayers.stages = []
   pluginPlayers.prepared = []
   pluginPlayers.onPrepare = undefined
   pluginPlayers.ending = undefined
+  pluginPlayers.episodeNav = undefined
+  pluginPlayers.externalSubtitles = undefined
 })
 
 const settle = async () => {
@@ -2235,6 +2256,13 @@ const torrentOf = async (chapters: object[] | undefined, third: object = {}) => 
 const PARTS = [{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395, title: 'Part B' }]
 const CREDITS = { credits: { start: 1300, end: 1390 } }
 const crunchyrollUrl = (n: number) => `https://www.crunchyroll.com/watch/GX${n}`
+const nonSubtitleUrls = (urls: readonly string[]) => urls.filter(url =>
+  !url.startsWith('https://api.ani.zip/')
+  && !url.startsWith('https://opensubtitles-v3.strem.io/')
+  && !url.startsWith('https://subs5.strem.io/')
+  && !url.startsWith('https://api-shoulei-ssl.xunlei.com/')
+  && !url.startsWith('https://subtitle.v.geilijiasu.com/'),
+)
 
 test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when its length is Crunchyroll\'s', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
@@ -2243,8 +2271,8 @@ test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when 
   await report({ paused: false, time: 1290 })
   await settle()
   expect(lengths.asked).toEqual([crunchyrollUrl(2)])
-  expect(relay.asked).toEqual([skipEventsUrl('GX2')])
-  expect(direct.asked, 'aniskip is not asked once Crunchyroll has the credits').toEqual([])
+  expect(nonSubtitleUrls(relay.asked)).toEqual([skipEventsUrl('GX2')])
+  expect(nonSubtitleUrls(direct.asked), 'aniskip is not asked once Crunchyroll has the credits').toEqual([])
   // the next report, a heartbeat
   await report({ paused: false, time: 1291 })
   await wait(7_900)
@@ -2274,7 +2302,7 @@ test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor 
   await report({ paused: false, time: 1291 })
   await wait(30_000)
   expect(nextShown(host), 'nor from Crunchyroll\'s credits').toBeUndefined()
-  expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
+  expect([lengths.asked, nonSubtitleUrls(relay.asked), nonSubtitleUrls(direct.asked)]).toEqual([[], [], []])
 })
 
 test('with no Crunchyroll handle, Crunchyroll is asked nothing and aniskip\'s ending, asked from the browser, brings Next episode', async () => {
@@ -2284,8 +2312,8 @@ test('with no Crunchyroll handle, Crunchyroll is asked nothing and aniskip\'s en
   await rerender()
   await report({ paused: false, time: 1290 })
   await settle()
-  expect(direct.asked).toEqual([aniskipUrl('5', 2, 1395)])
-  expect([lengths.asked, relay.asked]).toEqual([[], []])
+  expect(nonSubtitleUrls(direct.asked)).toEqual([aniskipUrl('5', 2, 1395)])
+  expect([lengths.asked, nonSubtitleUrls(relay.asked)]).toEqual([[], []])
   await report({ paused: false, time: 1291 })
   await wait(8_000)
   expect(nextShown(host)).toBe('E3 - Title 3')
@@ -2296,13 +2324,13 @@ test('a torrent asks for an ending only once it plays, and once', async () => {
   await torrentOf(PARTS)
   await report({ paused: true, time: 0 })
   await settle()
-  expect([lengths.asked, direct.asked], 'paused').toEqual([[], []])
+  expect([lengths.asked, nonSubtitleUrls(direct.asked)], 'paused').toEqual([[], []])
   await report({ paused: false, time: 0 })
   await settle()
   await report({ paused: false, time: 5 }, { paused: true, time: 6 }, { paused: false, time: 6 })
   await settle()
   expect(lengths.asked).toEqual([crunchyrollUrl(2)])
-  expect(direct.asked, 'aniskip, as Crunchyroll\'s events have no ending').toEqual([aniskipUrl('5', 2, 1395)])
+  expect(nonSubtitleUrls(direct.asked), 'aniskip, as Crunchyroll\'s events have no ending').toEqual([aniskipUrl('5', 2, 1395)])
 })
 
 test('a torrent with no next episode to offer asks for no ending', async () => {
@@ -2310,7 +2338,7 @@ test('a torrent with no next episode to offer asks for no ending', async () => {
   await torrentOf(PARTS, { releaseDate: '2099-01-01' })
   await report({ paused: false, time: 1290 })
   await settle()
-  expect([lengths.asked, relay.asked, direct.asked]).toEqual([[], [], []])
+  expect([lengths.asked, nonSubtitleUrls(relay.asked), nonSubtitleUrls(direct.asked)]).toEqual([[], [], []])
 })
 
 test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async () => {
@@ -4418,39 +4446,93 @@ test('opening Watch on a bare show container redirects to its first season while
   )
 })
 
-test('STUB-436: player double-arrow step buttons render in .player-container, omit missing ends and guests, and navigate with autoplay carry-over', async () => {
+test('STUB-436: previous/next episode controls move into the player bar for embeds and plugins, omit missing ends and guests, and carry autoplay across navigation', async () => {
   const { host, rerender } = await atTheEnd({}, 'nyaa:a')
-  const arrows = () => [...host.querySelectorAll<HTMLButtonElement>('.player-container .player-episode-step')]
-  expect(arrows().map(el => [el.dataset.playerStep, el.getAttribute('aria-label'), el.getAttribute('title')])).toEqual([
-    ['previous', 'Previous episode', 'E1 - Title 1'],
-    ['next', 'Next episode', 'E3 - Title 3'],
-  ])
+  expect(host.querySelectorAll('.player-episode-step')).toEqual([])
+  expect(pluginPlayers.episodeNav).toMatchObject({ previous: 'E1 - Title 1', next: 'E3 - Title 3' })
 
-  // clicking next triggers navigation and carries autoplay onto the next episode
-  await act(() => { host.querySelector<HTMLButtonElement>('[data-player-step="next"]')!.click() })
+  // Plugin onStep triggers navigation and carries autoplay onto the next episode
+  await act(() => { pluginPlayers.episodeNav!.onStep('next') })
   expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
   await toTheNext(rerender)
   await report({ paused: true, time: 0 })
   expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
 
-  // last episode shows only previous; clicking previous exits frame fullscreen first before navigating
-  expect(arrows().map(el => el.dataset.playerStep)).toEqual(['previous'])
+  // Built-in embed at ep 3 serves only previous; stepping previous exits non-stage fullscreen before navigating
+  expect(episodeNavs.served.at(-1)?.[1]).toEqual({ previous: 'E2 - Title 2', next: false })
   await inFullscreen(host.querySelector('iframe'), async exitFullscreen => {
     navigate.mockClear()
-    await act(() => { host.querySelector<HTMLButtonElement>('[data-player-step="previous"]')!.click() })
+    await act(() => { episodeNavs.served.at(-1)![2]('previous') })
     await settle()
     expect(exitFullscreen).toHaveBeenCalledTimes(1)
     expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(2, 'cr:GX2'))
   })
 
-  // first episode shows only next; party guest hides both player arrows
+  // First episode offers only next; party guest hides both controls on embeds and plugins
   params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
   rerender()
   await settle()
-  expect(arrows().map(el => el.dataset.playerStep)).toEqual(['next'])
+  expect(episodeNavs.served.at(-1)?.[1]).toEqual({ previous: false, next: 'E2 - Title 2' })
 
   party = { status: 'active', role: 'guest' } as typeof party
   rerender()
   await settle()
-  expect(arrows()).toEqual([])
+  expect(episodeNavs.served.at(-1)?.[1]).toEqual({ previous: false, next: false })
+
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  rerender()
+  await settle()
+  expect(pluginPlayers.episodeNav).toBeUndefined()
+})
+
+test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay only for plugin playback, and decodes selected tracks lazily', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nyaa']
+  series({}, 'cr:GX2')
+  direct.answers['https://api.ani.zip/mappings?anilist_id=1&specials=1'] = {
+    mappings: { imdb_id: 'tt1234567' },
+    episodes: {},
+  }
+  direct.answers['https://opensubtitles-v3.strem.io/subtitles/series/tt1234567:1:2.json'] = {
+    subtitles: [{ id: 9, url: 'https://subs5.strem.io/ep2.srt', lang: 'eng', subtitleFileName: 'E2.srt' }],
+  }
+  direct.answers['https://subs5.strem.io/ep2.srt'] = '1\n00:00:01,000 --> 00:00:02,000\nOpenSubtitles line\n'
+  relay.files['https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name=Title%202'] = {
+    data: [{ cid: 'xl2', url: 'https://subtitle.v.geilijiasu.com/ep2.ass', ext: 'ass', langs: '简体', score: 95 }],
+  }
+  relay.files['https://subtitle.v.geilijiasu.com/ep2.ass'] = '[Script Info]\nTitle: Xunlei\n'
+
+  const location = memoryLocation()
+  const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
+  const host = mount(tree())
+  hosts.push(host)
+  await settle()
+
+  // Built-in embed playback never fetches external subtitles or passes externalSubtitles
+  expect(direct.asked).toEqual([])
+  expect(relay.asked.some(url => url.includes('xunlei'))).toBe(false)
+  expect(pluginPlayers.externalSubtitles).toBeUndefined()
+
+  relay.asked = []
+  direct.asked = []
+  params = { ...params, sourceUri: 'nyaa:a' }
+  act(() => { render(tree(), host) })
+  await settle()
+
+  expect(direct.asked).toEqual([
+    'https://api.ani.zip/mappings?anilist_id=1&specials=1',
+    'https://opensubtitles-v3.strem.io/subtitles/series/tt1234567:1:2.json',
+  ])
+  expect(relay.asked).toEqual([
+    'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name=Title%202',
+  ])
+  expect(pluginPlayers.externalSubtitles?.tracks.map(t => ({ id: t.id, language: t.language, format: t.format }))).toEqual([
+    { id: 'opensubtitles:en:9', language: 'en', format: 'srt' },
+    { id: 'xunlei:xl2', language: 'zh-Hans', format: 'ass' },
+  ])
+
+  expect(await pluginPlayers.externalSubtitles!.load('opensubtitles:en:9')).toBe('1\n00:00:01,000 --> 00:00:02,000\nOpenSubtitles line\n')
+  expect(direct.asked).toContain('https://subs5.strem.io/ep2.srt')
+  expect(await pluginPlayers.externalSubtitles!.load('xunlei:xl2')).toBe('[Script Info]\nTitle: Xunlei\n')
+  expect(relay.asked).toContain('https://subtitle.v.geilijiasu.com/ep2.ass')
 })

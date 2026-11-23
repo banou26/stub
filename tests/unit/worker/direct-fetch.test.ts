@@ -35,8 +35,10 @@ test('every host whose CORS lets a browser ask it is asked from the browser', ()
     'https://api.tvmaze.com/search/shows?q=breaking%20bad',
     'https://graphql.animethemes.moe/',
     'https://cdn.animenewsnetwork.com/encyclopedia/api.xml?anime=1',
-    // asked by the watch page itself, src/router/watch/fallback-ending.ts
+    // asked by the watch page itself, src/router/watch/fallback-ending.ts and src/router/watch/external-subtitles.ts
     'https://api.aniskip.com/v2/skip-times/59978/3?types=ed&episodeLength=1440.11',
+    'https://opensubtitles-v3.strem.io/subtitles/movie/tt15239678.json',
+    'https://subs5.strem.io/en/download/subencoding-stremio-utf8/src-api/file/1',
   ]) {
     expect(asksViewerDirectly(url), url).toBe(true)
   }
@@ -61,6 +63,8 @@ test('every host a browser cannot ask still goes through the relay', () => {
     'https://unogs.com/api/title/episodes?netflixid=80987039',
     'https://www.livechart.me/fall-2026/tv',
     'https://api.jikan.moe/v4/anime/1',
+    'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name=Dune',
+    'https://subtitle.v.geilijiasu.com/example.srt',
     // the trap a suffix match walks into: a host somebody else controls, ending in the allowed one
     'https://www.netflix.com.example.test/graphql',
     // and a sibling host that was never measured, so it was never exempted
@@ -86,6 +90,8 @@ test('the list is the hosts measured open, not a rule that grew', () => {
     'https://graphql.anilist.co',
     'https://graphql.animethemes.moe',
     'https://kitsu.io',
+    'https://opensubtitles-v3.strem.io',
+    'https://subs5.strem.io',
     'https://uts-api.itunes.apple.com',
     'https://www.netflix.com',
   ])

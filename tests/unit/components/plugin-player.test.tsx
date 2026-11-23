@@ -206,3 +206,51 @@ test('its link hands the keys to the package, after focusing the package\'s fram
   await settle()
   expect(order).toEqual(['frame', 'package'])
 })
+
+test('updates episodeNavigation and externalSubtitles without restarting playback, and forwards step clicks and subtitle loads', async () => {
+  let stepListener: ((dir: 'previous' | 'next') => void) | undefined
+  let subListener: ((trackId: string) => void) | undefined
+  const onStep = vi.fn()
+  const load = vi.fn(async (id: string) => `content:${id}`)
+
+  const applyEpisodeNavigation = vi.fn(async () => {})
+  const onEpisodeNavigation = vi.fn(async (fn: (dir: 'previous' | 'next') => void) => { stepListener = fn })
+  const applyExternalSubtitles = vi.fn(async () => {})
+  const onSubtitleLoadRequest = vi.fn(async (fn: (trackId: string) => void) => { subListener = fn })
+  const provideExternalSubtitle = vi.fn(async () => {})
+
+  const { played } = playing()
+  Object.assign(fkn.source, {
+    applyEpisodeNavigation,
+    onEpisodeNavigation,
+    applyExternalSubtitles,
+    onSubtitleLoadRequest,
+    provideExternalSubtitle,
+  })
+
+  const nav1 = { previous: 'E1', next: 'E3', onStep }
+  const subs1 = { tracks: [{ id: 's1', language: 'en', label: 'English', format: 'srt' as const }], load }
+  const host = mount(player(1, { episodeNavigation: nav1, externalSubtitles: subs1 }))
+  hosts.push(host)
+  await settle()
+
+  expect(played).toEqual(['nyaa:1'])
+  expect(applyEpisodeNavigation).toHaveBeenCalledWith({ previous: 'E1', next: 'E3' })
+  expect(applyExternalSubtitles).toHaveBeenCalledWith(subs1.tracks)
+
+  stepListener?.('next')
+  expect(onStep).toHaveBeenCalledExactlyOnceWith('next')
+  subListener?.('s1')
+  await settle()
+  expect(provideExternalSubtitle).toHaveBeenCalledWith('s1', 'content:s1')
+
+  const nav2 = { previous: 'E1', onStep }
+  const subs2 = { tracks: [{ id: 's2', language: 'fr', label: 'French', format: 'vtt' as const }], load }
+  act(() => { render(player(1, { episodeNavigation: nav2, externalSubtitles: subs2 }), host) })
+  await settle()
+
+  // Updating navigation or external subtitles syncs without re-calling source.play()
+  expect(played).toEqual(['nyaa:1'])
+  expect(applyEpisodeNavigation).toHaveBeenLastCalledWith({ previous: 'E1', next: false })
+  expect(applyExternalSubtitles).toHaveBeenLastCalledWith(subs2.tracks)
+})

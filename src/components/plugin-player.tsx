@@ -1,3 +1,4 @@
+import type { RemoteExternalSubtitleTrack } from '@banou/media-player'
 import type { RefObject } from 'preact'
 
 import type { MountedPackage } from '@fkn/lib/packages'
@@ -10,7 +11,14 @@ import { useIntl } from 'react-intl'
 import type { PlaybackLink } from '../party/bridge'
 
 import { STUB_SOURCE_PROTOCOL, type PluginSettings, type ViewerLanguages } from '../plugin-api'
-import { pluginPlaybackLink, servePluginAutoplay, servePluginFullscreen, type PlaybackSource } from '../party/plugin-link'
+import {
+  pluginPlaybackLink,
+  servePluginAutoplay,
+  servePluginEpisodeNavigation,
+  servePluginExternalSubtitles,
+  servePluginFullscreen,
+  type PlaybackSource,
+} from '../party/plugin-link'
 import { loadPluginValues } from '../plugin-list'
 import { fromUri } from '../utils/uri'
 import { viewerLanguages } from '../viewer-languages'
@@ -51,6 +59,17 @@ type PlayableSource = PlaybackSource & {
 
 type PluginPayload = PlayableSource & Pick<PluginSettings, 'configure'> & { sources?: PlayableSource[] }
 
+export type PluginPlayerEpisodeNavigation = {
+  previous?: string
+  next?: string
+  onStep: (direction: 'previous' | 'next') => void
+}
+
+export type PluginPlayerExternalSubtitles = {
+  tracks: RemoteExternalSubtitleTrack[]
+  load: (trackId: string) => Promise<string>
+}
+
 export type PluginPlayerProps = {
   /** the package, the same for the component's life: the page keys it on this */
   pluginUri: string
@@ -61,7 +80,13 @@ export type PluginPlayerProps = {
   onPlayback?: (link: PlaybackLink | undefined) => void
   /** what goes fullscreen when the player asks, for a source that hands its player's fullscreen over */
   stage?: RefObject<HTMLElement | null>
+  /** previous/next episode controls served to the plugin's player without restarting playback */
+  episodeNavigation?: PluginPlayerEpisodeNavigation
+  /** external subtitle tracks served to the plugin's player without restarting playback */
+  externalSubtitles?: PluginPlayerExternalSubtitles
 }
+
+const NO_SUBTITLES: RemoteExternalSubtitleTrack[] = []
 
 /**
  * Plays a release inside the source package's own frame.
@@ -79,13 +104,14 @@ export type PluginPlayerProps = {
  * in a frame inside it (WebKit 26.4 and 27.2, 2026-10-26), so a package mounted afresh for each episode
  * could never hand them on to the next one's player. A mount that failed is tried again for the next.
  */
-export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage }: PluginPlayerProps) => {
+export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage, episodeNavigation, externalSubtitles }: PluginPlayerProps) => {
   const intl = useIntl()
   const slot = useRef<HTMLIFrameElement>(null)
   const [failed, setFailed] = useState(false)
-  // read at call time: the effect below is keyed on the release, and the page hands in new closures on every render
-  const callbacks = useRef({ onUnplayable, onPlayback })
-  callbacks.current = { onUnplayable, onPlayback }
+  const [active, setActive] = useState<{ uri: string, url?: string, source: PlayableSource }>()
+  // read at call time: effects below stay keyed on primitive/source values so closure updates do not replay
+  const callbacks = useRef({ onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, loadSubtitle: externalSubtitles?.load })
+  callbacks.current = { onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, loadSubtitle: externalSubtitles?.load }
   const mounted = useRef<Promise<MountedPackage<PluginPayload>>>(undefined)
 
   useEffect(() => {
@@ -96,6 +122,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
     let stopFullscreen: (() => void) | undefined
     let stopAutoplay: (() => void) | undefined
     setFailed(false)
+    setActive(undefined)
 
     const run = async () => {
       try {
@@ -124,6 +151,7 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
         if (link) callbacks.current.onPlayback?.(link)
         if (stage?.current) stopFullscreen = servePluginFullscreen(source, stage.current, window, iframe)
         stopAutoplay = servePluginAutoplay(source)
+        setActive({ uri: release.uri, url: release.url, source })
       } catch (error) {
         if (done) return
         console.warn(`Source '${pluginUri}' could not start playback:`, error)
@@ -134,11 +162,35 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
 
     return () => {
       done = true
+      setActive(undefined)
       stopFullscreen?.()
       stopAutoplay?.()
       if (link) { link.dispose(); callbacks.current.onPlayback?.(undefined) }
     }
   }, [pluginUri, release.uri, release.url])
+
+  const currentSource = active && active.uri === release.uri && active.url === release.url ? active.source : undefined
+  const prevNav = episodeNavigation?.previous
+  const nextNav = episodeNavigation?.next
+  useEffect(() => {
+    if (!currentSource) return
+    return servePluginEpisodeNavigation(
+      currentSource,
+      { previous: prevNav ?? false, next: nextNav ?? false },
+      direction => callbacks.current.onStep?.(direction),
+    )
+  }, [currentSource, prevNav, nextNav])
+
+  const tracks = externalSubtitles?.tracks ?? NO_SUBTITLES
+  useEffect(() => {
+    if (!currentSource) return
+    return servePluginExternalSubtitles(
+      currentSource,
+      tracks,
+      trackId => callbacks.current.loadSubtitle?.(trackId) ?? Promise.reject(new Error('No subtitle loader')),
+    )
+  }, [currentSource, tracks])
+
   useEffect(() => () => { void mounted.current?.then(connection => connection.unmount(), () => {}) }, [])
 
   return (

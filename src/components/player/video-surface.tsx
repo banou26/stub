@@ -3,6 +3,8 @@ import type { PlayerCapabilities, PlayerSelection } from './types'
 
 import { useEffect, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
+
+import { useHostEpisodeNavigation } from '../../embed-episode'
 import {
   AlertDialog,
   BufferingIndicator,
@@ -31,10 +33,12 @@ import {
   CheckIcon,
   FullscreenEnterIcon,
   FullscreenExitIcon,
+  NextIcon,
   PauseIcon,
   PipEnterIcon,
   PipExitIcon,
   PlayIcon,
+  PreviousIcon,
   QualityIcon,
   RestartIcon,
   SeekIcon,
@@ -92,6 +96,7 @@ type IntrinsicButton = {
   type?: 'button' | 'submit' | 'reset'
   className?: string
   'aria-label'?: string
+  onClick?: () => void
   children?: ComponentChildren
 }
 
@@ -206,6 +211,13 @@ export type VideoSurfaceProps = {
 
 const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfaceProps) => {
   const intl = useIntl()
+  const episodeNavigation = useHostEpisodeNavigation()
+  const previousLabel = episodeNavigation?.previous
+    ? episodeNavigation.previous.title?.trim() || intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' })
+    : undefined
+  const nextLabel = episodeNavigation?.next
+    ? episodeNavigation.next.title?.trim() || intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })
+    : undefined
   return (
     <ContainerC className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
       {children}
@@ -246,6 +258,38 @@ const VideoSurface = ({ capabilities, children, className, ...rest }: VideoSurfa
               />
               <TooltipPopup className="media-surface media-tooltip" />
             </TooltipRoot>
+            {episodeNavigation?.previous && previousLabel ? (
+              <TooltipRoot side="top">
+                <TooltipTrigger
+                  render={
+                    <IconButton
+                      className="media-button--previous"
+                      aria-label={previousLabel}
+                      onClick={() => episodeNavigation.previous?.request()}
+                    >
+                      <PreviousIcon className="media-icon" />
+                    </IconButton>
+                  }
+                />
+                <TooltipPopup className="media-surface media-tooltip">{previousLabel}</TooltipPopup>
+              </TooltipRoot>
+            ) : null}
+            {episodeNavigation?.next && nextLabel ? (
+              <TooltipRoot side="top">
+                <TooltipTrigger
+                  render={
+                    <IconButton
+                      className="media-button--next"
+                      aria-label={nextLabel}
+                      onClick={() => episodeNavigation.next?.request()}
+                    >
+                      <NextIcon className="media-icon" />
+                    </IconButton>
+                  }
+                />
+                <TooltipPopup className="media-surface media-tooltip">{nextLabel}</TooltipPopup>
+              </TooltipRoot>
+            ) : null}
             <TooltipRoot side="top">
               <TooltipTrigger
                 render={

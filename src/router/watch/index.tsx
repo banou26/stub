@@ -29,6 +29,7 @@ import MediaTracking from '../../components/media-tracking'
 import MediaSeasons, { firstSeasonRedirect } from '../../components/media-seasons'
 import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
+import { serveEmbedEpisodeNavigation } from '../../embed-episode'
 import { serveEmbedFullscreen } from '../../embed-fullscreen'
 import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
@@ -49,6 +50,7 @@ import { getRoutePath, Route } from '../path'
 import { foundSignedIn, neverSignedIn as neverSignedInTo, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
 import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
+import { useExternalSubtitles } from './external-subtitles'
 import { useFallbackEnding } from './fallback-ending'
 import { adjacentRun, neighbours, sourceFor } from './neighbours'
 import { hasEnding } from '../../utils/next-offer'
@@ -56,7 +58,6 @@ import NoSource from './no-source'
 import SourceChecks from './source-checks'
 import { startOf, useResume } from './resume'
 import UpNext from './up-next'
-import EpisodeArrows from './episode-arrows'
 
 /**
  * The episode rows this episode claims to BE, unwrapped from their edges.
@@ -272,11 +273,6 @@ const style = css`
     aspect-ratio: 16 / 9;
     min-height: 20rem;
     max-height: calc(100vh - var(--stub-header-height));
-
-    &:hover .player-episode-step,
-    &:focus-within .player-episode-step {
-      opacity: 0.78;
-    }
 
     &.holding {
       border-radius: 0;
@@ -1051,6 +1047,45 @@ const Watch = () => {
   }
   const previousLink = linkTo(previous)
   const nextLink = linkTo(next)
+  const previousNav = guest || !previousLink
+    ? undefined
+    : (previousLink.title ?? intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' }))
+  const nextNav = guest || !nextLink
+    ? undefined
+    : (nextLink.title ?? intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' }))
+  const stepEpisode = (direction: 'previous' | 'next') => {
+    const link = direction === 'previous' ? previousLink : nextLink
+    const target = direction === 'previous' ? previous : next
+    if (!link) return
+    autoAdvanced.current = true
+    autoplayTarget.current = target?.episode.uri
+    const leaving = document.fullscreenElement && document.fullscreenElement !== stage.current
+      ? document.exitFullscreen().catch(() => {})
+      : undefined
+    if (leaving) void leaving.then(() => navigate(link.href))
+    else navigate(link.href)
+  }
+  const latestStep = useRef(stepEpisode)
+  latestStep.current = stepEpisode
+  const pluginEpisodeNav = useMemo(
+    () => previousNav || nextNav
+      ? {
+        ...previousNav ? { previous: previousNav } : {},
+        ...nextNav ? { next: nextNav } : {},
+        onStep: (direction: 'previous' | 'next') => latestStep.current(direction),
+      }
+      : undefined,
+    [previousNav, nextNav],
+  )
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !embedUrl || !iframe) return
+    return serveEmbedEpisodeNavigation(
+      iframe,
+      { previous: previousNav ?? false, next: nextNav ?? false },
+      direction => latestStep.current(direction),
+    )
+  }, [viaPlugin, embedUrl, previousNav, nextNav])
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
   // the release Next opens, for the torrent player to prepare
@@ -1063,6 +1098,14 @@ const Watch = () => {
   const fallback = useFallbackEnding(needsFallback ? playbackLink : undefined, {
     crunchyroll: episodeHandles.find(handle => handle.origin === 'cr' && handle.url)?.url ?? undefined,
     mal: malId && Number.isInteger(episodeNumber) ? { id: malId, episode: episodeNumber! } : undefined,
+  })
+  const pluginExternalSubtitles = useExternalSubtitles({
+    enabled: viaPlugin,
+    media,
+    episode,
+    selected,
+    film,
+    locale: intl.locale,
   })
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
@@ -1104,6 +1147,8 @@ const Watch = () => {
                       onUnplayable={() => setDeclined(selectedSourceUri)}
                       onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
                       stage={stage}
+                      episodeNavigation={pluginEpisodeNav}
+                      externalSubtitles={pluginExternalSubtitles}
                     />
                   )
                   : (
@@ -1123,15 +1168,6 @@ const Watch = () => {
                     />
                   )}
                 <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true; autoplayTarget.current = next?.episode.uri }}/>
-                <EpisodeArrows
-                  previous={guest ? undefined : previousLink}
-                  next={guest ? undefined : nextLink}
-                  stage={stage}
-                  onStep={direction => {
-                    autoAdvanced.current = true
-                    autoplayTarget.current = direction === 'previous' ? previous?.episode.uri : next?.episode.uri
-                  }}
-                />
               </div>
             )
             : needsExtension

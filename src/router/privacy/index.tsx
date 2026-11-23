@@ -99,7 +99,8 @@ const Privacy = () => (
     <p>
       To fetch titles and streams, stub sends requests through the FKN platform
       proxy, which then reaches third-party services such as AniList (anilist.co), MyAnimeList,
-      Crunchyroll, Prime Video and JustWatch. The proxy requires no account. It uses your IP
+      Crunchyroll, Prime Video, JustWatch and Xunlei subtitles (api-shoulei-ssl.xunlei.com and
+      subtitle.v.geilijiasu.com). The proxy requires no account. It uses your IP
       address to rate-limit requests, and it keeps a copy of each answer for a while, under a
       key made from the whole request (its address, headers and body), so only an identical
       request is answered from that copy. How the FKN platform handles that data is described
@@ -129,6 +130,8 @@ const Privacy = () => (
       <li>Apple TV <span className="host">uts-api.itunes.apple.com</span></li>
       <li>Kitsu <span className="host">kitsu.io</span></li>
       <li>Netflix <span className="host">www.netflix.com</span>, whose catalogue depends on your country</li>
+      <li>OpenSubtitles <span className="host">opensubtitles-v3.strem.io</span>, for external subtitle listings</li>
+      <li>OpenSubtitles downloads <span className="host">subs5.strem.io</span>, for external subtitle files</li>
       <li>TheTVDB <span className="host">api4.thetvdb.com</span></li>
       <li>
         trace.moe <span className="host">api.trace.moe</span>, for a search by picture: it gets a short color code

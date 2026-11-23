@@ -54,6 +54,8 @@ export const DIRECT_FETCH_ORIGINS: ReadonlySet<string> = new Set([
   'https://graphql.anilist.co',
   'https://graphql.animethemes.moe',
   'https://kitsu.io',
+  'https://opensubtitles-v3.strem.io',
+  'https://subs5.strem.io',
   'https://uts-api.itunes.apple.com',
   'https://www.netflix.com',
 ])

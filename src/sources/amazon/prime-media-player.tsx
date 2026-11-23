@@ -9,6 +9,7 @@ import { useEffect, useMemo } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import LeftToRight from '../../components/player/left-to-right'
+import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAutoplay } from '../../embed-languages'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
@@ -35,6 +36,7 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
   useEffect(() => (volume ? exposePlayer(volume.served(volume.media)) : undefined), [volume])
   const stepFrame = usePageFrameStep(frame, remote, video)
   const fullscreen = useHostFullscreen()
+  const episodeNavigation = useHostEpisodeNavigation()
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
   return (
@@ -46,6 +48,7 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
         quality={quality}
         stepFrame={stepFrame}
         fullscreen={fullscreen}
+        episodeNavigation={episodeNavigation}
         language={locale}
         autoplayNext={autoplayNext}
         onAutoplayNextChange={tellAutoplay}

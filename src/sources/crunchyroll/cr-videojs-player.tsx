@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import LeftToRight from '../../components/player/left-to-right'
+import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage } from '../../embed-languages'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
@@ -52,6 +53,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   // on the element itself, never through `media`: the scrubber it seeks would round a step to its 0.25 s
   const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
   const fullscreen = useHostFullscreen()
+  const episodeNavigation = useHostEpisodeNavigation()
   // the page keeps it: a flip here is told to the page, whose write reaches this document as a storage event
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
@@ -70,6 +72,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         chapters={chapters}
         pictureInPicture={pictureInPicture}
         fullscreen={fullscreen}
+        episodeNavigation={episodeNavigation}
         onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
         onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
         onAlwaysShowSubtitlesChange={tellAlwaysSubtitles}

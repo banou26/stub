@@ -211,3 +211,23 @@ export const CheckIcon = asFC<IconProps>(({ className }) => (
     />
   </Icon>
 ))
+
+export const PreviousIcon = asFC<IconProps>(({ className }) => (
+  <Icon className={className}>
+    <rect width={2} height={12} x={2.5} y={3} fill="currentColor" rx={1} />
+    <path
+      fill="currentColor"
+      d="M15 4.2a1 1 0 0 0-1.56-.83l-7.1 4.8a1 1 0 0 0 0 1.66l7.1 4.8A1 1 0 0 0 15 13.8V4.2z"
+    />
+  </Icon>
+))
+
+export const NextIcon = asFC<IconProps>(({ className }) => (
+  <Icon className={className}>
+    <path
+      fill="currentColor"
+      d="M3 4.2a1 1 0 0 1 1.56-.83l7.1 4.8a1 1 0 0 1 0 1.66l-7.1 4.8A1 1 0 0 1 3 13.8V4.2z"
+    />
+    <rect width={2} height={12} x={13.5} y={3} fill="currentColor" rx={1} />
+  </Icon>
+))

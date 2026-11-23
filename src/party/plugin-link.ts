@@ -1,4 +1,4 @@
-import type { MediaChapter } from '@banou/media-player'
+import type { MediaChapter, RemoteExternalSubtitleTrack } from '@banou/media-player'
 import type { TrackPick } from '../plugin-api'
 import type { PlaybackLink } from './bridge'
 import type { Follow, LocalPlayback, PlaybackCorrection } from './playback'
@@ -68,6 +68,11 @@ export type PlaybackSource = {
   focus?: () => Promise<void>
   offerEnding?: (offered: boolean) => Promise<void>
   applyAutoplay?: (on: boolean) => Promise<void>
+  applyEpisodeNavigation?: (navigation: { previous?: string | boolean, next?: string | boolean }) => Promise<void>
+  onEpisodeNavigation?: (listener: (direction: 'previous' | 'next') => void) => Promise<void>
+  applyExternalSubtitles?: (tracks: RemoteExternalSubtitleTrack[]) => Promise<void>
+  onSubtitleLoadRequest?: (listener: (trackId: string) => void) => Promise<void>
+  provideExternalSubtitle?: (trackId: string, content: string | null, error?: string) => Promise<void>
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
@@ -236,4 +241,47 @@ export const servePluginAutoplay = (source: PlaybackSource) => {
   const tell = () => { applyAutoplay(readAutoplay()).catch(() => {}) }
   tell()
   return watchAutoplay(tell)
+}
+
+/** Serves previous/next episode button state to a source package's player and forwards button clicks to `onStep`. */
+export const servePluginEpisodeNavigation = (
+  source: PlaybackSource,
+  navigation: { previous?: string | boolean, next?: string | boolean },
+  onStep: (direction: 'previous' | 'next') => void,
+) => {
+  const { applyEpisodeNavigation, onEpisodeNavigation } = source
+  if (!applyEpisodeNavigation || !onEpisodeNavigation) return () => {}
+  let stopped = false
+  const previous = navigation.previous || false
+  const next = navigation.next || false
+  onEpisodeNavigation(direction => {
+    if (stopped) return
+    if ((direction === 'previous' && previous) || (direction === 'next' && next)) onStep(direction)
+  }).catch(() => {})
+  applyEpisodeNavigation({ previous, next }).catch(() => {})
+  return () => { stopped = true }
+}
+
+/** Pushes external subtitle tracks to a source package's player and answers load requests using `load`. */
+export const servePluginExternalSubtitles = (
+  source: PlaybackSource,
+  tracks: RemoteExternalSubtitleTrack[],
+  load: (trackId: string) => Promise<string>,
+) => {
+  const { applyExternalSubtitles, onSubtitleLoadRequest, provideExternalSubtitle } = source
+  if (!applyExternalSubtitles || !onSubtitleLoadRequest || !provideExternalSubtitle) return () => {}
+  let stopped = false
+  onSubtitleLoadRequest(trackId => {
+    if (stopped) return
+    Promise.resolve()
+      .then(() => load(trackId))
+      .then(
+        content => { if (!stopped) void provideExternalSubtitle(trackId, content).catch(() => {}) },
+        error => {
+          if (!stopped) void provideExternalSubtitle(trackId, null, error instanceof Error ? error.message : String(error)).catch(() => {})
+        },
+      )
+  }).catch(() => {})
+  applyExternalSubtitles(tracks).catch(() => {})
+  return () => { stopped = true }
 }

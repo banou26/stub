@@ -20,6 +20,7 @@
       "*.nflxso.net",
       "anilist.co",
       "animethemes.moe",
+      "api-shoulei-ssl.xunlei.com",
       "api.ani.zip",
       "api.aniskip.com",
       "api.simkl.com",
@@ -53,6 +54,7 @@
       "media.kitsu.app",
       "media.themoviedb.org",
       "myanimelist.net",
+      "opensubtitles-v3.strem.io",
       "pluto.tv",
       "s4.anilist.co",
       "simkl.com",
@@ -61,6 +63,8 @@
       "static.crunchyroll.com",
       "static.diceplatform.com",
       "static.tvmaze.com",
+      "subs5.strem.io",
+      "subtitle.v.geilijiasu.com",
       "therokuchannel.roku.com",
       "tv.apple.com",
       "u.livechart.me",
@@ -145,7 +149,7 @@
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },
   "dependencies": {
-    "@banou/media-player": "^0.10.53",
+    "@banou/media-player": "^0.10.55",
     "@banou/ponyfill": "^0.0.13",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

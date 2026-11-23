@@ -6,7 +6,14 @@ import type { PlaybackState } from '../../../src/party/protocol'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { NUDGE_RATE } from '../../../src/party/playback'
-import { BUFFER_WAIT_MS, pluginPlaybackLink, servePluginAutoplay, servePluginFullscreen } from '../../../src/party/plugin-link'
+import {
+  BUFFER_WAIT_MS,
+  pluginPlaybackLink,
+  servePluginAutoplay,
+  servePluginEpisodeNavigation,
+  servePluginExternalSubtitles,
+  servePluginFullscreen,
+} from '../../../src/party/plugin-link'
 import { AUTOPLAY_KEY, readAutoplay, setAutoplay } from '../../../src/utils/autoplay'
 
 const STATE = { paused: false, time: 42, rate: 1, at: 1 }
@@ -712,5 +719,76 @@ describe('the autoplay setting on a package\'s player', () => {
     await Promise.resolve()
     expect(refusing).toHaveBeenCalledTimes(1)
     stop()
+  })
+})
+
+describe('episode navigation on a package\'s player', () => {
+  test('pushes navigation state and forwards clicks for enabled directions until stopped', () => {
+    let listener: ((dir: 'previous' | 'next') => void) | undefined
+    const applyEpisodeNavigation = vi.fn(async () => {})
+    const onEpisodeNavigation = vi.fn(async (fn: (dir: 'previous' | 'next') => void) => { listener = fn })
+    const onStep = vi.fn()
+
+    const stop = servePluginEpisodeNavigation(
+      { applyEpisodeNavigation, onEpisodeNavigation },
+      { previous: 'E1', next: false },
+      onStep,
+    )
+
+    expect(applyEpisodeNavigation).toHaveBeenCalledWith({ previous: 'E1', next: false })
+    listener?.('next')
+    expect(onStep).not.toHaveBeenCalled()
+    listener?.('previous')
+    expect(onStep).toHaveBeenCalledExactlyOnceWith('previous')
+
+    stop()
+    listener?.('previous')
+    expect(onStep).toHaveBeenCalledTimes(1)
+  })
+
+  test('a package missing the methods or rejecting does not throw', async () => {
+    expect(() => servePluginEpisodeNavigation({}, { previous: 'E1' }, () => {})()).not.toThrow()
+    const stop = servePluginEpisodeNavigation(
+      {
+        applyEpisodeNavigation: async () => { throw new Error('gone') },
+        onEpisodeNavigation: async () => { throw new Error('gone') },
+      },
+      { next: 'E3' },
+      () => {},
+    )
+    await Promise.resolve()
+    stop()
+  })
+})
+
+describe('external subtitles on a package\'s player', () => {
+  test('pushes tracks, answers load requests with content or error, and stops on cleanup', async () => {
+    let onLoad: ((trackId: string) => void) | undefined
+    const applyExternalSubtitles = vi.fn(async () => {})
+    const onSubtitleLoadRequest = vi.fn(async (fn: (trackId: string) => void) => { onLoad = fn })
+    const provideExternalSubtitle = vi.fn(async () => {})
+
+    const tracks = [{ id: 'sub-1', language: 'en', label: 'English', format: 'srt' as const }]
+    const stop = servePluginExternalSubtitles(
+      { applyExternalSubtitles, onSubtitleLoadRequest, provideExternalSubtitle },
+      tracks,
+      async id => id === 'sub-1' ? 'loaded-srt' : Promise.reject(new Error('missing')),
+    )
+
+    expect(applyExternalSubtitles).toHaveBeenCalledWith(tracks)
+    onLoad?.('sub-1')
+    await vi.waitFor(() => expect(provideExternalSubtitle).toHaveBeenCalledWith('sub-1', 'loaded-srt'))
+
+    onLoad?.('sub-bad')
+    await vi.waitFor(() => expect(provideExternalSubtitle).toHaveBeenCalledWith('sub-bad', null, 'missing'))
+
+    stop()
+    onLoad?.('sub-1')
+    await Promise.resolve()
+    expect(provideExternalSubtitle).toHaveBeenCalledTimes(2)
+  })
+
+  test('a package without subtitle methods does not throw', () => {
+    expect(() => servePluginExternalSubtitles({}, [], async () => '')()).not.toThrow()
   })
 })

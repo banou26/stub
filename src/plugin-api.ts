@@ -1,9 +1,9 @@
-import type { MediaChapter } from '@banou/media-player'
+import type { MediaChapter, RemoteExternalSubtitleTrack } from '@banou/media-player'
 import type { Resolvers } from './generated/schema/types.generated'
 import type { PlaybackCorrection } from './party/playback'
 import type { PlaybackState } from './party/protocol'
 
-export type { PlaybackState }
+export type { PlaybackState, RemoteExternalSubtitleTrack }
 
 // Subscription.media, mediaPage and similarMedia subscribe generators are served; the ctx a plugin sees carries exactly one function, `similarMedia`, and the viewer's `languages`
 
@@ -161,6 +161,16 @@ export type StubSource = {
    * it keeps the setting changed in Settings. Optional and additive to stub-source@1: without it the player has no switch.
    */
   applyAutoplay?: (on: boolean) => Promise<void>
+  /** Show previous and next episode buttons beside Play/Pause on the player; string names the button, false hides it. */
+  applyEpisodeNavigation?: (navigation: { previous?: string | boolean, next?: string | boolean }) => Promise<void>
+  /** Hear clicks on the player's previous/next episode buttons. One listener; the next call replaces it. */
+  onEpisodeNavigation?: (listener: (direction: 'previous' | 'next') => void) => Promise<void>
+  /** Offer external subtitle tracks in the player's subtitle menu alongside any muxed tracks. */
+  applyExternalSubtitles?: (tracks: RemoteExternalSubtitleTrack[]) => Promise<void>
+  /** Hear when the viewer picks an external subtitle track whose content is loaded on demand. */
+  onSubtitleLoadRequest?: (listener: (trackId: string) => void) => Promise<void>
+  /** Deliver loaded subtitle content (or error when `content` is null) for a pending `onSubtitleLoadRequest`. */
+  provideExternalSubtitle?: (trackId: string, content: string | null, error?: string) => Promise<void>
   /**
    * Fetch ahead what a later `play` of `release`, the next episode's release Next opens, waits on before its first
    * frame, beside the player up now. Stub asks once an episode's player is 80% through it. Resolves true when it was
