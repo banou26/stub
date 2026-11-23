@@ -301,7 +301,9 @@ const fetchDetail = async (id: string, ctx: ExtractorServerContext): Promise<Uno
 }
 
 const fetchBgImages = (id: string, ctx: ExtractorServerContext): Promise<UnogsBgImages | undefined> =>
-  api<UnogsBgImages>(`${UNOGS}/title/bgimages?netflixid=${id}`, ctx).catch(() => undefined)
+  api<unknown>(`${UNOGS}/title/bgimages?netflixid=${id}`, ctx)
+    .then(body => typeof body === 'object' && body !== null && !Array.isArray(body) ? body as UnogsBgImages : undefined)
+    .catch(() => undefined)
 
 /**
  * unOGS' episodes payload as this source reads it, or undefined when the body is not that payload.
@@ -666,11 +668,14 @@ const fetchEpisodes = async (id: string, ctx: ExtractorServerContext, seasonNumb
   return seasonNumber == null ? wholeSeasons(index, ctx) : withNetflixEpisodes(index, seasonNumber, ctx)
 }
 
-const searchApi = (query: string, ctx: ExtractorServerContext) =>
-  api<{ results: UnogsSearchResult[] }>(
+const searchApi = async (query: string, ctx: ExtractorServerContext): Promise<{ results: UnogsSearchResult[] }> => {
+  const body = await api<unknown>(
     `${UNOGS}/search?limit=50&offset=0&query=${encodeURIComponent(query)}&countrylist=&country_andorunique=&start_year=&end_year=&start_rating=&end_rating=&genrelist=&type=&audio=&subtitle=&audiosubtitle_andor=&person=&personid=&filterby=&orderby=`,
     ctx
   )
+  const results = (body as { results?: unknown } | null | undefined)?.results
+  return { results: Array.isArray(results) ? results as UnogsSearchResult[] : [] }
+}
 
 const decode = (str: string): string =>
   str

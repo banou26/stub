@@ -390,3 +390,26 @@ test('containingMedia is null for a film and for a run no season can be shown to
   })
   expect(undated.yields).toEqual([{ containingMedia: null }])
 })
+
+test('searchNodes and media lookup tolerate non-JSON or null search bodies without throwing', async () => {
+  const ctxWithSearch = (answer: () => Response | { json: () => Promise<unknown>, ok: boolean, status: number }): ExtractorServerContext => ({
+    fetch: (async (url: string) => {
+      if (url === `${UNOGS}/user`) return { json: async () => ({ token: { access_token: 'test-token' } }), ok: true, status: 200 }
+      if (url.startsWith(`${UNOGS}/search?`)) return answer()
+      throw new Error(`unstubbed url: ${url}`)
+    }) as unknown as ExtractorServerContext['fetch'],
+    findAggregatedMedia: async () => ({ titles: [{ language: 'en', title: 'Some Show' }] }),
+    listenForMediaChanges: async function* () {},
+  } as unknown as ExtractorServerContext)
+
+  for (const response of [
+    () => ({ json: async () => { throw new SyntaxError('Unexpected token <') }, ok: false, status: 500 }),
+    () => ({ json: async () => null, ok: true, status: 200 }),
+    () => ({ json: async () => ({ results: null }), ok: true, status: 200 }),
+  ]) {
+    const ctx = ctxWithSearch(response)
+    expect(await searchNodes('Some Show', ctx)).toEqual([])
+    const { value } = await (resolvers.Subscription as any).media.subscribe(undefined, { input: { uri: AG } }, ctx).next()
+    expect(value).toEqual({ media: null })
+  }
+})
