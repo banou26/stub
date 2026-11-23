@@ -14,6 +14,7 @@ export type PluginSourceInput = {
   isApiOnly?: unknown
   metadataOnly?: unknown
   access?: unknown
+  supportedUris?: unknown
   resolvers?: unknown
 }
 
@@ -27,6 +28,7 @@ export type PluginSourceMeta = {
   isApiOnly: boolean
   metadataOnly: boolean
   access: SourceAccess
+  supportedUris?: readonly string[]
 }
 
 export type RejectedSource = { origin: string, reason: string }
@@ -72,6 +74,9 @@ export const readPluginSources = (
       continue
     }
     claimed.add(origin)
+    const supportedUris = Array.isArray(source.supportedUris)
+      ? [...new Set(source.supportedUris.filter((uri): uri is string => typeof uri === 'string' && PLUGIN_ORIGIN_TOKEN.test(uri)))]
+      : []
     sources.push({
       source,
       meta: {
@@ -83,6 +88,7 @@ export const readPluginSources = (
         isApiOnly: source.isApiOnly === true,
         metadataOnly: source.metadataOnly === true,
         access: source.access === 'account' || source.access === 'paid' ? source.access : 'none',
+        ...(supportedUris.length ? { supportedUris } : {}),
       },
     })
   }

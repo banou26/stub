@@ -96,6 +96,18 @@ describe('readPluginSources', () => {
     expect(access()).toBe('none')
     for (const value of ['Paid', 'free', true, 1, null, {}]) expect(access(value), JSON.stringify(value)).toBe('none')
   })
+
+  test('supportedUris keeps distinct valid tokens and omits missing or empty lists', () => {
+    const plain = readPluginSources(source('s'), 'u').sources[0]!.meta
+    expect(plain.supportedUris).toBeUndefined()
+    const empty = readPluginSources({ ...source('s'), supportedUris: [] }, 'u').sources[0]!.meta
+    expect(empty.supportedUris).toBeUndefined()
+    const valid = readPluginSources(
+      { ...source('eztv'), supportedUris: ['jw', 'tmdb', 'jw', 'BAD TOKEN', 42, ''] },
+      'u'
+    ).sources[0]!.meta
+    expect(valid.supportedUris).toEqual(['jw', 'tmdb'])
+  })
 })
 
 describe('askAccount', () => {

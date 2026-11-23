@@ -27,3 +27,23 @@ export type Answerable = {
 export const answersForOrigins = (source: Answerable, origins: readonly string[]): boolean =>
   origins.includes(source.origin)
   || (source.supportedUris ?? []).some(origin => origins.includes(origin))
+
+/**
+ * Whether `source` should be re-asked when `origins` newly join a media subscription.
+ *
+ * A third-party plugin source that omits `supportedUris` cannot name ahead of time which first-party
+ * catalogue ids it resolves from (a plugin matching by JustWatch season id, AniDB id, etc.), so it
+ * is re-asked whenever a non-plugin origin joins until it yields a media in this fan-out. Once it has
+ * answered, or when only other plugins joined, it is left alone.
+ */
+export const shouldAskOnOrigins = (
+  source: Answerable,
+  origins: readonly string[],
+  options?: { plugin?: boolean, answered?: boolean, pluginOrigins?: ReadonlySet<string> }
+): boolean => {
+  if (!origins.length) return false
+  if (options?.plugin && options.answered) return false
+  if (answersForOrigins(source, origins)) return true
+  if (!options?.plugin || source.supportedUris?.length) return false
+  return options.pluginOrigins ? origins.some(origin => !options.pluginOrigins!.has(origin)) : true
+}

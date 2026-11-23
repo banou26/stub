@@ -3,7 +3,7 @@
 // `anizip:` uris, so its own name cannot appear in a cluster until it has already answered.
 import { describe, expect, test } from 'vitest'
 
-import { answersForOrigins } from '../../../src/sources/supported'
+import { answersForOrigins, shouldAskOnOrigins } from '../../../src/sources/supported'
 import { supportedUris as anizipSupports, origin as anizipOrigin } from '../../../src/sources/anizip/extractor'
 
 describe('answersForOrigins', () => {
@@ -43,5 +43,32 @@ describe('answersForOrigins', () => {
 
   test('and nothing known means nothing to ask', () => {
     expect(answersForOrigins(anizip, [])).toBe(false)
+  })
+})
+
+describe('shouldAskOnOrigins', () => {
+  const pluginOrigins = new Set(['eztv', 'tpb'])
+
+  test('built-in sources follow answersForOrigins alone', () => {
+    expect(shouldAskOnOrigins({ origin: 'anilist' }, ['jw'])).toBe(false)
+    expect(shouldAskOnOrigins({ origin: 'anizip', supportedUris: ['anidb', 'mal'] }, ['mal'])).toBe(true)
+    expect(shouldAskOnOrigins({ origin: 'anizip', supportedUris: ['anidb', 'mal'] }, [])).toBe(false)
+  })
+
+  test('a plugin omitting supportedUris is re-asked when a non-plugin origin joins, until it answers', () => {
+    expect(shouldAskOnOrigins({ origin: 'eztv' }, ['jw'], { plugin: true, answered: false, pluginOrigins })).toBe(true)
+    expect(shouldAskOnOrigins({ origin: 'eztv' }, ['jw'], { plugin: true, answered: true, pluginOrigins })).toBe(false)
+  })
+
+  test('a plugin omitting supportedUris is not re-asked when only plugin origins join', () => {
+    expect(shouldAskOnOrigins({ origin: 'eztv' }, ['tpb'], { plugin: true, answered: false, pluginOrigins })).toBe(false)
+    expect(shouldAskOnOrigins({ origin: 'eztv' }, ['tpb', 'jw'], { plugin: true, answered: false, pluginOrigins })).toBe(true)
+  })
+
+  test('a plugin declaring supportedUris follows them while unanswered, and stops once it answers', () => {
+    const eztv = { origin: 'eztv', supportedUris: ['jw'] }
+    expect(shouldAskOnOrigins(eztv, ['tmdb'], { plugin: true, answered: false, pluginOrigins })).toBe(false)
+    expect(shouldAskOnOrigins(eztv, ['jw'], { plugin: true, answered: false, pluginOrigins })).toBe(true)
+    expect(shouldAskOnOrigins(eztv, ['jw'], { plugin: true, answered: true, pluginOrigins })).toBe(false)
   })
 })

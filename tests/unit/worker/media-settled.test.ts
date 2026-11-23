@@ -19,7 +19,11 @@ const source = (name: string): Source => {
   }
 }
 // the sources asked at subscribe time, and those asked once the media is found under their origin
-const sources = vi.hoisted(() => ({ asked: [] as unknown[], byOrigin: {} as Record<string, unknown> }))
+const sources = vi.hoisted(() => ({
+  asked: [] as unknown[],
+  byOrigin: {} as Record<string, unknown>,
+  reasks: [] as { origins: string[], uri?: string }[],
+}))
 // the address the store answers the media under, which the resolver re-asks newly named origins on
 const cluster = vi.hoisted(() => ({ uri: 'ag:(anilist:1)', categories: ['ANIME'] }))
 // the graph read store, off unless a test turns it on: `rows` stands in for the rows a pass folds in
@@ -51,7 +55,8 @@ vi.mock('../../../src/worker/extractor', () => ({
     const fanout = openFanout({ entries: sources.asked as Source[], query: 'Q', variables: {}, settling })
     return {
       subscriptions: fanout.subscriptions,
-      askOrigins: (origins: string[]) => {
+      askOrigins: (origins: string[], variables?: { input?: { uri?: string } }) => {
+        sources.reasks.push({ origins, uri: variables?.input?.uri })
         for (const origin of origins) {
           const entry = sources.byOrigin[origin] as Source | undefined
           if (entry) askEntry(fanout, entry, {})
@@ -103,6 +108,7 @@ afterEach(() => {
   while (opened.length) opened.pop()!.close()
   sources.asked = []
   sources.byOrigin = {}
+  sources.reasks = []
   cluster.uri = 'ag:(anilist:1)'
   cluster.categories = ['ANIME']
   setSite('stub')
@@ -498,6 +504,21 @@ describe('the media subscription', { timeout: 5_000 }, () => {
       graph.pass = () => new Promise(resolve => setTimeout(() => { graph.rows = 1; resolve(null) }, 10))
       anilist!.end()
       expect(await media.answer()).toMatchObject({ settled: true, rows: 1 })
+    })
+
+    test('resolving a bare show uri to a scoped season re-asks that origin once with the season uri', async () => {
+      graph.on = true
+      const jw = source('jw')
+      sources.byOrigin = { jw }
+      cluster.uri = 'ag:(jw:32049-90456)'
+      const media = open('ag:(jw:32049)')
+      opened.push(media)
+      expect(await media.answer()).toMatchObject({ uri: 'ag:(jw:32049-90456)', settled: false })
+      expect(sources.reasks).toEqual([{ origins: ['jw'], uri: 'ag:(jw:32049-90456)' }])
+
+      jw.end()
+      expect(await media.answer()).toMatchObject({ settled: true })
+      expect(sources.reasks).toEqual([{ origins: ['jw'], uri: 'ag:(jw:32049-90456)' }])
     })
   })
 })

@@ -42,6 +42,12 @@ export type StubSource = {
   color?: string
   isApiOnly: boolean
   metadataOnly?: boolean
+  /**
+   * Origins whose ids this source can be asked with when a media gains handles after subscribe
+   * time. Optional and additive to stub-source@1: omitted, stub re-asks the plugin whenever a
+   * new non-plugin origin joins the media until the plugin yields a media.
+   */
+  supportedUris?: readonly string[]
   resolvers: Resolvers
   /**
    * Render this source's own picker for the given handle uris. Stub shows the package's frame with

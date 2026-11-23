@@ -15,7 +15,7 @@ import { createSettling } from '../../fanout'
 import { descriptionAs } from '../utils'
 import { heldViewerLanguages } from '../../../viewer-languages'
 import { synopsesIn, translationFirst } from '../../../sources/translations'
-import { decodeRouteUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
+import { decodeRouteUri, fromAggregatedUri, isAggregatedUri, isUri, originsOfUri } from '../../../utils/uri'
 
 export const schema = _schema as string
 
@@ -67,13 +67,32 @@ export const resolvers = {
          * Terminates: an origin enters the set once and never leaves, and the cluster only ever gains
          * members (union-find unions, it never splits), so each source is asked at most twice.
          */
+        const handleUrisOf = (uri: string): string[] => {
+          if (isAggregatedUri(uri)) return fromAggregatedUri(uri)?.handleUris ?? []
+          return isUri(uri) ? [uri] : []
+        }
         const askedOrigins = new Set(originsOfUri(requestedUri))
-        const askUnasked = (mediaUri: string) => {
-          const unasked = originsOfUri(mediaUri).filter(origin => !askedOrigins.has(origin))
+        const askedUris = new Set(handleUrisOf(requestedUri))
+        const askUnasked = (mediaUri: string, primary = false) => {
+          const uris = handleUrisOf(mediaUri)
+          const newlyScoped = uris
+            .filter(uri => !askedUris.has(uri))
+            .flatMap(uri => {
+              const colon = uri.indexOf(':')
+              if (colon <= 0) return []
+              const origin = uri.slice(0, colon)
+              if (!askedOrigins.has(origin)) return []
+              return [...askedUris].some(prev => uri.startsWith(`${prev}-`)) ? [origin] : []
+            })
+          const unasked = [...new Set([
+            ...originsOfUri(mediaUri).filter(origin => !askedOrigins.has(origin)),
+            ...newlyScoped,
+          ])]
+          for (const uri of uris) askedUris.add(uri)
           if (!unasked.length) return
           for (const origin of unasked) askedOrigins.add(origin)
           const variables = ctx.params.variables as { input?: Record<string, unknown> } | undefined
-          askOrigins(unasked, { ...variables, input: { ...variables?.input, uri: mediaUri } })
+          askOrigins(unasked, { ...variables, input: { ...variables?.input, uri: mediaUri } }, { primary })
         }
 
         /**
@@ -97,14 +116,14 @@ export const resolvers = {
          * The show a read followed to its run is asked the same way, under its own address, as it
          * would have been had the run attached a pass later (`followedShowAddress`).
          */
-        const askAddress = async (address: Promise<string>) => {
+        const askAddress = async (address: Promise<string>, primary = false) => {
           const uri = await address.catch(error => {
             // an ask that failed must not take the page down: the row it would have fetched is
             // missing, which is the state the read already renders
             console.error(new Error('media: the address ask failed', { cause: error }))
             return ''
           })
-          if (uri) askUnasked(uri)
+          if (uri) askUnasked(uri, primary)
         }
 
         // a MEDIA root by construction: only this resolver runs it, so a listing never asks. The
@@ -140,11 +159,11 @@ export const resolvers = {
             // `preferredRun` followed, and nothing hidden, because the hide rule is a listing rule.
             const media = await reader.read()
             if (!media) return undefined
-            askUnasked(String(media.uri))
+            askUnasked(String(media.uri), true)
             const asking = Promise.all([
               // the placeholders of the cluster this read landed on, which is the one the page draws:
               // `resolveMedia` follows a container's `preferredRun`, so `_id` is not always the uri's
-              askAddress(askAddressOf(String(media._id ?? ''), String(media.uri))),
+              askAddress(askAddressOf(String(media._id ?? ''), String(media.uri)), true),
               askAddress(followedShowAddress(requestedUri)),
               findMediaForPage(requestedUri).then(askSimilarRuns, error => {
                 console.error(new Error('media: the similar asks failed', { cause: error }))
@@ -158,7 +177,7 @@ export const resolvers = {
           const cluster = await findMediaForPage(requestedUri)
           if (!cluster.length) return undefined
           const media = aggregateMedia(cluster, location.origin)
-          askUnasked(media.uri)
+          askUnasked(media.uri, true)
           return { media: siteMedia(media), asking: askSimilarRuns(cluster) }
         }
 

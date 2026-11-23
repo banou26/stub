@@ -22,7 +22,7 @@ import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
 import { askEntry, collectUris, leaveFanout, openFanout, rejoinFanout, type Fanout, type Settling } from './fanout'
 import { askable, joinOpenFanouts } from './disabled-origins'
-import { answersForOrigins, type Answerable } from '../sources/supported'
+import { answersForOrigins, shouldAskOnOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
 import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from './store/db'
@@ -170,6 +170,7 @@ export type ExtractorDefinition = {
   color?: string | null
   isApiOnly: boolean
   metadataOnly?: boolean
+  supportedUris?: readonly string[]
   /**
    * The country this source's answers are read in, for a source whose answers depend on one: the private source
    * store keeps an answer per country (src/preview/inbox.ts). Never the viewer's own, since pages write nothing there.
@@ -855,12 +856,18 @@ export const proxyRequestToExtractors = (
 ) => {
   const root = openRoot(operation)
   const insertedUris = new Set<string>()
+  const answeredPlugins = new Set<ExtractorEntry>()
+  const onResult = extractUris ? collectUris(extractUris, insertedUris) : undefined
+  const trackResult = (entry: ExtractorEntry, result: any) => {
+    if (entry.pluginUri !== undefined && result?.data?.media != null) answeredPlugins.add(entry)
+    onResult?.(entry, result)
+  }
   const fanout = openFanout({
     entries: askable(extractors),
     query: ctx.params.query!,
     variables: ctx.params.variables,
     root,
-    onResult: extractUris ? collectUris(extractUris, insertedUris) : undefined,
+    onResult: trackResult,
     settling,
   })
   fanouts.add(fanout)
@@ -895,12 +902,17 @@ export const proxyRequestToExtractors = (
    * registering mid-flight joins exactly once. These land in `subscriptions`, so the caller's
    * teardown collects them with the rest.
    */
-  const askOrigins = (originIds: string[], variables: SubscriptionArgs[1]) => {
-    for (const extractor of askable(extractors)) {
-      // A PLUGIN source is matched on its origin alone: `PluginSourceMeta` carries no `supportedUris`
-      // (see plugin-sources.ts), so a third party answering from a foreign id keeps the old behaviour.
+  const askOrigins = (originIds: string[], variables: SubscriptionArgs[1], { primary = false } = {}) => {
+    if (primary && variables) fanout.variables = variables
+    const available = askable(extractors)
+    const pluginOrigins = new Set(available.filter(entry => entry.pluginUri !== undefined).map(entry => entry.extractor.origin))
+    for (const extractor of available) {
       const definition = extractor.extractor as Answerable
-      if (!answersForOrigins(definition, originIds)) continue
+      if (!shouldAskOnOrigins(definition, originIds, {
+        plugin: extractor.pluginUri !== undefined,
+        answered: answeredPlugins.has(extractor),
+        pluginOrigins,
+      })) continue
       const subscription = askEntry(fanout, extractor, stamp(variables ?? {}, root))
       if (subscription) fanout.subscriptions.push(subscription)
     }
