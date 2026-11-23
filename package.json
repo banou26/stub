@@ -1,6 +1,6 @@
 {
   "name": "@banou/stub",
-  "version": "0.0.81",
+  "version": "0.0.82",
   "description": "Anime, shows and movies in one place: every source merged into one page per title, played and tracked on your own accounts.",
   "keywords": [
     "fkn",
@@ -154,7 +154,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@envelop/on-resolve": "^6.0.0",
-    "@fkn/lib": "^0.9.84",
+    "@fkn/lib": "^0.9.85",
     "@floating-ui/react": "^0.27.16",
     "@formatjs/icu-messageformat-parser": "^3.5.22",
     "@graphql-yoga/plugin-defer-stream": "^3.15.1",

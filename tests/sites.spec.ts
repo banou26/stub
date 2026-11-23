@@ -1107,3 +1107,16 @@ test.describe('the header and search in German, Japanese and the pseudo-language
     expect(englishIn(words, english()).length).toBeGreaterThan(150)
   })
 })
+
+test('renders the home page with no errors when CSS.supports is missing', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(String(error)))
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'CSS', { value: {}, configurable: true })
+  })
+  await page.goto(at('anime.localhost'))
+  expect(errors).toEqual([])
+  await expect(row(page, 'Current season')).toBeVisible()
+  await expect(page.locator('header')).toBeVisible()
+  expect(errors).toEqual([])
+})
