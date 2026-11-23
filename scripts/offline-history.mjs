@@ -230,6 +230,7 @@ const ANIMETHEMES_CATALOGUE = `
           type
           sequence
           slug
+          group { name }
           song {
             title { romaji native }
             performances { as alias artist { name { main } } }
