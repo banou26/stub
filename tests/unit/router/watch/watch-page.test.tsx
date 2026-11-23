@@ -210,7 +210,7 @@ vi.mock('../../../../src/party/bridge', () => ({
 // says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
 // each was put. With `ending`, the plugin relays the player's skip offer: `asked` is what stub said, and `offered`
 // the player's own word, which a test changes when the player would have
-const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[], ending: undefined as { asked: boolean[], offered: boolean } | undefined }))
+const pluginPlayers = vi.hoisted(() => ({ chapters: undefined as object[] | undefined, focus: [] as Mock[], stages: [] as unknown[], prepared: [] as object[], onPrepare: undefined as ((next: object) => boolean | Promise<boolean> | void) | undefined, ending: undefined as { asked: boolean[], offered: boolean } | undefined }))
 vi.mock('../../../../src/components/plugin-player', async () => {
   const { attachPlaybackBridge } = await import('../../../../src/party/bridge')
   return {
@@ -224,7 +224,10 @@ vi.mock('../../../../src/components/plugin-player', async () => {
         const link = Object.assign(attachPlaybackBridge(document.createElement('iframe')), {
           chapters: () => pluginPlayers.chapters,
           focus,
-          prepare: (next: object) => { pluginPlayers.prepared.push(next) },
+          prepare: (next: object) => {
+            pluginPlayers.prepared.push(next)
+            return pluginPlayers.onPrepare?.(next)
+          },
           ...ending ? { offerEnding: (offered: boolean) => { ending.asked.push(offered) }, endingOffered: () => ending.offered } : {},
         })
         // after the effects of the render that put it up, as the real one hands it over once the plugin has played
@@ -383,6 +386,7 @@ afterEach(() => {
   pluginPlayers.focus = []
   pluginPlayers.stages = []
   pluginPlayers.prepared = []
+  pluginPlayers.onPrepare = undefined
   pluginPlayers.ending = undefined
 })
 
@@ -2381,6 +2385,52 @@ test('Next and the episode list open the next file of the torrent playing, which
   expect(listRows(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
   await report({ paused: false, time: 900 })
   expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' }])
+})
+
+test('STUB-428: timer triggers prepare at PREPARE_AT without extra reports, pauses/seeks reschedule it, late releases prepare, and failed prepares retry', async () => {
+  bridge.duration = 1000
+  const { rerender } = await atTheEnd({}, 'nyaa:a')
+  await report({ paused: false, time: 0, rate: 1 })
+  await wait(1000 * PREPARE_AT * 1000 - 500)
+  expect(pluginPlayers.prepared).toEqual([])
+  await report({ paused: true, time: 799.5, rate: 1 })
+  await wait(10_000)
+  expect(pluginPlayers.prepared, 'paused cancels pending prepare timer').toEqual([])
+
+  await report({ paused: false, time: 790, rate: 1 })
+  await wait(9_500)
+  expect(pluginPlayers.prepared).toEqual([])
+  await wait(500)
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }])
+  unmount(hosts.pop()!)
+
+  // failed prepare (returns false or rejects) allows retry on a subsequent report
+  pluginPlayers.prepared = []
+  let mode: 'false' | 'reject' | 'ok' = 'false'
+  pluginPlayers.onPrepare = async () => {
+    if (mode === 'false') return false
+    if (mode === 'reject') throw new Error('busy')
+    return true
+  }
+  const retryRun = await atTheEnd({ handles: [crunchyroll(3), release('retry-next')] }, 'nyaa:a')
+  await report({ paused: false, time: 800 })
+  await settle()
+  expect(pluginPlayers.prepared).toHaveLength(1)
+  mode = 'reject'
+  await report({ paused: false, time: 810 })
+  await settle()
+  expect(pluginPlayers.prepared).toHaveLength(2)
+  mode = 'ok'
+  await report({ paused: false, time: 820 })
+  await settle()
+  expect(pluginPlayers.prepared).toHaveLength(3)
+
+  // late-arriving matching pack release triggers prepare for the updated target
+  const { episodes } = media as { episodes: { handles: object[] }[] }
+  episodes[2]!.handles.push(handle('nyaa:a-3', 'nyaa', 'magnet:?xt=urn:btih:a'))
+  retryRun.rerender()
+  await settle()
+  expect(pluginPlayers.prepared.at(-1)).toEqual({ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' })
 })
 
 test('a player that plays on into the next episode brings nothing of the last one\'s countdown with it', async () => {

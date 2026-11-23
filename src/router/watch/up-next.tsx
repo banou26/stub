@@ -106,6 +106,8 @@ const offeredOn = (link: PlaybackLink, chapters: MediaChapter[], duration: numbe
  * At `PREPARE_AT` of the episode the player is asked once to prepare `release`, the one `next` opens. Nothing of one
  * `episode` carries into the next, whose player may be the same link.
  */
+const releaseKey = (release: { uri: string, url?: string }) => `${release.uri}\0${release.url ?? ''}`
+
 const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
   link: PlaybackLink | undefined
   next: { href: string, title?: string } | undefined
@@ -143,7 +145,7 @@ const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
   marks.current = chapters
   const ahead = useRef(release)
   ahead.current = release
-  const recheck = useRef(() => {})
+  const recheck = useRef((_reason: 'chapters' | 'release') => {})
 
   useEffect(() => {
     setShown(undefined)
@@ -152,16 +154,20 @@ const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
     // Only an end after a play counts, and once: a link tells every new ear where the player is,
     // and that repeat must not bring back a countdown the viewer cancelled.
     let played = false
-    let prepared = false
+    let preparedKey: string | undefined
+    let failedKey: string | undefined
     let last: number | undefined
     let latestState: Parameters<Parameters<typeof link.onReport>[0]>[0] | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
+    let prepareTimer: ReturnType<typeof setTimeout> | undefined
     // the early button waits for a press: only the end counts down
     const offer = () => setShown('offered')
     const skipOffer = followSkipOffer(setAboveSkip)
-    const evaluate = (state: NonNullable<typeof latestState>, timed: boolean) => {
+    const evaluate = (state: NonNullable<typeof latestState>, reason: 'report' | 'timer' | 'chapters' | 'release') => {
+      const timed = reason !== 'report'
       const { paused, time, rate, at: reportedAt } = state
       clearTimeout(timer)
+      clearTimeout(prepareTimer)
       const nowTime = timed && !paused && rate > 0
         ? time + Math.max(0, (Date.now() - reportedAt) / 1000) * rate
         : time
@@ -179,9 +185,22 @@ const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
       played ||= !paused
       const own = link.chapters?.()
       const duration = link.duration?.()
-      if (!prepared && ahead.current && link.prepare && duration && nowTime >= duration * PREPARE_AT) {
-        prepared = true
-        link.prepare(ahead.current)
+      const target = ahead.current
+      if (target && link.prepare && duration) {
+        const prepareAt = duration * PREPARE_AT
+        const key = releaseKey(target)
+        if (nowTime >= prepareAt) {
+          if (preparedKey !== key && !(reason === 'chapters' && failedKey === key)) {
+            preparedKey = key
+            failedKey = undefined
+            void Promise.resolve(link.prepare(target)).then(
+              ok => { if (ok === false && preparedKey === key) { preparedKey = undefined; failedKey = key } },
+              () => { if (preparedKey === key) { preparedKey = undefined; failedKey = key } },
+            )
+          }
+        } else if (!paused && rate > 0 && preparedKey !== key) {
+          prepareTimer = setTimeout(() => { if (latestState && !link.ended?.()) evaluate(latestState, 'timer') }, (prepareAt - nowTime) / rate * 1000)
+        }
       }
       const offerAt = own && hasEnding(own)
         ? ownOfferAt(link, own, duration)
@@ -192,20 +211,25 @@ const UpNext = ({ link, next, chapters, stage, episode, release, onAdvance }: {
       else if (offerAt === undefined || before === undefined || paused || timed || time < before) setShown(undefined)
       if (offerAt !== undefined && nowTime < offerAt && !paused && rate > 0) timer = setTimeout(offer, (offerAt - nowTime) / rate * 1000)
     }
-    recheck.current = () => { if (latestState && !link.ended?.()) evaluate(latestState, true) }
-    const stop = link.onReport(state => evaluate(state, false))
+    recheck.current = reason => { if (latestState && !link.ended?.()) evaluate(latestState, reason) }
+    const stop = link.onReport(state => evaluate(state, 'report'))
     return () => {
       recheck.current = () => {}
       stop()
       clearTimeout(timer)
+      clearTimeout(prepareTimer)
       skipOffer.stop()
     }
     // whether there is a next, not its address: that grows as sources join the episode, mid-countdown too
   }, [link, Boolean(href), episode])
 
   useEffect(() => {
-    recheck.current()
+    recheck.current('chapters')
   }, [chapters])
+
+  useEffect(() => {
+    recheck.current('release')
+  }, [release?.uri, release?.url])
 
   useEffect(() => {
     if (shown !== 'counting' || !href) return

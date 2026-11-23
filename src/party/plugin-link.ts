@@ -189,7 +189,7 @@ export const pluginPlaybackLink = (source: PlaybackSource, frame?: HTMLIFrameEle
       },
       endingOffered: () => endingOffered,
     } : {},
-    ...prepare ? { prepare: release => { if (!disposed) prepare(release).catch(() => {}) } } : {},
+    ...prepare ? { prepare: release => (disposed ? Promise.resolve(false) : Promise.resolve(prepare(release)).catch(() => false)) } : {},
     ...buffer ? {
       buffer: () => Promise.race([
         buffer().then(bufferOf, () => undefined),

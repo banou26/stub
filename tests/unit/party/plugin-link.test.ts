@@ -531,16 +531,15 @@ describe('a package\'s ending offer', () => {
 
 // the next episode's release, fetched ahead by the package's player
 describe('a package\'s prepare', () => {
-  test('hands the release to the package, is absent for a package without it, and does nothing once disposed or refused', async () => {
+  test('hands the release to the package, is absent for a package without it, and returns false once disposed or refused', async () => {
     expect(pluginPlaybackLink(fakeSource().source)!.prepare).toBeUndefined()
     const asked: object[] = []
     const prepare = async (release: object) => { asked.push(release); throw new Error('gone') }
     const link = pluginPlaybackLink({ ...fakeSource().source, prepare })!
     const release = { uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }
-    expect(() => link.prepare!(release)).not.toThrow()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await expect(link.prepare!(release)).resolves.toBe(false)
     link.dispose()
-    link.prepare!(release)
+    await expect(link.prepare!(release)).resolves.toBe(false)
     expect(asked).toEqual([release])
   })
 })
