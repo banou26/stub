@@ -3,6 +3,16 @@ import { mount, unmount, withIntl } from './dom'
 
 import type { Frame } from '@fkn/lib'
 import type { PlayerCapabilities } from '../../../src/components/player'
+import {
+  clampSubtitleBackgroundOpacity,
+  clampSubtitleFontScale,
+  clampSubtitleOffset,
+  clampSubtitlePosition,
+  detectSubtitleFormat,
+  isSubtitleFile,
+  readDroppedSubtitleFiles,
+  subtitleLabelFromFilename,
+} from '../../../src/components/player/subtitle-utils'
 
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -221,5 +231,251 @@ describe('built-in player external subtitles & Native/External tags', () => {
     await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')).toBeNull())
     subMenu = await openMenu(host, 'Subtitles')
     expect(menuItem(subMenu, 'French (OpenSubtitles)')).toBeUndefined()
+  })
+})
+
+const makeDropFile = (name: string, content: string, type = '') => {
+  const file = new File([content], name, { type })
+  return Object.assign(file, { text: async () => content })
+}
+
+const dispatchFileDrag = (target: EventTarget, eventType: string, files: File[]) => {
+  const event = Object.assign(new Event(eventType, { bubbles: true, cancelable: true }), {
+    dataTransfer: {
+      files,
+      types: ['Files'],
+      dropEffect: 'none',
+    },
+  })
+  target.dispatchEvent(event)
+  return event
+}
+
+const dispatchPointer = (
+  target: EventTarget,
+  type: string,
+  init: { clientX: number, clientY: number, pointerId?: number },
+) => {
+  const event = Object.assign(
+    new Event(type, { bubbles: true, cancelable: true }),
+    {
+      button: 0,
+      clientX: init.clientX,
+      clientY: init.clientY,
+      pointerId: init.pointerId ?? 1,
+      pointerType: 'mouse',
+    },
+  )
+  target.dispatchEvent(event)
+  return event
+}
+
+describe('subtitle-utils helpers', () => {
+  test('clamps offset, scale, opacity, and normalized coordinates safely', () => {
+    expect(clampSubtitleOffset(12.345)).toBe(12.35)
+    expect(clampSubtitleOffset(999)).toBe(300)
+    expect(clampSubtitleOffset(-999)).toBe(-300)
+    expect(clampSubtitleOffset(-0)).toBe(0)
+    expect(clampSubtitleOffset(Number.NaN)).toBe(0)
+
+    expect(clampSubtitleFontScale(0.1)).toBe(0.5)
+    expect(clampSubtitleFontScale(3.5)).toBe(2)
+    expect(clampSubtitleFontScale(1.14)).toBe(1.15)
+    expect(clampSubtitleFontScale(Number.NaN)).toBe(1)
+
+    expect(clampSubtitleBackgroundOpacity(-1)).toBe(0)
+    expect(clampSubtitleBackgroundOpacity(2)).toBe(1)
+    expect(clampSubtitleBackgroundOpacity(0.52)).toBe(0.5)
+    expect(clampSubtitleBackgroundOpacity(Number.NaN)).toBe(0.75)
+
+    expect(clampSubtitlePosition({ x: -0.4, y: 1.8 })).toEqual({ x: 0, y: 1 })
+    expect(clampSubtitlePosition({ x: Number.NaN, y: Number.NaN })).toEqual({ x: 0.5, y: 1 })
+  })
+
+  test('detects subtitle formats, labels, and language tags from dropped files', async () => {
+    expect(detectSubtitleFormat('Episode.01.ja.SSA')).toBe('ass')
+    expect(detectSubtitleFormat('Movie.vtt')).toBe('vtt')
+    expect(detectSubtitleFormat('video.mp4')).toBeNull()
+
+    expect(isSubtitleFile({ name: 'sub.srt', type: '' })).toBe(true)
+    expect(isSubtitleFile({ name: 'blob', type: 'text/vtt' })).toBe(true)
+    expect(isSubtitleFile({ name: 'poster.png', type: 'image/png' })).toBe(false)
+
+    expect(subtitleLabelFromFilename('Show.S01E01.eng.srt')).toEqual({
+      label: 'Show.S01E01.eng',
+      language: 'en',
+    })
+    expect(subtitleLabelFromFilename('Movie.zh-Hans.ass')).toEqual({
+      label: 'Movie.zh-Hans',
+      language: 'zh-Hans',
+    })
+
+    const added = await readDroppedSubtitleFiles([
+      makeDropFile('Episode.fr.srt', '1\n00:00:00,000 --> 00:00:01,000\nSalut\n'),
+      makeDropFile('ignored.png', 'png', 'image/png'),
+    ], 'test-drop')
+    expect(added).toHaveLength(1)
+    expect(added[0]).toMatchObject({
+      language: 'fr',
+      label: 'Episode.fr',
+      format: 'srt',
+    })
+    expect(added[0]!.id.startsWith('test-drop:')).toBe(true)
+  })
+})
+
+describe('built-in player subtitle settings, drag positioning, and file drop', () => {
+  test('adjusts timing offset, text size, background opacity, and drag position with reset', async () => {
+    const { remote, emit } = makeSubtitledRemote()
+    const capabilities: PlayerCapabilities = {
+      subtitles: {
+        label: 'Subtitles',
+        offLabel: 'Off',
+        selectedId: null,
+        options: [],
+        onSelect: async () => {},
+      },
+    }
+
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame} capabilities={capabilities} />))
+    hosts.push(host)
+
+    loadResponder = () => ({ text: '1\n00:00:01,000 --> 00:00:03,000\nTimed cue\n' })
+    tellSubtitles([{ id: 'os:en:1', language: 'en', label: 'English (OpenSubtitles)', format: 'srt' }])
+    await flush()
+
+    let subMenu = await openMenu(host, 'Subtitles')
+    await act(async () => { menuItem(subMenu, 'English (OpenSubtitles)')!.click() })
+    await vi.waitFor(() => expect(requestedLoads).toEqual(['os:en:1']))
+
+    // At 3.2s the 1s..3s cue is past end
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 3.2
+      emit('timeupdate')
+    })
+    await flush()
+    expect(host.querySelector('.subtitle-cues')).toBeNull()
+
+    // Open subtitle settings view inside Subtitles popover
+    subMenu = await openMenu(host, 'Subtitles')
+    const optionsBtn = host.querySelector<HTMLButtonElement>('.subtitle-options-btn')
+    expect(optionsBtn).toBeTruthy()
+    await act(async () => { optionsBtn!.click() })
+    const dialog = host.querySelector<HTMLElement>('.stub-settings')!
+    expect(dialog).toBeTruthy()
+
+    const stepPlusHalf = [...dialog.querySelectorAll<HTMLButtonElement>('.stub-pill')]
+      .find(btn => btn.textContent === '+0.5s')!
+    await act(async () => { stepPlusHalf.click() })
+    expect(dialog.querySelector('.offset-readout')?.textContent).toBe('+0.5s')
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toContain('Timed cue'))
+
+    // Text size + and Background 50%
+    const plusSizeBtn = dialog.querySelector<HTMLButtonElement>('button[aria-label="Text size +"]')!
+    await act(async () => { plusSizeBtn.click() })
+    const bg50Btn = [...dialog.querySelectorAll<HTMLButtonElement>('.stub-pill')]
+      .find(btn => btn.textContent === '50%')!
+    await act(async () => { bg50Btn.click() })
+    const box = host.querySelector<HTMLElement>('.subtitle-cues-box')!
+    expect(String(box.style.getPropertyValue('--mp-sub-scale'))).toBe('1.1')
+    expect(String(box.style.getPropertyValue('--mp-sub-bg-opacity'))).toBe('0.5')
+
+    // Drag subtitle box upward/leftward and verify clamping + Reset position
+    const makeRect = (left: number, top: number, width: number, height: number): DOMRect => ({
+      x: left,
+      y: top,
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      toJSON: () => ({}),
+    })
+    const stage = host.querySelector<HTMLElement>('.subtitle-cues-stage')!
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 800, 450))
+    vi.spyOn(box, 'getBoundingClientRect').mockReturnValue(makeRect(300, 420, 200, 30))
+
+    let parentClicked = 0
+    host.addEventListener('click', () => { parentClicked++ })
+    await act(async () => { dispatchPointer(box, 'pointerdown', { clientX: 400, clientY: 430 }) })
+    await act(async () => { dispatchPointer(box, 'pointermove', { clientX: 250, clientY: 220 }) })
+    await act(async () => { dispatchPointer(box, 'pointerup', { clientX: 250, clientY: 220 }) })
+    expect(box.style.left).toBe('25%')
+    expect(box.style.top).toBe('50%')
+    expect(parentClicked).toBe(0)
+
+    const resetPosBtn = menuItem(dialog, 'Reset position')
+    expect(resetPosBtn).toBeTruthy()
+    await act(async () => { resetPosBtn!.click() })
+    expect(box.style.left).toBe('50%')
+    expect(box.style.top).toBe('100%')
+
+    // Drag again and verify double-click also resets position
+    await act(async () => { dispatchPointer(box, 'pointerdown', { clientX: 400, clientY: 430 }) })
+    await act(async () => { dispatchPointer(box, 'pointermove', { clientX: 250, clientY: 220 }) })
+    await act(async () => { dispatchPointer(box, 'pointerup', { clientX: 250, clientY: 220 }) })
+    expect(box.style.left).toBe('25%')
+    await act(async () => { box.dispatchEvent(new Event('dblclick', { bubbles: true, cancelable: true })) })
+    expect(box.style.left).toBe('50%')
+    expect(box.style.top).toBe('100%')
+
+    // Reset offset hides the cue again at 3.2s
+    const resetOffsetBtn = dialog.querySelector<HTMLButtonElement>('.stub-reset-btn')!
+    await act(async () => { resetOffsetBtn.click() })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')).toBeNull())
+  })
+
+  test('loads dropped subtitle files as External tracks, stops drop propagation, and ignores non-subtitle files', async () => {
+    const { remote, emit } = makeSubtitledRemote()
+    const nativeCalls: (string | null)[] = []
+    let nativeSelected: string | null = 'en'
+    const capabilities: PlayerCapabilities = {
+      subtitles: {
+        label: 'Subtitles',
+        offLabel: 'Off',
+        selectedId: nativeSelected,
+        options: [{ id: 'en', label: 'English' }],
+        onSelect: async (id) => {
+          nativeCalls.push(id)
+          nativeSelected = id
+        },
+      },
+    }
+
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame} capabilities={capabilities} />))
+    hosts.push(host)
+    const skin = host.querySelector<HTMLElement>('.media-default-skin--video')!
+    let hostDropCount = 0
+    host.addEventListener('drop', () => { hostDropCount++ })
+
+    // Non-subtitle file drop clears overlay and passes through to parent
+    const videoFile = makeDropFile('clip.mp4', 'video-bytes', 'video/mp4')
+    await act(async () => { dispatchFileDrag(skin, 'dragenter', [videoFile]) })
+    expect(host.textContent).toContain('Drop subtitle file to load')
+    await act(async () => { dispatchFileDrag(skin, 'drop', [videoFile]) })
+    expect(host.textContent).not.toContain('Drop subtitle file to load')
+    expect(hostDropCount).toBe(1)
+
+    // Subtitle file drop shows hint, stops propagation, turns native off, and activates dropped cue
+    const srtFile = makeDropFile('dropped.ja.srt', '1\n00:00:01,000 --> 00:00:03,000\nDropped line\n', 'application/x-subrip')
+    await act(async () => { dispatchFileDrag(skin, 'dragenter', [srtFile]) })
+    expect(host.textContent).toContain('Drop subtitle file to load')
+
+    await act(async () => { dispatchFileDrag(skin, 'drop', [srtFile]) })
+    await flush()
+    expect(hostDropCount).toBe(1)
+    expect(nativeCalls).toEqual([null])
+
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 1.5
+      emit('timeupdate')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toContain('Dropped line'))
+
+    const subMenu = await openMenu(host, 'Subtitles')
+    const droppedRow = menuItem(subMenu, 'dropped.ja')!
+    expect(droppedRow.querySelector('.stub-menu__tag')?.textContent).toBe('External')
+    expect(droppedRow.querySelector('.stub-menu__tag')?.classList.contains('stub-menu__tag--external')).toBe(true)
   })
 })

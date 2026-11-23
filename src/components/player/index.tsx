@@ -85,6 +85,126 @@ const style = css`
     text-transform: uppercase;
     opacity: 0.6;
   }
+  .stub-menu__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.4rem 0.6rem 0.4rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .stub-menu__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .stub-menu__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 0.2rem 0.4rem 0.2rem 0;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+  .stub-menu__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+    padding: 0.35rem;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+  }
+  .stub-settings__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+  }
+  .stub-settings__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    font-size: 1.2rem;
+  }
+  .stub-settings__value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.15rem;
+    opacity: 0.85;
+  }
+  .stub-settings__steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .stub-settings__scale {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .stub-settings__bg {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+  .stub-pill {
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 1.1rem;
+    padding: 0.35rem 0.3rem;
+    min-width: 2.4rem;
+    text-align: center;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    &[aria-pressed='true'] {
+      background: #fff;
+      color: #111;
+      border-color: #fff;
+      font-weight: 600;
+    }
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+  .stub-reset-btn {
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font-size: 1.05rem;
+    padding: 0.15rem 0.5rem;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+  }
   .stub-menu__item {
     display: flex;
     align-items: center;

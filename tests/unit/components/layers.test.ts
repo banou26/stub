@@ -114,8 +114,8 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
     why: "the star's score menu, inline in the tracking row and not portalled, painted over the description under the row",
   },
   'src/components/player/video-surface.tsx': {
-    values: [1],
-    why: 'subtitle cues overlay above the embedded streaming frame and below the player controls and loading screen inside the player box',
+    values: [1, 2],
+    why: 'subtitle cues overlay (1) and drag-and-drop subtitle hint (2) stack above the embedded streaming frame and below the player controls inside the player box',
   },
   'src/sources/crunchyroll/player.tsx': {
     values: [30, 9999999],

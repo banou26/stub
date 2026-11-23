@@ -231,3 +231,21 @@ export const NextIcon = asFC<IconProps>(({ className }) => (
     <rect width={2} height={12} x={13.5} y={3} fill="currentColor" rx={1} />
   </Icon>
 ))
+
+export const SubtitleOptionsIcon = asFC<IconProps>(({ className }) => (
+  <Icon className={className}>
+    <path
+      fill="currentColor"
+      d="M3 4.75a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 3 4.75m9.25-.75a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1a.75.75 0 0 1 .75-.75m-1.5 1.5h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1 0-1.5M3 9a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5A.75.75 0 0 1 3 9m6 0a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5A.75.75 0 0 1 9 9m-1.75-1.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0V8a.75.75 0 0 1 .75-.75M3 13.25a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1-.75-.75m9.75-1.25a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1a.75.75 0 0 1 .75-.75m-1.5 1.25h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5"
+    />
+  </Icon>
+))
+
+export const BackArrowIcon = asFC<IconProps>(({ className }) => (
+  <Icon className={className}>
+    <path
+      fill="currentColor"
+      d="M11.53 4.47a.75.75 0 0 1 0 1.06L8.06 9l3.47 3.47a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0"
+    />
+  </Icon>
+))

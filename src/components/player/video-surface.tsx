@@ -5,7 +5,7 @@ import type { PlayerCapabilities, PlayerChoice, PlayerSelection } from './types'
 
 import { activeSubtitleCues, parseSubtitleCues, type SubtitleCue } from '@banou/media-player/engine'
 import { css } from '@emotion/react'
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { useHostEpisodeNavigation } from '../../embed-episode'
@@ -33,6 +33,7 @@ import {
 } from '@videojs/react'
 import {
   AudioTracksIcon,
+  BackArrowIcon,
   CaptionsOffIcon,
   CaptionsOnIcon,
   CheckIcon,
@@ -48,12 +49,24 @@ import {
   RestartIcon,
   SeekIcon,
   SpinnerIcon,
+  SubtitleOptionsIcon,
   VolumeHighIcon,
   VolumeLowIcon,
   VolumeOffIcon,
 } from './icons'
+import {
+  clampSubtitleBackgroundOpacity,
+  clampSubtitleFontScale,
+  clampSubtitleOffset,
+  clampSubtitlePosition,
+  isSubtitleFile,
+  readDroppedSubtitleFiles,
+  type SubtitlePosition,
+} from './subtitle-utils'
 
 const SEEK_TIME = 10
+const OPACITY_PRESETS = [0, 0.25, 0.5, 0.75, 1] as const
+const DEFAULT_POSITION: SubtitlePosition = { x: 0.5, y: 1 }
 
 const asFC = <P,>(component: unknown): FunctionComponent<P> => component as FunctionComponent<P>
 
@@ -95,7 +108,7 @@ const SliderValue = asFC<{ type?: string, className?: string }>(Slider.Value)
 const VolumeSliderRoot = asFC<{ className?: string, orientation?: string, thumbAlignment?: string, children?: ComponentChildren }>(VolumeSlider.Root)
 const MediaHotkeyC = asFC<{ keys: string, action: string, value?: number }>(MediaHotkey)
 const MediaGestureC = asFC<{ type: string, action: string, value?: number, pointer?: string, region?: string }>(MediaGesture)
-const ContainerC = asFC<{ className?: string, children?: ComponentChildren } & Record<string, unknown>>(Container)
+const ContainerC = asFC<{ ref?: (el: HTMLDivElement | null) => void, className?: string, children?: ComponentChildren } & Record<string, unknown>>(Container)
 const EXT_SUBTITLE_PREFIX = 'ext:'
 const EMPTY_SUBTITLE_CUES: readonly SubtitleCue[] = []
 
@@ -104,35 +117,113 @@ const cueContainerStyle = css`
   inset: 0;
   z-index: 1;
   pointer-events: none;
+
+  .subtitle-cues-stage {
+    position: absolute;
+    inset: 12px 4% 8%;
+    pointer-events: none;
+  }
+
+  .subtitle-cues-box {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 2px;
+    border-radius: 4px;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
+    cursor: grab;
+
+    &:hover,
+    &[data-dragging='true'] {
+      outline: 1px solid rgba(255, 255, 255, 0.45);
+    }
+
+    &[data-dragging='true'] {
+      cursor: grabbing;
+    }
+  }
+
+  .subtitle-cue-line {
+    max-width: 100%;
+    padding: 2px 10px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, var(--mp-sub-bg-opacity, 0.75));
+    color: #fff;
+    font-size: calc(clamp(14px, 2.4cqw, 28px) * var(--mp-sub-scale, 1));
+    line-height: 1.35;
+    text-align: center;
+    white-space: pre-line;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.7);
+  }
+`
+
+const dropOverlayStyle = css`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
   align-items: center;
-  gap: 4px;
-  padding: 0 6% 8%;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.45);
+
+  > span {
+    padding: 0.8rem 1.4rem;
+    border-radius: 0.8rem;
+    background: rgba(28, 28, 28, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 500;
+  }
 `
 
-const cueLineStyle = css`
-  max-width: 90%;
-  padding: 2px 10px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.78);
-  color: #fff;
-  font-size: clamp(14px, 2.4cqw, 28px);
-  line-height: 1.35;
-  text-align: center;
-  white-space: pre-line;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-`
+type DragState = {
+  pointerId: number
+  startX: number
+  startY: number
+  boxStartLeft: number
+  boxStartTop: number
+  availW: number
+  availH: number
+  stageLeft: number
+  stageTop: number
+}
 
-const SubtitleCueOverlay = ({ cues, media }: {
+const SubtitleCueOverlay = ({
+  cues,
+  media,
+  offset = 0,
+  fontScale = 1,
+  backgroundOpacity = 0.75,
+  position = null,
+  onPositionChange,
+}: {
   cues: readonly SubtitleCue[]
   media: RemoteVideoElement | null
+  offset?: number
+  fontScale?: number
+  backgroundOpacity?: number
+  position?: SubtitlePosition | null
+  onPositionChange?: (position: SubtitlePosition | null) => void
 }) => {
   const [active, setActive] = useState<SubtitleCue[]>([])
+  const [dragging, setDragging] = useState(false)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<DragState | null>(null)
+  const offsetRef = useRef(offset)
+  offsetRef.current = offset
+  const paintRef = useRef<((time: number) => void) | null>(null)
 
   useEffect(() => {
     if (!media || !cues.length) {
+      paintRef.current = null
       setActive([])
       return
     }
@@ -144,12 +235,13 @@ const SubtitleCueOverlay = ({ cues, media }: {
     let frame = 0
 
     const paintAt = (time: number) => {
-      const visible = activeSubtitleCues(cues, time)
-      const key = visible.map(cue => cue.text).join('\u0000')
+      const visible = activeSubtitleCues(cues, time - offsetRef.current)
+      const key = visible.map(cue => `${cue.start}:${cue.text}`).join('\u0000')
       if (key === lastKey) return
       lastKey = key
       setActive(visible)
     }
+    paintRef.current = paintAt
 
     const sync = () => {
       anchorTime = media.currentTime || 0
@@ -185,6 +277,7 @@ const SubtitleCueOverlay = ({ cues, media }: {
     onPlayState()
 
     return () => {
+      paintRef.current = null
       if (frame) cancelAnimationFrame(frame)
       for (const event of events) media.removeEventListener(event, sync)
       media.removeEventListener('play', onPlayState)
@@ -192,13 +285,100 @@ const SubtitleCueOverlay = ({ cues, media }: {
     }
   }, [cues, media])
 
+  useEffect(() => {
+    if (media && paintRef.current) paintRef.current(media.currentTime || 0)
+  }, [media, offset])
+
   if (!active.length) return null
+
+  const anchor = position ? clampSubtitlePosition(position) : DEFAULT_POSITION
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 && event.pointerType === 'mouse') return
+    const stage = stageRef.current
+    const box = boxRef.current
+    if (!stage || !box) return
+    event.preventDefault()
+    event.stopPropagation()
+    const stageRect = stage.getBoundingClientRect()
+    const boxRect = box.getBoundingClientRect()
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      boxStartLeft: boxRect.left,
+      boxStartTop: boxRect.top,
+      availW: Math.max(0, stageRect.width - boxRect.width),
+      availH: Math.max(0, stageRect.height - boxRect.height),
+      stageLeft: stageRect.left,
+      stageTop: stageRect.top,
+    }
+    try {
+      box.setPointerCapture(event.pointerId)
+    } catch {
+      // Synthetic events in jsdom do not register pointer capture.
+    }
+    setDragging(true)
+  }
+
+  const onPointerMove = (event: PointerEvent) => {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    event.stopPropagation()
+    const rawLeft = drag.boxStartLeft - drag.stageLeft + (event.clientX - drag.startX)
+    const rawTop = drag.boxStartTop - drag.stageTop + (event.clientY - drag.startY)
+    const clampedLeft = Math.max(0, Math.min(drag.availW, rawLeft))
+    const clampedTop = Math.max(0, Math.min(drag.availH, rawTop))
+    onPositionChange?.(clampSubtitlePosition({
+      x: drag.availW > 0 ? clampedLeft / drag.availW : 0.5,
+      y: drag.availH > 0 ? clampedTop / drag.availH : 1,
+    }))
+  }
+
+  const endDrag = (event: PointerEvent) => {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    event.stopPropagation()
+    dragRef.current = null
+    setDragging(false)
+    try {
+      boxRef.current?.releasePointerCapture(event.pointerId)
+    } catch {
+      // Ignore if capture was not set.
+    }
+  }
+
+  const boxStyle: Record<string, string | number> = {
+    left: `${anchor.x * 100}%`,
+    top: `${anchor.y * 100}%`,
+    transform: `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%)`,
+    '--mp-sub-scale': fontScale,
+    '--mp-sub-bg-opacity': backgroundOpacity,
+  }
 
   return (
     <div className="subtitle-cues" css={cueContainerStyle} dir="auto">
-      {active.map((cue, index) => (
-        <div key={`${cue.start}:${index}`} css={cueLineStyle}>{cue.text}</div>
-      ))}
+      <div className="subtitle-cues-stage" ref={stageRef}>
+        <div
+          ref={boxRef}
+          className="subtitle-cues-box"
+          data-dragging={dragging ? 'true' : undefined}
+          style={boxStyle}
+          onPointerDown={onPointerDown as unknown as () => void}
+          onPointerMove={onPointerMove as unknown as () => void}
+          onPointerUp={endDrag as unknown as () => void}
+          onPointerCancel={endDrag as unknown as () => void}
+          onClick={event => event.stopPropagation()}
+          onDblClick={(event) => {
+            event.stopPropagation()
+            onPositionChange?.(null)
+          }}
+        >
+          {active.map((cue, index) => (
+            <div key={`${cue.start}:${index}`} className="subtitle-cue-line">{cue.text}</div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -219,13 +399,48 @@ const IconButton = ({ className, ...props }: IntrinsicButton) => (
   />
 )
 
-const SelectionMenu = ({ selection, icon }: { selection: PlayerSelection, icon: ComponentChildren }) => {
+type SubtitleSettingsState = {
+  offset: number
+  onOffsetChange: (next: number) => void
+  fontScale: number
+  onFontScaleChange: (next: number) => void
+  backgroundOpacity: number
+  onBackgroundOpacityChange: (next: number) => void
+  position: SubtitlePosition | null
+  onResetPosition: () => void
+}
+
+const formatOffset = (offset: number) => {
+  const abs = Math.abs(offset)
+  const fixed = Math.round(abs * 100) % 10 === 0 ? abs.toFixed(1) : abs.toFixed(2)
+  if (offset > 0) return `+${fixed}s`
+  if (offset < 0) return `-${fixed}s`
+  return '0.0s'
+}
+
+const formatStepOffset = (delta: number) => (delta > 0 ? `+${delta}s` : `${delta}s`)
+
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`
+
+const STEP_MINUS = '-'
+const STEP_PLUS = '+'
+const stepButtonLabel = (label: string, symbol: string) => `${label} ${symbol}`
+
+const SelectionMenu = ({ selection, icon, subtitleSettings }: {
+  selection: PlayerSelection
+  icon: ComponentChildren
+  subtitleSettings?: SubtitleSettingsState
+}) => {
   const intl = useIntl()
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState<'tracks' | 'settings'>('tracks')
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => setFailed(false), [selection.selectedId])
+  useEffect(() => {
+    if (!open) setView('tracks')
+  }, [open])
 
   const choices = [
     ...(selection.offLabel ? [{ id: null as string | null, label: selection.offLabel }] : []),
@@ -262,36 +477,140 @@ const SelectionMenu = ({ selection, icon }: { selection: PlayerSelection, icon: 
         {icon}
       </PopoverTrigger>
       <PopoverPopup className="media-surface media-popover media-popover--menu">
-        <div className="stub-menu" role="menu" aria-label={selection.label}>
-          <div className="stub-menu__heading">{selection.label}</div>
-          {choices.map(choice => {
-            const selected = choice.id === selection.selectedId
-            return (
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                key={choice.id ?? '__off__'}
-                className={`stub-menu__item${selected ? ' stub-menu__item--active' : ''}`}
-                disabled={pending || ('disabled' in choice && choice.disabled)}
-                onClick={() => select(choice.id)}
-              >
-                <span className="stub-menu__check">{selected ? <CheckIcon className="media-icon" /> : null}</span>
-                <span className="stub-menu__label">{choice.label}</span>
-                {'kind' in choice && choice.kind ? (
-                  <span className={`stub-menu__tag${choice.kind === 'external' ? ' stub-menu__tag--external' : ''}`}>
-                    {choice.kind === 'external'
-                      ? intl.formatMessage({ id: 'External', defaultMessage: 'External' })
-                      : intl.formatMessage({ id: 'Native', defaultMessage: 'Native' })}
-                  </span>
-                ) : null}
-                {'description' in choice && choice.description
-                  ? <span className="stub-menu__description">{choice.description}</span>
-                  : null}
+        {view === 'settings' && subtitleSettings ? (
+          <div className="stub-menu stub-settings" role="dialog" aria-label={intl.formatMessage({ id: 'Subtitle settings', defaultMessage: 'Subtitle settings' })}>
+            <div className="stub-menu__header">
+              <button type="button" className="stub-menu__back" onClick={() => setView('tracks')}>
+                <BackArrowIcon className="media-icon" />
+                <span>{intl.formatMessage({ id: 'Subtitle settings', defaultMessage: 'Subtitle settings' })}</span>
               </button>
-            )
-          })}
-        </div>
+            </div>
+            <div className="stub-settings__section">
+              <div className="stub-settings__head">
+                <span>{intl.formatMessage({ id: 'Timing offset', defaultMessage: 'Timing offset' })}</span>
+                <span className="stub-settings__value">
+                  <span className="offset-readout">{formatOffset(subtitleSettings.offset)}</span>
+                  {subtitleSettings.offset !== 0 ? (
+                    <button
+                      type="button"
+                      className="stub-reset-btn"
+                      onClick={() => subtitleSettings.onOffsetChange(0)}
+                    >
+                      {intl.formatMessage({ id: 'Reset', defaultMessage: 'Reset' })}
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+              <div className="stub-settings__steps">
+                {([-0.5, -0.1, 0.1, 0.5] as const).map(delta => (
+                  <button
+                    key={delta}
+                    type="button"
+                    className="stub-pill"
+                    onClick={() => subtitleSettings.onOffsetChange(clampSubtitleOffset(subtitleSettings.offset + delta))}
+                  >
+                    {formatStepOffset(delta)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="stub-settings__section">
+              <div className="stub-settings__head">
+                <span>{intl.formatMessage({ id: 'Text size', defaultMessage: 'Text size' })}</span>
+                <span className="stub-settings__scale">
+                  <button
+                    type="button"
+                    className="stub-pill"
+                    aria-label={stepButtonLabel(intl.formatMessage({ id: 'Text size', defaultMessage: 'Text size' }), STEP_MINUS)}
+                    disabled={subtitleSettings.fontScale <= 0.5}
+                    onClick={() => subtitleSettings.onFontScaleChange(clampSubtitleFontScale(subtitleSettings.fontScale - 0.1))}
+                  >
+                    {STEP_MINUS}
+                  </button>
+                  <span className="stub-settings__value">{formatPercent(subtitleSettings.fontScale)}</span>
+                  <button
+                    type="button"
+                    className="stub-pill"
+                    aria-label={stepButtonLabel(intl.formatMessage({ id: 'Text size', defaultMessage: 'Text size' }), STEP_PLUS)}
+                    disabled={subtitleSettings.fontScale >= 2}
+                    onClick={() => subtitleSettings.onFontScaleChange(clampSubtitleFontScale(subtitleSettings.fontScale + 0.1))}
+                  >
+                    {STEP_PLUS}
+                  </button>
+                </span>
+              </div>
+            </div>
+            <div className="stub-settings__section">
+              <div className="stub-settings__head">
+                <span>{intl.formatMessage({ id: 'Background', defaultMessage: 'Background' })}</span>
+                <span className="stub-settings__value">{formatPercent(subtitleSettings.backgroundOpacity)}</span>
+              </div>
+              <div className="stub-settings__bg">
+                {OPACITY_PRESETS.map(preset => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className="stub-pill"
+                    aria-pressed={Math.abs(subtitleSettings.backgroundOpacity - preset) < 0.01}
+                    onClick={() => subtitleSettings.onBackgroundOpacityChange(clampSubtitleBackgroundOpacity(preset))}
+                  >
+                    {formatPercent(preset)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {subtitleSettings.position ? (
+              <button type="button" className="stub-menu__item" onClick={subtitleSettings.onResetPosition}>
+                <span className="stub-menu__label">{intl.formatMessage({ id: 'Reset position', defaultMessage: 'Reset position' })}</span>
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="stub-menu" role="menu" aria-label={selection.label}>
+            {subtitleSettings ? (
+              <div className="stub-menu__header">
+                <div className="stub-menu__title">{selection.label}</div>
+                <button
+                  type="button"
+                  className="stub-menu__action subtitle-options-btn"
+                  aria-label={intl.formatMessage({ id: 'Subtitle settings', defaultMessage: 'Subtitle settings' })}
+                  onClick={() => setView('settings')}
+                >
+                  <SubtitleOptionsIcon className="media-icon" />
+                </button>
+              </div>
+            ) : (
+              <div className="stub-menu__heading">{selection.label}</div>
+            )}
+            {choices.map(choice => {
+              const selected = choice.id === selection.selectedId
+              return (
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  key={choice.id ?? '__off__'}
+                  className={`stub-menu__item${selected ? ' stub-menu__item--active' : ''}`}
+                  disabled={pending || ('disabled' in choice && choice.disabled)}
+                  onClick={() => select(choice.id)}
+                >
+                  <span className="stub-menu__check">{selected ? <CheckIcon className="media-icon" /> : null}</span>
+                  <span className="stub-menu__label">{choice.label}</span>
+                  {'kind' in choice && choice.kind ? (
+                    <span className={`stub-menu__tag${choice.kind === 'external' ? ' stub-menu__tag--external' : ''}`}>
+                      {choice.kind === 'external'
+                        ? intl.formatMessage({ id: 'External', defaultMessage: 'External' })
+                        : intl.formatMessage({ id: 'Native', defaultMessage: 'Native' })}
+                    </span>
+                  ) : null}
+                  {'description' in choice && choice.description
+                    ? <span className="stub-menu__description">{choice.description}</span>
+                    : null}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </PopoverPopup>
     </PopoverRoot>
   )
@@ -334,11 +653,36 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
   const episodeNavigation = useHostEpisodeNavigation()
   const hostExternalSubtitles = useHostExternalSubtitles()
   const nativeSubtitles = capabilities?.subtitles
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
+  const [draggingSubtitle, setDraggingSubtitle] = useState(false)
+  const dragDepthRef = useRef(0)
+  const [droppedSubtitles, setDroppedSubtitles] = useState<ExternalSubtitleTrack[]>([])
+  const [subtitleOffset, setSubtitleOffset] = useState(0)
+  const [fontScale, setFontScale] = useState(1)
+  const [backgroundOpacity, setBackgroundOpacity] = useState(0.75)
+  const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePosition | null>(null)
   const [activeExternalId, setActiveExternalId] = useState<string | null>(null)
   const [externalCues, setExternalCues] = useState<readonly SubtitleCue[]>(EMPTY_SUBTITLE_CUES)
   const cueCacheRef = useRef(new Map<string, readonly SubtitleCue[]>())
   const loadSeqRef = useRef(0)
   const prevNativeSelectedRef = useRef<string | null>(nativeSubtitles?.selectedId ?? null)
+  const prevRemoteRef = useRef(remote)
+
+  const allExternalSubtitles = useMemo(
+    () => [...(hostExternalSubtitles ?? []), ...droppedSubtitles],
+    [hostExternalSubtitles, droppedSubtitles],
+  )
+
+  useEffect(() => {
+    if (prevRemoteRef.current === remote) return
+    prevRemoteRef.current = remote
+    setDroppedSubtitles([])
+    setSubtitleOffset(0)
+    setActiveExternalId(null)
+    setExternalCues(EMPTY_SUBTITLE_CUES)
+    cueCacheRef.current.clear()
+    loadSeqRef.current++
+  }, [remote])
 
   useEffect(() => {
     cueCacheRef.current.clear()
@@ -346,12 +690,12 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
 
   useEffect(() => {
     if (!activeExternalId) return
-    if (!hostExternalSubtitles?.some(track => track.id === activeExternalId)) {
+    if (!allExternalSubtitles.some(track => track.id === activeExternalId)) {
       loadSeqRef.current++
       setActiveExternalId(null)
       setExternalCues(EMPTY_SUBTITLE_CUES)
     }
-  }, [hostExternalSubtitles, activeExternalId])
+  }, [allExternalSubtitles, activeExternalId])
 
   useEffect(() => {
     const nextNative = nativeSubtitles?.selectedId ?? null
@@ -364,19 +708,80 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
     }
   }, [nativeSubtitles?.selectedId])
 
+  const activateDroppedTrack = useCallback(async (track: ExternalSubtitleTrack) => {
+    const cues = parseSubtitleCues(track.content ?? '', track.format)
+    cueCacheRef.current.set(track.id, cues)
+    const seq = ++loadSeqRef.current
+    if (nativeSubtitles && nativeSubtitles.selectedId !== null) {
+      await Promise.resolve(nativeSubtitles.onSelect(null)).catch(() => {})
+    }
+    if (seq !== loadSeqRef.current) return
+    setActiveExternalId(track.id)
+    setExternalCues(cues)
+  }, [nativeSubtitles])
+
+  const activateDroppedRef = useRef(activateDroppedTrack)
+  activateDroppedRef.current = activateDroppedTrack
+
+  useEffect(() => {
+    if (!containerEl) return
+    const currentRemote = remote
+    const onDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      dragDepthRef.current++
+      setDraggingSubtitle(true)
+    }
+    const onDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      event.preventDefault()
+    }
+    const onDragLeave = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      if (--dragDepthRef.current <= 0) {
+        dragDepthRef.current = 0
+        setDraggingSubtitle(false)
+      }
+    }
+    const onDrop = (event: DragEvent) => {
+      dragDepthRef.current = 0
+      setDraggingSubtitle(false)
+      const files = Array.from(event.dataTransfer?.files ?? []).filter(isSubtitleFile)
+      if (!files.length) return
+      event.preventDefault()
+      event.stopPropagation()
+      void readDroppedSubtitleFiles(files).then((added) => {
+        if (!added.length || prevRemoteRef.current !== currentRemote) return
+        setDroppedSubtitles(prev => [...prev, ...added])
+        return activateDroppedRef.current(added[0]!)
+      })
+    }
+    const endDrag = () => { dragDepthRef.current = 0; setDraggingSubtitle(false) }
+    containerEl.addEventListener('dragenter', onDragEnter)
+    containerEl.addEventListener('dragover', onDragOver)
+    containerEl.addEventListener('dragleave', onDragLeave)
+    containerEl.addEventListener('drop', onDrop)
+    window.addEventListener('dragend', endDrag)
+    return () => {
+      containerEl.removeEventListener('dragenter', onDragEnter)
+      containerEl.removeEventListener('dragover', onDragOver)
+      containerEl.removeEventListener('dragleave', onDragLeave)
+      containerEl.removeEventListener('drop', onDrop)
+      window.removeEventListener('dragend', endDrag)
+    }
+  }, [containerEl, remote])
+
   const subtitleSelection = useMemo<PlayerSelection | undefined>(() => {
-    const external = hostExternalSubtitles ?? []
-    if (!nativeSubtitles && !external.length) return undefined
+    if (!nativeSubtitles && !allExternalSubtitles.length) return undefined
 
     const options: PlayerChoice[] = [
       ...(nativeSubtitles?.options.map(option => ({ ...option, kind: option.kind ?? ('native' as const) })) ?? []),
-      ...external.map(track => ({
+      ...allExternalSubtitles.map(track => ({
         id: `${EXT_SUBTITLE_PREFIX}${track.id}`,
         label: track.label,
         kind: 'external' as const,
       })),
     ]
-    const activeExternal = activeExternalId && external.some(track => track.id === activeExternalId)
+    const activeExternal = activeExternalId && allExternalSubtitles.some(track => track.id === activeExternalId)
       ? `${EXT_SUBTITLE_PREFIX}${activeExternalId}`
       : null
 
@@ -388,21 +793,24 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
       onSelect: async (id) => {
         if (id !== null && id.startsWith(EXT_SUBTITLE_PREFIX)) {
           const trackId = id.slice(EXT_SUBTITLE_PREFIX.length)
-          const track = external.find((entry: ExternalSubtitleTrack) => entry.id === trackId)
+          const track = allExternalSubtitles.find((entry: ExternalSubtitleTrack) => entry.id === trackId)
           if (!track) throw new Error('External subtitle track unavailable')
           const seq = ++loadSeqRef.current
           let cues = cueCacheRef.current.get(track.id)
           if (!cues) {
+            const content = 'content' in track && typeof track.content === 'string' ? track.content : undefined
             const url = 'url' in track && typeof track.url === 'string' ? track.url : undefined
             const load = 'load' in track && typeof track.load === 'function' ? track.load : undefined
-            const text = load
-              ? await load()
-              : url
-                ? await fetch(url).then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                    return res.text()
-                  })
-                : await Promise.reject(new Error('External subtitle source unavailable'))
+            const text = content !== undefined
+              ? content
+              : load
+                ? await load()
+                : url
+                  ? await fetch(url).then(res => {
+                      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                      return res.text()
+                    })
+                  : await Promise.reject(new Error('External subtitle source unavailable'))
             cues = parseSubtitleCues(text, track.format)
             cueCacheRef.current.set(track.id, cues)
           }
@@ -424,7 +832,18 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
         setExternalCues(EMPTY_SUBTITLE_CUES)
       },
     }
-  }, [nativeSubtitles, hostExternalSubtitles, activeExternalId, intl])
+  }, [nativeSubtitles, allExternalSubtitles, activeExternalId, intl])
+
+  const subtitleSettings = useMemo<SubtitleSettingsState>(() => ({
+    offset: subtitleOffset,
+    onOffsetChange: setSubtitleOffset,
+    fontScale,
+    onFontScaleChange: setFontScale,
+    backgroundOpacity,
+    onBackgroundOpacityChange: setBackgroundOpacity,
+    position: subtitlePosition,
+    onResetPosition: () => setSubtitlePosition(null),
+  }), [subtitleOffset, fontScale, backgroundOpacity, subtitlePosition])
 
   const previousLabel = episodeNavigation?.previous
     ? episodeNavigation.previous.title?.trim() || intl.formatMessage({ id: 'Previous episode', defaultMessage: 'Previous episode' })
@@ -433,9 +852,24 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
     ? episodeNavigation.next.title?.trim() || intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })
     : undefined
   return (
-    <ContainerC className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
+    <ContainerC ref={setContainerEl} className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
       {children}
-      {externalCues.length ? <SubtitleCueOverlay cues={externalCues} media={remote ?? null} /> : null}
+      {externalCues.length ? (
+        <SubtitleCueOverlay
+          cues={externalCues}
+          media={remote ?? null}
+          offset={subtitleOffset}
+          fontScale={fontScale}
+          backgroundOpacity={backgroundOpacity}
+          position={subtitlePosition}
+          onPositionChange={setSubtitlePosition}
+        />
+      ) : null}
+      {draggingSubtitle ? (
+        <div css={dropOverlayStyle}>
+          <span>{intl.formatMessage({ id: 'Drop subtitle file to load', defaultMessage: 'Drop subtitle file to load' })}</span>
+        </div>
+      ) : null}
       <BufferingIndicatorC
         render={(props: Record<string, unknown>) => (
           <div {...props} className="media-buffering-indicator">
@@ -562,6 +996,7 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
               <SelectionMenu
                 key="subtitles"
                 selection={subtitleSelection}
+                subtitleSettings={subtitleSettings}
                 icon={subtitleSelection.selectedId
                   ? <CaptionsOnIcon className="media-icon" />
                   : <CaptionsOffIcon className="media-icon" />}
