@@ -56,6 +56,7 @@ import NoSource from './no-source'
 import SourceChecks from './source-checks'
 import { startOf, useResume } from './resume'
 import UpNext from './up-next'
+import EpisodeArrows from './episode-arrows'
 
 /**
  * The episode rows this episode claims to BE, unwrapped from their edges.
@@ -271,6 +272,11 @@ const style = css`
     aspect-ratio: 16 / 9;
     min-height: 20rem;
     max-height: calc(100vh - var(--stub-header-height));
+
+    &:hover .player-episode-step,
+    &:focus-within .player-episode-step {
+      opacity: 0.78;
+    }
 
     &.holding {
       border-radius: 0;
@@ -1117,6 +1123,15 @@ const Watch = () => {
                     />
                   )}
                 <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true; autoplayTarget.current = next?.episode.uri }}/>
+                <EpisodeArrows
+                  previous={guest ? undefined : previousLink}
+                  next={guest ? undefined : nextLink}
+                  stage={stage}
+                  onStep={direction => {
+                    autoAdvanced.current = true
+                    autoplayTarget.current = direction === 'previous' ? previous?.episode.uri : next?.episode.uri
+                  }}
+                />
               </div>
             )
             : needsExtension

@@ -297,7 +297,7 @@ vi.mock('../../../../src/embed-fullscreen', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Share2', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Share2', 'Smile', 'Star'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,
@@ -4366,4 +4366,41 @@ test('opening Watch on a bare show container redirects to its first season while
     `/watch/ag:(${seasonUri})/ag:(jw:6980914)/cr:GX1?t=42`,
     { replace: true },
   )
+})
+
+test('STUB-436: player double-arrow step buttons render in .player-container, omit missing ends and guests, and navigate with autoplay carry-over', async () => {
+  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  const arrows = () => [...host.querySelectorAll<HTMLButtonElement>('.player-container .player-episode-step')]
+  expect(arrows().map(el => [el.dataset.playerStep, el.getAttribute('aria-label'), el.getAttribute('title')])).toEqual([
+    ['previous', 'Previous episode', 'E1 - Title 1'],
+    ['next', 'Next episode', 'E3 - Title 3'],
+  ])
+
+  // clicking next triggers navigation and carries autoplay onto the next episode
+  await act(() => { host.querySelector<HTMLButtonElement>('[data-player-step="next"]')!.click() })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+  await toTheNext(rerender)
+  await report({ paused: true, time: 0 })
+  expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
+
+  // last episode shows only previous; clicking previous exits frame fullscreen first before navigating
+  expect(arrows().map(el => el.dataset.playerStep)).toEqual(['previous'])
+  await inFullscreen(host.querySelector('iframe'), async exitFullscreen => {
+    navigate.mockClear()
+    await act(() => { host.querySelector<HTMLButtonElement>('[data-player-step="previous"]')!.click() })
+    await settle()
+    expect(exitFullscreen).toHaveBeenCalledTimes(1)
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(2, 'cr:GX2'))
+  })
+
+  // first episode shows only next; party guest hides both player arrows
+  params = { ...params, episodeUri: 'ag:(anilist:1-1)', sourceUri: 'cr:GX1' }
+  rerender()
+  await settle()
+  expect(arrows().map(el => el.dataset.playerStep)).toEqual(['next'])
+
+  party = { status: 'active', role: 'guest' } as typeof party
+  rerender()
+  await settle()
+  expect(arrows()).toEqual([])
 })

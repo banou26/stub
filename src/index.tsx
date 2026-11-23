@@ -46,7 +46,7 @@ const style = css`
   }
 
   /* :dir() rather than [dir]: a player stays left to right inside a right to left page, and its icons with it */
-  :is(.lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-external-link, .lucide-send):dir(rtl) {
+  :is(.lucide-chevron-left, .lucide-chevron-right, .lucide-chevrons-left, .lucide-chevrons-right, .lucide-log-out, .lucide-external-link, .lucide-send):dir(rtl) {
     scale: -1 1;
   }
 
