@@ -1,5 +1,7 @@
 // The main thread's session frames, one per site a tracker reaches with the viewer's own session
-// (anilist.co, myanimelist.net and www.crunchyroll.com), the sign in that connects a site on this device
+// (anilist.co, myanimelist.net, app.trakt.tv and www.crunchyroll.com), the sign in that connects a
+// site on this device and the sign out that disconnects it. src/worker.ts exposes `sessionResolvers`
+// to the worker on the `sessions` osra key.
 // and the sign out that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the
 // `sessions` osra key.
 
@@ -19,6 +21,8 @@ import {
 import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
+import traktPageScript from '../sources/trakt/session-page.ts?page-script'
+import { TRAKT_DOMAINS, TRAKT_LOGIN_URL, TRAKT_ORIGIN, TRAKT_SESSION_URL, TRAKT_SIGN_OUT_DOMAINS, traktSignedIn } from '../sources/trakt/session'
 import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-backend'
 import { mountHiddenFrame } from '../utils/hidden-frame'
 import { CONNECTED_CHANNEL, CONNECTED_KEY, connectedSites, createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
@@ -27,6 +31,7 @@ import { rememberSignIn, siteStatuses } from './site-status'
 
 const ANILIST_REASON = 'Read and update your AniList list with your own anilist.co session'
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
+const TRAKT_REASON = 'Read and update your Trakt history, watchlist and ratings with your own app.trakt.tv session'
 const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session'
 
 const frames = createSessionFrames<PageApi>(
@@ -45,6 +50,13 @@ const frames = createSessionFrames<PageApi>(
     domains: MAL_DOMAINS,
     reason: MAL_REASON,
     pageScript: malPageScript,
+  }, {
+    id: 'trakt',
+    url: TRAKT_SESSION_URL,
+    origin: TRAKT_ORIGIN,
+    domains: TRAKT_DOMAINS,
+    reason: TRAKT_REASON,
+    pageScript: traktPageScript,
   }, {
     id: CRUNCHYROLL_TRACKER_ID,
     url: CRUNCHYROLL_SESSION_URL,
@@ -123,17 +135,31 @@ export const signInToCrunchyroll = (): Promise<WindowSignIn> =>
     { frames, connections },
   ).then(rememberSignIn(siteStatuses, 'crunchyroll'))
 
+/** Opens app.trakt.tv in an FKN window, whose Sign in starts Trakt's own. Call it directly in the click handler. */
+export const signInToTrakt = (): Promise<WindowSignIn> =>
+  signInAndConnect(
+    'trakt',
+    () => signInThroughWindow({
+      url: TRAKT_LOGIN_URL,
+      domains: TRAKT_DOMAINS,
+      permissions: [{ category: 'evaluation', reason: TRAKT_REASON }],
+      isSignedIn: login => traktSignedIn(login, traktPageScript),
+    }),
+    { frames, connections },
+  ).then(rememberSignIn(siteStatuses, 'trakt'))
+
 /** The sign in each tracker offers, by tracker id, for a tracker that answers SIGNED_OUT. */
 export const trackerSignIns: Record<string, () => Promise<WindowSignIn>> = {
   anilist: signInToAniList,
   mal: signInToMyAnimeList,
+  trakt: signInToTrakt,
   [CRUNCHYROLL_TRACKER_ID]: signInToCrunchyroll,
 }
 
 /** The sites a tracker reaches with the viewer's own session, by stub's name for them. */
-export type TrackerSite = 'anilist' | 'mal'
+export type TrackerSite = 'anilist' | 'mal' | 'trakt'
 
-const SITE_DOMAINS: Record<TrackerSite, string[]> = { anilist: ANILIST_DOMAINS, mal: MAL_DOMAINS }
+const SITE_DOMAINS: Record<TrackerSite, string[]> = { anilist: ANILIST_DOMAINS, mal: MAL_DOMAINS, trakt: TRAKT_SIGN_OUT_DOMAINS }
 
 /** Whether the viewer signed in to the site through stub on this device. */
 export const isSiteConnected = (site: TrackerSite): boolean => connections.isConnected(site)

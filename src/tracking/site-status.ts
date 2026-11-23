@@ -7,7 +7,7 @@ import type { FknBackend } from '../utils/fkn-backend'
 export const SITE_STATUS_KEY = 'stub.site-status'
 
 /** The sites whose sign-in state stub remembers, by stub's name for them. */
-export type StatusSite = 'crunchyroll' | 'prime' | 'anilist' | 'mal'
+export type StatusSite = 'crunchyroll' | 'prime' | 'anilist' | 'mal' | 'trakt'
 
 export type SiteState = 'signed-in' | 'signed-out'
 
@@ -131,7 +131,7 @@ export const rememberSignIn = <Outcome extends string>(statuses: Pick<SiteStatus
 }
 
 type TrackerStatusSite = Exclude<StatusSite, 'crunchyroll' | 'prime'>
-const TRACKER_SITES: readonly string[] = ['anilist', 'mal'] satisfies TrackerStatusSite[]
+const TRACKER_SITES: readonly string[] = ['anilist', 'mal', 'trakt'] satisfies TrackerStatusSite[]
 
 /**
  * Remembers what the trackers' answers tell of their site's session: a list read means signed in, and
