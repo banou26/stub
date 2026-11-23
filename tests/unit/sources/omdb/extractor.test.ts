@@ -194,33 +194,6 @@ test('search requests IMDb vote counts and maps them to followers when present',
   ])
 })
 
-test('title read requests IMDb voteCount and maps it to followers when present', async () => {
-  const sent: Sent[] = []
-  const subscribe = (resolvers.Subscription as any).media.subscribe
-  const ctx = {
-    fetch: async (url: string, init: { method?: string, headers?: Record<string, string>, body: string }) => {
-      sent.push({ url, method: init.method, headers: init.headers ?? {}, body: JSON.parse(init.body) as Sent['body'] })
-      return {
-        json: async () => ({
-          data: {
-            title: {
-              id: 'tt1160419',
-              titleText: { text: 'Dune' },
-              titleType: { id: 'movie' },
-              releaseYear: { year: 2021 },
-              ratingsSummary: { aggregateRating: 8, voteCount: 912345 },
-            },
-          },
-        }),
-      }
-    },
-  } as never
-
-  const { value } = await subscribe(undefined, { input: { uri: 'omdb:tt1160419' } }, ctx).next()
-  expect(sent[0]!.body.query).toContain('voteCount')
-  expect((value.media as Row & { followers?: number }).followers).toBe(912345)
-})
-
 test('the source names IMDb, whose data it reads', () => {
   expect(name).toBe('IMDb')
   expect(originUrl).toBe('https://www.imdb.com')

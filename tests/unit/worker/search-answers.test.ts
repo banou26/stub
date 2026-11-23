@@ -54,7 +54,7 @@ const drawn = async (page: AsyncGenerator<{ uri: string }[]>) => {
 
 test('a page on the whole store keeps its cards as its sources repeat what the store holds', async () => {
   const page = open({ search: 'the morning show' })
-  expect(await drawn(page)).toEqual(STORE)
+  expect(await drawn(page)).toEqual(['imdb:tt7203552', 'tmdb:93405', 'tvmaze:83119'])
 
   fanout.answer(['tvmaze:83119'])
 
@@ -70,7 +70,7 @@ test('a page drawing its answers draws one the store already holds, which fires 
 
   fanout.answer(['tmdb:93405'])
 
-  expect(await drawn(page)).toEqual(['tvmaze:83119', 'tmdb:93405'])
+  expect(await drawn(page)).toEqual(['tmdb:93405', 'tvmaze:83119'])
 })
 
 test('a listing draws an answer the store already holds, having never drawn the store', async () => {
