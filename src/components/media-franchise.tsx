@@ -3,11 +3,11 @@ import type { GetMediaDetailsSubscription } from '../generated/graphql'
 import type { EdgeProps, NodeProps } from '@xyflow/react'
 
 import { css } from '@emotion/react'
-import { Background, BackgroundVariant, Handle, Position, ReactFlow } from '@xyflow/react'
+import { Background, BackgroundVariant, EdgeLabelRenderer, Handle, Position, ReactFlow, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { FloatingFocusManager, FloatingOverlay, FloatingPortal, useClick, useDismiss, useFloating, useInteractions, useRole } from '@floating-ui/react'
 import { Network, X } from 'lucide-react'
 import { createContext } from 'preact'
-import { useCallback, useContext, useMemo, useState } from 'preact/hooks'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 import { Link, useSearch } from 'wouter'
 
@@ -184,6 +184,8 @@ const overlayStyle = css`
 
   .canvas {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     /* HIDDEN, not auto. The drawing is moved by a transform rather than by a scroll offset, so there
        is nothing here to scroll and no content bounds to be stopped by: the surface is unbounded in
        every direction and at every zoom. */
@@ -194,9 +196,10 @@ const overlayStyle = css`
   /* the library paints its own surface, so the app's dark ground is stated rather than inherited:
      its default is a light one and the modal around this box is not. The dot grid is the library's
      own Background component now, registered with the transform by it rather than by hand. */
-  .react-flow { background-color: rgb(9, 9, 10); }
+  .react-flow { flex: 1; min-height: 0; background-color: rgb(9, 9, 10); }
   .react-flow__pane { cursor: grab; }
   .react-flow__pane.dragging { cursor: grabbing; }
+  .react-flow__edgelabel-renderer { z-index: 1; }
   .react-flow__attribution { background: rgba(0, 0, 0, 0.4); a { color: rgba(255, 255, 255, 0.4); } }
   /* the handles carry the geometry and nothing else: nobody connects this graph by hand */
   .react-flow__handle { opacity: 0; pointer-events: none; }
@@ -217,11 +220,21 @@ const overlayStyle = css`
   }
 
   .edge-label {
-    fill: rgba(255, 255, 255, 0.5);
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: all;
+    cursor: pointer;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(9, 9, 10, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.78);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.04em;
-    text-anchor: middle;
+    line-height: 1.3;
+    white-space: nowrap;
   }
 
   /* An HTML box rather than an SVG one, which is what the move to xyflow bought here. The old
@@ -265,10 +278,34 @@ const overlayStyle = css`
   }
   .edge.lit { stroke: rgb(255, 176, 62); stroke-width: 2.5; stroke-dasharray: none; }
   .chain.lit { stroke: rgb(255, 176, 62); stroke-width: 3; }
-  .edge-label.lit { fill: rgb(255, 176, 62); }
+  .edge-label.lit {
+    color: rgb(255, 176, 62);
+    border-color: rgb(255, 176, 62);
+    background: rgba(52, 42, 26, 0.96);
+  }
 
-  /* the text alone is a thin target, so each label carries an invisible pad it can be caught by */
-  .label-hit { fill: transparent; cursor: pointer; }
+  @media (max-width: 720px) {
+    padding: 0;
+
+    .sheet { border-radius: 0; border: 0; }
+    .bar { padding-block: 1.2rem; padding-inline: 1.4rem 6rem; }
+    .close { top: 1rem; inset-inline-end: 1.2rem; }
+    .kinds {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 1.2rem;
+      padding: 0.8rem 1.4rem;
+      border: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0;
+      background: rgb(18, 18, 20);
+      backdrop-filter: none;
+
+      & > .legend { margin-bottom: 0; }
+    }
+  }
 `
 
 /**
@@ -316,32 +353,43 @@ const RelationEdge = ({ id, data, sourceX, sourceY, targetX, targetY }: EdgeProp
   const setHover = useContext(Hover)
   const label = data?.label ?? ''
   const on = data?.lit ? ' lit' : ''
-  // a third of the way along rather than the midpoint: everything pointing AT one work converges
-  // there, so midpoint labels land on each other in a stack
-  const ALONG = 0.34
-  const at = (a: number, b: number) => a + (b - a) * ALONG
-  const labelX = at(sourceX, targetX)
-  const labelY = at(sourceY, targetY) - 6
-  // Measured in CHARACTERS, since measuring text needs a live layout and this redraws on every store
-  // update. It only has to be big enough to catch a pointer aimed at the word.
-  const hitWidth = label.length * 6.4 + 12
+  const labelX = data?.labelX ?? (sourceX + targetX) / 2
+  const labelY = data?.labelY ?? (sourceY + targetY) / 2
 
   return (
     <>
-      <path className={`edge${on}`} d={curve(sourceX, sourceY, targetX, targetY)}/>
-      {/* The pad and the word are ONE target. With the handlers on the pad alone the word sits above
-          it and takes the hit itself, so the pointer never enters the pad and nothing ever lights:
-          measured 2026-09-09, every label dead to the pointer. */}
-      <g
-        className="label"
-        onPointerEnter={() => setHover({ kind: 'edge', key: id })}
-        onPointerLeave={() => setHover(undefined)}
-      >
-        <rect className="label-hit" x={labelX - hitWidth / 2} y={labelY - 11} width={hitWidth} height={15}/>
-        <text className={`edge-label${on}`} x={labelX} y={labelY}>{label}</text>
-      </g>
+      <path className={`edge${on}`} d={data?.path ?? curve(sourceX, sourceY, targetX, targetY)}/>
+      <EdgeLabelRenderer>
+        <div
+          className={`edge-label${on} nodrag nopan`}
+          style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          onPointerEnter={() => setHover({ kind: 'edge', key: id })}
+          onPointerLeave={() => setHover(undefined)}
+        >
+          {label}
+        </div>
+      </EdgeLabelRenderer>
     </>
   )
+}
+
+const ReadableFocus = ({ nodes, currentKey, layoutKey }: { nodes: readonly FranchiseFlowNode[], currentKey: string, layoutKey: string }) => {
+  const { setCenter } = useReactFlow()
+  const initialized = useNodesInitialized()
+  useEffect(() => {
+    if (!initialized || window.innerWidth > 720 || !nodes.length) return
+    const minX = Math.min(...nodes.map(node => node.position.x))
+    const maxX = Math.max(...nodes.map(node => node.position.x + NODE_W))
+    const canvasWidth = document.querySelector('[data-franchise] .react-flow')?.clientWidth ?? window.innerWidth
+    if ((maxX - minX) * 0.65 <= canvasWidth) return
+    const focus = nodes.find(node => node.data.current) ?? nodes[0]
+    if (!focus) return
+    const frame = requestAnimationFrame(() => {
+      void setCenter(focus.position.x + NODE_W / 2, focus.position.y + NODE_H / 2, { zoom: 0.75 })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [initialized, layoutKey, currentKey, setCenter])
+  return null
 }
 
 // module scope: xyflow re-mounts every node and edge when these object identities change
@@ -440,10 +488,16 @@ const Graph = (
               nodesConnectable={false}
               elementsSelectable={false}
               fitView
+              fitViewOptions={{ padding: 0.16, minZoom: 0.65, maxZoom: 1 }}
               minZoom={0.05}
               maxZoom={20}
               aria-label={intl.formatMessage({ id: 'Every work in this series, in order', defaultMessage: 'Every work in this series, in order' })}
             >
+              <ReadableFocus
+                nodes={nodes}
+                layoutKey={layout.nodes.map(node => node.uri).join('\0')}
+                currentKey={currentUris.join('\0')}
+              />
               <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255, 255, 255, 0.14)"/>
             </ReactFlow>
           </Hover.Provider>

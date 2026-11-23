@@ -103,7 +103,7 @@ const LOCAL: Record<string, { values: number[], why: string }> = {
   },
   'src/components/media-franchise.tsx': {
     values: [1],
-    why: "the kind filter over the graph canvas, inside the dialog's own sheet",
+    why: "the kind filter over the graph canvas and the edge label layer over work nodes, inside the dialog's own sheet",
   },
   'src/components/tracking-compact.tsx': {
     values: [2],
