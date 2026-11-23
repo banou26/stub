@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll ตอบกลับโดยไม่มีรายการ",
   "Crunchyroll answered {status}": "Crunchyroll ตอบกลับ {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll ลบคะแนนไม่ได้",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll ยกเลิกการทำเครื่องหมายตอนไม่ได้",
   "Crunchyroll lists no such season": "Crunchyroll ไม่มีซีซันนี้",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll ระบุว่าซีซันนี้มี {count, plural, other {{count} ตอน}}",
   "Current season": "ซีซันปัจจุบัน",

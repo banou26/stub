@@ -78,9 +78,10 @@ const saveOf = ({ status, progress, score }: ListEntryInput): Omit<SaveRequest, 
  * there, NOT_LISTED before.
  *
  * A save reads what Crunchyroll holds and writes what changes, in the page, once: a write cut short is
- * never sent again, and the read after it is the confirmation. Progress only rises (Crunchyroll has no
- * unmark), and stars once given only change (it has no way to take a rating off). A removal takes the
- * series off the Watchlist and leaves the episodes and the stars.
+ * never sent again, and the read after it is the confirmation. Raising progress marks that episode;
+ * lowering removes watched episodes past it from Crunchyroll's watch history; stars once given only
+ * change (it has no way to take a rating off). A removal takes the series off the Watchlist and
+ * leaves the episodes and the stars.
  *
  * It answers no episode count: Crunchyroll lists only the episodes aired so far, and a count short of
  * the run's would become the row's total and change what is written to the other trackers.

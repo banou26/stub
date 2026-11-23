@@ -27,9 +27,10 @@ export type Held = { progress: number, stars: number | null, watchlisted: boolea
 export type WatchedAnswer = TokenAnswer & { held?: Held }
 
 /**
- * What a save sets, each field left as it is when absent: progress only ever rises, marking the one
- * episode at it, `stars` null asks for no rating, which Crunchyroll cannot take off once given, and
- * `watchlist` puts the series on the Watchlist or takes it off.
+ * What a save sets, each field left as it is when absent: raising progress marks the episode at
+ * it and lowering removes watched episodes past it from watch history, `stars` null asks for no
+ * rating, which Crunchyroll cannot take off once given, and `watchlist` puts the series on the
+ * Watchlist or takes it off.
  */
 export type SaveRequest = WatchedRequest & { progress?: number, stars?: number | null, watchlist?: boolean }
 
@@ -44,15 +45,15 @@ export type CrunchyrollPageApi = {
 
 type Episode = { id: string, episode_number: number | null, versions?: { guid: string }[] | null }
 
-/** One numbered episode of the season: the first episode carrying the number, and whether any episode with it is fully watched. */
-type Numbered = { id: string, watched: boolean }
+/** One numbered episode of the season: the first episode carrying the number, and every id of it that is fully watched. */
+type Numbered = { id: string, watchedIds: string[] }
 
 // a chosen size, not a measured limit: a long season in every audio version is a list of kilobytes
 const PLAYHEADS_AT_ONCE = 50
 
 const idsOf = (episode: Episode) => [episode.id, ...(episode.versions ?? []).map(version => version.guid)]
 
-const progressOf = (numbered: Numbered[]) => numbered.reduce((last, episode, at) => episode.watched ? at + 1 : last, 0)
+const progressOf = (numbered: Numbered[]) => numbered.reduce((last, episode, at) => episode.watchedIds.length ? at + 1 : last, 0)
 
 /**
  * The account's half of crunchyroll.com, asked with the token just granted, the way the site's own web
@@ -91,9 +92,9 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
     const byNumber = new Map<number, Numbered>()
     for (const episode of episodes) {
       if (episode.episode_number == null) continue
-      const seen = idsOf(episode).some(id => watched.has(id))
+      const seen = [...new Set(idsOf(episode).filter(id => watched.has(id)))]
       const same = byNumber.get(episode.episode_number)
-      byNumber.set(episode.episode_number, same ? { ...same, watched: same.watched || seen } : { id: episode.id, watched: seen })
+      byNumber.set(episode.episode_number, same ? { ...same, watchedIds: [...new Set([...same.watchedIds, ...seen])] } : { id: episode.id, watchedIds: seen })
     }
     return [...byNumber].sort(([a], [b]) => a - b).map(([, episode]) => episode)
   }
@@ -115,13 +116,20 @@ const account = ({ access_token: token, account_id: accountId }: TokenGrant, sen
     if (progress !== undefined) {
       const count = now.episodes.length
       if (progress > count) return forPage.formatMessage({ id: 'Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season', defaultMessage: 'Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season' }, { count })
-      if (progress < progressOf(now.episodes)) return forPage.formatMessage({ id: 'Crunchyroll cannot unmark an episode', defaultMessage: 'Crunchyroll cannot unmark an episode' })
     }
     // the site's star never takes a rating off, and its thumbs' DELETE, sent with no body, answered 409 on stars
     if (stars === null && now.stars) return forPage.formatMessage({ id: 'Crunchyroll cannot remove a rating', defaultMessage: 'Crunchyroll cannot remove a rating' })
+    const heldProgress = progressOf(now.episodes)
+    if (progress !== undefined && progress < heldProgress) {
+      for (const watched of now.episodes.slice(Math.max(0, progress))) {
+        for (const id of watched.watchedIds) {
+          await ask(`/content/v2/${accountId}/watch-history/${encodeURIComponent(id)}`, { method: 'DELETE', done: [404] })
+        }
+      }
+    }
     // never the earlier ones the account left unmarked; 409 is an episode Crunchyroll already counts as watched
-    const episode = progress ? now.episodes[progress - 1] : undefined
-    if (episode && !episode.watched) {
+    const episode = progress && progress > 0 ? now.episodes[progress - 1] : undefined
+    if (episode && !episode.watchedIds.length) {
       await ask(`/content/v2/discover/${accountId}/mark_as_watched/${encodeURIComponent(episode.id)}`, { method: 'POST', done: [409] })
     }
     if (stars && stars !== now.stars) {
@@ -153,12 +161,12 @@ export const readWatched = async (request: WatchedRequest, send: PageFetch): Pro
 }
 
 /**
- * Writes a save to the account, after reading what it holds, so only what changes is sent: the numbered
- * episode at `progress` alone is marked watched, its Japanese version, unless an audio version of it
- * already is; the episodes before it stay as the account holds them. Refused with nothing written when
- * `progress` is past the season's numbered episodes, or under how far the account got, since Crunchyroll
- * has no unmark, and when `stars` is null on a rated series, since it has no way to take a rating off. A
- * write Crunchyroll does not take rejects, with what was sent before it kept.
+ * Writes a save to the account, after reading what it holds, so only what changes is sent: lowering
+ * progress removes watched episodes above `progress` from watch history, then the numbered episode
+ * at `progress` is marked watched (its Japanese version, unless an audio version of it already is);
+ * earlier episodes stay as the account holds them. Refused with nothing written when `progress` is
+ * past the season's numbered episodes, and when `stars` is null on a rated series, since it has no way
+ * to take a rating off. A write Crunchyroll does not take rejects, with what was sent before it kept.
  */
 export const saveWatched = async (request: SaveRequest, send: PageFetch): Promise<SaveAnswer> => {
   const { read, ...answer } = await askForToken(TOKEN_REQUEST, send, grant => account(grant, send).save(request))

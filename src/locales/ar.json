@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "ردّ Crunchyroll دون قائمة",
   "Crunchyroll answered {status}": "ردّ Crunchyroll بالرمز {status}",
   "Crunchyroll cannot remove a rating": "لا يمكن لـ Crunchyroll إزالة التقييم",
-  "Crunchyroll cannot unmark an episode": "لا يمكن لـ Crunchyroll إلغاء تحديد حلقة",
   "Crunchyroll lists no such season": "لا يعرض Crunchyroll هذا الموسم",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "يعرض Crunchyroll {count, plural, zero {{count} حلقة} one {حلقة واحدة} two {حلقتين} few {{count} حلقات} many {{count} حلقة} other {{count} حلقة}} من هذا الموسم",
   "Current season": "الموسم الحالي",

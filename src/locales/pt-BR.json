@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "A Crunchyroll respondeu sem uma lista",
   "Crunchyroll answered {status}": "A Crunchyroll respondeu {status}",
   "Crunchyroll cannot remove a rating": "A Crunchyroll não consegue remover uma avaliação",
-  "Crunchyroll cannot unmark an episode": "A Crunchyroll não consegue desmarcar um episódio",
   "Crunchyroll lists no such season": "A Crunchyroll não tem essa temporada",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "A Crunchyroll tem {count, plural, one {{count} episódio} other {{count} episódios}} nesta temporada",
   "Current season": "Temporada atual",

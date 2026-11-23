@@ -145,10 +145,54 @@ describe('a save', () => {
     expect(await saveWatched({ ...SEASON, progress: 2 }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll lists 1 episode of this season') })
   })
 
-  test('a lower progress writes nothing, since Crunchyroll has no unmark, and says so', async () => {
+  const historyOf = (id: string) => `/content/v2/${ACCOUNT_ID}/watch-history/${id}`
+  const deleted = (writes: Asked[]) => writes.map(request => {
+    expect(request).toMatchObject({ method: 'DELETE', authorization: `Bearer ${ACCESS_TOKEN}` })
+    return pathOf(request)
+  })
+
+  test('a lower progress deletes watched episodes above it from watch history, and updates progress', async () => {
     const { send, writes } = fakeCrunchyroll()
-    expect(await saveWatched({ ...SEASON, progress: 1, stars: 3 }, send)).toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll cannot unmark an episode') })
-    expect(writes()).toEqual([])
+    expect(await saveWatched({ ...SEASON, progress: 1 }, send)).toEqual({ status: 200, body: null })
+    expect(deleted(writes())).toEqual([historyOf('GDUBEP002')])
+    expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 1 })
+  })
+
+  test('lowering deletes every watched audio version of an episode above the target progress, and 0 clears all', async () => {
+    const { send, writes } = fakeCrunchyroll({ playheads: fullyWatched('GJAEP0001', 'GJAEP0002', 'GDUBEP002') })
+    expect(await saveWatched({ ...SEASON, progress: 1 }, send)).toEqual({ status: 200, body: null })
+    expect(deleted(writes())).toEqual([historyOf('GJAEP0002'), historyOf('GDUBEP002')])
+    expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 1 })
+
+    const clear = fakeCrunchyroll({ playheads: fullyWatched('GJAEP0001', 'GDUBEP002') })
+    expect(await saveWatched({ ...SEASON, progress: 0 }, clear.send)).toEqual({ status: 200, body: null })
+    expect(deleted(clear.writes())).toEqual([historyOf('GJAEP0001'), historyOf('GDUBEP002')])
+    expect((await readWatched(SEASON, clear.send)).held).toMatchObject({ progress: 0 })
+  })
+
+  test('lowering onto an unmarked earlier episode deletes episodes above it and marks the target episode', async () => {
+    const { send, writes } = fakeCrunchyroll({ episodes: numberedSeason(19), playheads: fullyWatched('GDUB18') })
+    expect(await saveWatched({ ...SEASON, progress: 10 }, send)).toEqual({ status: 200, body: null })
+    expect(writes().map(request => `${request.method} ${pathOf(request)}`)).toEqual([
+      `DELETE ${historyOf('GDUB18')}`,
+      `POST ${markOf('GJA10')}`,
+    ])
+    expect((await readWatched(SEASON, send)).held).toMatchObject({ progress: 10 })
+  })
+
+  test('a history removal Crunchyroll refuses fails the save; 404 counts as done; a rating refusal writes no delete', async () => {
+    const failing = fakeCrunchyroll({ unmarks: () => 503 })
+    await expect(saveWatched({ ...SEASON, progress: 1 }, failing.send)).rejects.toMatchObject(failure('Crunchyroll answered 503'))
+    expect(failing.writes().map(pathOf)).toEqual([historyOf('GDUBEP002')])
+
+    const missing = fakeCrunchyroll({ unmarks: () => 404 })
+    expect(await saveWatched({ ...SEASON, progress: 1 }, missing.send)).toEqual({ status: 200, body: null })
+    expect(missing.writes().map(pathOf)).toEqual([historyOf('GDUBEP002')])
+
+    const rated = fakeCrunchyroll({ stars: '4s' })
+    expect(await saveWatched({ ...SEASON, progress: 1, stars: null }, rated.send))
+      .toEqual({ status: 200, body: null, refused: inEnglish('Crunchyroll cannot remove a rating') })
+    expect(rated.writes()).toEqual([])
   })
 
   test('a mark Crunchyroll refuses fails the save; one it already holds (409) counts as done', async () => {
@@ -233,6 +277,9 @@ describe('through the relay', () => {
 
     await saveWatched({ ...SEASON, stars: 3, watchlist: false }, relay)
     expect((await readWatched(SEASON, relay)).held).toEqual({ progress: 2, stars: 3, watchlisted: false })
+
+    await saveWatched({ ...SEASON, progress: 1 }, relay)
+    expect((await readWatched(SEASON, relay)).held).toEqual({ progress: 1, stars: 3, watchlisted: false })
   })
 
   test('every write reaches Crunchyroll, one the same as an earlier one included', async () => {

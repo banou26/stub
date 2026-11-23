@@ -584,11 +584,11 @@ describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to wat
     expect(chip(host, 'cr').classList.contains('login')).toBe(true)
   })
 
-  test("a refusal, a lower progress there, says why with Dismiss while the others save", async () => {
+  test("a refusal says why with Dismiss while the others save", async () => {
     vi.useFakeTimers()
     const { host, onSaveFields } = render({ tracking: { ...tracking, answers: [anilist, mal, stub, cr('LISTED', { progress: 13 })] } })
     onSaveFields.mockImplementation(async targets => targets.map(tracker => tracker === 'cr'
-      ? { tracker, outcome: 'REFUSED', error: 'Crunchyroll cannot unmark an episode' }
+      ? { tracker, outcome: 'REFUSED', error: 'Crunchyroll cannot remove a rating' }
       : { tracker, outcome: 'SAVED' }))
 
     const input = q<HTMLInputElement>(host, '#compact-progress')
@@ -597,7 +597,7 @@ describe('Crunchyroll, which keeps the episodes watched, 5 stars and Plan to wat
     await settle(1000)
 
     expect(onSaveFields.mock.calls.flatMap(([targets]) => targets).sort()).toEqual(['anilist', 'cr', 'stub'])
-    expect(q(host, '[data-note="cr"]').textContent).toContain('Crunchyroll did not save: Crunchyroll cannot unmark an episode')
+    expect(q(host, '[data-note="cr"]').textContent).toContain('Crunchyroll did not save: Crunchyroll cannot remove a rating')
     expect(button(q(host, '[data-note="cr"]'), 'Dismiss')).toBeTruthy()
     expect(host.querySelector('[data-note="anilist"]')).toBeNull()
   })

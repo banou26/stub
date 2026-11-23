@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll відповів без списку",
   "Crunchyroll answered {status}": "Crunchyroll відповів {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll не може видалити оцінку",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll не може зняти позначку з серії",
   "Crunchyroll lists no such season": "У Crunchyroll немає такого сезону",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "У цьому сезоні на Crunchyroll {count, plural, one {{count} серія} few {{count} серії} many {{count} серій} other {{count} серії}}",
   "Current season": "Поточний сезон",

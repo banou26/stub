@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll phản hồi mà không có danh sách",
   "Crunchyroll answered {status}": "Crunchyroll phản hồi {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll không thể xóa đánh giá",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll không thể bỏ đánh dấu một tập",
   "Crunchyroll lists no such season": "Crunchyroll không có mùa này",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll ghi {count, plural, other {{count} tập}} cho mùa này",
   "Current season": "Mùa hiện tại",

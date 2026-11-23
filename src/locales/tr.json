@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll liste olmadan yanıt verdi",
   "Crunchyroll answered {status}": "Crunchyroll {status} ile yanıt verdi",
   "Crunchyroll cannot remove a rating": "Crunchyroll bir puanı kaldıramaz",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll bir bölümün işaretini kaldıramaz",
   "Crunchyroll lists no such season": "Crunchyroll böyle bir sezon listelemiyor",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll bu sezonda {count, plural, one {{count} bölüm} other {{count} bölüm}} listeliyor",
   "Current season": "Bu sezon",

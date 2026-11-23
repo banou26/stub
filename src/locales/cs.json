@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll odpověděl bez seznamu",
   "Crunchyroll answered {status}": "Crunchyroll odpověděl {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll neumí odebrat hodnocení",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll neumí zrušit označení dílu",
   "Crunchyroll lists no such season": "Crunchyroll takovou řadu nemá",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll uvádí pro tuto řadu {count, plural, one {{count} díl} few {{count} díly} other {{count} dílů}}",
   "Current season": "Aktuální sezóna",

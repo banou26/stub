@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "A Crunchyroll lista nélkül válaszolt",
   "Crunchyroll answered {status}": "A Crunchyroll válasza {status}",
   "Crunchyroll cannot remove a rating": "A Crunchyroll nem tud törölni értékelést",
-  "Crunchyroll cannot unmark an episode": "A Crunchyroll nem tudja visszavonni egy rész jelölését",
   "Crunchyroll lists no such season": "A Crunchyrollon nincs ilyen évad",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "A Crunchyroll szerint ennek az évadnak {count, plural, one {{count} része} other {{count} része}} van",
   "Current season": "Aktuális szezon",

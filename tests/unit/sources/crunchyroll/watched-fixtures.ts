@@ -132,12 +132,13 @@ export type Asked = { url: string, method: string, authorization?: string, body?
 export const fakeCrunchyroll = (
   {
     signedIn = true, playheads = PLAYHEADS as unknown, episodes = SEASON_EPISODES as unknown, seasons = SEASONS as unknown,
-    stars = '', watchlisted = false, marks = (_id: string): number => 200,
+    stars = '', watchlisted = false, marks = (_id: string): number => 200, unmarks = (_id: string): number => 204,
   } = {},
 ) => {
   const asked: Asked[] = []
   const state = { stars, watchlisted }
   const marked: string[] = []
+  const removed = new Set<string>()
   const send = async (url: string, init: RequestInit): Promise<Answer> => {
     const method = init.method ?? 'GET'
     const headers = (init.headers ?? {}) as Record<string, string>
@@ -158,7 +159,12 @@ export const fakeCrunchyroll = (
       if (pathname === `/content/v2/${ACCOUNT_ID}/playheads`) {
         const ids = new Set(searchParams.get('content_ids')!.split(','))
         const { data } = playheads as { data?: unknown }
-        const held = Array.isArray(data) ? [...data, ...fullyWatched(...marked).data] : undefined
+        const held = Array.isArray(data)
+          ? [
+            ...data.filter(head => !removed.has(head.content_id) && !marked.includes(head.content_id)),
+            ...fullyWatched(...marked).data,
+          ]
+          : undefined
         return answer(200, held ? { ...playheads as object, data: held.filter(head => ids.has(head.content_id)) } : playheads)
       }
       if (pathname === `/content-reviews/v3/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`) return answer(200, { ...RATING, rating: state.stars })
@@ -172,7 +178,20 @@ export const fakeCrunchyroll = (
     if (method === 'POST' && mark) {
       const id = decodeURIComponent(mark[1]!)
       const status = marks(id)
-      if (status < 300) marked.push(id)
+      if (status < 300) {
+        removed.delete(id)
+        if (!marked.includes(id)) marked.push(id)
+      }
+      return answer(status, null)
+    }
+    const history = new RegExp(`^/content/v2/${ACCOUNT_ID}/watch-history/([^/]+)$`).exec(pathname)
+    if (method === 'DELETE' && history) {
+      const id = decodeURIComponent(history[1]!)
+      const status = unmarks(id)
+      if (status < 300) {
+        removed.add(id)
+        for (let at = marked.length - 1; at >= 0; at -= 1) if (marked[at] === id) marked.splice(at, 1)
+      }
       return answer(status, null)
     }
     const rating = `/content-reviews/v2/user/${ACCOUNT_ID}/rating/series/${SERIES_ID}`

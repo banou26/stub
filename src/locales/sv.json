@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll svarade utan någon lista",
   "Crunchyroll answered {status}": "Crunchyroll svarade {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll kan inte ta bort ett betyg",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll kan inte avmarkera ett avsnitt",
   "Crunchyroll lists no such season": "Crunchyroll har ingen sådan säsong",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll listar {count, plural, one {{count} avsnitt} other {{count} avsnitt}} för den här säsongen",
   "Current season": "Aktuell säsong",

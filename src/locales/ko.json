@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll이 목록 없이 응답했어요",
   "Crunchyroll answered {status}": "Crunchyroll이 {status}(으)로 응답했어요",
   "Crunchyroll cannot remove a rating": "Crunchyroll에서는 평가를 삭제할 수 없어요",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll에서는 에피소드의 시청 표시를 지울 수 없어요",
   "Crunchyroll lists no such season": "Crunchyroll에는 이 시즌이 없어요",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll에는 이 시즌이 {count, plural, other {총 {count}화}}로 올라와 있어요",
   "Current season": "이번 분기 작품",

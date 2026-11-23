@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll merespons tanpa daftar",
   "Crunchyroll answered {status}": "Crunchyroll merespons {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll tidak dapat menghapus rating",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll tidak dapat membatalkan tanda tonton pada episode",
   "Crunchyroll lists no such season": "Crunchyroll tidak mencantumkan musim tersebut",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll mencantumkan {count, plural, other {{count} episode}} untuk musim ini",
   "Current season": "Musim ini",

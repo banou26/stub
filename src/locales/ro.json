@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll a răspuns fără listă",
   "Crunchyroll answered {status}": "Crunchyroll a răspuns {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll nu poate elimina o evaluare",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll nu poate anula marcarea unui episod",
   "Crunchyroll lists no such season": "Crunchyroll nu are un astfel de sezon",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll indică {count, plural, one {{count} episod} few {{count} episoade} other {{count} de episoade}} pentru acest sezon",
   "Current season": "Sezonul curent",

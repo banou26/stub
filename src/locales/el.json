@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Το Crunchyroll απάντησε χωρίς λίστα",
   "Crunchyroll answered {status}": "Το Crunchyroll απάντησε {status}",
   "Crunchyroll cannot remove a rating": "Το Crunchyroll δεν μπορεί να αφαιρέσει μια βαθμολογία",
-  "Crunchyroll cannot unmark an episode": "Το Crunchyroll δεν μπορεί να αφαιρέσει τη σήμανση από ένα επεισόδιο",
   "Crunchyroll lists no such season": "Το Crunchyroll δεν έχει τέτοια σεζόν",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Το Crunchyroll αναφέρει {count, plural, one {{count} επεισόδιο} other {{count} επεισόδια}} για αυτή τη σεζόν",
   "Current season": "Τρέχουσα περίοδος",

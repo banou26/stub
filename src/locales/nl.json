@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll antwoordde zonder lijst",
   "Crunchyroll answered {status}": "Crunchyroll antwoordde {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll kan geen beoordeling verwijderen",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll kan een aflevering niet als onbekeken markeren",
   "Crunchyroll lists no such season": "Crunchyroll heeft zo’n seizoen niet",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll vermeldt {count, plural, one {{count} aflevering} other {{count} afleveringen}} voor dit seizoen",
   "Current season": "Huidig seizoen",

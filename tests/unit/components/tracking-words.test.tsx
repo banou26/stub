@@ -285,7 +285,7 @@ describe('a save that did not land', () => {
   })
 
   test('a refusal says why, with Dismiss', () => {
-    expect(problems({ refused: 'Crunchyroll cannot unmark an episode' })).toEqual(['AniList did not save: Crunchyroll cannot unmark an episode', 'Dismiss'])
+    expect(problems({ refused: 'Crunchyroll cannot remove a rating' })).toEqual(['AniList did not save: Crunchyroll cannot remove a rating', 'Dismiss'])
   })
 })
 

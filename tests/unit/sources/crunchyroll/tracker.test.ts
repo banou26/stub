@@ -187,8 +187,8 @@ describe('a write', () => {
   })
 
   test("a refusal from the page is the save's refusal, in its own words", async () => {
-    const { target } = setup([read(4)], [{ status: 200, body: null, refused: 'Crunchyroll cannot unmark an episode' }])
-    expect(await save(target, { progress: 1 })).toEqual([{ tracker: 'cr', outcome: 'REFUSED', error: 'Crunchyroll cannot unmark an episode', entry: null }])
+    const { target } = setup([read(4)], [{ status: 200, body: null, refused: 'Crunchyroll cannot remove a rating' }])
+    expect(await save(target, { score: null })).toEqual([{ tracker: 'cr', outcome: 'REFUSED', error: 'Crunchyroll cannot remove a rating', entry: null }])
   })
 
   test('signed out, a save is refused with how to fix it', async () => {

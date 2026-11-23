@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll ने बिना लिस्ट के जवाब दिया",
   "Crunchyroll answered {status}": "Crunchyroll ने {status} जवाब दिया",
   "Crunchyroll cannot remove a rating": "Crunchyroll रेटिंग नहीं हटा सकता",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll किसी एपिसोड से देखे जाने का निशान नहीं हटा सकता",
   "Crunchyroll lists no such season": "Crunchyroll पर ऐसा कोई सीज़न नहीं है",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll इस सीज़न में {count, plural, one {{count} एपिसोड} other {{count} एपिसोड}} दिखाता है",
   "Current season": "मौजूदा सीज़न",

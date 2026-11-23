@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll השיב ללא רשימה",
   "Crunchyroll answered {status}": "Crunchyroll השיב {status}",
   "Crunchyroll cannot remove a rating": "ב-Crunchyroll אי אפשר להסיר דירוג",
-  "Crunchyroll cannot unmark an episode": "ב-Crunchyroll אי אפשר לבטל סימון של פרק",
   "Crunchyroll lists no such season": "ב-Crunchyroll אין עונה כזו",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "ב-Crunchyroll יש {count, plural, one {פרק אחד} two {שני פרקים} other {{count} פרקים}} בעונה הזו",
   "Current season": "העונה הנוכחית",

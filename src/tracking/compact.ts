@@ -176,7 +176,7 @@ export const canRemove = (answer: CompactAnswer) => answer.state === 'LISTED' &&
  * entry overwrites nothing, with Watching when the row has no status (MyAnimeList refuses an add with
  * none). A tracker that keeps only some statuses gets exactly the fields changed too, listed or not,
  * less a status it keeps no place for: its fields stand alone, and filling in the row's progress would
- * mark episodes Crunchyroll can never unmark. Progress is held back from a tracker that counts other
+ * change episodes when the viewer did not touch progress. Progress is held back from a tracker that counts other
  * episodes. A removal goes only where `canRemove` says.
  */
 export const patchFor = (answer: CompactAnswer, change: Fields, row: Row): Fields | undefined => {

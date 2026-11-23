@@ -93,7 +93,6 @@
   "Crunchyroll answered with no list": "Crunchyroll membalas tanpa senarai",
   "Crunchyroll answered {status}": "Crunchyroll membalas {status}",
   "Crunchyroll cannot remove a rating": "Crunchyroll tidak dapat membuang penilaian",
-  "Crunchyroll cannot unmark an episode": "Crunchyroll tidak dapat membuang tanda tonton episod",
   "Crunchyroll lists no such season": "Crunchyroll tidak menyenaraikan musim tersebut",
   "Crunchyroll lists {count, plural, one {{count} episode} other {{count} episodes}} of this season": "Crunchyroll menyenaraikan {count, plural, other {{count} episod}} untuk musim ini",
   "Current season": "Musim semasa",
