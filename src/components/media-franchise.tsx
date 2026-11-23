@@ -222,7 +222,7 @@ const overlayStyle = css`
   .edge-label {
     position: absolute;
     top: 0;
-    left: 0;
+    inset-inline-start: 0;
     pointer-events: all;
     cursor: pointer;
     padding: 2px 7px;
