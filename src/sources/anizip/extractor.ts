@@ -16,6 +16,8 @@ export const isApiOnly = true
 export const supportedUris = ['anidb', 'mal']
 
 const SCORE = 0.9
+// below every English episode source (lowest is 0.2: Apple TV, JustWatch, uNoGS, Paramount) and above AniList's 0.1 fallback
+const EPISODE_JAPANESE_TITLE_SCORE = 0.15
 
 // AniDB, whose titles and summaries these are, writes every apostrophe as a backtick: "Frieren: Beyond Journey`s End"
 const apostrophes = (text: string) => text.replaceAll('`', '\'')
@@ -32,9 +34,9 @@ const plainText = (text: string) => text
   .replace(/https?:\/\/\S+ \[([^\]]+)\]/g, '$1')
   .replace(/\[\/?i[[\]]/gi, '')
 
-const titlesOf = ({ en, ja }: { en?: string, ja?: string }) => [
+const titlesOf = ({ en, ja }: { en?: string, ja?: string }, japaneseScore = SCORE) => [
   ...en ? [{ language: 'en', title: anidbTitle(en), score: SCORE }] : [],
-  ...ja ? [{ language: 'ja', title: anidbTitle(ja), score: SCORE }] : [],
+  ...ja ? [{ language: 'ja', title: anidbTitle(ja), score: japaneseScore }] : [],
 ]
 
 // AniDB's title in `language`, which api.ani.zip keys by BCP 47 tag (`fr`, `pt-BR`, `zh-Hant`), when it is not one of
@@ -112,7 +114,7 @@ export const normalizeMedia = (media: AnimeSeries, language?: string) => {
             mediaUri: uri,
             url: `https://api.ani.zip/mappings?anidb_id=${id}`,
             score: SCORE,
-            titles: titlesOf(episode.title),
+            titles: titlesOf(episode.title, EPISODE_JAPANESE_TITLE_SCORE),
             descriptions: episode.overview
               ? [{ language: 'en', description: episode.overview, score: SCORE }]
               : [],

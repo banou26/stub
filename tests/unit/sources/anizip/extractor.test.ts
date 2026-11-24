@@ -220,3 +220,26 @@ test('a work\'s banner is its 16:9 TheTVDB fanart, never the thin TheTVDB banner
     { url: 'https://artworks.thetvdb.com/banners/v4/series/424536/backgrounds/64e6cbe29d9c0.jpg', score: 0.9 },
   ])
 })
+
+test('episode titles put AniZip English at 0.9 and Japanese at 0.15 so English episode sources win while Japanese stays available', () => {
+  const mapped = normalizeMedia({
+    ...FRIEREN,
+    episodes: {
+      '1': FRIEREN.episodes['1'],
+      '8': {
+        ...FRIEREN.episodes['1'],
+        episodeNumber: 8,
+        episode: '8',
+        title: { ja: 'ヤタンの祭司長', 'x-jat': 'Yatan no Saishichou' },
+      },
+    },
+  } as unknown as Parameters<typeof normalizeMedia>[0])
+
+  expect(mapped.episodes.find(ep => ep.episodeNumber === 1)?.titles).toEqual([
+    { language: 'en', title: "The Journey's End", score: 0.9 },
+    { language: 'ja', title: '冒険の終わり', score: 0.15 },
+  ])
+  expect(mapped.episodes.find(ep => ep.episodeNumber === 8)?.titles).toEqual([
+    { language: 'ja', title: 'ヤタンの祭司長', score: 0.15 },
+  ])
+})
