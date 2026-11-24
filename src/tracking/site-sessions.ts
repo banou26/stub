@@ -155,6 +155,8 @@ export const signInToTrakt = (): Promise<WindowSignIn> =>
       domains: TRAKT_DOMAINS,
       permissions: [{ category: 'evaluation', reason: TRAKT_REASON }],
       isSignedIn: login => traktSignedIn(login, traktPageScript),
+      // above the extension's 5 s evaluate bridge-ready timeout so a CSP refusal reaches traktSignedIn's fallback
+      readTimeoutMs: 8_000,
     }),
     { frames, connections },
   ).then(rememberSignIn(siteStatuses, 'trakt'))

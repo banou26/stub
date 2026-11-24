@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { expose } from 'osra'
 
 import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL } from '../../../src/sources/crunchyroll/session'
+import { SIGNED_IN_MARKER } from '../../../src/sources/trakt/session'
 import { CONNECTED_CHANNEL } from '../../../src/tracking/connections'
 import { SESSION_PORT_MESSAGE } from '../../../src/tracking/session-frames'
 import { fakeBroadcastChannel } from './broadcast-channel'
@@ -153,6 +154,45 @@ describe("Trakt's session on this device", () => {
     })
     expect(window.goto).toHaveBeenCalledWith('https://app.trakt.tv/', { waitUntil: 'commit' })
     expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['trakt'])
+  })
+
+  test('its sign in outwaits a 5 s extension CSP evaluate timeout and resolves authed via the signed-in marker', async () => {
+    vi.useFakeTimers()
+    try {
+      const { trackerSignIns } = await load()
+      let endWindow!: () => void
+      const closed = new Promise<void>(resolve => { endWindow = resolve })
+      const cspError = Object.assign(
+        new Error('frame.evaluate: could not run code on this page. Its content security policy blocked the FKN bridge'),
+        { name: 'LocatorDeniedError' },
+      )
+      const close = vi.fn(async () => { endWindow() })
+      const login = {
+        goto: vi.fn(async () => {}),
+        closed,
+        close,
+        locator: vi.fn((selector: string) => ({
+          exists: vi.fn(() => new Promise<boolean>(resolve => {
+            setTimeout(() => resolve(selector === SIGNED_IN_MARKER), 50)
+          })),
+        })),
+        evaluate: vi.fn(() => new Promise((_, reject) => {
+          setTimeout(() => reject(cspError), 5_000)
+        })),
+      }
+      attach.mockResolvedValueOnce(login)
+
+      const signingIn = trackerSignIns.trakt!()
+      // Without readTimeoutMs > 5,000 ms, poll 1 times out before evaluate rejects and closing at 6.5 s ends 'closed'.
+      setTimeout(() => { endWindow() }, 6_500)
+      await vi.advanceTimersByTimeAsync(7_000)
+
+      expect(await signingIn).toBe('authed')
+      expect(login.evaluate).toHaveBeenCalledTimes(1)
+      expect(close).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('its hidden frame holds /robots.txt on app.trakt.tv and runs the Trakt page script there', async () => {

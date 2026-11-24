@@ -31,14 +31,35 @@ export const TRAKT_SESSION_URL = 'https://app.trakt.tv/robots.txt'
 
 /** The header's Sign in button, drawn for a guest (server rendered on app.trakt.tv signed out). */
 export const GUEST_MARKER = '.trakt-login-button'
+/** The header's profile trigger, drawn once signed in on app.trakt.tv. */
+export const SIGNED_IN_MARKER = 'trakt-profile-button, .trakt-profile-link-username'
+
+const cspBlockedFrames = new WeakSet<Frame>()
+
+const isCspError = (error: unknown): boolean =>
+  error instanceof Error
+  && error.name === 'LocatorDeniedError'
+  && /content security policy/i.test(error.message)
 
 /**
  * Whether the page in the sign-in window is signed in.
  *
  * The guest marker is a free read, so the poll costs nothing while the header offers Sign in. Once it
  * is gone, the page script asks Trakt who the session's token belongs to, which is also false on a
- * page that is not app.trakt.tv's and on a token Trakt no longer takes.
+ * page that is not app.trakt.tv's and on a token Trakt no longer takes. If the window's CSP blocks
+ * evaluating on app.trakt.tv itself, fall back to the header's signed-in marker and skip retrying
+ * evaluation on subsequent polls of that frame.
  */
-export const traktSignedIn = async (login: Frame, pageScript: string): Promise<boolean> =>
-  !(await login.locator(GUEST_MARKER).exists())
-  && await login.evaluate(pageScript, { kind: 'viewer' }) === true
+export const traktSignedIn = async (login: Frame, pageScript: string): Promise<boolean> => {
+  if (await login.locator(GUEST_MARKER).exists()) return false
+  if (cspBlockedFrames.has(login)) return await login.locator(SIGNED_IN_MARKER).exists()
+  try {
+    return await login.evaluate(pageScript, { kind: 'viewer' }) === true
+  } catch (error) {
+    if (isCspError(error)) {
+      cspBlockedFrames.add(login)
+      return await login.locator(SIGNED_IN_MARKER).exists()
+    }
+    throw error
+  }
+}
