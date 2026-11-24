@@ -175,6 +175,11 @@ describe('the embed page check', () => {
     const unrendered = { ...PAGE, 'build/assets/main-D0k.js': `const src = \`\${${EMBED_PAGE}}?\${params}\`\n` }
     expect(embedPageProblems(MANIFEST, treeOf(unrendered)).join('\n')).toContain(`build/assets/main-D0k.js still names ${EMBED_PAGE}`)
   })
+
+  test('refuses a player page carrying an inline script tag', () => {
+    const withInline = { ...PAGE, 'build/embed.html': `${PAGE['build/embed.html']}\n<script>console.log(1)</script>` }
+    expect(embedPageProblems(MANIFEST, treeOf(withInline)).join('\n')).toContain('contains an inline <script> tag')
+  })
 })
 
 describe('the build script', () => {

@@ -153,6 +153,8 @@ export const npmEntryProblems = (pkg, tree) => {
 /** the watch route's url for the page up to 0.0.27, which only anime.fkn.app answers */
 const ORIGIN_ROOT_EMBED = /["'`]\/embed\.html/
 
+const INLINE_SCRIPT = /<script\b(?![^>]*\bsrc\s*=)[^>]*>/i
+
 /**
  * Every reason stub's player page would not load wherever the package is served, worst first.
  *
@@ -175,6 +177,9 @@ export const embedPageProblems = (pkg, tree) => {
   } else {
     if (!publishes(pkg.files, page)) {
       problems.push(`package.json "files" does not publish ${page}, so the tarball would not carry the player`)
+    }
+    if (INLINE_SCRIPT.test(html)) {
+      problems.push(`${page} contains an inline <script> tag, which fails fkn.app's tenant script-src CSP.`)
     }
     for (const [, url] of html.matchAll(FETCHED_URL)) {
       if (!url || ELSEWHERE.test(url)) continue

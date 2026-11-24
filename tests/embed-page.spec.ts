@@ -44,7 +44,10 @@ test.beforeAll(async () => {
       response.writeHead(404).end('not in the package')
       return
     }
-    response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' })
+    response.writeHead(200, {
+      'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
+      'content-security-policy': "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'none'; base-uri 'self'",
+    })
     createReadStream(join(pkg, file)).pipe(response)
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -168,4 +171,32 @@ test('the watch route frames the page beside whichever build runs it', async ({ 
     expect(response.status()).toBe(200)
     expect(await response.text()).toContain('<title>Stub - Embed</title>')
   }
+})
+
+test('the player page satisfies tenant script-src CSP with zero inline scripts', async ({ page }) => {
+  await page.route(url => !url.href.startsWith(origin), route => route.abort())
+  await page.addInitScript(() => {
+    const recorded: { directive: string, blocked: string }[] = []
+    ;(globalThis as { __cspViolations?: typeof recorded }).__cspViolations = recorded
+    globalThis.addEventListener('securitypolicyviolation', event => {
+      recorded.push({ directive: event.effectiveDirective || event.violatedDirective, blocked: event.blockedURI })
+    })
+  })
+
+  await page.goto(`${origin}${PREFIX}build/embed.html`)
+  await expect(page.locator('#app')).toHaveText('Unsupported or missing parameters')
+  expect(await page.evaluate(() => (globalThis as { __cspViolations?: unknown[] }).__cspViolations)).toEqual([])
+
+  // Control: an injected inline script under the same response CSP must fail closed.
+  await page.evaluate(() => {
+    const script = document.createElement('script')
+    script.textContent = 'globalThis.__inlineProbeExecuted = true'
+    document.head.append(script)
+  })
+  const probe = await page.evaluate(() => ({
+    executed: (globalThis as { __inlineProbeExecuted?: boolean }).__inlineProbeExecuted,
+    violations: (globalThis as { __cspViolations?: { directive: string, blocked: string }[] }).__cspViolations ?? [],
+  }))
+  expect(probe.executed).toBeUndefined()
+  expect(probe.violations).toContainEqual({ directive: 'script-src-elem', blocked: 'inline' })
 })
