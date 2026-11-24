@@ -11,7 +11,9 @@ import type { CompactAnswer, CompactTracking, Fields, TrackerOutcome } from '../
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star']
+    .map(name => [name, name === 'LoaderCircle' ? (props: Record<string, unknown>) => <svg data-icon="LoaderCircle" {...props}/> : () => null]),
+))
 
 const { default: TrackingCompact } = await import('../../../src/components/tracking-compact')
 const { createCompactPrefs } = await import('../../../src/tracking/compact-prefs')
@@ -992,6 +994,104 @@ describe('the trackers, folded as the row starts', () => {
     expect(logins()).toEqual(['note'])
     named(host, 'Log in to MyAnimeList').click()
     expect(signIn, 'called inside the click, from the note').toHaveBeenCalledTimes(2)
+  })
+
+  test('keeps the login button disabled with Loading... and a spinner after authed or closed until tracking settles or times out', async () => {
+    vi.useFakeTimers()
+    try {
+      for (const outcome of ['authed', 'closed'] as const) {
+        let finish: (outcome: WindowSignIn) => void = () => {}
+        const signIn = vi.fn(() => new Promise<WindowSignIn>(resolve => { finish = resolve }))
+        const { host, setTracking } = render({ signIns: { mal: signIn } })
+
+        await act(async () => {
+          named(host, 'Log in to MyAnimeList').click()
+        })
+        const duringWindow = named(host, 'Log in to MyAnimeList') as HTMLButtonElement
+        expect(duringWindow.disabled).toBe(true)
+        expect(duringWindow.getAttribute('aria-busy')).toBe('true')
+        expect(duringWindow.textContent).toBe('Logging in')
+        expect(duringWindow.querySelector('svg.spin')).toBeTruthy()
+        expect(q(host, '[data-chip="mal"]').getAttribute('aria-busy')).toBe('true')
+
+        await act(async () => {
+          finish(outcome)
+          await Promise.resolve()
+        })
+
+        const whileFetching = named(host, 'Log in to MyAnimeList') as HTMLButtonElement
+        expect(whileFetching.disabled, `${outcome}: remains disabled`).toBe(true)
+        expect(whileFetching.getAttribute('aria-busy'), `${outcome}: aria-busy`).toBe('true')
+        expect(whileFetching.textContent, `${outcome}: Loading...`).toBe('Loading...')
+        expect(whileFetching.querySelector('svg.spin'), `${outcome}: spinner`).toBeTruthy()
+        expect(q(host, '[data-chip="mal"]').classList.contains('loading'), `${outcome}: chip loading`).toBe(true)
+
+        await setTracking({
+          ...tracking,
+          answers: tracking.answers.map(a => a.tracker.id === 'mal' ? { ...a, state: 'NOT_LISTED' } : a),
+        })
+        expect(host.querySelector('[aria-label="Log in to MyAnimeList"]')).toBeNull()
+        expect(host.querySelector('input[name="compact-target-mal"]')).toBeTruthy()
+
+        // Returning to SIGNED_OUT must show Log in rather than resuming Loading..., proving the effect cleared signInPhase.
+        await setTracking(tracking)
+        const resetButton = named(host, 'Log in to MyAnimeList') as HTMLButtonElement
+        expect(resetButton.textContent).toBe('Log in')
+        expect(resetButton.disabled).toBe(false)
+        expect(resetButton.hasAttribute('aria-busy')).toBe(false)
+      }
+
+      // authed stays in Loading... up to 30_000 ms if tracking remains SIGNED_OUT, then releases to Log in.
+      let finishAuthed: (outcome: WindowSignIn) => void = () => {}
+      const { host: authedHost } = render({ signIns: { mal: () => new Promise<WindowSignIn>(resolve => { finishAuthed = resolve }) } })
+      await act(async () => {
+        named(authedHost, 'Log in to MyAnimeList').click()
+      })
+      await act(async () => {
+        finishAuthed('authed')
+        await Promise.resolve()
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(29_999)
+      })
+      const stillLoading = named(authedHost, 'Log in to MyAnimeList') as HTMLButtonElement
+      expect(stillLoading.disabled).toBe(true)
+      expect(stillLoading.textContent).toBe('Loading...')
+      await act(async () => {
+        vi.advanceTimersByTime(1)
+      })
+      const timedOut = named(authedHost, 'Log in to MyAnimeList') as HTMLButtonElement
+      expect(timedOut.disabled).toBe(false)
+      expect(timedOut.textContent).toBe('Log in')
+
+      // When tracking never settles away from SIGNED_OUT, fallback timeout releases Loading... back to Log in.
+      let finishClosed: (outcome: WindowSignIn) => void = () => {}
+      const { host: foldedHost } = render(
+        { signIns: { mal: () => new Promise<WindowSignIn>(resolve => { finishClosed = resolve }) } },
+        folded(),
+      )
+      await act(async () => {
+        q<HTMLButtonElement>(foldedHost, 'button.expand').click()
+      })
+      await act(async () => {
+        named(foldedHost, 'Log in to MyAnimeList').click()
+      })
+      await act(async () => {
+        finishClosed('closed')
+        await Promise.resolve()
+      })
+      await act(async () => {
+        q<HTMLButtonElement>(foldedHost, 'button.expand').click()
+      })
+      expect(tiles(foldedHost)).toContainEqual(['mal', 'tile loading', 'MyAnimeList: loading'])
+
+      await act(async () => {
+        vi.advanceTimersByTime(4_000)
+      })
+      expect(tiles(foldedHost)).toContainEqual(['mal', 'tile login', 'MyAnimeList: signed out'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

@@ -233,6 +233,9 @@ const style = css`
 `
 
 const OUT_OF: Record<string, number> = { POINT_3: 3, POINT_5: 5, POINT_10: 10, POINT_10_DECIMAL: 10 }
+// how long the post-window loading state stays active if tracking stays SIGNED_OUT; shorter on closed in case the viewer cancelled
+const SIGN_IN_AUTHED_WAIT_MS = 30_000
+const SIGN_IN_CLOSED_WAIT_MS = 4_000
 
 const scoreText = (intl: IntlShape, score: number, scale?: string | null) => {
   const on = scale ?? 'POINT_100'
@@ -534,13 +537,40 @@ const TrackingCompact = (
   const [overrides, setOverrides] = useState<Record<string, Fields>>({})
   const [pendingTraktLower, setPendingTraktLower] = useState<{ patch: Fields, targetProgress: number, fromCard?: boolean }>()
   const [announced, setAnnounced] = useState<Settled & { name: string }>()
-  const [signingIn, setSigningIn] = useState<ReadonlySet<string>>(new Set())
+  const [signInPhase, setSignInPhase] = useState<Record<string, 'window' | 'loading'>>({})
   const [notes, setNotes] = useState<Record<string, Said>>({})
   // one card at a time: a card holding focus stays open when the pointer leaves, so a second card
   // opened beside it would be drawn under it
   const [openCard, setOpenCard] = useState<string>()
   const latest = useRef({ onSaveFields, onRemove, onActivity, tracking, episodeCount })
   latest.current = { onSaveFields, onRemove, onActivity, tracking, episodeCount }
+  const mounted = useRef(true)
+  const signInTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      Object.values(signInTimers.current).forEach(clearTimeout)
+      signInTimers.current = {}
+    }
+  }, [])
+  useEffect(() => {
+    setSignInPhase(previous => {
+      let changed = false
+      const next: Record<string, 'window' | 'loading'> = {}
+      for (const [id, phase] of Object.entries(previous)) {
+        const answer = tracking?.answers.find(each => each.tracker.id === id)
+        if (phase === 'loading' && answer?.state !== 'SIGNED_OUT') {
+          clearTimeout(signInTimers.current[id])
+          delete signInTimers.current[id]
+          changed = true
+          continue
+        }
+        next[id] = phase
+      }
+      return changed ? next : previous
+    })
+  }, [tracking])
   // the row before the changes no save has landed yet, and after them
   const unsaid = useRef<{ from: Row, to: Row }>(undefined)
 
@@ -742,23 +772,33 @@ const TrackingCompact = (
   const signIn = (answer: CompactAnswer) => {
     const start = signIns[answer.tracker.id]
     const id = answer.tracker.id
-    if (!start || signingIn.has(id)) return
+    if (!start || signInPhase[id]) return
+    clearTimeout(signInTimers.current[id])
+    delete signInTimers.current[id]
     // first, before any state: the window opens with this click's activation
     const signingInNow = start()
-    setSigningIn(previous => new Set(previous).add(id))
+    setSignInPhase(previous => ({ ...previous, [id]: 'window' }))
     setNotes(({ [id]: _dropped, ...rest }) => rest)
     void signingInNow
       .then(
-        outcome => SIGN_IN_NOTES[outcome]?.(answer.tracker.name),
-        (error): Said => error instanceof Error ? error.message : String(error),
+        outcome => ({ note: SIGN_IN_NOTES[outcome]?.(answer.tracker.name), outcome }),
+        (error): { note: Said, outcome?: WindowSignIn } => ({ note: error instanceof Error ? error.message : String(error) }),
       )
-      .then(note => {
+      .then(({ note, outcome }) => {
+        if (!mounted.current) return
         if (note) setNotes(previous => ({ ...previous, [id]: note }))
-        setSigningIn(previous => {
-          const next = new Set(previous)
-          next.delete(id)
-          return next
-        })
+        const currentState = latest.current.tracking?.answers.find(each => each.tracker.id === id)?.state
+        if ((outcome === 'authed' || outcome === 'closed') && currentState === 'SIGNED_OUT') {
+          const waitMs = outcome === 'authed' ? SIGN_IN_AUTHED_WAIT_MS : SIGN_IN_CLOSED_WAIT_MS
+          setSignInPhase(previous => ({ ...previous, [id]: 'loading' }))
+          signInTimers.current[id] = setTimeout(() => {
+            delete signInTimers.current[id]
+            if (!mounted.current) return
+            setSignInPhase(({ [id]: _dropped, ...rest }) => rest)
+          }, waitMs)
+          return
+        }
+        setSignInPhase(({ [id]: _dropped, ...rest }) => rest)
       })
   }
 
@@ -775,17 +815,27 @@ const TrackingCompact = (
         ? intl.formatMessage({ id: '{name} did not save: {error}', defaultMessage: '{name} did not save: {error}' }, { name, error: wordsOf(error) })
         : intl.formatMessage({ id: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}', defaultMessage: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}' }, { name, outcome })
 
-  const loginButton = (answer: CompactAnswer, className?: string) => (
-    <button
-      type="button"
-      className={className}
-      aria-label={intl.formatMessage({ id: 'Log in to {name}', defaultMessage: 'Log in to {name}' }, { name: answer.tracker.name })}
-      disabled={!signIns[answer.tracker.id] || signingIn.has(answer.tracker.id)}
-      onClick={() => signIn(answer)}
-    >
-      {signingIn.has(answer.tracker.id) ? intl.formatMessage({ id: 'Logging in', defaultMessage: 'Logging in' }) : intl.formatMessage({ id: 'Log in', defaultMessage: 'Log in' })}
-    </button>
-  )
+  const loginButton = (answer: CompactAnswer, className?: string) => {
+    const phase = signInPhase[answer.tracker.id]
+    const busy = phase !== undefined
+    const label = phase === 'loading'
+      ? intl.formatMessage({ id: 'Loading...', defaultMessage: 'Loading...' })
+      : phase === 'window'
+        ? intl.formatMessage({ id: 'Logging in', defaultMessage: 'Logging in' })
+        : intl.formatMessage({ id: 'Log in', defaultMessage: 'Log in' })
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-label={intl.formatMessage({ id: 'Log in to {name}', defaultMessage: 'Log in to {name}' }, { name: answer.tracker.name })}
+        disabled={!signIns[answer.tracker.id] || busy}
+        aria-busy={busy ? 'true' : undefined}
+        onClick={() => signIn(answer)}
+      >
+        {busy ? <LoaderCircle size={14} className="spin" aria-hidden="true"/> : undefined}{label}
+      </button>
+    )
+  }
 
   const card = (answer: CompactAnswer, target: Target) => {
     const id = answer.tracker.id
@@ -853,7 +903,11 @@ const TrackingCompact = (
                     {
                       tracking === undefined
                         ? <span className="tile loading" role="img" aria-label={trackersLoading} title={trackersLoading}><LoaderCircle size={12} className="spin" aria-hidden="true"/></span>
-                        : targets.map(({ answer, target }) => <Tile key={answer.tracker.id} answer={answer} state={tileState(answer, target, stateOf(answer))}/>)
+                        : targets.map(({ answer, target }) => {
+                          const phase = signInPhase[answer.tracker.id]
+                          const signing = phase === 'window' || (phase === 'loading' && answer.state === 'SIGNED_OUT')
+                          return <Tile key={answer.tracker.id} answer={answer} state={signing ? 'loading' : tileState(answer, target, stateOf(answer))}/>
+                        })
                     }
                   </span>
                   <ChevronsLeftRight size={12} aria-hidden="true"/>
@@ -882,7 +936,8 @@ const TrackingCompact = (
               )
             }
             if (target.kind === 'login') {
-              return <Chip key={id} {...chip} className="chip login">{loginButton(answer, 'login-button')}</Chip>
+              const busy = Boolean(signInPhase[id])
+              return <Chip key={id} {...chip} busy={busy} className={`chip login${busy ? ' loading' : ''}`}>{loginButton(answer, 'login-button')}</Chip>
             }
             if (target.kind === 'cannot') {
               return (

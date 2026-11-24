@@ -162,12 +162,16 @@ const style = css`
   .card .account .state { margin-inline-end: auto; font-size: 1.3rem; color: rgba(255, 255, 255, 0.55); }
   .card .account .state.on { color: #4ade80; }
   .card .account .actions { margin-inline-start: auto; }
+  .card .account .actions button { display: inline-flex; align-items: center; gap: 0.6rem; }
+  .card .account .spin { animation: sources-spin 1s linear infinite; }
+  @keyframes sources-spin { to { transform: rotate(360deg); } }
   .card .account p { font-size: 1.3rem; }
   .card .account .note { flex-basis: 100%; }
   .card .account button:not(.small) { padding: 0.5rem 1.2rem; font-size: 1.3rem; }
 
   @media (prefers-reduced-motion: reduce) {
     .card .icon, .card h4 { transition: none; }
+    .card .account .spin { animation: none; }
   }
 
   button.link-button {

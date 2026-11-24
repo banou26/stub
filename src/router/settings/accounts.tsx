@@ -6,6 +6,7 @@ import type { SiteState, SiteStatus, StatusSite } from '../../tracking/site-stat
 import type { FknBackend } from '../../utils/fkn-backend'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { LoaderCircle } from 'lucide-react'
 import { defineMessages, useIntl } from 'react-intl'
 
 import { siteAsks } from '../../site'
@@ -203,7 +204,11 @@ const Streaming = ({ site, name, hostFor, signsInOnCloud, checked, account, head
           <div className="actions">
             {state === 'signed-in'
               ? <ConfirmAction {...signOutLabels(intl, name)} home={heading} onConfirm={signOut}/>
-              : <button type="button" disabled={busy} onClick={signIn}>{signInLabel(intl, busy)}</button>}
+              : (
+                <button type="button" disabled={busy} aria-busy={busy ? 'true' : undefined} onClick={signIn}>
+                  {busy ? <LoaderCircle size={14} className="spin" aria-hidden="true"/> : undefined}{signInLabel(intl, busy)}
+                </button>
+              )}
           </div>
         )
         : backend
@@ -285,7 +290,8 @@ const Tracker = ({ site, name, host, heading, backend, sites, status }: (typeof 
                 // Connect again would do nothing: the extension opens no sign-in window, the viewer signs in on the site
                 ? <a className="link" href={`https://${host}`} target="_blank" rel="noreferrer">{openLabel(intl, host)}</a>
                 : (
-                  <button type="button" disabled={busy} onClick={signIn}>
+                  <button type="button" disabled={busy} aria-busy={busy ? 'true' : undefined} onClick={signIn}>
+                    {busy ? <LoaderCircle size={14} className="spin" aria-hidden="true"/> : undefined}
                     {busy || backend === 'cloud' ? signInLabel(intl, busy) : intl.formatMessage({ id: 'Connect', defaultMessage: 'Connect' })}
                   </button>
                 )}

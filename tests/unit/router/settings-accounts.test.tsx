@@ -16,7 +16,9 @@ import { viewerIn } from '../sources/justwatch/viewer'
 
 // lucide-react is CommonJS and requires react under node; the tracking row draws its icons with it
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronDown', 'ChevronUp', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'GripVertical', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronDown', 'ChevronUp', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'GripVertical', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Smile', 'Star']
+    .map(name => [name, name === 'LoaderCircle' ? (props: Record<string, unknown>) => <svg data-icon="LoaderCircle" {...props}/> : () => null]),
+))
 vi.mock('../../../src/plugins', () => ({ pluginStatuses: () => [], onPluginsChange: () => () => {}, addPlugins: async () => {}, installPlugin: async () => null, disablePlugin: async () => {} }))
 
 const { SourcesSection } = await import('../../../src/router/settings/sources')
@@ -615,9 +617,19 @@ describe('in English, word for word', () => {
   test('a sign in, a sign out and a disconnect each name what they wait on', async () => {
     viewerIn('Asia/Tokyo')
     const pending = () => new Promise<never>(() => {})
-    const cloud = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: pending, signOut: pending }, prime: { signIn: pending, signOut: pending } })
+    const cloud = render({ status: signedInTo('crunchyroll'), crunchyroll: { signIn: pending, signOut: pending }, prime: { signIn: pending, signOut: pending }, sites: { ...fakeSites([]), signIn: pending } })
     await act(async () => { button(cloud.row('prime'), 'Sign in')!.click() })
-    expect(action(cloud.row('prime'))).toBe('Signing in...')
+    const primeButton = cloud.row('prime').querySelector<HTMLButtonElement>('.actions button')!
+    expect(primeButton.textContent).toBe('Signing in...')
+    expect(primeButton.disabled).toBe(true)
+    expect(primeButton.getAttribute('aria-busy')).toBe('true')
+    expect(primeButton.querySelector('svg.spin')).toBeTruthy()
+    await act(async () => { button(cloud.row('mal'), 'Sign in')!.click() })
+    const malButton = cloud.row('mal').querySelector<HTMLButtonElement>('.actions button')!
+    expect(malButton.textContent).toBe('Signing in...')
+    expect(malButton.disabled).toBe(true)
+    expect(malButton.getAttribute('aria-busy')).toBe('true')
+    expect(malButton.querySelector('svg.spin')).toBeTruthy()
     await act(async () => { button(cloud.row('crunchyroll'), 'Sign out')!.click() })
     await act(async () => { button(cloud.row('crunchyroll'), 'Yes, sign out')!.click() })
     expect(action(cloud.row('crunchyroll'))).toBe('Signing out...')
