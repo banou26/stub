@@ -634,3 +634,50 @@ test('when the home hero is a bare show container, Play follows its first season
   const { play } = hero([bareShow])
   expect(play()).toEqual({ label: 'Play', href: `/watch/ag:(${seasonUri})/ag:(amazon:gti1,jw:6980914)` })
 })
+
+test('keeps playing the active trailer on a low-score series when later sources prepend another trailer', () => {
+  vi.useFakeTimers()
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0)
+  try {
+    const first = show('series-a', { title: 'Series A', trailers: ['t1'], score: 0.3 })
+    const other = show('series-b', { title: 'Series B', trailers: ['t3'], score: 0.3 })
+    const { shown, update } = hero([first, other])
+    act(() => { vi.advanceTimersByTime(THEATER_WAIT_MS) })
+    expect(shown().trailer).toBe('https://www.youtube.com/watch?v=t1')
+
+    const prepended = show('series-a', { title: 'Series A', trailers: ['t2', 't1'], score: 0.3 })
+    update([prepended, other])
+    expect(shown().trailer).toBe('https://www.youtube.com/watch?v=t1')
+  } finally {
+    random.mockRestore()
+    vi.useRealTimers()
+  }
+})
+
+test('holds the playing series and trailer when a trailerless season card replaces the container in mediaNodes', () => {
+  vi.useFakeTimers()
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0)
+  try {
+    const initialShow = show('from', { title: 'FROM', trailers: ['t1'], score: 0.3 })
+    const seasonCard = {
+      ...show('from-season', { title: 'FROM', description: '', trailers: [], score: 0.2 }),
+      handles: [
+        { relation: 'SAME_AS', node: { uri: 'appletv:from-s1' } },
+        { relation: 'PART_OF', node: { uri: initialShow.handles[0]!.node.uri } },
+      ],
+    }
+    const other = show('mobland', { title: 'MobLand', trailers: ['t2'], score: 0.3 })
+
+    const { shown, update } = hero([initialShow, other])
+    act(() => { vi.advanceTimersByTime(THEATER_WAIT_MS) })
+    expect(shown().title).toBe('FROM')
+    expect(shown().trailer).toBe('https://www.youtube.com/watch?v=t1')
+
+    update([seasonCard, other])
+    expect(shown().title).toBe('FROM')
+    expect(shown().trailer).toBe('https://www.youtube.com/watch?v=t1')
+  } finally {
+    random.mockRestore()
+    vi.useRealTimers()
+  }
+})

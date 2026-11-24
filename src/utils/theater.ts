@@ -118,10 +118,12 @@ export const THEATER_WAIT_MS = 5000
  * What the hero shows: `current` exactly as it was picked once a good source has filled it
  * (`fromGoodSource`), for as long as it is a candidate. Before that, the listing's node for the same
  * show (`isSameShow`), so a show Kitsu or the bundle filled takes AniList's fields when they merge in,
- * and is held from then on. A season drawn in the show's place (`standsInFor`) keeps `current` as it
- * is. Leaving the candidates (a category tab, or trailers arriving for a text-only pick) replaces it
- * with a random show from the first `THEATER_POOL_SIZE` candidates. With no candidates at all,
- * `current` stays, so the hero keeps its text rather than going blank.
+ * and is held from then on. While `current` or a season in its place (`standsInFor`) stays in
+ * `listing`, `current` still holds even if a trailerless season drops it from `candidates`, provided
+ * `current` already has trailers or no candidate does. Leaving `listing` (such as a category switch),
+ * or a text-only `current` once any candidate gains trailers, replaces it with a random show from the
+ * first `THEATER_POOL_SIZE` candidates. With no candidates at all, `current` stays, so the hero keeps
+ * its text rather than going blank.
  *
  * Held rather than looked up again because sources keep merging into the listing for seconds after
  * it fills, and later data is not better data for the hero. Measured on cold loads 2026-10-10, 2.1
@@ -129,17 +131,22 @@ export const THEATER_WAIT_MS = 5000
  * another source's in place (anizip's titles carry a year and backticks), and shows that gained a
  * trailer pushed the pick out of the pool, which re-picked.
  *
- * `pick` is injected so a test does not depend on Math.random.
+ * `pick` is injected so a test does not depend on Math.random, and `listing` defaults to
+ * `candidates` for callers that pass no separate full listing.
  */
 export const holdTheaterPick = <T extends TheaterCandidate>(
   candidates: readonly T[],
   current: T | undefined,
-  pick: (limit: number) => number = limit => Math.floor(Math.random() * limit)
+  pick: (limit: number) => number = limit => Math.floor(Math.random() * limit),
+  listing: readonly TheaterCandidate[] = candidates
 ): T | undefined => {
   if (current) {
     const listed = candidates.find(media => isSameShow(media, current))
     if (listed) return fromGoodSource(current) ? current : listed
-    if (candidates.some(media => standsInFor(media, current))) return current
+    const stillInListing = listing.some(media => isSameShow(media, current) || standsInFor(media, current))
+    if (stillInListing && (Boolean(current.trailers?.length) || !candidates.some(media => media.trailers?.length))) {
+      return current
+    }
   }
   const pool = candidates.slice(0, THEATER_POOL_SIZE)
   if (!pool.length) return current

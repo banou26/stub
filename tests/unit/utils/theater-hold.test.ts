@@ -136,3 +136,32 @@ test('the last show stays when the listing empties', () => {
   expect(holdTheaterPick([], a)).toBe(a)
   expect(holdTheaterPick([], undefined)).toBeUndefined()
 })
+
+test('a playing show stays held when a season without trailers replaces its container in the full listing', () => {
+  const showA = { ...media('a', 'Show A', 0.3), trailers: [{ uri: 'yt:t1' }] }
+  const seasonA = {
+    ...media('a-season', 'Show A Season 1', 0.2),
+    trailers: [],
+    handles: [
+      { relation: 'SAME_AS' as const, node: { uri: 'appletv:a-s1' } },
+      { relation: 'PART_OF' as const, node: { uri: showA.handles[0]!.node.uri } },
+    ],
+  }
+  const showB = { ...media('b', 'Show B', 0.3), trailers: [{ uri: 'yt:t2' }] }
+
+  expect(holdTheaterPick([showB], showA, () => 0, [seasonA, showB])).toBe(showA)
+})
+
+test('a text-only pick still upgrades when a candidate gains trailers even if the show stays in the listing', () => {
+  const textOnlyA = { ...media('a', 'Show A', 0.2), trailers: [] }
+  const showB = { ...media('b', 'Show B', 0.2), trailers: [{ uri: 'yt:t2' }] }
+
+  expect(holdTheaterPick([showB], textOnlyA, () => 0, [textOnlyA, showB])).toBe(showB)
+})
+
+test('switching category replaces the held show even when trailers exist', () => {
+  const showA = { ...media('a', 'Show A', 0.3), trailers: [{ uri: 'yt:t1' }] }
+  const movieC = { ...media('c', 'Movie C', 0.3), trailers: [{ uri: 'yt:t3' }] }
+
+  expect(holdTheaterPick([movieC], showA, () => 0, [movieC])).toBe(movieC)
+})

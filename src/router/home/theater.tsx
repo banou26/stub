@@ -218,7 +218,7 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   )
   // held as shown once a good source has filled it, so later merges change nothing on screen, see `holdTheaterPick`
   const held = useRef<typeof candidates[number] | undefined>(undefined)
-  held.current = holdTheaterPick(candidates, held.current)
+  held.current = holdTheaterPick(candidates, held.current, undefined, mediaNodes)
   const media = held.current
 
   const title = media?.titles?.at(0)?.title
@@ -245,13 +245,12 @@ const HomeHeader = ({ mediaNodes }: { mediaNodes: GetReleasingMediaPageSubscript
   // (Black Clover Season 2 and Firefly Wedding, measured 2026-10-25)
   const [deadTrailers, setDeadTrailers] = useState<string[]>([])
   const spares = listed?.trailers?.filter(trailer => !deadTrailers.includes(trailer.uri)) ?? []
-  // the listing's trailer on screen stays until it fails, as the pick does, since a later merge can put another first
+  // the trailer on screen stays until it fails or its show is replaced, since later merges can prepend another
   const shownTrailer = useRef<string | undefined>(undefined)
+  const trailers = [...media?.trailers?.filter(trailer => !deadTrailers.includes(trailer.uri)) ?? [], ...spares]
   const trailer = slowLink || (starting && !waitedForSources)
     ? undefined
-    : media?.trailers?.find(trailer => !deadTrailers.includes(trailer.uri))
-      ?? spares.find(trailer => trailer.uri === shownTrailer.current)
-      ?? spares.at(0)
+    : trailers.find(trailer => trailer.uri === shownTrailer.current) ?? trailers.at(0)
   shownTrailer.current = trailer?.uri
   // with no trailer left to play, the show's banner (or cover) stands in, as in the media modal. Read off
   // the listing rather than the pick as held: over the ten picks with the trailer held, the pick as held
