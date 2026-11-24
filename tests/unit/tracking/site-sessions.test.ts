@@ -16,10 +16,14 @@ const SEASON = { seriesId: 'GT00399001', seasonId: 'GS00399002' }
 
 const attach = vi.hoisted(() => vi.fn())
 const extension = vi.hoisted(() => ({ exposed: false }))
+const cloudPermissions = vi.hoisted(() => vi.fn())
+const extensionPermissions = vi.hoisted(() => vi.fn())
 vi.mock('@fkn/lib', async importOriginal => ({
   ...await importOriginal<typeof import('@fkn/lib')>(),
   attachFrame: attach,
   isExtensionExposed: () => extension.exposed,
+  cloud: { permissions: { request: cloudPermissions } },
+  permissions: { request: extensionPermissions },
 }))
 vi.mock('../../../src/sources/anilist/session-page.ts?page-script', () => ({ default: 'function () { return "the AniList page script" }' }))
 vi.mock('../../../src/sources/mal/session-page.ts?page-script', () => ({ default: 'function () { return "the MyAnimeList page script" }' }))
@@ -48,6 +52,8 @@ const ports: MessagePort[] = []
 afterEach(() => {
   while (ports.length) ports.pop()!.close()
   attach.mockReset()
+  cloudPermissions.mockReset()
+  extensionPermissions.mockReset()
   extension.exposed = false
   stored.clear()
   vi.unstubAllGlobals()
@@ -522,5 +528,70 @@ describe('signing in to a site', () => {
 
     expect(await trackerSignIns.anilist!()).toBe('closed')
     expect(stored.has('stub.site-status')).toBe(false)
+  })
+})
+
+describe('batching permissions across concurrent connected sites', () => {
+  test('asks once on the cloud across concurrent connected sites and refuses denied frames cleanly', async () => {
+    const { sessionResolvers } = await load()
+    stored.set('stub.sessions', JSON.stringify(['mal', 'cr']))
+    cloudPermissions.mockResolvedValueOnce([{ allow: true }, { allow: false }])
+    const mal = hiddenFrame({ whoami: async () => 'mal-user' })
+    attach.mockResolvedValueOnce(mal.frame)
+
+    const [malAnswer, crAnswer] = await Promise.all([
+      sessionResolvers.call('mal', 'whoami', undefined),
+      sessionResolvers.call('cr', 'whoami', undefined),
+    ])
+
+    expect(cloudPermissions).toHaveBeenCalledTimes(1)
+    expect(cloudPermissions).toHaveBeenCalledWith([
+      {
+        category: 'evaluation',
+        hosts: ['myanimelist.net'],
+        reason: 'Read and update your MyAnimeList list with your own myanimelist.net session',
+      },
+      {
+        category: 'evaluation',
+        hosts: CRUNCHYROLL_DOMAINS,
+        reason: 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session',
+      },
+    ])
+    expect(attach).toHaveBeenCalledTimes(1)
+    expect(malAnswer).toEqual({ kind: 'response', response: 'mal-user' })
+    expect(crAnswer).toEqual({ kind: 'not-connected' })
+  })
+
+  test('asks once through permissions.request when the extension backend is active', async () => {
+    extension.exposed = true
+    const { sessionResolvers } = await load()
+    stored.set('stub.sessions', JSON.stringify(['mal', 'cr']))
+    extensionPermissions.mockResolvedValueOnce([{ allow: true }, { allow: true }])
+    const mal = hiddenFrame({ whoami: async () => 'mal-user' })
+    const cr = hiddenFrame({ whoami: async () => 'cr-user' })
+    attach.mockResolvedValueOnce(mal.frame).mockResolvedValueOnce(cr.frame)
+
+    const [malAnswer, crAnswer] = await Promise.all([
+      sessionResolvers.call('mal', 'whoami', undefined),
+      sessionResolvers.call('cr', 'whoami', undefined),
+    ])
+
+    expect(extensionPermissions).toHaveBeenCalledTimes(1)
+    expect(extensionPermissions).toHaveBeenCalledWith([
+      {
+        category: 'evaluation',
+        hosts: ['myanimelist.net'],
+        reason: 'Read and update your MyAnimeList list with your own myanimelist.net session',
+      },
+      {
+        category: 'evaluation',
+        hosts: CRUNCHYROLL_DOMAINS,
+        reason: 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session',
+      },
+    ])
+    expect(cloudPermissions).not.toHaveBeenCalled()
+    expect(attach).toHaveBeenCalledTimes(2)
+    expect(malAnswer).toEqual({ kind: 'response', response: 'mal-user' })
+    expect(crAnswer).toEqual({ kind: 'response', response: 'cr-user' })
   })
 })

@@ -15,7 +15,7 @@ import { attachCookies, detectBackend, type FknBackend } from '../../utils/fkn-b
 import { signInThroughWindow } from '../login-window'
 import PrimeMediaPlayer from './prime-media-player'
 import { findPrimeVideo, pressPrimePlay, primeQuality, readPrimePage } from './prime-page'
-import { PRIME_DOMAINS, PRIME_SIGN_IN_LINK, primeSignedIn, primeSignInUrl, primeSiteOf } from './session'
+import { PRIME_DOMAINS, PRIME_PLAYER_REASON, PRIME_SIGN_IN_LINK, primeDomainsFor, primeSignedIn, primeSignInUrl, primeSiteOf } from './session'
 
 const PAGE: PrimePageSelectors = {
   play: '[data-testid="dp-atf-play-button"]',
@@ -226,10 +226,9 @@ const PrimeVideoPlayer = ({ url, title }: PlayerProps) => {
     let cancelled = false
     attachFrame({
       iframe,
-      // FKN's card names the first domain as the site it asks for, so the link's own leads
-      domains: [...PRIME_DOMAINS].sort((a, b) => Number(b === site) - Number(a === site)),
+      domains: primeDomainsFor(url),
       cookies: attachCookies(mode),
-      permissions: [{ category: 'evaluation', reason: 'Press Play on the episode, see whether you are signed in, switch the quality and step frames' }],
+      permissions: [{ category: 'evaluation', reason: PRIME_PLAYER_REASON }],
     })
       .then(attached => { if (!cancelled) setFrame(attached) })
       .catch(err => {

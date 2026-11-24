@@ -26,6 +26,7 @@ import { TRAKT_DOMAINS, TRAKT_LOGIN_URL, TRAKT_ORIGIN, TRAKT_SESSION_URL, TRAKT_
 import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-backend'
 import { mountHiddenFrame } from '../utils/hidden-frame'
 import { CONNECTED_CHANNEL, CONNECTED_KEY, connectedSites, createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
+import { evaluationPermissionBatch } from './permission-batch'
 import { createSessionFrames } from './session-frames'
 import { rememberSignIn, siteStatuses } from './site-status'
 
@@ -33,6 +34,11 @@ const ANILIST_REASON = 'Read and update your AniList list with your own anilist.
 const MAL_REASON = 'Read and update your MyAnimeList list with your own myanimelist.net session'
 const TRAKT_REASON = 'Read and update your Trakt history, watchlist and ratings with your own app.trakt.tv session'
 const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings and Watchlist with your crunchyroll.com session'
+
+const SESSION_SITE_IDS = ['anilist', 'mal', 'trakt', CRUNCHYROLL_TRACKER_ID] as const
+
+const channel = new BroadcastChannel(CONNECTED_CHANNEL)
+const connections = createConnections(() => localStorage, channel)
 
 const frames = createSessionFrames<PageApi>(
   [{
@@ -71,6 +77,14 @@ const frames = createSessionFrames<PageApi>(
     // lands in the hidden frame and leaves it with no page. Only the render proxy can present one.
     attach: async ({ url, ...options }) => {
       const backend = await detectBackend()
+      const connectedCount = SESSION_SITE_IDS.filter(id => connections.isConnected(id)).length
+      if (connectedCount >= 2 || evaluationPermissionBatch.isHeld()) {
+        const reason = options.permissions[0]?.reason ?? ''
+        const granted = await evaluationPermissionBatch.ask({ hosts: options.domains, reason, backend })
+        if (granted === false) {
+          throw Object.assign(new Error('frame.evaluate: the user did not grant evaluation here'), { name: 'LocatorDeniedError' })
+        }
+      }
       return attachFrame({ ...options, cookies: attachCookies(backend), ...backend === 'cloud' ? { blank: { url } } : {} })
     },
     mount: () => mountHiddenFrame('Session'),
@@ -79,9 +93,6 @@ const frames = createSessionFrames<PageApi>(
     key: () => crypto.randomUUID(),
   },
 )
-
-const channel = new BroadcastChannel(CONNECTED_CHANNEL)
-const connections = createConnections(() => localStorage, channel)
 
 export const sessionResolvers = siteSessionResolvers(frames, connections)
 

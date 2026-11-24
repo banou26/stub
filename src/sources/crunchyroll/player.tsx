@@ -22,7 +22,7 @@ import { signInThroughWindow } from '../login-window'
 import CrunchyrollVideoJSPlayer from './cr-videojs-player'
 import { discoverCrunchyrollTracks, selectCrunchyrollTrack } from './cr-native-controls'
 import { checkIsLoggedIn } from './login-state'
-import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, CRUNCHYROLL_TRACKER_ID, crunchyrollSignedIn } from './session'
+import { CRUNCHYROLL_DOMAINS, CRUNCHYROLL_LOGIN_URL as LOGIN_URL, CRUNCHYROLL_PLAYER_REASON, CRUNCHYROLL_TRACKER_ID, crunchyrollSignedIn } from './session'
 import { useCrunchyrollPictureInPicture } from './picture-in-picture'
 import { loadCrunchyrollThumbnails } from './seek-thumbnails'
 import { useCrunchyrollChapters } from './skip-events'
@@ -258,7 +258,7 @@ const CrunchyrollPlayer = ({ url, title, triedRelays = [], unlistedRelays, langu
           // none: the viewer's default relay
           relay: excluded.current.length ? { exclude: excluded.current } : undefined,
           permissions: [
-            { category: 'evaluation', reason: 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture' }
+            { category: 'evaluation', reason: CRUNCHYROLL_PLAYER_REASON }
           ]
         })
       })

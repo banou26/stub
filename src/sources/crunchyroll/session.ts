@@ -20,6 +20,9 @@ export const CRUNCHYROLL_TRACKER_ID = 'cr'
 /** The page the tracker's hidden session frame holds, the empty page the sign-in check asks from on the cloud. */
 export const CRUNCHYROLL_SESSION_URL = `${CRUNCHYROLL_BASE_URL}/`
 
+/** Why Crunchyroll's embedded player asks for evaluation access on `CRUNCHYROLL_DOMAINS`. */
+export const CRUNCHYROLL_PLAYER_REASON = 'Switch audio, subtitles and quality, seek, show seek thumbnails and open picture in picture'
+
 /** crunchyroll.com's own client id for a signed-in account, its pages' `cxApiParams.accountAuthClientId`. */
 export const CRUNCHYROLL_SSO_CLIENT_ID = 'noaihdevm_6iyg0a8l0q'
 // state '/': returning the sign-in popup or window to the episode would start a second player there

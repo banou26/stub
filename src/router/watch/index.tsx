@@ -50,6 +50,7 @@ import NotFound from '../not-found'
 import { getRoutePath, Route } from '../path'
 import { foundSignedIn, neverSignedIn as neverSignedInTo, offersSignIn } from '../settings/accounts'
 import { crunchyroll, prime, sites, status } from '../settings/wiring'
+import { evaluationPermissionBatch, hasConnectedSites, watchPlayerPermission } from '../../tracking/permission-batch'
 import { bestSource, playPick, useAutoPick, type Ways } from './auto-pick'
 import { useExternalSubtitles } from './external-subtitles'
 import { useFallbackEnding } from './fallback-ending'
@@ -748,9 +749,17 @@ const Watch = () => {
   useEffect(() => { setDeclined(undefined) }, [selectedSourceUri])
 
   const viaPlugin = Boolean(pluginPlayer && declined !== selectedSourceUri)
+  const selected = episodeHandles.find(h => h.uri === selectedSourceUri)
+  const connectedTrackers = hasConnectedSites()
+  const selectedOrigin = selectedSourceUri ? fromUri(selectedSourceUri as `${string}:${string}`).origin : undefined
+  const playerPermission = !viaPlugin && embedUrl && selected && !selected.embedUrl ? watchPlayerPermission(selected.origin, selected.url) : undefined
+  const needsPlayerPermission = Boolean(connectedTrackers && embedUrl && playerPermission)
+  const [permissionsReadyFor, setPermissionsReadyFor] = useState<string>()
+  const readyEmbedUrl = embedUrl && (!needsPlayerPermission || permissionsReadyFor === embedUrl) ? embedUrl : undefined
+
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe) return
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
     const link = attachPlaybackBridge(iframe)
     const tracks = embedTracks(iframe)
     setPlayback({ link, sourceUri: selectedSourceUri })
@@ -761,31 +770,31 @@ const Watch = () => {
       setPlayback(undefined)
       setTracksLink(undefined)
     }
-  }, [viaPlugin, embedUrl])
+  }, [viaPlugin, readyEmbedUrl])
 
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe || !episodeName) return
+    if (viaPlugin || !readyEmbedUrl || !iframe || !episodeName) return
     return serveEmbedTitle(iframe, episodeName)
-  }, [viaPlugin, embedUrl, episodeName])
+  }, [viaPlugin, readyEmbedUrl, episodeName])
 
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe || !selectedSourceUri) return
+    if (viaPlugin || !readyEmbedUrl || !iframe || !selectedSourceUri) return
     return hearTriedRelays(iframe, selectedSourceUri)
-  }, [viaPlugin, embedUrl, selectedSourceUri])
+  }, [viaPlugin, readyEmbedUrl, selectedSourceUri])
 
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe) return
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
     return hearTrackLanguages(iframe)
-  }, [viaPlugin, embedUrl])
+  }, [viaPlugin, readyEmbedUrl])
 
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe || !stage.current) return
+    if (viaPlugin || !readyEmbedUrl || !iframe || !stage.current) return
     return serveEmbedFullscreen(iframe, stage.current)
-  }, [viaPlugin, embedUrl])
+  }, [viaPlugin, readyEmbedUrl])
 
   // A frame in place of another takes the keys: the one they were in went with its frame, and a press on Next left
   // them on a button that went too, which in fullscreen is the page's only control. When UpNext advances, keys are
@@ -798,7 +807,7 @@ const Watch = () => {
     Boolean(element && ((element as HTMLElement).isContentEditable || /^(input|textarea|select)$/i.test(element.tagName)))
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe) return
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
     if (!framed.current) {
       framed.current = true
       return
@@ -811,7 +820,7 @@ const Watch = () => {
     }
     iframe.addEventListener('load', focus)
     return () => iframe.removeEventListener('load', focus)
-  }, [viaPlugin, embedUrl])
+  }, [viaPlugin, readyEmbedUrl])
   // A source package's player takes them through the package, which holds it a frame further down, once it first
   // reports: in Chrome 155 a focus given while the player's frame still loads can leave the package's document again
   // at once (2026-10-26). The package's frame stays for its next release, so keys still on it, or on a button over it,
@@ -839,9 +848,9 @@ const Watch = () => {
   const [unplayable, setUnplayable] = useState<readonly string[]>([])
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe || !selectedSourceUri) return
+    if (viaPlugin || !readyEmbedUrl || !iframe || !selectedSourceUri) return
     return hearUnplayable(iframe, () => setUnplayable(uris => [...uris, selectedSourceUri]))
-  }, [viaPlugin, embedUrl, selectedSourceUri])
+  }, [viaPlugin, readyEmbedUrl, selectedSourceUri])
 
   const sources: WatchSource[] = useMemo(
     () => {
@@ -900,7 +909,6 @@ const Watch = () => {
   const extensionOnly = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
     backend !== 'extension' && !handle.embedUrl && canPlay(handle.origin, handle.url, 'extension')
     && (EXTENSION_ONLY_ORIGINS.has(handle.origin) || !canPlay(handle.origin, handle.url, backend))
-  const selected = episodeHandles.find(h => h.uri === selectedSourceUri)
   const skipEvents = useSkipEvents(embedUrl && selected?.origin === 'cr' && selected.url ? crunchyrollEpisodeId(selected.url) : undefined)
   const chapters = useMemo(() => skipEventsToChapters(skipEvents), [skipEvents])
   const needsExtension = backend === 'cloud' && selected && extensionOnly(selected)
@@ -980,8 +988,24 @@ const Watch = () => {
   const noSource = stuck && !guest && !selected && (sources.length ? !selectedSourceUri : out)
   // the player's box from the first frame, loading until something is in it or the page knows nothing is coming, and
   // kept with the episode's picture then, so the page under it never moves
-  const empty = !noSource && !viaPlugin && !embedUrl && !needsExtension
+  const empty = !noSource && !viaPlugin && !readyEmbedUrl && !needsExtension
   const holding = empty && !(media?.settled && !episode) && (guest || !(selectedSourceUri ? everyAnswered : stuck))
+  const mayMountBuiltInPlayer = !viaPlugin && !noSource && !needsExtension
+    && (!selectedOrigin || selectedOrigin === 'amazon' || selectedOrigin === 'cr')
+  const waitingBackendForPlayer = Boolean(!viaPlugin && embedUrl && playerPermission && !backend)
+  const holdPlayerPermission = connectedTrackers && (waitingBackendForPlayer || (mayMountBuiltInPlayer && !playerPermission && holding))
+  useEffect(() => {
+    if (!holdPlayerPermission) return
+    return evaluationPermissionBatch.hold()
+  }, [holdPlayerPermission])
+  useEffect(() => {
+    if (!needsPlayerPermission || !embedUrl || !playerPermission || !backend) return
+    let cancelled = false
+    void evaluationPermissionBatch.ask({ ...playerPermission, backend }).finally(() => {
+      if (!cancelled) setPermissionsReadyFor(embedUrl)
+    })
+    return () => { cancelled = true }
+  }, [needsPlayerPermission, embedUrl, backend])
   const playing = currentMedia(watchMedia, params.mediaUri)
   const playingUris = (playing?.handles ?? []).map(handle => handle.node.uri)
   const bareSeason = !guest && playing
@@ -1080,13 +1104,13 @@ const Watch = () => {
   )
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe) return
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
     return serveEmbedEpisodeNavigation(
       iframe,
       { previous: previousNav ?? false, next: nextNav ?? false },
       direction => latestStep.current(direction),
     )
-  }, [viaPlugin, embedUrl, previousNav, nextNav])
+  }, [viaPlugin, readyEmbedUrl, previousNav, nextNav])
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
   // the release Next opens, for the torrent player to prepare
@@ -1101,7 +1125,7 @@ const Watch = () => {
     mal: malId && Number.isInteger(episodeNumber) ? { id: malId, episode: episodeNumber! } : undefined,
   })
   const externalSubtitles = useExternalSubtitles({
-    enabled: Boolean(viaPlugin || embedUrl),
+    enabled: Boolean(viaPlugin || readyEmbedUrl),
     media,
     episode,
     selected,
@@ -1110,9 +1134,9 @@ const Watch = () => {
   })
   useEffect(() => {
     const iframe = embedFrame.current
-    if (viaPlugin || !embedUrl || !iframe) return
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
     return serveEmbedExternalSubtitles(iframe, externalSubtitles)
-  }, [viaPlugin, embedUrl, externalSubtitles])
+  }, [viaPlugin, readyEmbedUrl, externalSubtitles])
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
   const [season, setSeason] = useState<{ uri: string, on: string }>()
@@ -1141,7 +1165,7 @@ const Watch = () => {
           */}
           {noSource
             ? <NoSource signIns={ways.order.filter(origin => open.some(handle => handle.origin === origin && owes(handle)))} accounts={{ backend, crunchyroll, prime, sites, status }}/>
-            : (viaPlugin && pluginPlayer) || embedUrl
+            : (viaPlugin && pluginPlayer) || readyEmbedUrl
             ? (
               <div className="player-container">
                 {viaPlugin && pluginPlayer
@@ -1159,9 +1183,9 @@ const Watch = () => {
                   )
                   : (
                     <iframe
-                      key={embedUrl}
+                      key={readyEmbedUrl}
                       ref={embedFrame}
-                      src={embedUrl}
+                      src={readyEmbedUrl}
                       referrerPolicy="no-referrer"
                       allow="encrypted-media; autoplay; fullscreen;"
                       css={css`

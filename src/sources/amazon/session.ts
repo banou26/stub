@@ -43,11 +43,23 @@ const PRIME_SITES: Readonly<Record<string, string | undefined>> = {
   GB: 'amazon.co.uk', DE: 'amazon.de', AT: 'amazon.de', JP: 'amazon.co.jp',
 }
 
+/** Why Prime Video's embedded player asks for evaluation access on Prime Video domains. */
+export const PRIME_PLAYER_REASON = 'Press Play on the episode, see whether you are signed in, switch the quality and step frames'
+
 /** The Prime Video site of a viewer in `country`, as a bare domain: `amazon.de`, `primevideo.com`. */
 export const primeSiteFor = (country: string) => PRIME_SITES[country] ?? 'primevideo.com'
 
 /** The site a Prime Video link is on, as `primeSiteFor` names it: `watch.amazon.de` is `amazon.de`. Undefined for no url. */
 export const primeSiteOf = (url: string) => URL.parse(url)?.hostname.replace(/^(www|watch|app)\./, '')
+
+/**
+ * `PRIME_DOMAINS` ordered with `url`'s own Prime site first, because FKN's cloud card caps each
+ * host group at 16 domains and evaluates the page's own site against the first entries.
+ */
+export const primeDomainsFor = (url?: string): string[] => {
+  const site = url ? primeSiteOf(url) : undefined
+  return [...PRIME_DOMAINS].sort((a, b) => Number(b === site) - Number(a === site))
+}
 
 /** Whether a Prime Video link is on the viewer's own country's site, the one catalogue their account plays. */
 export const isViewersPrime = (url: string) => primeSiteOf(url) === primeSiteFor(viewerCountry())
