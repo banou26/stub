@@ -9,3 +9,6 @@ export const trackerCheck = async () => {}
 export const selectRemoteRelease = async () => null
 export const remoteCheck = async () => null
 export const searchAgain = async () => {}
+export const findRemoteSubtitles = async () => []
+export const loadRemoteSubtitle = async () => ''
+export const selectRemoteSubtitle = async () => []

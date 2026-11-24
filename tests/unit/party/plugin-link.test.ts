@@ -10,6 +10,7 @@ import {
   BUFFER_WAIT_MS,
   pluginPlaybackLink,
   servePluginAutoplay,
+  servePluginBrowseSubtitles,
   servePluginEpisodeNavigation,
   servePluginExternalSubtitles,
   servePluginFullscreen,
@@ -832,6 +833,53 @@ describe('source switch on a package\'s player', () => {
       {
         applySourceSwitch: async () => { throw new Error('gone') },
         onSourceSwitch: async () => { throw new Error('gone') },
+      },
+      true,
+      () => {},
+    )
+    await Promise.resolve()
+    stopReject()
+  })
+})
+
+describe('browse subtitles on a package\'s player', () => {
+  test('pushes browseSubtitles state and forwards requests while enabled and unstopped', () => {
+    let listener: (() => void) | undefined
+    const applyBrowseSubtitles = vi.fn(async () => {})
+    const onBrowseSubtitles = vi.fn(async (fn: () => void) => { listener = fn })
+    const onRequest = vi.fn()
+
+    const stop = servePluginBrowseSubtitles({ applyBrowseSubtitles, onBrowseSubtitles }, 'Find more', onRequest)
+    expect(applyBrowseSubtitles).toHaveBeenCalledWith('Find more')
+
+    listener?.()
+    expect(onRequest).toHaveBeenCalledTimes(1)
+
+    stop()
+    listener?.()
+    expect(onRequest).toHaveBeenCalledTimes(1)
+  })
+
+  test('suppresses disabled browse requests and handles missing or rejecting methods safely', async () => {
+    let listener: (() => void) | undefined
+    const onRequest = vi.fn()
+    const stopDisabled = servePluginBrowseSubtitles(
+      {
+        applyBrowseSubtitles: async () => {},
+        onBrowseSubtitles: async fn => { listener = fn },
+      },
+      false,
+      onRequest,
+    )
+    listener?.()
+    expect(onRequest).not.toHaveBeenCalled()
+    stopDisabled()
+
+    expect(() => servePluginBrowseSubtitles({}, true, () => {})()).not.toThrow()
+    const stopReject = servePluginBrowseSubtitles(
+      {
+        applyBrowseSubtitles: async () => { throw new Error('gone') },
+        onBrowseSubtitles: async () => { throw new Error('gone') },
       },
       true,
       () => {},

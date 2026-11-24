@@ -1,4 +1,4 @@
-import type { RemoteExternalSubtitleTrack } from '@banou/media-player'
+import type { ExternalSubtitleSelection, RemoteExternalSubtitleTrack } from '@banou/media-player'
 import type { RefObject } from 'preact'
 
 import type { MountedPackage } from '@fkn/lib/packages'
@@ -14,6 +14,7 @@ import { STUB_SOURCE_PROTOCOL, type PluginSettings, type ViewerLanguages } from 
 import {
   pluginPlaybackLink,
   servePluginAutoplay,
+  servePluginBrowseSubtitles,
   servePluginEpisodeNavigation,
   servePluginExternalSubtitles,
   servePluginFullscreen,
@@ -76,6 +77,11 @@ export type PluginPlayerSourceSwitch = {
   onRequest: () => void
 }
 
+export type PluginPlayerBrowseSubtitles = {
+  title?: string
+  onRequest: () => void
+}
+
 export type PluginPlayerProps = {
   /** the package, the same for the component's life: the page keys it on this */
   pluginUri: string
@@ -90,8 +96,12 @@ export type PluginPlayerProps = {
   episodeNavigation?: PluginPlayerEpisodeNavigation
   /** quick source/subsource switch control served to the plugin's player without restarting playback */
   sourceSwitch?: PluginPlayerSourceSwitch
+  /** subtitle browser action served to the plugin's player without restarting playback */
+  browseSubtitles?: PluginPlayerBrowseSubtitles
   /** external subtitle tracks served to the plugin's player without restarting playback */
   externalSubtitles?: PluginPlayerExternalSubtitles
+  /** one-shot request to activate an external subtitle track by id */
+  externalSubtitleSelection?: ExternalSubtitleSelection
 }
 
 const NO_SUBTITLES: RemoteExternalSubtitleTrack[] = []
@@ -112,14 +122,28 @@ const NO_SUBTITLES: RemoteExternalSubtitleTrack[] = []
  * in a frame inside it (WebKit 26.4 and 27.2, 2026-10-26), so a package mounted afresh for each episode
  * could never hand them on to the next one's player. A mount that failed is tried again for the next.
  */
-export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage, episodeNavigation, sourceSwitch, externalSubtitles }: PluginPlayerProps) => {
+export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage, episodeNavigation, sourceSwitch, browseSubtitles, externalSubtitles, externalSubtitleSelection }: PluginPlayerProps) => {
   const intl = useIntl()
   const slot = useRef<HTMLIFrameElement>(null)
   const [failed, setFailed] = useState(false)
   const [active, setActive] = useState<{ uri: string, url?: string, source: PlayableSource }>()
   // read at call time: effects below stay keyed on primitive/source values so closure updates do not replay
-  const callbacks = useRef({ onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, onSourceSwitch: sourceSwitch?.onRequest, loadSubtitle: externalSubtitles?.load })
-  callbacks.current = { onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, onSourceSwitch: sourceSwitch?.onRequest, loadSubtitle: externalSubtitles?.load }
+  const callbacks = useRef({
+    onUnplayable,
+    onPlayback,
+    onStep: episodeNavigation?.onStep,
+    onSourceSwitch: sourceSwitch?.onRequest,
+    onBrowseSubtitles: browseSubtitles?.onRequest,
+    loadSubtitle: externalSubtitles?.load,
+  })
+  callbacks.current = {
+    onUnplayable,
+    onPlayback,
+    onStep: episodeNavigation?.onStep,
+    onSourceSwitch: sourceSwitch?.onRequest,
+    onBrowseSubtitles: browseSubtitles?.onRequest,
+    loadSubtitle: externalSubtitles?.load,
+  }
   const mounted = useRef<Promise<MountedPackage<PluginPayload>>>(undefined)
 
   useEffect(() => {
@@ -200,7 +224,27 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
     )
   }, [currentSource, hasSourceSwitch, sourceSwitchTitle])
 
+  const hasBrowseSubtitles = Boolean(browseSubtitles)
+  const browseSubtitlesTitle = browseSubtitles?.title
+  useEffect(() => {
+    if (!currentSource) return
+    return servePluginBrowseSubtitles(
+      currentSource,
+      hasBrowseSubtitles ? (browseSubtitlesTitle || true) : false,
+      () => callbacks.current.onBrowseSubtitles?.(),
+    )
+  }, [currentSource, hasBrowseSubtitles, browseSubtitlesTitle])
+
   const tracks = externalSubtitles?.tracks ?? NO_SUBTITLES
+  const lastSelectSeqRef = useRef<number | undefined>(undefined)
+  const pendingSelectIdRef = useRef<string | null>(null)
+  const selectId = externalSubtitleSelection?.id
+  const selectSeq = externalSubtitleSelection?.seq
+  if (selectId !== undefined && selectSeq !== undefined && lastSelectSeqRef.current !== selectSeq) {
+    lastSelectSeqRef.current = selectSeq
+    pendingSelectIdRef.current = selectId
+  }
+
   useEffect(() => {
     if (!currentSource) return
     return servePluginExternalSubtitles(
@@ -209,6 +253,14 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
       trackId => callbacks.current.loadSubtitle?.(trackId) ?? Promise.reject(new Error('No subtitle loader')),
     )
   }, [currentSource, tracks])
+
+  useEffect(() => {
+    if (!currentSource || !pendingSelectIdRef.current) return
+    const targetId = pendingSelectIdRef.current
+    if (!tracks.some(track => track.id === targetId)) return
+    pendingSelectIdRef.current = null
+    void currentSource.selectExternalSubtitle?.(targetId)?.catch(() => {})
+  }, [currentSource, tracks, selectId, selectSeq])
 
   useEffect(() => () => { void mounted.current?.then(connection => connection.unmount(), () => {}) }, [])
 

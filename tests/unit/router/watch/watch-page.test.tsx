@@ -99,6 +99,9 @@ vi.mock('../../../../src/worker', async () => {
       return await lookups.check[id]?.() ?? undefined
     },
     searchAgain: async () => {},
+    findRemoteSubtitles: async () => [],
+    loadRemoteSubtitle: async () => '',
+    selectRemoteSubtitle: async () => [],
   }
 })
 // what the added sources said, in the page's memory, fresh for each test
@@ -325,7 +328,7 @@ vi.mock('../../../../src/embed-subtitles', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'ExternalLink', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Share2', 'SlidersHorizontal', 'Smile', 'Star', 'X'].map(name => [name, () => null])))
+  ['Captions', 'Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'ExternalLink', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Search', 'Share2', 'SlidersHorizontal', 'Smile', 'Star', 'X'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,

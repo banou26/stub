@@ -10,7 +10,7 @@ import { useIntl } from 'react-intl'
 
 import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostSourceSwitch } from '../../embed-source-switch'
-import { useHostExternalSubtitles } from '../../embed-subtitles'
+import { useHostSubtitleControls } from '../../embed-subtitles'
 import {
   AlertDialog,
   BufferingIndicator,
@@ -48,6 +48,7 @@ import {
   PreviousIcon,
   QualityIcon,
   RestartIcon,
+  SearchIcon,
   SeekIcon,
   SourceSwitchIcon,
   SpinnerIcon,
@@ -428,10 +429,11 @@ const STEP_MINUS = '-'
 const STEP_PLUS = '+'
 const stepButtonLabel = (label: string, symbol: string) => `${label} ${symbol}`
 
-const SelectionMenu = ({ selection, icon, subtitleSettings }: {
+const SelectionMenu = ({ selection, icon, subtitleSettings, footerAction }: {
   selection: PlayerSelection
   icon: ComponentChildren
   subtitleSettings?: SubtitleSettingsState
+  footerAction?: { label: string, onSelect: () => void }
 }) => {
   const intl = useIntl()
   const [open, setOpen] = useState(false)
@@ -611,6 +613,21 @@ const SelectionMenu = ({ selection, icon, subtitleSettings }: {
                 </button>
               )
             })}
+            {footerAction ? (
+              <button
+                type="button"
+                className="stub-menu__footer-action browse-subtitles"
+                disabled={pending}
+                onClick={() => {
+                  if (pending) return
+                  setOpen(false)
+                  footerAction.onSelect()
+                }}
+              >
+                <SearchIcon className="media-icon" />
+                <span className="stub-menu__label">{footerAction.label}</span>
+              </button>
+            ) : null}
           </div>
         )}
       </PopoverPopup>
@@ -654,7 +671,7 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
   const intl = useIntl()
   const episodeNavigation = useHostEpisodeNavigation()
   const sourceSwitch = useHostSourceSwitch()
-  const hostExternalSubtitles = useHostExternalSubtitles()
+  const { tracks: hostExternalSubtitles, browseSubtitles, selection: hostSubtitleSelection } = useHostSubtitleControls()
   const nativeSubtitles = capabilities?.subtitles
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
   const [draggingSubtitle, setDraggingSubtitle] = useState(false)
@@ -670,6 +687,9 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
   const loadSeqRef = useRef(0)
   const prevNativeSelectedRef = useRef<string | null>(nativeSubtitles?.selectedId ?? null)
   const prevRemoteRef = useRef(remote)
+  const pendingHostSelectRef = useRef<string | null>(null)
+  const lastHostSelectSeqRef = useRef<number | undefined>(undefined)
+  const flushingHostSelectRef = useRef(false)
 
   const allExternalSubtitles = useMemo(
     () => [...(hostExternalSubtitles ?? []), ...droppedSubtitles],
@@ -679,6 +699,7 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
   useEffect(() => {
     if (prevRemoteRef.current === remote) return
     prevRemoteRef.current = remote
+    pendingHostSelectRef.current = null
     setDroppedSubtitles([])
     setSubtitleOffset(0)
     setActiveExternalId(null)
@@ -773,8 +794,9 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
     }
   }, [containerEl, remote])
 
+  const hasBrowseSubtitles = Boolean(browseSubtitles)
   const subtitleSelection = useMemo<PlayerSelection | undefined>(() => {
-    if (!nativeSubtitles && !allExternalSubtitles.length) return undefined
+    if (!nativeSubtitles && !allExternalSubtitles.length && !hasBrowseSubtitles) return undefined
 
     const options: PlayerChoice[] = [
       ...(nativeSubtitles?.options.map(option => ({ ...option, kind: option.kind ?? ('native' as const) })) ?? []),
@@ -790,10 +812,13 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
 
     return {
       label: nativeSubtitles?.label ?? intl.formatMessage({ id: 'Subtitles', defaultMessage: 'Subtitles' }),
-      offLabel: nativeSubtitles?.offLabel ?? intl.formatMessage({ id: 'Off#subtitles turned off', defaultMessage: 'Off', description: 'subtitles turned off' }),
+      ...(options.length > 0
+        ? { offLabel: nativeSubtitles?.offLabel ?? intl.formatMessage({ id: 'Off#subtitles turned off', defaultMessage: 'Off', description: 'subtitles turned off' }) }
+        : {}),
       selectedId: activeExternal ?? nativeSubtitles?.selectedId ?? null,
       options,
       onSelect: async (id) => {
+        if (!flushingHostSelectRef.current) pendingHostSelectRef.current = null
         if (id !== null && id.startsWith(EXT_SUBTITLE_PREFIX)) {
           const trackId = id.slice(EXT_SUBTITLE_PREFIX.length)
           const track = allExternalSubtitles.find((entry: ExternalSubtitleTrack) => entry.id === trackId)
@@ -835,7 +860,31 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
         setExternalCues(EMPTY_SUBTITLE_CUES)
       },
     }
-  }, [nativeSubtitles, allExternalSubtitles, activeExternalId, intl])
+  }, [nativeSubtitles, allExternalSubtitles, activeExternalId, hasBrowseSubtitles, intl])
+
+  const hostSelectId = hostSubtitleSelection?.id
+  const hostSelectSeq = hostSubtitleSelection?.seq
+  useEffect(() => {
+    if (hostSelectId === undefined || hostSelectSeq === undefined) return
+    if (lastHostSelectSeqRef.current === hostSelectSeq) return
+    lastHostSelectSeqRef.current = hostSelectSeq
+    pendingHostSelectRef.current = hostSelectId
+  }, [hostSelectId, hostSelectSeq])
+
+  useEffect(() => {
+    const pendingId = pendingHostSelectRef.current
+    if (!pendingId || !subtitleSelection) return
+    if (!allExternalSubtitles.some(track => track.id === pendingId)) return
+    pendingHostSelectRef.current = null
+    flushingHostSelectRef.current = true
+    try {
+      void Promise.resolve(subtitleSelection.onSelect(`${EXT_SUBTITLE_PREFIX}${pendingId}`)).catch(err => {
+        console.warn('[player] external subtitle selection failed:', err)
+      })
+    } finally {
+      flushingHostSelectRef.current = false
+    }
+  }, [hostSelectId, hostSelectSeq, allExternalSubtitles, subtitleSelection])
 
   const subtitleSettings = useMemo<SubtitleSettingsState>(() => ({
     offset: subtitleOffset,
@@ -1018,7 +1067,13 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
               <SelectionMenu
                 key="subtitles"
                 selection={subtitleSelection}
-                subtitleSettings={subtitleSettings}
+                subtitleSettings={subtitleSelection.options.length > 0 ? subtitleSettings : undefined}
+                footerAction={browseSubtitles
+                  ? {
+                    label: browseSubtitles.title?.trim() || intl.formatMessage({ id: 'Look for more', defaultMessage: 'Look for more' }),
+                    onSelect: browseSubtitles.request,
+                  }
+                  : undefined}
                 icon={subtitleSelection.selectedId
                   ? <CaptionsOnIcon className="media-icon" />
                   : <CaptionsOffIcon className="media-icon" />}

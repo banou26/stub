@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, StubSource, ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, StubSource, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -21,7 +21,7 @@ import * as extractorDefinitions from '../sources'
 import { merge } from '../utils/merge'
 import { defaultResolvers } from './extractor-defaults'
 import { askEntry, collectUris, leaveFanout, openFanout, rejoinFanout, type Fanout, type Settling } from './fanout'
-import { askable, joinOpenFanouts } from './disabled-origins'
+import { askable, disabledOrigins, joinOpenFanouts } from './disabled-origins'
 import { answersForOrigins, shouldAskOnOrigins, type Answerable } from '../sources/supported'
 import { fetch, fetchWithBackoff } from './fetch'
 import { isAggregatedUri, fromAggregatedUri, type AggregatedUri } from '../utils/uri'
@@ -29,7 +29,20 @@ import { upsertMedia, upsertEpisodes, upsertOrigins, findAggregatedMedia } from 
 import { aggregateMedia, recursivelyUnwrapMediaHandles } from './store/aggregate'
 import { handleClaims, normalizeToStoreMedia } from './store/normalize'
 import { listenMultipleIterator } from './store/events'
-import { askAccount, askCheck, handValues, tellCheckDone, readPluginPayload, readPluginSettings, readPluginSources, type RegisteredSource } from './plugin-sources'
+import {
+  askAccount,
+  askCheck,
+  askPluginSubtitleContent,
+  askPluginSubtitles,
+  handValues,
+  readPluginPayload,
+  readPluginSettings,
+  readPluginSources,
+  readPluginSubtitles,
+  tellCheckDone,
+  type NormalizedPluginSubtitle,
+  type RegisteredSource,
+} from './plugin-sources'
 import { recordAnswers } from './graph/answers'
 // `./graph/read` and not `./graph`, which would drag every plugin in behind a flag that is off
 import { readStore, resolveMedia } from './graph/read'
@@ -751,6 +764,60 @@ export const searchAgain = async (origin: string): Promise<void> => {
 type Configure = (values: PluginValues) => Promise<unknown>
 const configurers = new Map<string, Configure>()
 
+type RemoteSubtitleSource = {
+  pluginUri: string
+  origin: string
+  name: string
+  find?: (context: SubtitleQueryContext) => Promise<unknown>
+  load?: (trackId: string) => Promise<unknown>
+  select?: (context: SubtitleQueryContext) => Promise<unknown>
+}
+const subtitleSources = new Map<string, RemoteSubtitleSource>()
+
+/** Queries enabled subtitle-capable plugins (both `subtitlesOnly` and hybrid sources) for external subtitle candidates. */
+export const findRemoteSubtitles = async (
+  context: SubtitleQueryContext,
+  origins?: string[],
+): Promise<NormalizedPluginSubtitle[]> => {
+  const disabled = disabledOrigins()
+  const allowed = origins ? new Set(origins) : null
+  const targets = [...subtitleSources.values()].filter(
+    entry => !disabled.has(entry.origin) && (!allowed || allowed.has(entry.origin)) && entry.find,
+  )
+  const batches = await Promise.all(
+    targets.map(async entry => {
+      const raw = await askPluginSubtitles(entry.find!, context)
+      return readPluginSubtitles(entry.origin, entry.name, raw, Boolean(entry.load))
+    }),
+  )
+  return batches.flat()
+}
+
+/** Lazy-loads raw subtitle text for one track owned by plugin `origin`. */
+export const loadRemoteSubtitle = async (origin: string, remoteTrackId: string): Promise<string> => {
+  const entry = subtitleSources.get(origin)
+  if (!entry?.load) throw new Error(`Subtitle loader unavailable for '${origin}'`)
+  const text = await askPluginSubtitleContent(entry.load, remoteTrackId)
+  if (!text) throw new Error(`Subtitle track '${remoteTrackId}' from '${origin}' returned no content`)
+  return text
+}
+
+/** Invokes the interactive subtitle picker on plugin `origin` and normalizes any returned track(s). */
+export const selectRemoteSubtitle = async (
+  origin: string,
+  context: SubtitleQueryContext,
+): Promise<NormalizedPluginSubtitle[]> => {
+  const entry = subtitleSources.get(origin)
+  if (!entry?.select) return []
+  try {
+    const raw = await entry.select(context)
+    return raw ? readPluginSubtitles(entry.origin, entry.name, raw, Boolean(entry.load)) : []
+  } catch (error) {
+    console.warn(`Plugin subtitle picker for '${origin}' failed:`, error)
+    return []
+  }
+}
+
 /** Hands a package the values saved in Settings on its connection; one that serves no `configure` or is gone takes nothing. */
 export const configureRemoteExtractor = async (pluginUri: string, values: PluginValues) => {
   const configure = configurers.get(pluginUri)
@@ -781,15 +848,49 @@ export const registerRemoteExtractor = async (
   const failed = [...rejected]
   for (const { meta, source } of sources) {
     try {
-      if (extractors.some(entry => entry.extractor.origin === meta.origin)) {
+      if (extractors.some(entry => entry.extractor.origin === meta.origin) || subtitleSources.has(meta.origin)) {
         throw new Error(`origin '${meta.origin}' is already registered by another source`)
       }
+      const { findSubtitles, loadSubtitle, selectSubtitle } = source as {
+        findSubtitles?: unknown
+        loadSubtitle?: unknown
+        selectSubtitle?: unknown
+      }
+      const find = typeof findSubtitles === 'function' ? findSubtitles as RemoteSubtitleSource['find'] : undefined
+      const load = typeof loadSubtitle === 'function' ? loadSubtitle as RemoteSubtitleSource['load'] : undefined
+      const select = typeof selectSubtitle === 'function' ? selectSubtitle as RemoteSubtitleSource['select'] : undefined
+
+      if (meta.subtitlesOnly) {
+        if (!find && !select) {
+          throw new Error(`subtitlesOnly source '${meta.origin}' must provide findSubtitles or selectSubtitle`)
+        }
+        subtitleSources.set(meta.origin, {
+          pluginUri,
+          origin: meta.origin,
+          name: meta.name,
+          ...(find ? { find } : {}),
+          ...(load ? { load } : {}),
+          ...(select ? { select } : {}),
+        })
+        registered.push({
+          origin: meta.origin,
+          name: meta.name,
+          icon: meta.icon,
+          isApiOnly: true,
+          access: meta.access,
+          subtitlesOnly: true,
+          ...(find ? { hasSubtitles: true as const } : {}),
+          ...(select ? { hasSubtitlePicker: true as const } : {}),
+        })
+        continue
+      }
+
       const entry = makeExtractor({ ...meta, resolvers: makeDelegatingResolvers(meta.origin, source as RemotePluginSource) })
       entry.pluginUri = pluginUri
       extractors.push(entry)
-      const select = (source as { selectRelease?: unknown }).selectRelease
-      if (typeof select === 'function') {
-        pickers.set(meta.origin, { pluginUri, select: select as RemotePicker['select'] })
+      const picker = (source as { selectRelease?: unknown }).selectRelease
+      if (typeof picker === 'function') {
+        pickers.set(meta.origin, { pluginUri, select: picker as RemotePicker['select'] })
       }
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
       const account = (source as { account?: unknown }).account
@@ -798,8 +899,26 @@ export const registerRemoteExtractor = async (
       if (typeof check === 'function') {
         checks.set(meta.origin, { pluginUri, originUrl: meta.originUrl, ask: check as () => Promise<unknown>, ...typeof checkDone === 'function' ? { done: checkDone as () => Promise<unknown> } : {} })
       }
+      if (find || select) {
+        subtitleSources.set(meta.origin, {
+          pluginUri,
+          origin: meta.origin,
+          name: meta.name,
+          ...(find ? { find } : {}),
+          ...(load ? { load } : {}),
+          ...(select ? { select } : {}),
+        })
+      }
       joinOpenFanouts(fanouts, entry)
-      registered.push({ origin: meta.origin, name: meta.name, icon: meta.icon, isApiOnly: meta.isApiOnly, access: meta.access })
+      registered.push({
+        origin: meta.origin,
+        name: meta.name,
+        icon: meta.icon,
+        isApiOnly: meta.isApiOnly,
+        access: meta.access,
+        ...(find ? { hasSubtitles: true as const } : {}),
+        ...(select ? { hasSubtitlePicker: true as const } : {}),
+      })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       console.error(new Error(`plugin '${pluginUri}': source '${meta.origin}' failed to register`, { cause: error }))
@@ -819,6 +938,9 @@ export const registerRemoteExtractor = async (
 }
 
 export const unregisterRemoteExtractor = (pluginUri: string) => {
+  for (const [origin, entry] of subtitleSources) {
+    if (entry.pluginUri === pluginUri) subtitleSources.delete(origin)
+  }
   for (const [origin, picker] of pickers) {
     if (picker.pluginUri === pluginUri) pickers.delete(origin)
   }

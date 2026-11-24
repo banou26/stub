@@ -1,6 +1,9 @@
 // nothing here touches the graph or the source barrel, so it stays importable outside a browser
 
-import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount, SourceCheck } from '../plugin-api'
+import type { ExternalSubtitleFormat } from '@banou/media-player'
+import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount, SourceCheck, SubtitleQueryContext } from '../plugin-api'
+
+import { normalizeSubtitleLanguage } from '../subtitles/languages'
 
 /** A short lowercase token. Origins name things across the store, the UI and the uri grammar. */
 export const PLUGIN_ORIGIN_TOKEN = /^[a-z0-9][a-z0-9-]{0,31}$/
@@ -13,6 +16,7 @@ export type PluginSourceInput = {
   color?: unknown
   isApiOnly?: unknown
   metadataOnly?: unknown
+  subtitlesOnly?: unknown
   access?: unknown
   supportedUris?: unknown
   resolvers?: unknown
@@ -27,6 +31,7 @@ export type PluginSourceMeta = {
   color: string | null
   isApiOnly: boolean
   metadataOnly: boolean
+  subtitlesOnly: boolean
   access: SourceAccess
   supportedUris?: readonly string[]
 }
@@ -34,7 +39,11 @@ export type PluginSourceMeta = {
 export type RejectedSource = { origin: string, reason: string }
 
 /** What the page learns of a source that registered: how Settings names and draws its card, and what Play weighs. */
-export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon' | 'isApiOnly' | 'access'>
+export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon' | 'isApiOnly' | 'access'> & {
+  subtitlesOnly?: true
+  hasSubtitles?: true
+  hasSubtitlePicker?: true
+}
 
 // the single-source shape stays supported: it is what the example plugin and every plugin written before this sends
 /**
@@ -87,6 +96,7 @@ export const readPluginSources = (
         color: typeof source.color === 'string' ? source.color : null,
         isApiOnly: source.isApiOnly === true,
         metadataOnly: source.metadataOnly === true,
+        subtitlesOnly: source.subtitlesOnly === true,
         access: source.access === 'account' || source.access === 'paid' ? source.access : 'none',
         ...(supportedUris.length ? { supportedUris } : {}),
       },
@@ -223,4 +233,113 @@ export const readPluginPayload = (field: 'media' | 'mediaPage' | 'similarMedia' 
       : payload
   }
   return payload[field] ? { ...payload, [field]: readPluginHandles(payload[field]) } : payload
+}
+
+export const SUBTITLE_FIND_WAIT_MS = 10_000
+export const SUBTITLE_LOAD_WAIT_MS = 15_000
+export const MAX_INLINE_SUBTITLE_BYTES = 5 * 1024 * 1024
+
+export type NormalizedPluginSubtitle = {
+  id: string
+  language: string
+  label: string
+  format: ExternalSubtitleFormat
+  content?: string
+  url?: string
+  hasLoader?: true
+  source: 'plugin'
+  sourceName: string
+  pluginOrigin: string
+  remoteTrackId: string
+  release?: string
+  group?: string
+  hearingImpaired?: boolean
+  downloads?: number
+}
+
+const SUBTITLE_FORMATS: readonly unknown[] = ['srt', 'ass', 'vtt'] satisfies ExternalSubtitleFormat[]
+
+const sanitizeSubtitleText = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  const cleaned = value.replace(/[\u2013\u2014]/g, '-').trim()
+  return cleaned || undefined
+}
+
+const allowedSubtitleUrl = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Validates and namespaces subtitle track entries returned by a plugin source. */
+export const readPluginSubtitles = (
+  origin: string,
+  sourceName: string,
+  raw: unknown,
+  hasLoader: boolean,
+): NormalizedPluginSubtitle[] => {
+  const list = Array.isArray(raw) ? raw : isObject(raw) ? [raw] : []
+  const seen = new Set<string>()
+  const out: NormalizedPluginSubtitle[] = []
+
+  for (const item of list) {
+    if (!isObject(item)) continue
+    const remoteTrackId = typeof item.id === 'string' ? item.id.trim() : ''
+    if (!remoteTrackId || seen.has(remoteTrackId)) continue
+    const label = sanitizeSubtitleText(item.label)
+    if (!label || !SUBTITLE_FORMATS.includes(item.format)) continue
+    const content = typeof item.content === 'string' && item.content.length <= MAX_INLINE_SUBTITLE_BYTES ? item.content : undefined
+    const url = allowedSubtitleUrl(item.url)
+    if (content === undefined && !url && !hasLoader) continue
+    seen.add(remoteTrackId)
+
+    const release = sanitizeSubtitleText(item.release)
+    const group = sanitizeSubtitleText(item.group)
+    out.push({
+      id: `plugin:${origin}:${remoteTrackId}`,
+      language: normalizeSubtitleLanguage(typeof item.language === 'string' ? item.language : undefined),
+      label,
+      format: item.format as ExternalSubtitleFormat,
+      ...(content !== undefined ? { content } : {}),
+      ...(url ? { url } : {}),
+      ...(hasLoader ? { hasLoader: true as const } : {}),
+      source: 'plugin',
+      sourceName,
+      pluginOrigin: origin,
+      remoteTrackId,
+      ...(release ? { release } : {}),
+      ...(group ? { group } : {}),
+      ...(item.hearingImpaired === true ? { hearingImpaired: true } : {}),
+      ...(typeof item.downloads === 'number' && Number.isFinite(item.downloads) && item.downloads >= 0 ? { downloads: item.downloads } : {}),
+    })
+  }
+  return out
+}
+
+/** Queries one plugin's `findSubtitles`, bounded by `SUBTITLE_FIND_WAIT_MS` and isolating rejections. */
+export const askPluginSubtitles = (
+  find: (context: SubtitleQueryContext) => Promise<unknown>,
+  context: SubtitleQueryContext,
+): Promise<unknown> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    Promise.resolve().then(() => find(context)).catch(() => []),
+    new Promise<unknown[]>(resolve => { timer = setTimeout(() => resolve([]), SUBTITLE_FIND_WAIT_MS) }),
+  ]).finally(() => clearTimeout(timer))
+}
+
+/** Fetches one plugin subtitle track's text via `loadSubtitle`, bounded by `SUBTITLE_LOAD_WAIT_MS`. */
+export const askPluginSubtitleContent = (
+  load: (trackId: string) => Promise<unknown>,
+  trackId: string,
+): Promise<string | undefined> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    Promise.resolve().then(() => load(trackId)).then(text => typeof text === 'string' && text.length > 0 ? text : undefined, () => undefined),
+    new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), SUBTITLE_LOAD_WAIT_MS) }),
+  ]).finally(() => clearTimeout(timer))
 }

@@ -1,7 +1,7 @@
 import type { YogaInitialContext } from 'graphql-yoga'
 import type { Resolvers as MainThreadResolvers } from '../worker'
 import type { RegisteredSource } from './plugin-sources'
-import type { PluginSettingField, PluginValues, ViewerLanguages } from '../plugin-api'
+import type { PluginSettingField, PluginValues, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
 
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
 import { createSchema, createYoga, useErrorHandler, useExecutionCancellation } from 'graphql-yoga'
@@ -9,7 +9,7 @@ import { expose } from 'osra'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
-import { configureRemoteExtractor, extractors, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remoteCheck, remotePicker, remotePlayer, searchAgain, selectRemoteRelease } from './extractor'
+import { configureRemoteExtractor, extractors, findRemoteSubtitles, loadRemoteSubtitle, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remoteCheck, remotePicker, remotePlayer, searchAgain, selectRemoteRelease, selectRemoteSubtitle } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
 import { holdViewerLanguages } from '../viewer-languages'
@@ -112,6 +112,9 @@ export const osraResolvers = {
   remoteCheck: (origin: string) => remoteCheck(origin),
   searchAgain: (origin: string) => searchAgain(origin),
   selectRemoteRelease: (origin: string, uris: string[], playing?: string) => selectRemoteRelease(origin, uris, playing),
+  findRemoteSubtitles: (context: SubtitleQueryContext, origins?: string[]) => findRemoteSubtitles(context, origins),
+  loadRemoteSubtitle: (origin: string, remoteTrackId: string) => loadRemoteSubtitle(origin, remoteTrackId),
+  selectRemoteSubtitle: (origin: string, context: SubtitleQueryContext) => selectRemoteSubtitle(origin, context),
   // What only the page sees, for the stub tracker's list: the page starting, coming back online or
   // unlocking the list checks which FKN account is signed in, and the page coming back into view reads
   // the other devices' files (tracking/account-link.ts). An account change the worker hears itself.

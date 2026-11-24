@@ -32,6 +32,37 @@ export type SourceAccess = 'none' | 'account' | 'paid'
 /** What a source says of the viewer's account with its site: signed in (with a plan, for a 'paid' source), signed out, or signed in with no plan. */
 export type SourceAccount = 'signed-in' | 'signed-out' | 'no-plan'
 
+/** Metadata handed to a subtitle plugin when stub searches or opens its subtitle picker for the playing episode. */
+export type SubtitleQueryContext = {
+  mediaUri: string
+  episodeUri: string
+  imdbId?: string
+  aniId?: { providerId: 'anilist' | 'mal' | 'anidb', id: string }
+  isAnime: boolean
+  film: boolean
+  season?: number
+  episode?: number
+  title?: string
+  releaseName?: string
+  query?: string
+  preferredLanguages: string[]
+  locale: string
+}
+
+/** One external subtitle track returned by a plugin's `findSubtitles` or `selectSubtitle`. */
+export type PluginSubtitleTrack = {
+  id: string
+  language: string
+  label: string
+  format: 'srt' | 'ass' | 'vtt'
+  content?: string
+  url?: string
+  release?: string
+  group?: string
+  hearingImpaired?: boolean
+  downloads?: number
+}
+
 export type StubSource = {
   // contract: every top-level media a plugin yields must carry its declared origin or the worker drops it (enforcePluginOrigin); nested handles are exempt, cross-origin handles are how clustering works
   /** unique lowercase origin slug, e.g. 'myanime' - all yielded media must carry it */
@@ -42,13 +73,21 @@ export type StubSource = {
   color?: string
   isApiOnly: boolean
   metadataOnly?: boolean
+  /** Marks a source that only provides external subtitles (`findSubtitles` / `selectSubtitle`) and participates in no video catalog or Play ranking. */
+  subtitlesOnly?: boolean
   /**
    * Origins whose ids this source can be asked with when a media gains handles after subscribe
    * time. Optional and additive to stub-source@1: omitted, stub re-asks the plugin whenever a
    * new non-plugin origin joins the media until the plugin yields a media.
    */
   supportedUris?: readonly string[]
-  resolvers: Resolvers
+  resolvers?: Resolvers
+  /** Search for external subtitles matching the current episode/film or explicit viewer `query`. */
+  findSubtitles?: (context: SubtitleQueryContext) => Promise<PluginSubtitleTrack[]>
+  /** Lazy-load subtitle file text for a `PluginSubtitleTrack` id when neither `content` nor `url` was returned upfront. */
+  loadSubtitle?: (trackId: string) => Promise<string>
+  /** Open the plugin's own subtitle picker UI (`packages.show`) and resolve with picked track(s) or null if cancelled. */
+  selectSubtitle?: (context: SubtitleQueryContext) => Promise<PluginSubtitleTrack[] | PluginSubtitleTrack | null>
   /**
    * Render this source's own picker for the given handle uris. Stub shows the package's frame with
    * `packages.show` and awaits this call; the resolution IS the pick. `playing` is the release the watch
@@ -175,6 +214,12 @@ export type StubSource = {
   onSubtitleLoadRequest?: (listener: (trackId: string) => void) => Promise<void>
   /** Deliver loaded subtitle content (or error when `content` is null) for a pending `onSubtitleLoadRequest`. */
   provideExternalSubtitle?: (trackId: string, content: string | null, error?: string) => Promise<void>
+  /** Show or hide the "Look for more" action in the framed player's subtitle menu; string names it, false hides it. */
+  applyBrowseSubtitles?: (value: string | boolean) => Promise<void>
+  /** Hear clicks on the framed player's subtitle browser action. One listener; the next call replaces it. */
+  onBrowseSubtitles?: (listener: () => void) => Promise<void>
+  /** Activate an external subtitle track by id on the framed player. */
+  selectExternalSubtitle?: (trackId: string) => Promise<void>
   /**
    * Fetch ahead what a later `play` of `release`, the next episode's release Next opens, waits on before its first
    * frame, beside the player up now. Stub asks once an episode's player is 80% through it. Resolves true when it was

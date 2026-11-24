@@ -3,7 +3,7 @@ import type { ExternalSubtitleBundle } from '../../src/subtitles'
 
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { serveEmbedExternalSubtitles, watchHostExternalSubtitles } from '../../src/embed-subtitles'
+import { serveEmbedExternalSubtitles, watchHostExternalSubtitles, watchHostSubtitleControls } from '../../src/embed-subtitles'
 
 type Listener = (event: MessageEvent) => void
 
@@ -96,5 +96,42 @@ describe('embed-subtitles postMessage bridge', () => {
 
     stopWatch()
     stopServe()
+  })
+
+  test('bridges browseSubtitles action and one-shot external track selection alongside tracks', () => {
+    const { hostWindow, embedWindow, iframe } = makeWindowPair()
+    const onBrowse = vi.fn()
+    const load = vi.fn(async () => '1\n00:00:00,000 --> 00:00:02,000\nHi\n')
+    const bundle: ExternalSubtitleBundle = {
+      tracks: [{ id: 'pl-1', language: 'en', label: 'English', format: 'srt' }],
+      load,
+    }
+
+    let latest: ReturnType<typeof Object> | undefined
+    const stopWatch = watchHostSubtitleControls(controls => { latest = controls }, embedWindow)
+    const stopServe = serveEmbedExternalSubtitles(iframe, bundle, {
+      host: hostWindow,
+      browse: 'Find subs',
+      onBrowse,
+      select: { id: 'pl-1', seq: 3 },
+    })
+
+    const state = latest as { tracks?: unknown[], browseSubtitles?: { title?: string, request: () => void }, selection?: { id: string, seq: number } }
+    expect(state.tracks).toHaveLength(1)
+    expect(state.browseSubtitles?.title).toBe('Find subs')
+    expect(state.selection).toEqual({ id: 'pl-1', seq: 3 })
+
+    state.browseSubtitles!.request()
+    expect(onBrowse).toHaveBeenCalledTimes(1)
+
+    stopServe()
+    const stopDisabled = serveEmbedExternalSubtitles(iframe, undefined, { host: hostWindow, browse: false, onBrowse })
+    const afterState = latest as { tracks?: unknown[], browseSubtitles?: unknown, selection?: unknown }
+    expect(afterState.tracks).toBeUndefined()
+    expect(afterState.browseSubtitles).toBeUndefined()
+    expect(afterState.selection).toBeUndefined()
+
+    stopDisabled()
+    stopWatch()
   })
 })

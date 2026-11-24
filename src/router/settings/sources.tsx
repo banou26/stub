@@ -481,8 +481,10 @@ const BUILT_IN: Card[] = builtInSources
   .map(source => ({ origin: source.origin, name: source.name, from: siteOf(source.url), icon: source.icon, drawn: drawnAs(source.origin), asked: siteAsks(source.origin) }))
   .filter(card => card.asked || card.drawn)
 
-const addedCards = (plugins: readonly PluginStatus[]): Card[] => plugins.flatMap(plugin => plugin.state === 'connected'
-  ? (plugin.sources ?? []).map(source => ({ origin: source.origin, name: source.name, from: plugin.uri, icon: source.icon, drawn: source.isApiOnly ? undefined : source.origin, asked: true }))
+const addedCards = (plugins: readonly PluginStatus[], subtitlesOnly: boolean): Card[] => plugins.flatMap(plugin => plugin.state === 'connected'
+  ? (plugin.sources ?? [])
+      .filter(source => Boolean(source.subtitlesOnly) === subtitlesOnly)
+      .map(source => ({ origin: source.origin, name: source.name, from: plugin.uri, icon: source.icon, drawn: subtitlesOnly || source.isApiOnly ? undefined : source.origin, asked: true }))
   : [])
 
 /**
@@ -563,15 +565,16 @@ export const SourcesSection = (accounts: AccountsProps) => {
   useEffect(() => watchPlayOrder(() => setKept(readPlayOrder())), [])
   useEffect(() => watchMergeOrder(() => setKeptMerge(readMergeOrder())), [])
 
-  // every added source is ranked: only the worker holding its package knows whether it plays
-  const added = addedCards(plugins)
+  // every added video source is ranked; subtitle-only sources stay out of Play order in their own section below
+  const added = addedCards(plugins, false)
+  const subtitleCards = addedCards(plugins, true)
   const players = [...BUILT_IN.filter(card => card.asked && DEFAULT_PLAY_ORDER.includes(card.origin)), ...added]
   const order = playOrder(kept, added.map(card => card.origin))
   const ranked = order.flatMap(origin => players.filter(card => card.origin === origin))
   const merging = mergeOrder(keptMerge)
   const merged = merging.flatMap(origin => BUILT_IN.filter(card => card.origin === origin && card.asked))
   const others = BUILT_IN.filter(card => !players.includes(card) && !merged.includes(card))
-  const switched = [...ranked, ...merged.filter(card => !players.includes(card)), ...others].filter(card => card.asked)
+  const switched = [...ranked, ...merged.filter(card => !players.includes(card)), ...others, ...subtitleCards].filter(card => card.asked)
   const off = switched.filter(card => disabled.has(card.origin)).length
 
   // a keyed card moved in the DOM loses the focus, so the pressed button takes it back; the end buttons stay
@@ -654,6 +657,14 @@ export const SourcesSection = (accounts: AccountsProps) => {
       <ol className="cards merge-order">{merged.map((card, at) => cardOf(card, merge, at))}</ol>
       <h3 className="part">{intl.formatMessage({ id: 'Other sources', defaultMessage: 'Other sources' })}</h3>
       <ul className="cards">{others.map(card => cardOf(card))}</ul>
+      {subtitleCards.length
+        ? (
+          <>
+            <h3 className="part">{intl.formatMessage({ id: 'Subtitles', defaultMessage: 'Subtitles' })}</h3>
+            <ul className="cards subtitle-sources">{subtitleCards.map(card => cardOf(card))}</ul>
+          </>
+        )
+        : undefined}
       <h3 className="part">{intl.formatMessage({ id: 'Added#sources the viewer added', defaultMessage: 'Added', description: 'sources the viewer added' })}</h3>
       {plugins.length
         ? (

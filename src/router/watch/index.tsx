@@ -15,7 +15,7 @@ import { gql } from '../../generated'
 import { pluginAccounts } from '../../plugin-accounts'
 import { builtInSources } from '../../sources/built-in'
 import { crunchyrollEpisodeId, skipEventsToChapters, useSkipEvents } from '../../sources/crunchyroll/skip-events'
-import { readDisabledSources } from '../../sources/disabled-sources'
+import { readDisabledSources, watchDisabledSources } from '../../sources/disabled-sources'
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
 import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-order'
 import { useSetting } from '../../utils/use-setting'
@@ -23,6 +23,8 @@ import { addExtension, canAddExtension, detectBackend, type FknBackend } from '.
 import SourceSelector from '../../components/source-selector'
 import SourcePopup from '../../components/source-popup'
 import QuickSourceSwitcher from '../../components/quick-source-switcher'
+import SubtitleBrowser, { type SubtitleBrowserPluginPicker } from '../../components/subtitle-browser'
+import SubtitlePluginPopup from '../../components/subtitle-plugin-popup'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
@@ -671,7 +673,17 @@ const Watch = () => {
   }, [selectedSourceUri, episodeHandles, params.mediaUri, params.episodeUri, triedRelays, languages, backend])
 
   const plugins = usePluginStatuses()
-  const addedSources = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources ?? [] : [])
+  const disabledSources = useSetting(readDisabledSources, watchDisabledSources)
+  const connectedSources = plugins.flatMap(plugin => plugin.state === 'connected' ? plugin.sources ?? [] : [])
+  const addedSources = connectedSources.filter(source => !source.subtitlesOnly)
+  const subtitlePickers = useMemo(
+    () => plugins.flatMap(plugin => plugin.state === 'connected'
+      ? (plugin.sources ?? [])
+          .filter(source => source.hasSubtitlePicker && !disabledSources.includes(source.origin))
+          .map(source => ({ origin: source.origin, name: source.name, icon: source.icon, pluginUri: plugin.uri }))
+      : []),
+    [plugins, disabledSources],
+  )
   const added = addedSources.map(source => source.origin)
   const accessOf = (origin: string) => addedSources.find(source => source.origin === origin)?.access ?? 'none'
 
@@ -1117,9 +1129,13 @@ const Watch = () => {
   const canSwitchSource = !guest && (sources.length > 1 || sources.some(source => (source.releases?.length ?? 0) > 1))
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [stagePicker, setStagePicker] = useState<WatchSource | null>(null)
+  const [subtitleBrowserOpen, setSubtitleBrowserOpen] = useState(false)
+  const [subtitlePluginPicker, setSubtitlePluginPicker] = useState<(SubtitleBrowserPluginPicker & { pluginUri: string }) | null>(null)
   useEffect(() => {
     setQuickSwitcherOpen(false)
     setStagePicker(null)
+    setSubtitleBrowserOpen(false)
+    setSubtitlePluginPicker(null)
   }, [params.episodeUri, params.sourceUri])
   const currentWatchKey = `${params.episodeUri ?? ''}\0${params.sourceUri ?? ''}`
   const latestWatchKey = useRef(currentWatchKey)
@@ -1129,12 +1145,23 @@ const Watch = () => {
     if (!quickSwitcherOpen && document.fullscreenElement && document.fullscreenElement !== stage.current) {
       void document.exitFullscreen().catch(() => {})
     }
+    setSubtitleBrowserOpen(false)
     setQuickSwitcherOpen(open => !open)
   }
   const latestToggleQuickSwitcher = useRef(toggleQuickSwitcher)
   latestToggleQuickSwitcher.current = toggleQuickSwitcher
+  const toggleSubtitleBrowser = () => {
+    if (!subtitleBrowserOpen && document.fullscreenElement && document.fullscreenElement !== stage.current) {
+      void document.exitFullscreen().catch(() => {})
+    }
+    setQuickSwitcherOpen(false)
+    setSubtitleBrowserOpen(open => !open)
+  }
+  const latestToggleSubtitleBrowser = useRef(toggleSubtitleBrowser)
+  latestToggleSubtitleBrowser.current = toggleSubtitleBrowser
   const openStagePicker = (source: WatchSource) => {
     setQuickSwitcherOpen(false)
+    setSubtitleBrowserOpen(false)
     if (!source.picker) return
     const expectedKey = latestWatchKey.current
     const leaving = document.fullscreenElement
@@ -1143,9 +1170,24 @@ const Watch = () => {
     if (leaving) void leaving.then(() => { if (latestWatchKey.current === expectedKey) setStagePicker(source) })
     else setStagePicker(source)
   }
+  const openSubtitlePluginPicker = (picker: SubtitleBrowserPluginPicker) => {
+    setSubtitleBrowserOpen(false)
+    const target = subtitlePickers.find(entry => entry.origin === picker.origin)
+    if (!target) return
+    const expectedKey = latestWatchKey.current
+    const leaving = document.fullscreenElement
+      ? document.exitFullscreen().catch(() => {})
+      : undefined
+    if (leaving) void leaving.then(() => { if (latestWatchKey.current === expectedKey) setSubtitlePluginPicker(target) })
+    else setSubtitlePluginPicker(target)
+  }
   const pluginSourceSwitch = useMemo(
     () => canSwitchSource ? { onRequest: () => latestToggleQuickSwitcher.current() } : undefined,
     [canSwitchSource],
+  )
+  const pluginBrowseSubtitles = useMemo(
+    () => viaPlugin ? { onRequest: () => latestToggleSubtitleBrowser.current() } : undefined,
+    [viaPlugin],
   )
   useEffect(() => {
     const iframe = embedFrame.current
@@ -1171,6 +1213,8 @@ const Watch = () => {
   })
   const externalSubtitles = useExternalSubtitles({
     enabled: Boolean(viaPlugin || readyEmbedUrl),
+    mediaUri: params.mediaUri,
+    episodeUri: params.episodeUri,
     media,
     episode,
     selected,
@@ -1180,8 +1224,12 @@ const Watch = () => {
   useEffect(() => {
     const iframe = embedFrame.current
     if (viaPlugin || !readyEmbedUrl || !iframe) return
-    return serveEmbedExternalSubtitles(iframe, externalSubtitles)
-  }, [viaPlugin, readyEmbedUrl, externalSubtitles])
+    return serveEmbedExternalSubtitles(iframe, externalSubtitles.bundle, {
+      browse: true,
+      onBrowse: () => latestToggleSubtitleBrowser.current(),
+      select: externalSubtitles.selectRequest,
+    })
+  }, [viaPlugin, readyEmbedUrl, externalSubtitles.bundle, externalSubtitles.selectRequest])
 
   // the episode list shows the run playing, or another season of the show the viewer picked while this episode plays
   const [season, setSeason] = useState<{ uri: string, on: string }>()
@@ -1224,7 +1272,9 @@ const Watch = () => {
                       stage={stage}
                       episodeNavigation={pluginEpisodeNav}
                       sourceSwitch={pluginSourceSwitch}
-                      externalSubtitles={externalSubtitles}
+                      browseSubtitles={pluginBrowseSubtitles}
+                      externalSubtitles={externalSubtitles.bundle}
+                      externalSubtitleSelection={externalSubtitles.selectRequest}
                     />
                   )
                   : (
@@ -1251,6 +1301,22 @@ const Watch = () => {
                       onSelectHref={href => { setQuickSwitcherOpen(false); navigate(href) }}
                       onOpenPicker={openStagePicker}
                       onClose={() => setQuickSwitcherOpen(false)}
+                    />
+                  )
+                  : undefined}
+                {subtitleBrowserOpen
+                  ? (
+                    <SubtitleBrowser
+                      locale={intl.locale}
+                      activeId={externalSubtitles.selectRequest?.id}
+                      pluginPickers={subtitlePickers}
+                      search={externalSubtitles.search}
+                      onPick={candidate => {
+                        setSubtitleBrowserOpen(false)
+                        externalSubtitles.pickSubtitle(candidate)
+                      }}
+                      onOpenPluginPicker={openSubtitlePluginPicker}
+                      onClose={() => setSubtitleBrowserOpen(false)}
                     />
                   )
                   : undefined}
@@ -1334,6 +1400,21 @@ const Watch = () => {
               }))
             }}
             onClose={() => setStagePicker(null)}
+          />
+        )
+        : undefined}
+      {subtitlePluginPicker
+        ? (
+          <SubtitlePluginPopup
+            pluginUri={subtitlePluginPicker.pluginUri}
+            origin={subtitlePluginPicker.origin}
+            name={subtitlePluginPicker.name}
+            context={externalSubtitles.context}
+            onPick={tracks => {
+              setSubtitlePluginPicker(null)
+              externalSubtitles.pickSubtitles(tracks)
+            }}
+            onClose={() => setSubtitlePluginPicker(null)}
           />
         )
         : undefined}

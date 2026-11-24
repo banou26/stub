@@ -12,7 +12,7 @@ import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage } from '../../embed-languages'
 import { useHostSourceSwitch } from '../../embed-source-switch'
-import { useHostExternalSubtitles } from '../../embed-subtitles'
+import { useHostSubtitleControls } from '../../embed-subtitles'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { useSetting } from '../../utils/use-setting'
@@ -57,7 +57,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   const fullscreen = useHostFullscreen()
   const episodeNavigation = useHostEpisodeNavigation()
   const sourceSwitch = useHostSourceSwitch()
-  const externalSubtitles = useHostExternalSubtitles()
+  const { tracks: externalSubtitles, browseSubtitles, selection: externalSubtitleSelection } = useHostSubtitleControls()
   // the page keeps it: a flip here is told to the page, whose write reaches this document as a storage event
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
@@ -71,6 +71,8 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         title={title}
         subtitles={subtitles}
         externalSubtitles={externalSubtitles}
+        browseSubtitles={browseSubtitles}
+        externalSubtitleSelection={externalSubtitleSelection}
         audioTracks={audioTracks}
         quality={quality}
         thumbnails={thumbnails}

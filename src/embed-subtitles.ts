@@ -1,9 +1,8 @@
 /**
- * External subtitle tracks and lazy subtitle loading between the watch page and stub's own embed:
- * the watch page resolves OpenSubtitles and Xunlei tracks once per episode and hands metadata into
- * the embed iframe, which requests subtitle text on demand over the same origin.
+ * External subtitle tracks, lazy subtitle loading, browse action, and one-shot external selection
+ * between the watch page and stub's own embed.
  */
-import type { ExternalSubtitleTrack, RemoteExternalSubtitleTrack } from '@banou/media-player'
+import type { BrowseSubtitles, ExternalSubtitleTrack, RemoteExternalSubtitleTrack } from '@banou/media-player'
 import type { ExternalSubtitleBundle } from './subtitles'
 
 import { postMessage } from '@banou/ponyfill/web-messaging'
@@ -13,21 +12,59 @@ const STATE = 'stub:embed-subtitles'
 const ASK = 'stub:embed-subtitles?'
 const LOAD = 'stub:embed-subtitles-load'
 const LOADED = 'stub:embed-subtitles-loaded'
+const BROWSE = 'stub:embed-subtitles-browse'
+
+export type HostSubtitleSelection = {
+  id: string
+  seq: number
+}
+
+export type ServeEmbedSubtitleOptions = {
+  browse?: string | boolean
+  onBrowse?: () => void
+  select?: HostSubtitleSelection
+  host?: Window
+}
+
+export type HostSubtitleControls = {
+  tracks: ExternalSubtitleTrack[] | undefined
+  browseSubtitles: BrowseSubtitles | undefined
+  selection: HostSubtitleSelection | undefined
+}
+
+const isWindowLike = (value: unknown): value is Window =>
+  Boolean(value && typeof value === 'object' && 'location' in value && 'addEventListener' in value)
 
 /**
- * On the watch page: tells the embed in `iframe` which external subtitle tracks exist and serves
- * lazy `load(id)` requests from `bundle`. Returns the teardown function.
+ * On the watch page: tells the embed in `iframe` which external subtitle tracks exist, whether to show
+ * the browse subtitles action, and any explicit track activation request, and serves lazy `load(id)`.
+ * Returns the teardown function.
  */
 export const serveEmbedExternalSubtitles = (
   iframe: HTMLIFrameElement,
   bundle: ExternalSubtitleBundle | undefined,
-  host: Window = window,
-): () => void => {
+  hostOrOptions: Window | ServeEmbedSubtitleOptions = window,
+): (() => void) => {
+  const options = isWindowLike(hostOrOptions) ? { host: hostOrOptions } : hostOrOptions
+  const host = options.host ?? window
+  const browse = options.browse
+  const onBrowse = options.onBrowse
+  const select = options.select
+
   let disposed = false
   const tracks = bundle?.tracks ?? []
   const send = () => {
     if (iframe.contentWindow) {
-      postMessage(iframe.contentWindow, { type: STATE, tracks }, host.location.origin)
+      postMessage(
+        iframe.contentWindow,
+        {
+          type: STATE,
+          tracks,
+          ...(browse !== undefined ? { browse } : {}),
+          ...(select ? { select } : {}),
+        },
+        host.location.origin,
+      )
     }
   }
   const receive = (event: MessageEvent) => {
@@ -35,6 +72,10 @@ export const serveEmbedExternalSubtitles = (
     const { type, requestId, id } = (event.data ?? {}) as { type?: unknown, requestId?: unknown, id?: unknown }
     if (type === ASK) {
       send()
+      return
+    }
+    if (type === BROWSE) {
+      if (browse) onBrowse?.()
       return
     }
     if (type !== LOAD || typeof requestId !== 'string' || typeof id !== 'string') return
@@ -73,19 +114,47 @@ const isTrack = (value: unknown): value is RemoteExternalSubtitleTrack =>
     && typeof (value as RemoteExternalSubtitleTrack).id === 'string'
     && typeof (value as RemoteExternalSubtitleTrack).language === 'string'
     && typeof (value as RemoteExternalSubtitleTrack).label === 'string'
-    && typeof (value as RemoteExternalSubtitleTrack).format === 'string',
+    && (
+      (value as RemoteExternalSubtitleTrack).format === 'srt'
+      || (value as RemoteExternalSubtitleTrack).format === 'ass'
+      || (value as RemoteExternalSubtitleTrack).format === 'vtt'
+    ),
   )
 
+const readSelection = (value: unknown): HostSubtitleSelection | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const { id, seq } = value as { id?: unknown, seq?: unknown }
+  return typeof id === 'string' && typeof seq === 'number' && Number.isFinite(seq) ? { id, seq } : undefined
+}
+
+const readBrowse = (value: unknown, host: Window): BrowseSubtitles | undefined => {
+  if (typeof value !== 'boolean' && typeof value !== 'string') return undefined
+  if (!value) return undefined
+  return {
+    ...(typeof value === 'string' && value ? { title: value } : {}),
+    request: () => postMessage(host.parent, { type: BROWSE }, host.location.origin),
+  }
+}
+
 /**
- * In the embed: subscribes to external subtitle track offers from the framing watch page and binds
- * lazy `load()` calls back through the same MessagePort-free origin check. Returns the unsubscribe.
+ * In the embed: subscribes to external subtitle track offers, browse action, and selection requests
+ * from the framing watch page. Returns the unsubscribe.
  */
-export const watchHostExternalSubtitles = (
-  listener: (tracks: ExternalSubtitleTrack[] | undefined) => void,
+export const watchHostSubtitleControls = (
+  listener: (controls: HostSubtitleControls) => void,
   host: Window = window,
-): () => void => {
+): (() => void) => {
   let seq = 0
+  let lastRawBrowse: unknown
+  let lastBrowse: BrowseSubtitles | undefined
   const pending = new Map<string, { trackId: string, resolve: (text: string) => void, reject: (error: Error) => void }>()
+
+  const getBrowse = (raw: unknown): BrowseSubtitles | undefined => {
+    if (raw === lastRawBrowse) return lastBrowse
+    lastRawBrowse = raw
+    lastBrowse = readBrowse(raw, host)
+    return lastBrowse
+  }
 
   const requestLoad = (trackId: string): Promise<string> =>
     new Promise<string>((resolve, reject) => {
@@ -96,7 +165,15 @@ export const watchHostExternalSubtitles = (
 
   const receive = (event: MessageEvent) => {
     if (event.source !== host.parent || event.origin !== host.location.origin) return
-    const payload = (event.data ?? {}) as { type?: unknown, tracks?: unknown, requestId?: unknown, text?: unknown, error?: unknown }
+    const payload = (event.data ?? {}) as {
+      type?: unknown
+      tracks?: unknown
+      browse?: unknown
+      select?: unknown
+      requestId?: unknown
+      text?: unknown
+      error?: unknown
+    }
     if (payload.type === STATE && Array.isArray(payload.tracks)) {
       const tracks = payload.tracks.filter(isTrack)
       const ids = new Set(tracks.map(track => track.id))
@@ -106,11 +183,16 @@ export const watchHostExternalSubtitles = (
           entry.reject(new Error('External subtitle track was removed'))
         }
       }
-      listener(
-        tracks.length
-          ? tracks.map(track => ({ ...track, load: () => requestLoad(track.id) }))
+      listener({
+        tracks: tracks.length
+          ? tracks.map(track => ({
+            ...track,
+            ...(track.content === undefined ? { load: () => requestLoad(track.id) } : {}),
+          }))
           : undefined,
-      )
+        browseSubtitles: getBrowse(payload.browse),
+        selection: readSelection(payload.select),
+      })
       return
     }
     if (payload.type === LOADED && typeof payload.requestId === 'string') {
@@ -131,9 +213,28 @@ export const watchHostExternalSubtitles = (
   }
 }
 
-/** In the embed: reactive external subtitle tracks offered by the framing watch page, undefined standalone. */
-export const useHostExternalSubtitles = (host: Window = window): ExternalSubtitleTrack[] | undefined => {
-  const [tracks, setTracks] = useState<ExternalSubtitleTrack[] | undefined>(undefined)
-  useEffect(() => watchHostExternalSubtitles(setTracks, host), [host])
-  return tracks
+/**
+ * In the embed: subscribes to external subtitle track offers from the framing watch page and binds
+ * lazy `load()` calls back through the same origin check. Returns the unsubscribe.
+ */
+export const watchHostExternalSubtitles = (
+  listener: (tracks: ExternalSubtitleTrack[] | undefined) => void,
+  host: Window = window,
+): (() => void) => watchHostSubtitleControls(controls => listener(controls.tracks), host)
+
+const EMPTY_HOST_CONTROLS: HostSubtitleControls = {
+  tracks: undefined,
+  browseSubtitles: undefined,
+  selection: undefined,
 }
+
+/** In the embed: reactive subtitle tracks, browse action, and selection from the framing watch page. */
+export const useHostSubtitleControls = (host: Window = window): HostSubtitleControls => {
+  const [controls, setControls] = useState<HostSubtitleControls>(EMPTY_HOST_CONTROLS)
+  useEffect(() => watchHostSubtitleControls(setControls, host), [host])
+  return controls
+}
+
+/** In the embed: reactive external subtitle tracks offered by the framing watch page, undefined standalone. */
+export const useHostExternalSubtitles = (host: Window = window): ExternalSubtitleTrack[] | undefined =>
+  useHostSubtitleControls(host).tracks

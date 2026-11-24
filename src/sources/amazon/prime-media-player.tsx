@@ -13,7 +13,7 @@ import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAutoplay } from '../../embed-languages'
 import { useHostSourceSwitch } from '../../embed-source-switch'
-import { useHostExternalSubtitles } from '../../embed-subtitles'
+import { useHostSubtitleControls } from '../../embed-subtitles'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
 import { useSetting } from '../../utils/use-setting'
@@ -40,7 +40,7 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
   const fullscreen = useHostFullscreen()
   const episodeNavigation = useHostEpisodeNavigation()
   const sourceSwitch = useHostSourceSwitch()
-  const externalSubtitles = useHostExternalSubtitles()
+  const { tracks: externalSubtitles, browseSubtitles, selection: externalSubtitleSelection } = useHostSubtitleControls()
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
   return (
@@ -50,6 +50,8 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
         media={volume?.media ?? null}
         title={title}
         externalSubtitles={externalSubtitles}
+        browseSubtitles={browseSubtitles}
+        externalSubtitleSelection={externalSubtitleSelection}
         quality={quality}
         stepFrame={stepFrame}
         fullscreen={fullscreen}

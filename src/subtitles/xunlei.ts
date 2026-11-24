@@ -83,6 +83,7 @@ export async function fetchXunleiSubtitles(
     preferredLanguages?: readonly string[]
     locale?: string
     signal?: AbortSignal
+    limit?: number
   },
 ): Promise<SubtitleCandidate[]> {
   const trimmed = query.trim()
@@ -159,7 +160,7 @@ export async function fetchXunleiSubtitles(
     return a.index - b.index
   })
 
-  const limited = parsed.slice(0, XUNLEI_LIMIT)
+  const limited = parsed.slice(0, options.limit ?? XUNLEI_LIMIT)
   const locale = options.locale ?? 'en'
   const langTotals = new Map<string, number>()
   for (const entry of limited) {
@@ -173,6 +174,7 @@ export async function fetchXunleiSubtitles(
     const total = langTotals.get(entry.language) ?? 1
     const langName = subtitleLanguageLabel(entry.language, locale)
     const langsDetail = sanitizeLabelText(entry.item.langs)
+    const release = sanitizeLabelText(entry.item.name)
     const detail = langsDetail
       ? `Xunlei · ${langsDetail}`
       : total > 1
@@ -185,6 +187,8 @@ export async function fetchXunleiSubtitles(
       format: entry.format,
       url: entry.url,
       source: 'xunlei',
+      sourceName: 'Xunlei',
+      ...(release ? { release } : {}),
     }
   })
 }

@@ -18,8 +18,17 @@ export type SubtitleCandidate = {
   language: string
   label: string
   format: ExternalSubtitleFormat
-  url: string
-  source: 'opensubtitles' | 'xunlei'
+  url?: string
+  content?: string
+  hasLoader?: boolean
+  source: 'opensubtitles' | 'xunlei' | 'plugin'
+  sourceName?: string
+  pluginOrigin?: string
+  remoteTrackId?: string
+  release?: string
+  group?: string
+  hearingImpaired?: boolean
+  downloads?: number
 }
 
 type OpenSubtitlesApiItem = {
@@ -92,6 +101,8 @@ export async function fetchOpenSubtitles(
     releaseName?: string
     locale?: string
     signal?: AbortSignal
+    perLanguageLimit?: number
+    totalLimit?: number
   },
 ): Promise<SubtitleCandidate[]> {
   let response: Response
@@ -159,11 +170,13 @@ export async function fetchOpenSubtitles(
   const perLanguageCounts = new Map<string, number>()
   const picked: typeof parsed = []
   const usedIds = new Set<string>()
+  const perLanguageLimit = options.perLanguageLimit ?? PER_LANGUAGE_LIMIT
+  const totalLimit = options.totalLimit ?? TOTAL_LIMIT
 
   for (const entry of parsed) {
-    if (picked.length >= TOTAL_LIMIT) break
+    if (picked.length >= totalLimit) break
     const count = perLanguageCounts.get(entry.language) ?? 0
-    if (count >= PER_LANGUAGE_LIMIT) continue
+    if (count >= perLanguageLimit) continue
     perLanguageCounts.set(entry.language, count + 1)
 
     let id = entry.id
@@ -182,6 +195,7 @@ export async function fetchOpenSubtitles(
     const totalForLang = perLanguageCounts.get(entry.language) ?? 1
     const langName = subtitleLanguageLabel(entry.language, locale)
     const group = sanitizeLabelText(entry.item.releaseGroup)
+    const release = sanitizeLabelText(entry.item.movieReleaseName || entry.item.subtitleFileName)
     const suffix = group
       ? `OpenSubtitles · ${group}`
       : totalForLang > 1
@@ -194,6 +208,9 @@ export async function fetchOpenSubtitles(
       format: entry.format,
       url: entry.url,
       source: 'opensubtitles',
+      sourceName: 'OpenSubtitles',
+      ...(release ? { release } : {}),
+      ...(group ? { group } : {}),
     }
   })
 }

@@ -511,4 +511,36 @@ describe('a source that lists settings', () => {
     expect(calls.configurePlugin).toHaveBeenCalledExactlyOnceWith(ASKING.uri, { address: null, apiKey: null })
     expect(form.querySelector('.failure')!.textContent).toBe('Required: Server address, Server key')
   })
+
+  test('renders subtitlesOnly plugins under a dedicated Subtitles section with Source switch only, out of Play order', () => {
+    const SUB_ONLY: PluginStatus = {
+      uri: 'npm:@spec/subtitles',
+      state: 'connected',
+      sources: [{ origin: 'subspec', name: 'SubSpec', isApiOnly: true, subtitlesOnly: true, hasSubtitlePicker: true }],
+    }
+
+    const baseRender = render([CONNECTED])
+    expect(baseRender.host.querySelector('.subtitle-sources')).toBeNull()
+    const baseCount = baseRender.host.querySelector('.count')!.textContent!
+
+    const subRender = render([CONNECTED, SUB_ONLY])
+    const subSection = subRender.host.querySelector('.subtitle-sources')!
+    expect(subSection).toBeTruthy()
+    expect(subSection.querySelector('[data-source="subspec"]')).toBeTruthy()
+    expect(subRender.host.querySelector('.play-order [data-source="subspec"]')).toBeNull()
+    expect(subRender.host.querySelector('.merge-order [data-source="subspec"]')).toBeNull()
+
+    expect(switchOf(subRender.host, 'subspec')).toBeTruthy()
+    expect(iconSwitchOf(subRender.host, 'subspec')).toBeNull()
+
+    const baseTotal = Number(/(\d+)/.exec(baseCount)![1])
+    expect(subRender.host.querySelector('.count')!.textContent).toBe(`All ${baseTotal + 1} on`)
+
+    flip(switchOf(subRender.host, 'subspec'), false)
+    expect(subRender.host.querySelector('.count')!.textContent).toBe(`${baseTotal} of ${baseTotal + 1} on`)
+
+    const turnAllOn = [...subRender.host.querySelectorAll('button.link-button')].find(el => el.textContent === 'Turn all on') as HTMLButtonElement
+    act(() => { turnAllOn.click() })
+    expect(subRender.host.querySelector('.count')!.textContent).toBe(`All ${baseTotal + 1} on`)
+  })
 })

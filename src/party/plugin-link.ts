@@ -72,9 +72,12 @@ export type PlaybackSource = {
   onEpisodeNavigation?: (listener: (direction: 'previous' | 'next') => void) => Promise<void>
   applySourceSwitch?: (value: string | boolean) => Promise<void>
   onSourceSwitch?: (listener: () => void) => Promise<void>
+  applyBrowseSubtitles?: (value: string | boolean) => Promise<void>
+  onBrowseSubtitles?: (listener: () => void) => Promise<void>
   applyExternalSubtitles?: (tracks: RemoteExternalSubtitleTrack[]) => Promise<void>
   onSubtitleLoadRequest?: (listener: (trackId: string) => void) => Promise<void>
   provideExternalSubtitle?: (trackId: string, content: string | null, error?: string) => Promise<void>
+  selectExternalSubtitle?: (trackId: string) => Promise<void>
   prepare?: (release: { uri: string, url?: string }) => Promise<boolean>
 }
 
@@ -303,5 +306,23 @@ export const servePluginExternalSubtitles = (
       )
   }).catch(() => {})
   applyExternalSubtitles(tracks).catch(() => {})
+  return () => { stopped = true }
+}
+
+/** Serves the subtitle browser action state to a source package's player and forwards requests to `onRequest`. */
+export const servePluginBrowseSubtitles = (
+  source: PlaybackSource,
+  value: string | boolean,
+  onRequest: () => void,
+) => {
+  const { applyBrowseSubtitles, onBrowseSubtitles } = source
+  if (!applyBrowseSubtitles || !onBrowseSubtitles) return () => {}
+  let stopped = false
+  const enabled = value || false
+  onBrowseSubtitles(() => {
+    if (stopped || !enabled) return
+    onRequest()
+  }).catch(() => {})
+  applyBrowseSubtitles(enabled).catch(() => {})
   return () => { stopped = true }
 }

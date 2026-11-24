@@ -254,3 +254,75 @@ test('updates episodeNavigation and externalSubtitles without restarting playbac
   expect(applyEpisodeNavigation).toHaveBeenLastCalledWith({ previous: 'E1', next: false })
   expect(applyExternalSubtitles).toHaveBeenLastCalledWith(subs2.tracks)
 })
+
+test('forwards browseSubtitles and triggers selectExternalSubtitle once per seq without restarting playback', async () => {
+  let browseListener: (() => void) | undefined
+  const onBrowse = vi.fn()
+  const load = vi.fn(async (id: string) => `content:${id}`)
+
+  const applyBrowseSubtitles = vi.fn(async () => {})
+  const onBrowseSubtitles = vi.fn(async (fn: () => void) => { browseListener = fn })
+  const applyExternalSubtitles = vi.fn(async () => {})
+  const onSubtitleLoadRequest = vi.fn(async () => {})
+  const provideExternalSubtitle = vi.fn(async () => {})
+  const selectExternalSubtitle = vi.fn(async () => {})
+
+  const { played } = playing()
+  Object.assign(fkn.source, {
+    applyBrowseSubtitles,
+    onBrowseSubtitles,
+    applyExternalSubtitles,
+    onSubtitleLoadRequest,
+    provideExternalSubtitle,
+    selectExternalSubtitle,
+  })
+
+  const subs1 = { tracks: [{ id: 's1', language: 'en', label: 'English', format: 'srt' as const }], load }
+  const host = mount(player(1, {
+    browseSubtitles: { title: 'Browse', onRequest: onBrowse },
+    externalSubtitles: subs1,
+    externalSubtitleSelection: { id: 's1', seq: 1 },
+  }))
+  hosts.push(host)
+  await settle()
+
+  expect(played).toEqual(['nyaa:1'])
+  expect(applyBrowseSubtitles).toHaveBeenCalledWith('Browse')
+  expect(selectExternalSubtitle).toHaveBeenCalledTimes(1)
+  expect(selectExternalSubtitle).toHaveBeenLastCalledWith('s1')
+
+  browseListener?.()
+  expect(onBrowse).toHaveBeenCalledTimes(1)
+
+  // Re-rendering with unchanged seq does not re-select
+  act(() => {
+    render(player(1, {
+      browseSubtitles: { title: 'Browse', onRequest: onBrowse },
+      externalSubtitles: subs1,
+      externalSubtitleSelection: { id: 's1', seq: 1 },
+    }), host)
+  })
+  await settle()
+  expect(selectExternalSubtitle).toHaveBeenCalledTimes(1)
+
+  // Incrementing seq for a newly added track selects it after applying tracks
+  const subs2 = {
+    tracks: [
+      ...subs1.tracks,
+      { id: 's2', language: 'ja', label: 'Japanese', format: 'ass' as const },
+    ],
+    load,
+  }
+  act(() => {
+    render(player(1, {
+      browseSubtitles: { onRequest: onBrowse },
+      externalSubtitles: subs2,
+      externalSubtitleSelection: { id: 's2', seq: 2 },
+    }), host)
+  })
+  await settle()
+  expect(played).toEqual(['nyaa:1'])
+  expect(applyBrowseSubtitles).toHaveBeenLastCalledWith(true)
+  expect(selectExternalSubtitle).toHaveBeenCalledTimes(2)
+  expect(selectExternalSubtitle).toHaveBeenLastCalledWith('s2')
+})

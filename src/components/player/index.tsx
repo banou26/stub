@@ -256,6 +256,34 @@ const style = css`
     opacity: 0.6;
     font-size: 1.1rem;
   }
+  .stub-menu__footer-action {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 0 0 0.4rem 0.4rem;
+    background: rgba(28, 28, 28, 0.98);
+    color: inherit;
+    font-size: 1.3rem;
+    text-align: start;
+    cursor: pointer;
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      background: rgba(50, 50, 50, 0.98);
+      outline: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
   .media-button--error {
     color: #f66;
   }

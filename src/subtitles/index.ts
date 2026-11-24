@@ -1,10 +1,11 @@
 import type { RemoteExternalSubtitleTrack } from '@banou/media-player'
+import type { SubtitleQueryContext } from '../plugin-api'
 
 import { fetchAnizipJsonMappings } from '../sources/anizip/extractor'
 import { asAggregatedUri, extractAggregatedUriOrigin, fromUri, isAggregatedUri, isUri, matchAggregatedUris } from '../utils/uri'
 
 import { decodeSubtitle } from './decode'
-import { languagePreferenceIndex, normalizeSubtitleLanguage } from './languages'
+import { languagePreferenceIndex, normalizeSubtitleLanguage, subtitleLanguageLabel } from './languages'
 import { fetchOpenSubtitles, type OpenSubtitlesTarget, type SubtitleCandidate } from './opensubtitles'
 import { fetchXunleiSubtitles } from './xunlei'
 
@@ -190,16 +191,24 @@ function buildXunleiQuery(options: {
 }
 
 export function toRemoteExternalTracks(candidates: readonly SubtitleCandidate[]): RemoteExternalSubtitleTrack[] {
-  return candidates.map(({ id, language, label, format }) => ({ id, language, label, format }))
+  return candidates.map(({ id, language, label, format }) => ({
+    id,
+    language,
+    label,
+    format,
+  }))
 }
 
 export type ExternalSubtitleBundle = {
   tracks: RemoteExternalSubtitleTrack[]
+  candidates?: SubtitleCandidate[]
   load: (trackId: string) => Promise<string>
 }
 
-export async function fetchExternalSubtitles(options: {
+export type ExternalSubtitleQueryOptions = {
   fetch: (input: string, init?: RequestInit) => Promise<Response>
+  mediaUri?: string
+  episodeUri?: string
   imdbId?: string
   aniId?: { providerId: 'anilist' | 'mal' | 'anidb', id: string }
   isAnime?: boolean
@@ -208,44 +217,95 @@ export async function fetchExternalSubtitles(options: {
   episode?: number
   title?: string
   releaseName?: string
+  query?: string
   preferredLanguages?: readonly string[]
   locale?: string
   signal?: AbortSignal
-}): Promise<ExternalSubtitleBundle> {
+  findPluginSubtitles?: (context: SubtitleQueryContext) => Promise<SubtitleCandidate[]>
+  loadPluginSubtitle?: (origin: string, remoteTrackId: string) => Promise<string>
+  fetchOpenCandidates?: () => Promise<SubtitleCandidate[]>
+}
+
+const PLUGIN_PER_LANG_LIMIT = 2
+const PLUGIN_TOTAL_LIMIT = 20
+
+/** Limits auto-populated plugin tracks to at most 2 per language and 20 per plugin source. */
+export function capPluginSubtitles(
+  tracks: readonly SubtitleCandidate[],
+  preferred: readonly string[],
+): SubtitleCandidate[] {
+  const sorted = [...tracks].sort(
+    (a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred),
+  )
+  const perSourceTotals = new Map<string, number>()
+  const perSourceLang = new Map<string, number>()
+  const kept: SubtitleCandidate[] = []
+
+  for (const track of sorted) {
+    const originKey = track.pluginOrigin ?? track.sourceName ?? 'plugin'
+    const total = perSourceTotals.get(originKey) ?? 0
+    if (total >= PLUGIN_TOTAL_LIMIT) continue
+    const langKey = `${originKey}\0${track.language}`
+    const langCount = perSourceLang.get(langKey) ?? 0
+    if (langCount >= PLUGIN_PER_LANG_LIMIT) continue
+    perSourceTotals.set(originKey, total + 1)
+    perSourceLang.set(langKey, langCount + 1)
+    kept.push(track)
+  }
+  return kept
+}
+
+/** Resolves an IMDb ID directly or via AniZip for anime titles. */
+export async function resolveImdbIdForMedia(
+  options: Pick<ExternalSubtitleQueryOptions, 'fetch' | 'imdbId' | 'aniId' | 'isAnime' | 'signal'>,
+): Promise<string | undefined> {
+  if (options.imdbId) return options.imdbId
+  if (!options.aniId || !(options.isAnime ?? true)) return undefined
+  try {
+    const mapped = await fetchAnizipJsonMappings(options.aniId.providerId, options.aniId.id, {
+      fetch: input => options.fetch(String(input), { signal: options.signal }),
+    })
+    const candidateImdb = mapped?.mappings?.imdb_id
+    return candidateImdb && IMDB_ID_RE.test(candidateImdb) ? candidateImdb : undefined
+  } catch {
+    // AniZip lookup failure only omits IMDb fallback; Xunlei and plugin searches still proceed.
+    return undefined
+  }
+}
+
+function buildOpenTarget(
+  imdbId: string | undefined,
+  options: Pick<ExternalSubtitleQueryOptions, 'film' | 'season' | 'episode'>,
+): OpenSubtitlesTarget | undefined {
+  if (!imdbId) return undefined
+  if (options.film) return { kind: 'movie', imdbId }
+  if (options.episode !== undefined && Number.isInteger(options.episode) && options.episode >= 0) {
+    return {
+      kind: 'series',
+      imdbId,
+      season: options.season ?? 1,
+      episode: options.episode,
+    }
+  }
+  return undefined
+}
+
+async function resolveQueryInputs(options: ExternalSubtitleQueryOptions): Promise<{
+  preferred: string[]
+  imdbId?: string
+  context: SubtitleQueryContext
+  openTarget?: OpenSubtitlesTarget
+  xunleiQuery?: string
+}> {
   const preferred = (options.preferredLanguages ?? [])
     .map(lang => normalizeSubtitleLanguage(lang))
     .filter(lang => lang !== 'und')
 
-  let imdbId = options.imdbId
-  if (!imdbId && options.aniId && (options.isAnime ?? true)) {
-    try {
-      const mapped = await fetchAnizipJsonMappings(options.aniId.providerId, options.aniId.id, {
-        fetch: input => options.fetch(String(input), { signal: options.signal }),
-      })
-      const candidateImdb = mapped?.mappings?.imdb_id
-      if (candidateImdb && IMDB_ID_RE.test(candidateImdb)) {
-        imdbId = candidateImdb
-      }
-    } catch {
-      // AniZip lookup failure only omits IMDb fallback; Xunlei search still proceeds.
-    }
-  }
+  const imdbId = await resolveImdbIdForMedia(options)
+  const openTarget = buildOpenTarget(imdbId, options)
 
-  let openTarget: OpenSubtitlesTarget | undefined
-  if (imdbId) {
-    if (options.film) {
-      openTarget = { kind: 'movie', imdbId }
-    } else if (options.episode !== undefined && Number.isInteger(options.episode) && options.episode >= 0) {
-      openTarget = {
-        kind: 'series',
-        imdbId,
-        season: options.season ?? 1,
-        episode: options.episode,
-      }
-    }
-  }
-
-  const xunleiQuery = buildXunleiQuery({
+  const trimmedQuery = options.query?.trim()
+  const xunleiQuery = trimmedQuery || buildXunleiQuery({
     title: options.title,
     releaseName: options.releaseName,
     film: options.film,
@@ -253,6 +313,46 @@ export async function fetchExternalSubtitles(options: {
     episode: options.episode,
   })
 
+  const context: SubtitleQueryContext = {
+    mediaUri: options.mediaUri ?? '',
+    episodeUri: options.episodeUri ?? '',
+    ...(imdbId ? { imdbId } : {}),
+    ...(options.aniId ? { aniId: options.aniId } : {}),
+    isAnime: Boolean(options.isAnime),
+    film: Boolean(options.film),
+    ...(options.season !== undefined ? { season: options.season } : {}),
+    ...(options.episode !== undefined ? { episode: options.episode } : {}),
+    ...(options.title ? { title: options.title } : {}),
+    ...(options.releaseName ? { releaseName: options.releaseName } : {}),
+    ...(trimmedQuery ? { query: trimmedQuery } : {}),
+    preferredLanguages: preferred,
+    locale: options.locale ?? 'en',
+  }
+
+  return { preferred, imdbId, context, openTarget, xunleiQuery }
+}
+
+/** Resolves text for a single `SubtitleCandidate` via inline content, plugin loader, or HTTP fetch. */
+export async function loadSubtitleCandidate(
+  candidate: SubtitleCandidate,
+  options: Pick<ExternalSubtitleQueryOptions, 'fetch' | 'loadPluginSubtitle' | 'signal'>,
+): Promise<string> {
+  if (candidate.content !== undefined) return candidate.content
+  if (candidate.pluginOrigin && candidate.remoteTrackId !== undefined && options.loadPluginSubtitle && (candidate.hasLoader || !candidate.url)) {
+    return options.loadPluginSubtitle(candidate.pluginOrigin, candidate.remoteTrackId)
+  }
+  if (!candidate.url) throw new Error(`External subtitle source unavailable: ${candidate.id}`)
+  const response = await options.fetch(candidate.url, { signal: options.signal })
+  if (!response.ok) throw new Error(`Failed to fetch subtitle (${response.status})`)
+  const buffer = await response.arrayBuffer()
+  return decodeSubtitle(new Uint8Array(buffer), candidate.language)
+}
+
+/** Fetches built-in OpenSubtitles and Xunlei candidates together with any resolved IMDb id. */
+export async function fetchBuiltInExternalSubtitles(
+  options: ExternalSubtitleQueryOptions,
+): Promise<{ candidates: SubtitleCandidate[], imdbId?: string }> {
+  const { preferred, imdbId, openTarget, xunleiQuery } = await resolveQueryInputs(options)
   const [openTracks, xunleiTracks] = await Promise.all([
     openTarget
       ? fetchOpenSubtitles(openTarget, {
@@ -272,8 +372,39 @@ export async function fetchExternalSubtitles(options: {
       })
       : Promise.resolve([]),
   ])
-
   const candidates = [...openTracks, ...xunleiTracks].sort(
+    (a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred),
+  )
+  return { candidates, imdbId }
+}
+
+export async function fetchExternalSubtitles(options: ExternalSubtitleQueryOptions): Promise<ExternalSubtitleBundle> {
+  const { preferred, context, openTarget, xunleiQuery } = await resolveQueryInputs(options)
+
+  const [openTracks, xunleiTracks, pluginTracks] = await Promise.all([
+    openTarget
+      ? fetchOpenSubtitles(openTarget, {
+        fetch: options.fetch,
+        preferredLanguages: preferred,
+        releaseName: options.releaseName,
+        locale: options.locale,
+        signal: options.signal,
+      })
+      : Promise.resolve([]),
+    xunleiQuery
+      ? fetchXunleiSubtitles(xunleiQuery, {
+        fetch: options.fetch,
+        preferredLanguages: preferred,
+        locale: options.locale,
+        signal: options.signal,
+      })
+      : Promise.resolve([]),
+    options.findPluginSubtitles
+      ? options.findPluginSubtitles(context).catch(() => [])
+      : Promise.resolve([]),
+  ])
+
+  const candidates = [...openTracks, ...xunleiTracks, ...capPluginSubtitles(pluginTracks, preferred)].sort(
     (a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred),
   )
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]))
@@ -285,14 +416,7 @@ export async function fetchExternalSubtitles(options: {
     const candidate = byId.get(trackId)
     if (!candidate) return Promise.reject(new Error(`Unknown external subtitle track: ${trackId}`))
 
-    const pending = (async () => {
-      const response = await options.fetch(candidate.url, { signal: options.signal })
-      if (!response.ok) throw new Error(`Failed to fetch subtitle (${response.status})`)
-      const buffer = await response.arrayBuffer()
-      return decodeSubtitle(new Uint8Array(buffer), candidate.language)
-    })()
-
-    const guarded = pending.catch(err => {
+    const guarded = loadSubtitleCandidate(candidate, options).catch(err => {
       cache.delete(trackId)
       throw err
     })
@@ -302,6 +426,73 @@ export async function fetchExternalSubtitles(options: {
 
   return {
     tracks: toRemoteExternalTracks(candidates),
+    candidates,
     load,
+  }
+}
+
+/** Searches OpenSubtitles, Xunlei, and enabled plugins without auto-population caps for the interactive subtitle browser. */
+export async function searchExternalSubtitles(
+  options: ExternalSubtitleQueryOptions,
+): Promise<{ candidates: SubtitleCandidate[], load: (candidate: SubtitleCandidate) => Promise<string> }> {
+  const { preferred, context, openTarget, xunleiQuery } = await resolveQueryInputs(options)
+
+  const [openTracks, xunleiTracks, pluginTracks] = await Promise.all([
+    options.fetchOpenCandidates
+      ? options.fetchOpenCandidates().catch(() => [])
+      : openTarget
+        ? fetchOpenSubtitles(openTarget, {
+          fetch: options.fetch,
+          preferredLanguages: preferred,
+          releaseName: options.releaseName,
+          locale: options.locale,
+          signal: options.signal,
+          perLanguageLimit: 50,
+          totalLimit: 200,
+        })
+        : Promise.resolve([]),
+    xunleiQuery
+      ? fetchXunleiSubtitles(xunleiQuery, {
+        fetch: options.fetch,
+        preferredLanguages: preferred,
+        locale: options.locale,
+        signal: options.signal,
+        limit: 50,
+      })
+      : Promise.resolve([]),
+    options.findPluginSubtitles
+      ? options.findPluginSubtitles(context).catch(() => [])
+      : Promise.resolve([]),
+  ])
+
+  const rawTokens = options.query?.trim()
+    ? options.query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    : []
+  const matchingOpenTracks = rawTokens.length > 0
+    ? openTracks.filter(candidate => {
+        const haystack = [
+          candidate.release ?? '',
+          candidate.label,
+          candidate.group ?? '',
+          candidate.language,
+          subtitleLanguageLabel(candidate.language, options.locale),
+          candidate.sourceName ?? 'OpenSubtitles',
+        ].join(' ').toLowerCase()
+        return rawTokens.every(token => haystack.includes(token))
+      })
+    : openTracks
+
+  const seen = new Set<string>()
+  const merged = [...matchingOpenTracks, ...xunleiTracks, ...pluginTracks]
+    .filter(candidate => {
+      if (seen.has(candidate.id)) return false
+      seen.add(candidate.id)
+      return true
+    })
+    .sort((a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred))
+
+  return {
+    candidates: merged,
+    load: (candidate: SubtitleCandidate) => loadSubtitleCandidate(candidate, options),
   }
 }
