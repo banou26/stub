@@ -70,6 +70,8 @@ export type PlaybackSource = {
   applyAutoplay?: (on: boolean) => Promise<void>
   applyEpisodeNavigation?: (navigation: { previous?: string | boolean, next?: string | boolean }) => Promise<void>
   onEpisodeNavigation?: (listener: (direction: 'previous' | 'next') => void) => Promise<void>
+  applySourceSwitch?: (value: string | boolean) => Promise<void>
+  onSourceSwitch?: (listener: () => void) => Promise<void>
   applyExternalSubtitles?: (tracks: RemoteExternalSubtitleTrack[]) => Promise<void>
   onSubtitleLoadRequest?: (listener: (trackId: string) => void) => Promise<void>
   provideExternalSubtitle?: (trackId: string, content: string | null, error?: string) => Promise<void>
@@ -259,6 +261,24 @@ export const servePluginEpisodeNavigation = (
     if ((direction === 'previous' && previous) || (direction === 'next' && next)) onStep(direction)
   }).catch(() => {})
   applyEpisodeNavigation({ previous, next }).catch(() => {})
+  return () => { stopped = true }
+}
+
+/** Serves quick source switch control state to a source package's player and forwards button clicks to `onRequest`. */
+export const servePluginSourceSwitch = (
+  source: PlaybackSource,
+  value: string | boolean,
+  onRequest: () => void,
+) => {
+  const { applySourceSwitch, onSourceSwitch } = source
+  if (!applySourceSwitch || !onSourceSwitch) return () => {}
+  let stopped = false
+  const enabled = value || false
+  onSourceSwitch(() => {
+    if (stopped || !enabled) return
+    onRequest()
+  }).catch(() => {})
+  applySourceSwitch(enabled).catch(() => {})
   return () => { stopped = true }
 }
 

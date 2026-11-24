@@ -13,6 +13,7 @@ import {
   servePluginEpisodeNavigation,
   servePluginExternalSubtitles,
   servePluginFullscreen,
+  servePluginSourceSwitch,
 } from '../../../src/party/plugin-link'
 import { AUTOPLAY_KEY, readAutoplay, setAutoplay } from '../../../src/utils/autoplay'
 
@@ -790,5 +791,52 @@ describe('external subtitles on a package\'s player', () => {
 
   test('a package without subtitle methods does not throw', () => {
     expect(() => servePluginExternalSubtitles({}, [], async () => '')()).not.toThrow()
+  })
+})
+
+describe('source switch on a package\'s player', () => {
+  test('pushes source switch state and forwards requests while enabled and unstopped', () => {
+    let listener: (() => void) | undefined
+    const applySourceSwitch = vi.fn(async () => {})
+    const onSourceSwitch = vi.fn(async (fn: () => void) => { listener = fn })
+    const onRequest = vi.fn()
+
+    const stop = servePluginSourceSwitch({ applySourceSwitch, onSourceSwitch }, 'Switch', onRequest)
+    expect(applySourceSwitch).toHaveBeenCalledWith('Switch')
+
+    listener?.()
+    expect(onRequest).toHaveBeenCalledTimes(1)
+
+    stop()
+    listener?.()
+    expect(onRequest).toHaveBeenCalledTimes(1)
+  })
+
+  test('suppresses requests when disabled, and handles missing or rejecting methods safely', async () => {
+    let listener: (() => void) | undefined
+    const onRequest = vi.fn()
+    const stopDisabled = servePluginSourceSwitch(
+      {
+        applySourceSwitch: async () => {},
+        onSourceSwitch: async fn => { listener = fn },
+      },
+      false,
+      onRequest,
+    )
+    listener?.()
+    expect(onRequest).not.toHaveBeenCalled()
+    stopDisabled()
+
+    expect(() => servePluginSourceSwitch({}, true, () => {})()).not.toThrow()
+    const stopReject = servePluginSourceSwitch(
+      {
+        applySourceSwitch: async () => { throw new Error('gone') },
+        onSourceSwitch: async () => { throw new Error('gone') },
+      },
+      true,
+      () => {},
+    )
+    await Promise.resolve()
+    stopReject()
   })
 })

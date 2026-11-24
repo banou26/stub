@@ -325,7 +325,7 @@ vi.mock('../../../../src/embed-subtitles', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Check', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Plus', 'Share2', 'Smile', 'Star'].map(name => [name, () => null])))
+  ['Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'ExternalLink', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Share2', 'SlidersHorizontal', 'Smile', 'Star', 'X'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,

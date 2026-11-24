@@ -21,6 +21,8 @@ import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-ord
 import { useSetting } from '../../utils/use-setting'
 import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceSelector from '../../components/source-selector'
+import SourcePopup from '../../components/source-popup'
+import QuickSourceSwitcher from '../../components/quick-source-switcher'
 import PluginPlayer from '../../components/plugin-player'
 import PartyPlayback from '../../components/party-playback'
 import Placeholder from '../../components/placeholder'
@@ -31,6 +33,7 @@ import { attachPlaybackBridge, type PlaybackLink } from '../../party/bridge'
 import { useParty } from '../../party/use-party'
 import { serveEmbedEpisodeNavigation } from '../../embed-episode'
 import { serveEmbedExternalSubtitles } from '../../embed-subtitles'
+import { serveEmbedSourceSwitch } from '../../embed-source-switch'
 import { serveEmbedFullscreen } from '../../embed-fullscreen'
 import { hearTrackLanguages, trackLanguagesParams } from '../../embed-languages'
 import { hearTriedRelays, triedRelaysParams } from '../../embed-relays'
@@ -1111,6 +1114,48 @@ const Watch = () => {
       direction => latestStep.current(direction),
     )
   }, [viaPlugin, readyEmbedUrl, previousNav, nextNav])
+  const canSwitchSource = !guest && (sources.length > 1 || sources.some(source => (source.releases?.length ?? 0) > 1))
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
+  const [stagePicker, setStagePicker] = useState<WatchSource | null>(null)
+  useEffect(() => {
+    setQuickSwitcherOpen(false)
+    setStagePicker(null)
+  }, [params.episodeUri, params.sourceUri])
+  const currentWatchKey = `${params.episodeUri ?? ''}\0${params.sourceUri ?? ''}`
+  const latestWatchKey = useRef(currentWatchKey)
+  latestWatchKey.current = currentWatchKey
+  const toggleQuickSwitcher = () => {
+    if (!canSwitchSource) return
+    if (!quickSwitcherOpen && document.fullscreenElement && document.fullscreenElement !== stage.current) {
+      void document.exitFullscreen().catch(() => {})
+    }
+    setQuickSwitcherOpen(open => !open)
+  }
+  const latestToggleQuickSwitcher = useRef(toggleQuickSwitcher)
+  latestToggleQuickSwitcher.current = toggleQuickSwitcher
+  const openStagePicker = (source: WatchSource) => {
+    setQuickSwitcherOpen(false)
+    if (!source.picker) return
+    const expectedKey = latestWatchKey.current
+    const leaving = document.fullscreenElement
+      ? document.exitFullscreen().catch(() => {})
+      : undefined
+    if (leaving) void leaving.then(() => { if (latestWatchKey.current === expectedKey) setStagePicker(source) })
+    else setStagePicker(source)
+  }
+  const pluginSourceSwitch = useMemo(
+    () => canSwitchSource ? { onRequest: () => latestToggleQuickSwitcher.current() } : undefined,
+    [canSwitchSource],
+  )
+  useEffect(() => {
+    const iframe = embedFrame.current
+    if (viaPlugin || !readyEmbedUrl || !iframe) return
+    return serveEmbedSourceSwitch(
+      iframe,
+      canSwitchSource,
+      () => latestToggleQuickSwitcher.current(),
+    )
+  }, [viaPlugin, readyEmbedUrl, canSwitchSource])
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
   // the release Next opens, for the torrent player to prepare
@@ -1178,6 +1223,7 @@ const Watch = () => {
                       onPlayback={link => setPlayback(link && { link, sourceUri: pluginPlayer.release.uri })}
                       stage={stage}
                       episodeNavigation={pluginEpisodeNav}
+                      sourceSwitch={pluginSourceSwitch}
                       externalSubtitles={externalSubtitles}
                     />
                   )
@@ -1198,6 +1244,16 @@ const Watch = () => {
                     />
                   )}
                 <UpNext link={playbackLink} next={upNext} chapters={viaPlugin ? fallback : (hasEnding(chapters) || !fallback.length ? chapters : fallback)} stage={stage} episode={params.episodeUri} release={nextRelease} onAdvance={() => { autoAdvanced.current = true; autoplayTarget.current = next?.episode.uri }}/>
+                {quickSwitcherOpen && canSwitchSource
+                  ? (
+                    <QuickSourceSwitcher
+                      sources={sources}
+                      onSelectHref={href => { setQuickSwitcherOpen(false); navigate(href) }}
+                      onOpenPicker={openStagePicker}
+                      onClose={() => setQuickSwitcherOpen(false)}
+                    />
+                  )
+                  : undefined}
               </div>
             )
             : needsExtension
@@ -1261,6 +1317,26 @@ const Watch = () => {
             }))}
         />
       </div>
+      {stagePicker?.picker
+        ? (
+          <SourcePopup
+            pluginUri={stagePicker.picker.pluginUri}
+            origin={stagePicker.id}
+            name={stagePicker.name}
+            uris={(stagePicker.releases ?? []).map(release => release.uri)}
+            playing={stagePicker.releases?.find(release => release.active)?.uri}
+            onPick={uri => {
+              setStagePicker(null)
+              navigate(getRoutePath(Route.WATCH, {
+                mediaUri: params.mediaUri,
+                episodeUri: params.episodeUri,
+                sourceUri: uri,
+              }))
+            }}
+            onClose={() => setStagePicker(null)}
+          />
+        )
+        : undefined}
 
       {
         media && !film

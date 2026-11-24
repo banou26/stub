@@ -17,6 +17,7 @@ import {
   servePluginEpisodeNavigation,
   servePluginExternalSubtitles,
   servePluginFullscreen,
+  servePluginSourceSwitch,
   type PlaybackSource,
 } from '../party/plugin-link'
 import { loadPluginValues } from '../plugin-list'
@@ -70,6 +71,11 @@ export type PluginPlayerExternalSubtitles = {
   load: (trackId: string) => Promise<string>
 }
 
+export type PluginPlayerSourceSwitch = {
+  title?: string
+  onRequest: () => void
+}
+
 export type PluginPlayerProps = {
   /** the package, the same for the component's life: the page keys it on this */
   pluginUri: string
@@ -82,6 +88,8 @@ export type PluginPlayerProps = {
   stage?: RefObject<HTMLElement | null>
   /** previous/next episode controls served to the plugin's player without restarting playback */
   episodeNavigation?: PluginPlayerEpisodeNavigation
+  /** quick source/subsource switch control served to the plugin's player without restarting playback */
+  sourceSwitch?: PluginPlayerSourceSwitch
   /** external subtitle tracks served to the plugin's player without restarting playback */
   externalSubtitles?: PluginPlayerExternalSubtitles
 }
@@ -104,14 +112,14 @@ const NO_SUBTITLES: RemoteExternalSubtitleTrack[] = []
  * in a frame inside it (WebKit 26.4 and 27.2, 2026-10-26), so a package mounted afresh for each episode
  * could never hand them on to the next one's player. A mount that failed is tried again for the next.
  */
-export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage, episodeNavigation, externalSubtitles }: PluginPlayerProps) => {
+export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, stage, episodeNavigation, sourceSwitch, externalSubtitles }: PluginPlayerProps) => {
   const intl = useIntl()
   const slot = useRef<HTMLIFrameElement>(null)
   const [failed, setFailed] = useState(false)
   const [active, setActive] = useState<{ uri: string, url?: string, source: PlayableSource }>()
   // read at call time: effects below stay keyed on primitive/source values so closure updates do not replay
-  const callbacks = useRef({ onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, loadSubtitle: externalSubtitles?.load })
-  callbacks.current = { onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, loadSubtitle: externalSubtitles?.load }
+  const callbacks = useRef({ onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, onSourceSwitch: sourceSwitch?.onRequest, loadSubtitle: externalSubtitles?.load })
+  callbacks.current = { onUnplayable, onPlayback, onStep: episodeNavigation?.onStep, onSourceSwitch: sourceSwitch?.onRequest, loadSubtitle: externalSubtitles?.load }
   const mounted = useRef<Promise<MountedPackage<PluginPayload>>>(undefined)
 
   useEffect(() => {
@@ -180,6 +188,17 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
       direction => callbacks.current.onStep?.(direction),
     )
   }, [currentSource, prevNav, nextNav])
+
+  const hasSourceSwitch = Boolean(sourceSwitch)
+  const sourceSwitchTitle = sourceSwitch?.title
+  useEffect(() => {
+    if (!currentSource) return
+    return servePluginSourceSwitch(
+      currentSource,
+      hasSourceSwitch ? (sourceSwitchTitle || true) : false,
+      () => callbacks.current.onSourceSwitch?.(),
+    )
+  }, [currentSource, hasSourceSwitch, sourceSwitchTitle])
 
   const tracks = externalSubtitles?.tracks ?? NO_SUBTITLES
   useEffect(() => {

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
 
 import { useHostEpisodeNavigation } from '../../embed-episode'
+import { useHostSourceSwitch } from '../../embed-source-switch'
 import { useHostExternalSubtitles } from '../../embed-subtitles'
 import {
   AlertDialog,
@@ -48,6 +49,7 @@ import {
   QualityIcon,
   RestartIcon,
   SeekIcon,
+  SourceSwitchIcon,
   SpinnerIcon,
   SubtitleOptionsIcon,
   VolumeHighIcon,
@@ -651,6 +653,7 @@ export type VideoSurfaceProps = {
 const VideoSurface = ({ capabilities, remote, children, className, ...rest }: VideoSurfaceProps) => {
   const intl = useIntl()
   const episodeNavigation = useHostEpisodeNavigation()
+  const sourceSwitch = useHostSourceSwitch()
   const hostExternalSubtitles = useHostExternalSubtitles()
   const nativeSubtitles = capabilities?.subtitles
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
@@ -851,6 +854,9 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
   const nextLabel = episodeNavigation?.next
     ? episodeNavigation.next.title?.trim() || intl.formatMessage({ id: 'Next episode', defaultMessage: 'Next episode' })
     : undefined
+  const sourceSwitchLabel = sourceSwitch
+    ? sourceSwitch.title?.trim() || intl.formatMessage({ id: 'Switch source', defaultMessage: 'Switch source' })
+    : undefined
   return (
     <ContainerC ref={setContainerEl} className={`media-default-skin media-default-skin--video${className ? ` ${className}` : ''}`} {...rest}>
       {children}
@@ -992,6 +998,22 @@ const VideoSurface = ({ capabilities, remote, children, className, ...rest }: Vi
               <TooltipPopup className="media-surface media-tooltip">{intl.formatMessage({ id: 'Toggle playback rate', defaultMessage: 'Toggle playback rate' })}</TooltipPopup>
             </TooltipRoot>
             <VolumePopover />
+            {sourceSwitch && sourceSwitchLabel ? (
+              <TooltipRoot side="top">
+                <TooltipTrigger
+                  render={
+                    <IconButton
+                      className="media-button--source-switch"
+                      aria-label={sourceSwitchLabel}
+                      onClick={sourceSwitch.request}
+                    >
+                      <SourceSwitchIcon className="media-icon" />
+                    </IconButton>
+                  }
+                />
+                <TooltipPopup className="media-surface media-tooltip">{sourceSwitchLabel}</TooltipPopup>
+              </TooltipRoot>
+            ) : null}
             {subtitleSelection && (
               <SelectionMenu
                 key="subtitles"

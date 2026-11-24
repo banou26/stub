@@ -165,6 +165,10 @@ export type StubSource = {
   applyEpisodeNavigation?: (navigation: { previous?: string | boolean, next?: string | boolean }) => Promise<void>
   /** Hear clicks on the player's previous/next episode buttons. One listener; the next call replaces it. */
   onEpisodeNavigation?: (listener: (direction: 'previous' | 'next') => void) => Promise<void>
+  /** Show or hide the quick source switch button beside subtitles on the player; string names it, false hides it. */
+  applySourceSwitch?: (value: string | boolean) => Promise<void>
+  /** Hear clicks on the player's quick source switch button. One listener; the next call replaces it. */
+  onSourceSwitch?: (listener: () => void) => Promise<void>
   /** Offer external subtitle tracks in the player's subtitle menu alongside any muxed tracks. */
   applyExternalSubtitles?: (tracks: RemoteExternalSubtitleTrack[]) => Promise<void>
   /** Hear when the viewer picks an external subtitle track whose content is loaded on demand. */

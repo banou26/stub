@@ -11,6 +11,7 @@ import LeftToRight from '../../components/player/left-to-right'
 import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAlwaysSubtitles, tellAutoplay, tellTrackLanguage } from '../../embed-languages'
+import { useHostSourceSwitch } from '../../embed-source-switch'
 import { useHostExternalSubtitles } from '../../embed-subtitles'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
@@ -55,6 +56,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
   const stepFrame = usePageFrameStep(frame, remote, PAGE_VIDEO)
   const fullscreen = useHostFullscreen()
   const episodeNavigation = useHostEpisodeNavigation()
+  const sourceSwitch = useHostSourceSwitch()
   const externalSubtitles = useHostExternalSubtitles()
   // the page keeps it: a flip here is told to the page, whose write reaches this document as a storage event
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
@@ -76,6 +78,7 @@ const CrunchyrollVideoJSPlayer = ({ title, remote, frame, subtitles, audioTracks
         pictureInPicture={pictureInPicture}
         fullscreen={fullscreen}
         episodeNavigation={episodeNavigation}
+        sourceSwitch={sourceSwitch}
         onPreferredAudioLanguageChange={language => tellTrackLanguage('audio', language)}
         onPreferredSubtitleLanguageChange={language => tellTrackLanguage('subtitles', language)}
         onAlwaysShowSubtitlesChange={tellAlwaysSubtitles}

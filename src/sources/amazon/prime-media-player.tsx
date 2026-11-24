@@ -12,6 +12,7 @@ import LeftToRight from '../../components/player/left-to-right'
 import { useHostEpisodeNavigation } from '../../embed-episode'
 import { useHostFullscreen } from '../../embed-fullscreen'
 import { tellAutoplay } from '../../embed-languages'
+import { useHostSourceSwitch } from '../../embed-source-switch'
 import { useHostExternalSubtitles } from '../../embed-subtitles'
 import { readAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { rememberPlayerVolume } from '../../utils/player-volume'
@@ -38,6 +39,7 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
   const stepFrame = usePageFrameStep(frame, remote, video)
   const fullscreen = useHostFullscreen()
   const episodeNavigation = useHostEpisodeNavigation()
+  const sourceSwitch = useHostSourceSwitch()
   const externalSubtitles = useHostExternalSubtitles()
   const autoplayNext = useSetting(readAutoplay, watchAutoplay)
 
@@ -52,6 +54,7 @@ const PrimeMediaPlayer = ({ title, remote, quality, frame, video, children }: Pr
         stepFrame={stepFrame}
         fullscreen={fullscreen}
         episodeNavigation={episodeNavigation}
+        sourceSwitch={sourceSwitch}
         language={locale}
         autoplayNext={autoplayNext}
         onAutoplayNextChange={tellAutoplay}
