@@ -23,7 +23,7 @@ export const SESSION_INSTALL = 'stub:session-install'
 export const READ_SESSION_INSTALL = 'function (name) { const install = globalThis[Symbol.for(name)]; return install && typeof install.key === "string" ? install.key : null }'
 
 /** The arg the page script is evaluated with: serve the session over the port a message with `key` brings. */
-export type ServeArg = { kind: 'serve', appOrigin: string, key: string }
+export type ServeArg = { kind: 'serve', appOrigin: string, key: string, freshOnly?: boolean }
 
 /** A site stub keeps one page of open, hidden, for the viewer's session on it. */
 export type SessionSite = {
@@ -39,6 +39,10 @@ export type SessionSite = {
   reason: string
   /** The page script, a function expression `evaluate` calls with a `ServeArg`, keeping its install at `SESSION_INSTALL`. */
   pageScript: string
+  /** Extra fields merged into the `ServeArg` for this install (e.g. clearing stale in-page caches after sign-out). */
+  serveExtra?: () => Partial<Pick<ServeArg, 'freshOnly'>>
+  /** Called once `frame.evaluate(site.pageScript, serve)` completes for the still-current install. */
+  onInstalled?: (serve: ServeArg) => void
 }
 
 export type SessionFramesOptions<Api> = {
@@ -143,7 +147,7 @@ export const createSessionFrames = <Api>(
   // ONE page script per document, since what evaluate installed ends with its document
   const install = (entry: Entry<Api>, site: SessionSite, frame: Frame): Install<Api> => {
     entry.current?.retire()
-    const serve: ServeArg = { kind: 'serve', appOrigin, key: key() }
+    const serve: ServeArg = { kind: 'serve', appOrigin, key: key(), ...site.serveExtra?.() }
     const { port1, port2 } = new MessageChannel()
     let retire!: () => void
     const gone = new Promise<never>((_resolve, reject) => {
@@ -153,7 +157,10 @@ export const createSessionFrames = <Api>(
       }
     })
     gone.catch(() => {})
-    const evaluated = (async () => { await frame.evaluate(site.pageScript, serve) })()
+    const evaluated = (async () => {
+      await frame.evaluate(site.pageScript, serve)
+      if (entry.current?.key === serve.key) site.onInstalled?.(serve)
+    })()
     const api = (async () => {
       await evaluated
       await frame.postMessage({ type: SESSION_PORT_MESSAGE, key: serve.key }, site.origin, [port2])

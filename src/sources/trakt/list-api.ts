@@ -26,6 +26,12 @@ export type TraktRead<T> =
 /** One answer of the page. A 401 is a token Trakt no longer takes, after the page read the cookie afresh. */
 export const readAnswer = <T>(answer: TraktPageAnswer<T>): TraktRead<T> => {
   if (answer.kind === 'signed-out') return { kind: 'signed-out' }
+  if (answer.kind === 'challenge') {
+    return {
+      kind: 'error',
+      message: forPage.formatMessage({ id: 'app.trakt.tv asked for a browser check', defaultMessage: 'app.trakt.tv asked for a browser check' }),
+    }
+  }
   if (answer.kind === 'no-session') {
     return {
       kind: 'error',

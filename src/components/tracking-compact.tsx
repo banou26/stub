@@ -279,6 +279,17 @@ const Tile = ({ answer, state }: { answer: CompactAnswer, state: TileState }) =>
 
 const saved = ({ outcome }: { outcome: string }) => outcome === 'SAVED' || outcome === 'QUEUED'
 
+const RECONNECTABLE_MESSAGES = new Set([
+  'app.trakt.tv asked for a browser check',
+])
+
+const isReconnectableError = (answer: CompactAnswer): boolean => {
+  if (answer.state !== 'ERROR' || !answer.error) return false
+  if (typeof answer.error === 'string') return RECONNECTABLE_MESSAGES.has(answer.error)
+  return RECONNECTABLE_MESSAGES.has(answer.error.message)
+    || (answer.error.message === 'app.trakt.tv answered {status} with no session stub could read' && answer.error.values?.status === 403)
+}
+
 const Badge = ({ answer, failed }: { answer: CompactAnswer, failed?: unknown }) =>
   failed || answer.state === 'ERROR' ? <span className="badge red" data-badge="red"/>
   : answer.state === 'PAUSED' ? <span className="badge amber" data-badge="amber"/>
@@ -537,7 +548,7 @@ const TrackingCompact = (
   const [overrides, setOverrides] = useState<Record<string, Fields>>({})
   const [pendingTraktLower, setPendingTraktLower] = useState<{ patch: Fields, targetProgress: number, fromCard?: boolean }>()
   const [announced, setAnnounced] = useState<Settled & { name: string }>()
-  const [signInPhase, setSignInPhase] = useState<Record<string, 'window' | 'loading'>>({})
+  const [signInPhase, setSignInPhase] = useState<Record<string, { phase: 'window' | 'loading', initialState: string }>>({})
   const [notes, setNotes] = useState<Record<string, Said>>({})
   // one card at a time: a card holding focus stays open when the pointer leaves, so a second card
   // opened beside it would be drawn under it
@@ -557,16 +568,16 @@ const TrackingCompact = (
   useEffect(() => {
     setSignInPhase(previous => {
       let changed = false
-      const next: Record<string, 'window' | 'loading'> = {}
-      for (const [id, phase] of Object.entries(previous)) {
+      const next: Record<string, { phase: 'window' | 'loading', initialState: string }> = {}
+      for (const [id, entry] of Object.entries(previous)) {
         const answer = tracking?.answers.find(each => each.tracker.id === id)
-        if (phase === 'loading' && answer?.state !== 'SIGNED_OUT') {
+        if (entry.phase === 'loading' && answer?.state !== entry.initialState) {
           clearTimeout(signInTimers.current[id])
           delete signInTimers.current[id]
           changed = true
           continue
         }
-        next[id] = phase
+        next[id] = entry
       }
       return changed ? next : previous
     })
@@ -772,12 +783,13 @@ const TrackingCompact = (
   const signIn = (answer: CompactAnswer) => {
     const start = signIns[answer.tracker.id]
     const id = answer.tracker.id
+    const initialState = answer.state
     if (!start || signInPhase[id]) return
     clearTimeout(signInTimers.current[id])
     delete signInTimers.current[id]
     // first, before any state: the window opens with this click's activation
     const signingInNow = start()
-    setSignInPhase(previous => ({ ...previous, [id]: 'window' }))
+    setSignInPhase(previous => ({ ...previous, [id]: { phase: 'window', initialState } }))
     setNotes(({ [id]: _dropped, ...rest }) => rest)
     void signingInNow
       .then(
@@ -788,9 +800,9 @@ const TrackingCompact = (
         if (!mounted.current) return
         if (note) setNotes(previous => ({ ...previous, [id]: note }))
         const currentState = latest.current.tracking?.answers.find(each => each.tracker.id === id)?.state
-        if ((outcome === 'authed' || outcome === 'closed') && currentState === 'SIGNED_OUT') {
+        if ((outcome === 'authed' || outcome === 'closed') && currentState === initialState) {
           const waitMs = outcome === 'authed' ? SIGN_IN_AUTHED_WAIT_MS : SIGN_IN_CLOSED_WAIT_MS
-          setSignInPhase(previous => ({ ...previous, [id]: 'loading' }))
+          setSignInPhase(previous => ({ ...previous, [id]: { phase: 'loading', initialState } }))
           signInTimers.current[id] = setTimeout(() => {
             delete signInTimers.current[id]
             if (!mounted.current) return
@@ -815,19 +827,25 @@ const TrackingCompact = (
         ? intl.formatMessage({ id: '{name} did not save: {error}', defaultMessage: '{name} did not save: {error}' }, { name, error: wordsOf(error) })
         : intl.formatMessage({ id: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}', defaultMessage: '{name} did not save: {outcome, select, REFUSED {refused} other {failed}}' }, { name, outcome })
 
-  const loginButton = (answer: CompactAnswer, className?: string) => {
-    const phase = signInPhase[answer.tracker.id]
-    const busy = phase !== undefined
-    const label = phase === 'loading'
+  const authButton = (answer: CompactAnswer, mode: 'login' | 'reconnect', className?: string) => {
+    const entry = signInPhase[answer.tracker.id]
+    const busy = entry !== undefined
+    const idleLabel = mode === 'reconnect'
+      ? intl.formatMessage({ id: 'Reconnect', defaultMessage: 'Reconnect' })
+      : intl.formatMessage({ id: 'Log in', defaultMessage: 'Log in' })
+    const label = entry?.phase === 'loading'
       ? intl.formatMessage({ id: 'Loading...', defaultMessage: 'Loading...' })
-      : phase === 'window'
+      : entry?.phase === 'window'
         ? intl.formatMessage({ id: 'Logging in', defaultMessage: 'Logging in' })
-        : intl.formatMessage({ id: 'Log in', defaultMessage: 'Log in' })
+        : idleLabel
+    const ariaLabel = mode === 'reconnect'
+      ? intl.formatMessage({ id: 'Reconnect {name}', defaultMessage: 'Reconnect {name}' }, { name: answer.tracker.name })
+      : intl.formatMessage({ id: 'Log in to {name}', defaultMessage: 'Log in to {name}' }, { name: answer.tracker.name })
     return (
       <button
         type="button"
         className={className}
-        aria-label={intl.formatMessage({ id: 'Log in to {name}', defaultMessage: 'Log in to {name}' }, { name: answer.tracker.name })}
+        aria-label={ariaLabel}
         disabled={!signIns[answer.tracker.id] || busy}
         aria-busy={busy ? 'true' : undefined}
         onClick={() => signIn(answer)}
@@ -836,6 +854,9 @@ const TrackingCompact = (
       </button>
     )
   }
+
+  const loginButton = (answer: CompactAnswer, className?: string) => authButton(answer, 'login', className)
+  const reconnectButton = (answer: CompactAnswer, className?: string) => authButton(answer, 'reconnect', className)
 
   const card = (answer: CompactAnswer, target: Target) => {
     const id = answer.tracker.id
@@ -870,6 +891,7 @@ const TrackingCompact = (
           onChange={(fields, immediate) => changeOne(answer, fields, immediate)}
         />
         {canWrite ? undefined : <span className="why">{wordsOf(whyNot(answer))}</span>}
+        {isReconnectableError(answer) && signIns[id] ? reconnectButton(answer) : undefined}
       </>
     )
   }
@@ -905,7 +927,7 @@ const TrackingCompact = (
                         ? <span className="tile loading" role="img" aria-label={trackersLoading} title={trackersLoading}><LoaderCircle size={12} className="spin" aria-hidden="true"/></span>
                         : targets.map(({ answer, target }) => {
                           const phase = signInPhase[answer.tracker.id]
-                          const signing = phase === 'window' || (phase === 'loading' && answer.state === 'SIGNED_OUT')
+                          const signing = phase?.phase === 'window' || (phase?.phase === 'loading' && answer.state === phase.initialState)
                           return <Tile key={answer.tracker.id} answer={answer} state={signing ? 'loading' : tileState(answer, target, stateOf(answer))}/>
                         })
                     }
@@ -997,8 +1019,8 @@ const TrackingCompact = (
           const id = answer.tracker.id
           const name = answer.tracker.name
           return [
-            notes[id] && answer.state === 'SIGNED_OUT'
-              ? <div key={`${id}-sign-in`} className="note" data-note={id}>{wordsOf(notes[id])}{expanded ? undefined : loginButton(answer)}</div>
+            notes[id] && (answer.state === 'SIGNED_OUT' || isReconnectableError(answer))
+              ? <div key={`${id}-sign-in`} className="note" data-note={id}>{wordsOf(notes[id])}{expanded ? undefined : (isReconnectableError(answer) ? reconnectButton(answer) : loginButton(answer))}</div>
               : undefined,
             <SaveProblems key={`${id}-problems`} answer={answer} state={stateOf(answer)} queue={queue}/>,
             target.kind === 'check' && target.sendable && countDiffers(answer, row.total)

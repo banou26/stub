@@ -11,19 +11,32 @@
 import type { ServeArg } from '../../tracking/session-frames'
 
 import { installSessionServer, randomNonce } from '../../tracking/page-install'
-import { TRAKT_API, TRAKT_HEADERS } from './api'
+import { TRAKT_API, TRAKT_CLIENT_ID, TRAKT_HEADERS } from './api'
+
+/** LocalStorage key inside `app.trakt.tv` holding the last non-expired OIDC access token read from `/__data.json`. */
+export const TRAKT_SESSION_CACHE_KEY = 'stub.trakt-session'
+
+const CACHE_FALLBACK_TTL_MS = 24 * 60 * 60_000
+const TRAKT_OIDC_KEYS = [
+  `oidc.user:https://auth.trakt.tv:${TRAKT_CLIENT_ID}`,
+  `oidc.user:https://trakt.tv:${TRAKT_CLIENT_ID}`,
+]
+
+export type TraktSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 /**
  * One answer of Trakt's API as the page received it, its body parsed (null when it was not JSON).
  * `retryAfter` in seconds, `pageCount` from `X-Pagination-Page-Count`.
  *
  * `signed-out`: the session holds no token, so nothing was asked. `no-session`: `/__data.json` answered
- * with no session data stub could read, so nothing was asked either.
+ * with no session data stub could read, so nothing was asked either. `challenge`: `/__data.json` hit an
+ * anti-bot browser check (Cloudflare 403/503 challenge) with no cached or OIDC session token to fall back to.
  */
 export type TraktPageAnswer<T = unknown> =
   | { kind: 'answer', status: number, body: T | null, retryAfter: number | null, pageCount: number | null }
   | { kind: 'signed-out' }
   | { kind: 'no-session', status: number }
+  | { kind: 'challenge', status: number }
 
 /** What the page serves over its port. */
 export type TraktPageApi = {
@@ -40,7 +53,11 @@ export type TraktPageArg = ServeArg | { kind: 'viewer' }
 
 type PageFetch = (input: string, init?: RequestInit) => Promise<Response>
 
-type Session = { kind: 'token', token: string } | { kind: 'signed-out' } | { kind: 'no-session', status: number }
+type Session =
+  | { kind: 'token', token: string }
+  | { kind: 'signed-out' }
+  | { kind: 'no-session', status: number }
+  | { kind: 'challenge', status: number }
 
 const parsed = (text: string): unknown => {
   try { return JSON.parse(text) as unknown } catch { return null }
@@ -52,19 +69,76 @@ const headerNumber = (headers: Headers, name: string) => {
   return Number.isFinite(number) ? number : null
 }
 
+const toEpochMs = (value: number): number => value < 1e12 ? value * 1000 : value
+
+/** Whether a response from `app.trakt.tv` is a Cloudflare browser check challenge page. */
+export const isChallengeResponse = (response: Pick<Response, 'status' | 'headers'>, text: string): boolean =>
+  (response.status === 403 || response.status === 503) && (
+    response.headers.get('cf-mitigated')?.toLowerCase() === 'challenge'
+    || /<title>\s*(?:Just a moment|Attention Required!\s*\|\s*Cloudflare)\b|cf-turnstile|\/cdn-cgi\/challenge-platform\b/i.test(text)
+  )
+
 /**
- * The token in a `/__data.json` answer, null when the session holds none. Undefined when the answer is
- * not one: SvelteKit flattens the data, so `nodes[0].data[0]` is the root layout's object, and each of
- * its values, `oidcAuth` and the token inside it alike, is an index into that same array.
+ * The token and expiry in a `/__data.json` answer, null token when the session holds none. Undefined when
+ * the answer is not one: SvelteKit flattens the data, so `nodes[0].data[0]` is the root layout's object,
+ * and each of its values, `oidcAuth` and the fields inside it alike, is an index into that same array.
  */
-export const tokenOf = (body: unknown): string | null | undefined => {
+export const sessionDataOf = (body: unknown): { token: string | null, expiresAt: number | null } | undefined => {
   const data = (body as { nodes?: { data?: unknown }[] } | null)?.nodes?.[0]?.data
   if (!Array.isArray(data)) return undefined
   const at = (index: unknown) => typeof index === 'number' && Number.isInteger(index) && index >= 0 ? data[index] as unknown : undefined
   const auth = at((data[0] as { oidcAuth?: unknown } | null | undefined)?.oidcAuth)
   if (!auth || typeof auth !== 'object') return undefined
   const token = at((auth as { token?: unknown }).token)
-  return typeof token === 'string' && token !== '' ? token : null
+  const rawExpiresAt = at((auth as { expiresAt?: unknown }).expiresAt)
+  return {
+    token: typeof token === 'string' && token !== '' ? token : null,
+    expiresAt: typeof rawExpiresAt === 'number' && Number.isFinite(rawExpiresAt) ? toEpochMs(rawExpiresAt) : null,
+  }
+}
+
+export const tokenOf = (body: unknown): string | null | undefined => sessionDataOf(body)?.token
+
+const safeGet = (storage: TraktSessionStorage | null | undefined, key: string): string | null => {
+  try { return storage?.getItem(key) ?? null } catch { return null }
+}
+
+const dropCachedSession = (storage: TraktSessionStorage | null | undefined) => {
+  try { storage?.removeItem(TRAKT_SESSION_CACHE_KEY) } catch {}
+}
+
+const writeCachedSession = (
+  storage: TraktSessionStorage | null | undefined,
+  entry: { token: string, expiresAt: number | null, savedAt: number },
+) => {
+  try { storage?.setItem(TRAKT_SESSION_CACHE_KEY, JSON.stringify(entry)) } catch {}
+}
+
+const readFallbackToken = (
+  storage: TraktSessionStorage | null | undefined,
+  nowMs: number,
+  rejectedToken?: string,
+): string | null => {
+  if (!storage) return null
+  for (const key of TRAKT_OIDC_KEYS) {
+    const raw = safeGet(storage, key)
+    if (!raw) continue
+    const data = parsed(raw) as { access_token?: unknown, expires_at?: unknown } | null
+    const token = typeof data?.access_token === 'string' && data.access_token !== '' ? data.access_token : null
+    if (!token || token === rejectedToken) continue
+    const expiresAt = data?.expires_at
+    if (expiresAt == null || (typeof expiresAt === 'number' && Number.isFinite(expiresAt) && toEpochMs(expiresAt) > nowMs)) {
+      return token
+    }
+  }
+  const rawCache = safeGet(storage, TRAKT_SESSION_CACHE_KEY)
+  if (!rawCache) return null
+  const cache = parsed(rawCache) as { token?: unknown, expiresAt?: unknown, savedAt?: unknown } | null
+  const token = typeof cache?.token === 'string' && cache.token !== '' ? cache.token : null
+  if (!token || token === rejectedToken) return null
+  const expiresAt = cache?.expiresAt
+  if (expiresAt != null) return typeof expiresAt === 'number' && Number.isFinite(expiresAt) && toEpochMs(expiresAt) > nowMs ? token : null
+  return typeof cache?.savedAt === 'number' && Number.isFinite(cache.savedAt) && nowMs - cache.savedAt < CACHE_FALLBACK_TTL_MS ? token : null
 }
 
 const usernameOf = (body: unknown): string | null => {
@@ -83,21 +157,53 @@ const toAnswer = async (response: Response): Promise<TraktPageAnswer> => ({
 /**
  * The page's side of the tracker. Reads end in `_=<nonce>`, so no cache keyed on the request answers
  * with an earlier one. The token is read from `/__data.json` once and kept, and read again once on
- * a 401 GET. Writes (`post`) never auto-retry once dispatched.
+ * a 401 GET. When `/__data.json` is met with a Cloudflare 403/503 challenge, an unexpired cached token or
+ * Trakt's own OIDC user entry in `localStorage` serves `apiz.trakt.tv` reads directly. Writes (`post`)
+ * never auto-retry once dispatched.
  */
-export const createTraktPage = ({ fetch, nonce }: { fetch: PageFetch, nonce: () => string }): TraktPageApi => {
+export const createTraktPage = ({
+  fetch,
+  nonce,
+  storage = null,
+  now = Date.now,
+  persist = false,
+  clearOnStart = false,
+}: {
+  fetch: PageFetch
+  nonce: () => string
+  storage?: TraktSessionStorage | null
+  now?: () => number
+  persist?: boolean
+  clearOnStart?: boolean
+}): TraktPageApi => {
+  if (clearOnStart) dropCachedSession(storage)
+  let skipFallback = clearOnStart
   let held: Promise<Session> | undefined
 
-  const readSession = async (): Promise<Session> => {
+  const readSession = async (rejectedToken?: string): Promise<Session> => {
     const response = await fetch(`/__data.json?_=${nonce()}`, { credentials: 'include', headers: { accept: 'application/json' } })
-    const token = response.ok ? tokenOf(parsed(await response.text())) : undefined
-    if (token === undefined) return { kind: 'no-session', status: response.status }
-    return token ? { kind: 'token', token } : { kind: 'signed-out' }
+    const text = await response.text()
+    const sessionData = response.ok ? sessionDataOf(parsed(text)) : undefined
+    if (sessionData !== undefined) {
+      if (sessionData.token) {
+        skipFallback = false
+        if (persist) writeCachedSession(storage, { token: sessionData.token, expiresAt: sessionData.expiresAt, savedAt: now() })
+        return { kind: 'token', token: sessionData.token }
+      }
+      if (persist) dropCachedSession(storage)
+      return { kind: 'signed-out' }
+    }
+    if (isChallengeResponse(response, text)) {
+      const fallback = skipFallback ? null : readFallbackToken(storage, now(), rejectedToken)
+      if (fallback) return { kind: 'token', token: fallback }
+      return { kind: 'challenge', status: response.status }
+    }
+    return { kind: 'no-session', status: response.status }
   }
 
-  const session = (fresh: boolean) => {
+  const session = (fresh: boolean, rejectedToken?: string) => {
     if (fresh || !held) {
-      const asked = readSession()
+      const asked = readSession(rejectedToken)
       held = asked
       // only a token is kept, so a page signed in after a signed-out read asks again
       const forget = () => { if (held === asked) held = undefined }
@@ -108,13 +214,21 @@ export const createTraktPage = ({ fetch, nonce }: { fetch: PageFetch, nonce: () 
 
   const get: TraktPageApi['get'] = async ({ path }) => {
     if (!path.startsWith('/')) throw new Error(`stub asks Trakt's API by path, not ${path}`)
+    let rejectedToken: string | undefined
     for (let attempt = 0; ; attempt++) {
-      const current = await session(attempt > 0)
+      const current = await session(attempt > 0, rejectedToken)
       if (current.kind !== 'token') return current
       const response = await fetch(`${TRAKT_API}${path}${path.includes('?') ? '&' : '?'}_=${nonce()}`, {
         headers: { ...TRAKT_HEADERS, authorization: `Bearer ${current.token}` },
       })
-      if (response.status === 401 && attempt === 0) continue
+      if (response.status === 401) {
+        dropCachedSession(storage)
+        if (attempt === 0) {
+          rejectedToken = current.token
+          continue
+        }
+        held = undefined
+      }
       return toAnswer(response)
     }
   }
@@ -128,6 +242,10 @@ export const createTraktPage = ({ fetch, nonce }: { fetch: PageFetch, nonce: () 
       headers: { ...TRAKT_HEADERS, authorization: `Bearer ${current.token}` },
       body: JSON.stringify(body),
     })
+    if (response.status === 401) {
+      dropCachedSession(storage)
+      held = undefined
+    }
     return toAnswer(response)
   }
 
@@ -147,9 +265,24 @@ export const hasViewer = async (api: TraktPageApi): Promise<boolean> => {
   return answer.kind === 'answer' && answer.status === 200 && answer.body !== null
 }
 
+const readStorage = (page: typeof globalThis): TraktSessionStorage | null => {
+  try {
+    const storage = (page as { localStorage?: TraktSessionStorage }).localStorage
+    return storage && typeof storage.getItem === 'function' ? storage : null
+  } catch {
+    return null
+  }
+}
+
 /** The page script's entry: what `frame.evaluate` calls, in the site's own realm, with its arg. */
 export const run = (arg: TraktPageArg): Promise<boolean> | 'installed' | 'reinstalled' => {
   const page = globalThis as typeof globalThis & Record<symbol, unknown>
-  const api = createTraktPage({ fetch: (input, init) => page.fetch(input, init), nonce: randomNonce })
+  const api = createTraktPage({
+    fetch: (input, init) => page.fetch(input, init),
+    nonce: randomNonce,
+    storage: arg.kind === 'serve' ? readStorage(page) : null,
+    persist: arg.kind === 'serve',
+    clearOnStart: arg.kind === 'serve' && arg.freshOnly === true,
+  })
   return arg.kind === 'viewer' ? hasViewer(api) : installSessionServer(arg, page, api)
 }

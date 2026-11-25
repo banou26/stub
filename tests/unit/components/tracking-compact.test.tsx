@@ -1268,3 +1268,60 @@ describe('Trakt progress lowering confirmation', () => {
     expect(onRemove).toHaveBeenCalledWith(['trakt'])
   })
 })
+
+describe('Reconnect recovery button when a tracker answers ERROR', () => {
+  test('offers Reconnect only on browser-check / 403 session errors, tracks loading until leaving ERROR, and surfaces popup-blocked notes', async () => {
+    vi.useFakeTimers()
+    const traktError: CompactAnswer = {
+      state: 'ERROR',
+      candidates: [],
+      error: { message: 'app.trakt.tv asked for a browser check' },
+      tracker: { id: 'trakt', name: 'Trakt', canWrite: false, scoreScale: 'POINT_10' },
+      entry: null,
+    }
+    const baseTracking: CompactTracking = { summary: null, disagreements: [], answers: [traktError, stub] }
+    let finish: (outcome: WindowSignIn) => void = () => {}
+    const signIn = vi.fn(() => new Promise<WindowSignIn>(resolve => { finish = resolve }))
+
+    const { host, setTracking } = render({ tracking: baseTracking, signIns: { trakt: signIn } })
+    const card = await hover(host, 'trakt')
+    expect(card.textContent).toContain('app.trakt.tv asked for a browser check')
+
+    const reconnect = named(host, 'Reconnect Trakt') as HTMLButtonElement
+    expect(reconnect.textContent).toBe('Reconnect')
+    expect(reconnect.disabled).toBe(false)
+
+    await act(async () => { reconnect.click() })
+    expect(signIn).toHaveBeenCalledTimes(1)
+    expect((named(host, 'Reconnect Trakt') as HTMLButtonElement).textContent).toBe('Logging in')
+    expect((named(host, 'Reconnect Trakt') as HTMLButtonElement).disabled).toBe(true)
+
+    await act(async () => { finish('authed'); await Promise.resolve() })
+    expect((named(host, 'Reconnect Trakt') as HTMLButtonElement).textContent).toBe('Loading...')
+    expect((named(host, 'Reconnect Trakt') as HTMLButtonElement).disabled).toBe(true)
+
+    await setTracking({
+      ...baseTracking,
+      answers: [{ ...traktError, state: 'LISTED', error: null, tracker: { ...traktError.tracker, canWrite: true, account: 'banou' }, entry: { status: 'WATCHING', progress: 1, score: null, episodeCount: 14 } }, stub],
+    })
+    expect(host.querySelector('[aria-label="Reconnect Trakt"]')).toBeNull()
+
+    // Also surfaces notes on reconnectable ERROR state when blocked, and omits Reconnect on generic 500 errors
+    let finishBlocked: (outcome: WindowSignIn) => void = () => {}
+    const blockedRender = render({ tracking: baseTracking, signIns: { trakt: () => new Promise<WindowSignIn>(resolve => { finishBlocked = resolve }) } })
+    await hover(blockedRender.host, 'trakt')
+    await act(async () => { named(blockedRender.host, 'Reconnect Trakt').click() })
+    await act(async () => { finishBlocked('blocked'); await Promise.resolve() })
+    expect(q(blockedRender.host, '[data-note="trakt"]').textContent).toContain('blocked the sign-in window')
+
+    const genericRender = render({
+      tracking: {
+        ...baseTracking,
+        answers: [{ ...traktError, error: { message: 'Trakt answered {status}', values: { status: 500 } } }, stub],
+      },
+      signIns: { trakt: signIn },
+    })
+    await hover(genericRender.host, 'trakt')
+    expect(genericRender.host.querySelector('[aria-label="Reconnect Trakt"]')).toBeNull()
+  })
+})

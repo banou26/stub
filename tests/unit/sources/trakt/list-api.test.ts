@@ -37,6 +37,7 @@ describe('one answer', () => {
     expect(readAnswer(answer(500, null))).toMatchObject({ kind: 'error', message: inEnglish('Trakt answered 500') })
     expect(readAnswer(answer(200, null))).toMatchObject({ kind: 'error', message: inEnglish('Trakt answered 200 with nothing stub could read') })
     expect(readAnswer({ kind: 'no-session', status: 403 })).toMatchObject({ kind: 'error', message: inEnglish('app.trakt.tv answered 403 with no session stub could read') })
+    expect(readAnswer({ kind: 'challenge', status: 403 })).toMatchObject({ kind: 'error', message: inEnglish('app.trakt.tv asked for a browser check') })
   })
 
   test('a list read is an array, and anything else is an error, never an empty list', () => {

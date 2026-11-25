@@ -68,14 +68,15 @@ afterEach(() => {
  * `url()` answers the blank page's url it was attached on, as FKN's does, and nothing otherwise.
  */
 const hiddenFrame = (api: Record<string, (arg: never) => Promise<unknown>> = { whoami: async () => 'the page answered' }) => {
-  const evaluate = vi.fn(async (_source: string, _arg: unknown) => 'installed')
+  const evaluate = vi.fn(async (_source: string, _arg?: unknown): Promise<string | null> => 'installed')
   const goto = vi.fn(async (_url: string, _options?: unknown) => {})
   const postMessage = vi.fn(async (message: { type: string }, _origin: string, transfer: MessagePort[]) => {
     ports.push(transfer[0]!)
     if (message.type === SESSION_PORT_MESSAGE) void expose(api, { transport: transfer[0]! })
   })
   const url = () => (attach.mock.lastCall?.[0] as { blank?: { url: string } } | undefined)?.blank?.url ?? ''
-  return { frame: { evaluate, goto, postMessage, on: () => {}, url }, evaluate, goto, postMessage }
+  const docListeners: (() => void)[] = []
+  return { frame: { evaluate, goto, postMessage, on: (_ev: string, cb: () => void) => { docListeners.push(cb) }, url }, evaluate, goto, postMessage, docListeners }
 }
 
 /** A sign-in window the viewer closes at once. */
@@ -210,6 +211,41 @@ describe("Trakt's session on this device", () => {
     attach.mockResolvedValueOnce({ clearCookies: async () => {} })
     await signOutOfSite('trakt', 'cloud')
     expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: ['app.trakt.tv', 'auth.trakt.tv'], cookies: 'persistent' })
+  })
+
+  test('marks the next Trakt install freshOnly after sign-out or sign-in, then clears it once landed while signed in', async () => {
+    const { sessionResolvers, signInToTrakt, signOutOfSite } = await load()
+    stored.set('stub.sessions', JSON.stringify(['trakt']))
+
+    // 1. After cloud sign-out (signed-out status), every install is freshOnly until a new sign-in lands
+    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
+    await signOutOfSite('trakt', 'cloud')
+    stored.set('stub.sessions', JSON.stringify(['trakt']))
+
+    const page1 = hiddenFrame()
+    attach.mockResolvedValueOnce(page1.frame)
+    await sessionResolvers.call('trakt', 'whoami', {})
+    expect(page1.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.objectContaining({ kind: 'serve', freshOnly: true }))
+
+    // 2. After an authed sign-in, the first install is freshOnly and the subsequent document reinstall omits freshOnly
+    attach.mockResolvedValueOnce({
+      goto: async () => {},
+      closed: new Promise(() => {}),
+      close: async () => {},
+      locator: () => ({ exists: async () => false }),
+      evaluate: async () => true,
+    })
+    expect(await signInToTrakt()).toBe('authed')
+
+    const page2 = hiddenFrame()
+    attach.mockResolvedValueOnce(page2.frame)
+    await sessionResolvers.call('trakt', 'whoami', {})
+    expect(page2.evaluate).toHaveBeenNthCalledWith(1, 'function () { return "the Trakt page script" }', expect.objectContaining({ kind: 'serve', freshOnly: true }))
+
+    // Simulate document navigation where READ_SESSION_INSTALL answers null -> triggers second install without freshOnly
+    page2.evaluate.mockImplementation(async (source: string) => source.includes('function (name)') ? null : 'installed')
+    for (const cb of page2.docListeners) cb()
+    await vi.waitFor(() => expect(page2.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.not.objectContaining({ freshOnly: true })))
   })
 })
 

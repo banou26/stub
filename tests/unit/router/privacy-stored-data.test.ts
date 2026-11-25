@@ -62,8 +62,8 @@ describe('what stub keeps per viewer', () => {
     expect(written.length, 'the scan finds the writes').toBeGreaterThanOrEqual(7)
 
     const named = STORED.flatMap(item => item.keys?.names ?? [])
-    // the settings store writes the key a setting's module hands it, and that module's own call is scanned
-    for (const { at, key } of written.filter(write => !(write.at === 'settings-store.ts' && write.key === 'key'))) {
+    // settings-store writes the caller's key; sources/trakt/session-page caches the fallback token inside app.trakt.tv (covered by site-sign-ins)
+    for (const { at, key } of written.filter(write => !(write.at === 'settings-store.ts' && write.key === 'key') && !(write.at === 'sources/trakt/session-page.ts' && write.key === 'TRAKT_SESSION_CACHE_KEY'))) {
       const value = /^'[^']*'$/.test(key) ? key.slice(1, -1) : constants.get(key)
       expect(value, `${at} writes ${key}, which is not an exported constant`).toBeDefined()
       expect(named, `${at} writes ${key}`).toContain(value)
@@ -82,6 +82,7 @@ describe('what stub keeps per viewer', () => {
   test('lists the stores kept outside web storage too: the list, the sign-ins, the account', () => {
     expect(STORED.map(item => item.id)).toEqual(expect.arrayContaining(['stub-list', 'site-sign-ins', 'fkn-account', 'fetched']))
     expect(byId('stub-list').where).toContain('this device')
+    expect(byId('site-sign-ins').what).toContain('fallback copy of the access token stub keeps there while signed in')
   })
 
   test('says the player keeps its volume and mute on the device and not its speed, and the languages last picked with the settings', () => {

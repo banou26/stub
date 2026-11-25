@@ -118,9 +118,9 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'site-sign-ins',
     title: 'Site sign-ins',
-    what: "Your Crunchyroll, Prime Video, AniList, MyAnimeList and Trakt sessions, which stub plays and tracks with: the cookies each site sets, and for Trakt also the sign-in Trakt's own page keeps in its storage.",
+    what: "Your Crunchyroll, Prime Video, AniList, MyAnimeList and Trakt sessions, which stub plays and tracks with: the cookies each site sets, and for Trakt also the sign-in Trakt's own page keeps in its storage and a fallback copy of the access token stub keeps there while signed in.",
     where: 'Without the FKN extension, FKN keeps them for every fkn.app app. With it, your browser does.',
-    lasts: 'Until you sign out, or the site ends the session',
+    lasts: "Until you sign out, or the site ends the session; the fallback copy in app.trakt.tv's storage is removed on the next Trakt connect or when the token expires",
   },
   {
     id: 'fkn-account',

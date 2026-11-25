@@ -40,6 +40,8 @@ const SESSION_SITE_IDS = ['anilist', 'mal', 'trakt', CRUNCHYROLL_TRACKER_ID] as 
 const channel = new BroadcastChannel(CONNECTED_CHANNEL)
 const connections = createConnections(() => localStorage, channel)
 
+let traktFreshOnly = false
+
 const frames = createSessionFrames<PageApi>(
   [{
     id: 'anilist',
@@ -63,6 +65,10 @@ const frames = createSessionFrames<PageApi>(
     domains: TRAKT_DOMAINS,
     reason: TRAKT_REASON,
     pageScript: traktPageScript,
+    serveExtra: () => (traktFreshOnly || siteStatuses.read('trakt')?.state === 'signed-out') ? { freshOnly: true } : {},
+    onInstalled: serve => {
+      if (serve.freshOnly && siteStatuses.read('trakt')?.state !== 'signed-out') traktFreshOnly = false
+    },
   }, {
     id: CRUNCHYROLL_TRACKER_ID,
     url: CRUNCHYROLL_SESSION_URL,
@@ -102,9 +108,17 @@ globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => {
   if (key !== CONNECTED_KEY) return
   const before = connectedSites(oldValue)
   const after = connectedSites(newValue)
-  for (const site of [...before, ...after]) if (before.includes(site) !== after.includes(site)) frames.reload(site)
+  for (const site of [...before, ...after]) {
+    if (before.includes(site) !== after.includes(site)) {
+      if (site === 'trakt' && before.includes(site) && !after.includes(site)) traktFreshOnly = true
+      frames.reload(site)
+    }
+  }
 })
-channel.onmessage = ({ data }: MessageEvent<string>) => frames.reload(data)
+channel.onmessage = ({ data }: MessageEvent<string>) => {
+  if (data === 'trakt') traktFreshOnly = true
+  frames.reload(data)
+}
 
 /** Opens anilist.co's sign-in page in an FKN window. Call it directly in the click handler. */
 export const signInToAniList = (): Promise<WindowSignIn> =>
@@ -157,6 +171,9 @@ export const signInToTrakt = (): Promise<WindowSignIn> =>
       isSignedIn: login => traktSignedIn(login, traktPageScript),
       // above the extension's 5 s evaluate bridge-ready timeout so a CSP refusal reaches traktSignedIn's fallback
       readTimeoutMs: 8_000,
+    }).then(outcome => {
+      if (outcome !== 'blocked') traktFreshOnly = true
+      return outcome
     }),
     { frames, connections },
   ).then(rememberSignIn(siteStatuses, 'trakt'))
@@ -187,6 +204,7 @@ export const watchSite = (site: TrackerSite, listener: () => void): (() => void)
  * session is the browser's own and stays.
  */
 export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Promise<void> => {
+  if (site === 'trakt') traktFreshOnly = true
   disconnectAndReload(site, { frames, connections })
   if (backend !== 'cloud') return
   await clearCloudCookies(SITE_DOMAINS[site])
