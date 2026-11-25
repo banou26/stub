@@ -2,14 +2,13 @@
 import { button, mount, unmount, withIntl } from './dom'
 
 import type { Grants, PartyMessage } from '../../../src/party/protocol'
-import type { PartyStore } from '../../../src/party/store'
+import { createPartyStore, type PartyStore, type SocialPresenceApi } from '../../../src/party/store'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 import { inviteFromHash } from '../../../src/party/invite'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -271,5 +270,38 @@ describe('the widget\'s English', () => {
       expect([trigger.textContent, ...menu()], code).toEqual(['Party failed', title, 'OK'])
       unmount(hosts.splice(hosts.indexOf(host), 1)[0]!)
     }
+  })
+
+  test('open menu renders social avatar strip with overflow count when verified members exist', async () => {
+    const members = Array.from({ length: 8 }, (_, index) => index === 0 ? 'host' : `m${index}`)
+    const participants = members.map((memberId, index) => ({
+      memberId,
+      status: 'verified' as const,
+      identity: { handle: `u${index}#T`, name: `user${index}`, displayName: `User ${index}`, avatar: `data:image/png;base64,U${index}` },
+      self: memberId === 'host',
+    }))
+    const social: SocialPresenceApi = {
+      attach: async () => ({
+        participants: () => participants,
+        of: id => participants.find(p => p.memberId === id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'host' },
+        on: () => () => {},
+        ingest: () => false,
+        memberJoined: () => {},
+        memberLeft: () => {},
+        announce: async () => {},
+        detach: async () => {},
+      }),
+    }
+    const fake = fakeRoom({ self: 'host', owner: 'host', members })
+    current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+    await current.store.create()
+    const location = memoryLocation({ path: HOST_PAGE })
+    const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyWidget/></Router>))
+    hosts.push(host)
+    await settle()
+    act(() => { host.querySelector('button')!.click() })
+    await settle()
+    expect(document.body.querySelectorAll('.avatars .party-avatar img')).toHaveLength(6)
+    expect(document.body.querySelector('.avatars-more')?.textContent).toBe('+2')
   })
 })

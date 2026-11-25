@@ -2,7 +2,7 @@
 // so the decoder is the one place that decides what a host can make a follower do.
 import { describe, expect, test } from 'vite-plus/test'
 
-import { CHAT_MAX_CHARS, NAME_MAX_CHARS, allowed, chatText, clockText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
+import { CHAT_MAX_CHARS, NAME_MAX_CHARS, SOCIAL_MAX_CHARS, allowed, chatText, clockText, decodePartyMessage, displayName, encodePartyMessage, isAppPath, isHostOnly, PARTY_PROTOCOL, type PartyMessage } from '../../../src/party/protocol'
 
 const PLAYBACK = { paused: false, time: 421.5, rate: 1, at: 1_788_700_000_000 }
 
@@ -17,6 +17,7 @@ describe('encode and decode', () => {
       { t: 'cursor', x: 0.25, y: 0.75 },
       { t: 'chat', text: 'hello there' },
       { t: 'name', name: 'Ann' },
+      { t: 'social', p: '{"t":"social.hello","v":1}' },
       { t: 'ask', c: 'play', path: '/watch/a/b', s: PLAYBACK },
       { t: 'ask', c: 'seek', path: '/watch/a/b', s: PLAYBACK },
       { t: 'ask', c: 'rate', path: '/watch/a/b', s: { ...PLAYBACK, rate: 1.5 } },
@@ -86,6 +87,7 @@ describe('the two classes', () => {
     expect(isHostOnly({ t: 'state', path: '/', y: 0 })).toBe(true)
     expect(isHostOnly({ t: 'chat', text: 'hi' })).toBe(false)
     expect(isHostOnly({ t: 'name', name: 'Ann' })).toBe(false)
+    expect(isHostOnly({ t: 'social', p: '{"t":"social.hello"}' })).toBe(false)
     expect(isHostOnly({ t: 'ask', c: 'play', path: '/', s: PLAYBACK })).toBe(false)
     expect(isHostOnly({ t: 'ask', c: 'go', path: '/watch/a/b' })).toBe(false)
     expect(isHostOnly({ t: 'status', s: 'ready', path: '/watch/a/b' })).toBe(false)
@@ -234,5 +236,13 @@ describe('chatText and displayName', () => {
   test('the decoder bounds what a sender did not', () => {
     const long = JSON.stringify({ v: PARTY_PROTOCOL, t: 'chat', text: 'y'.repeat(CHAT_MAX_CHARS + 100) })
     expect((decodePartyMessage(long) as { text: string }).text).toHaveLength(CHAT_MAX_CHARS)
+  })
+
+  test('social frames accept up to SOCIAL_MAX_CHARS and drop empty or oversized payloads', () => {
+    const edge = 's'.repeat(SOCIAL_MAX_CHARS)
+    expect(decodePartyMessage(encodePartyMessage({ t: 'social', p: edge }))).toEqual({ t: 'social', p: edge })
+    expect(decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'social', p: '' }))).toBeUndefined()
+    expect(decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'social', p: 's'.repeat(SOCIAL_MAX_CHARS + 1) }))).toBeUndefined()
+    expect(decodePartyMessage(JSON.stringify({ v: PARTY_PROTOCOL, t: 'social', p: 42 }))).toBeUndefined()
   })
 })

@@ -10,7 +10,8 @@ import { defineMessages, useIntl } from 'react-intl'
 import { party, partyLink } from '../../party'
 import { inviteFromHash } from '../../party/invite'
 import { displayName } from '../../party/protocol'
-import { useParty, usePartyMessages } from '../../party/use-party'
+import { useParty, usePartyMessages, usePartyPresence } from '../../party/use-party'
+import PartyAvatar from '../../components/party-avatar'
 import { getRoutePath, Route } from '../path'
 import { readPluginUris, writePluginUris } from '../../utils/plugin-links'
 
@@ -80,6 +81,20 @@ const style = css`
     color: #fff;
   }
 
+  .row .name.grow,
+  .row .handle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row .handle {
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
   .badge {
     padding: 0.2rem 0.6rem;
     border-radius: 0.4rem;
@@ -92,6 +107,8 @@ const style = css`
   }
 
   .badge.you { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); }
+  .badge.friend { background: rgba(56, 189, 248, 0.18); color: #38bdf8; }
+  .badge.warn { background: rgba(251, 146, 60, 0.18); color: #fb923c; }
 
   button, input {
     font-family: inherit;
@@ -171,17 +188,18 @@ const Party = () => {
     void party.join(invite)
   }, [invite])
 
-  // the roster is read from the room, and re-read on every join, leave and introduction
+  // the roster is read from the room, and re-read on every join, leave, introduction and social update
+  const presence = usePartyPresence()
   const members_ = active ? state.members : 0
   useEffect(() => {
     if (!active) { setMembers([]); return }
     let cancelled = false
-    party.roster().then(list => { if (!cancelled) setMembers(list) })
+    void party.roster().then(list => { if (!cancelled) setMembers(list) })
     return () => { cancelled = true }
-  }, [active, members_])
+  }, [active, members_, presence])
   usePartyMessages(message => {
     if (message.t !== 'name') return
-    party.roster().then(setMembers)
+    void party.roster().then(setMembers)
   })
   useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 1_500); return () => clearTimeout(timer) }, [copied])
 
@@ -259,20 +277,37 @@ const Party = () => {
 
           <div className="section">
             <div className="label">{intl.formatMessage({ id: 'In the party ({count})', defaultMessage: 'In the party ({count})' }, { count: members.length })}</div>
-            {members.map(member => (
-              <div key={member.id} className="row" data-member={member.id}>
-                {member.name ? <span className="name">{member.name}</span> : null}
-                <span className="id" title={member.id}>{member.id}</span>
-                {member.host && <span className="badge">{intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>}
-                {member.self && <span className="badge you">{intl.formatMessage({ id: 'you#the viewer, among the party', defaultMessage: 'you', description: 'the viewer, among the party' })}</span>}
-                {state.role === 'host' && !member.self && (
-                  <>
-                    <button type="button" className="action danger" onClick={() => { void party.kick(member.id) }}><UserX size={14}/> {intl.formatMessage({ id: 'Kick', defaultMessage: 'Kick' })}</button>
-                    <button type="button" className="action danger" onClick={() => { void party.ban(member.id) }}><Ban size={14}/> {intl.formatMessage({ id: 'Ban', defaultMessage: 'Ban' })}</button>
-                  </>
-                )}
-              </div>
-            ))}
+            {members.map(member => {
+              const verified = member.identity?.identity
+              const atName = verified ? `@${verified.name}` : undefined
+              const showHandle = Boolean(verified && member.name && member.name !== verified.name)
+              return (
+                <div key={member.id} className="row" data-member={member.id}>
+                  <PartyAvatar participant={member.identity} size={28}/>
+                  {atName
+                    ? (showHandle
+                      ? <>
+                          <span className="name">{member.name}</span>
+                          <span className="handle" title={verified!.handle}>{atName}</span>
+                        </>
+                      : <span className="name grow" title={verified!.handle}>{atName}</span>)
+                    : <>
+                        {member.name ? <span className="name">{member.name}</span> : null}
+                        <span className="id" title={member.id}>{member.id}</span>
+                      </>}
+                  {member.identity?.status === 'friend' && <span className="badge friend">{intl.formatMessage({ id: 'friend#a party member who is your FKN Social friend', defaultMessage: 'friend', description: 'a party member who is your FKN Social friend' })}</span>}
+                  {member.identity?.status === 'rekeyed' && <span className="badge warn">{intl.formatMessage({ id: 'new key#a friend whose FKN Social signing key changed', defaultMessage: 'new key', description: 'a friend whose FKN Social signing key changed' })}</span>}
+                  {member.host && <span className="badge">{intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>}
+                  {member.self && <span className="badge you">{intl.formatMessage({ id: 'you#the viewer, among the party', defaultMessage: 'you', description: 'the viewer, among the party' })}</span>}
+                  {state.role === 'host' && !member.self && (
+                    <>
+                      <button type="button" className="action danger" onClick={() => { void party.kick(member.id) }}><UserX size={14}/> {intl.formatMessage({ id: 'Kick', defaultMessage: 'Kick' })}</button>
+                      <button type="button" className="action danger" onClick={() => { void party.ban(member.id) }}><Ban size={14}/> {intl.formatMessage({ id: 'Ban', defaultMessage: 'Ban' })}</button>
+                    </>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="section">

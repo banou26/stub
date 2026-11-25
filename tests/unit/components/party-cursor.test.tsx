@@ -2,14 +2,13 @@
 import { mount, unmount, withIntl } from './dom'
 
 import type { PartyMessage } from '../../../src/party/protocol'
-import type { PartyStore } from '../../../src/party/store'
+import { createPartyStore, type PartyStore, type SocialPresenceApi } from '../../../src/party/store'
 
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
@@ -147,4 +146,33 @@ test('a follower with other sources than the host\'s still sees the host\'s poin
     fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'host', at: 2, text: encodePartyMessage({ t: 'cursor', x: 0.5, y: 0.5 }) }, replayed: false })
   })
   expect(host.querySelector('.tag')?.textContent).toBe('host')
+})
+
+test('ghost cursor shows the host\'s verified FKN Social name and avatar', async () => {
+  const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+  const participants = [{ memberId: 'host', status: 'friend' as const, identity: { handle: 'mika#T', name: 'mika', displayName: 'Mika', avatar: 'data:image/png;base64,HOST' }, self: false }]
+  const social: SocialPresenceApi = {
+    attach: async () => ({
+      participants: () => participants,
+      of: id => participants.find(p => p.memberId === id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'me' },
+      on: () => () => {},
+      ingest: () => false,
+      memberJoined: () => {},
+      memberLeft: () => {},
+      announce: async () => {},
+      detach: async () => {},
+    }),
+  }
+  current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+  await current.store.join(INVITE)
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+  const location = memoryLocation({ path: PAGE })
+  const host = mount(withIntl(<Router hook={location.hook} searchHook={location.searchHook}><PartyCursor/></Router>))
+  hosts.push(host)
+  act(() => {
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 1, text: encodePartyMessage({ t: 'state', path: PAGE, y: 0 }) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'host', at: 2, text: encodePartyMessage({ t: 'cursor', x: 0.5, y: 0.5 }) }, replayed: false })
+  })
+  expect(host.querySelector('.tag')?.textContent).toBe('Mika')
+  expect(host.querySelector('.tag .party-avatar img')?.getAttribute('src')).toBe('data:image/png;base64,HOST')
 })

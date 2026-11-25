@@ -1,14 +1,13 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from '../components/dom'
 
-import type { PartyStore } from '../../../src/party/store'
+import { createPartyStore, type PartyStore, type SocialPresenceApi } from '../../../src/party/store'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 
-import { createPartyStore } from '../../../src/party/store'
 import { encodePartyMessage } from '../../../src/party/protocol'
 import { inviteFromHash } from '../../../src/party/invite'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
@@ -110,6 +109,72 @@ describe('the party page\'s English', () => {
     expect([...host.querySelectorAll('.row .badge')].map(badge => badge.textContent)).toEqual(['host', 'you'])
     expect([...host.querySelectorAll('.row')].at(-1)?.textContent).toBe('Annann Kick Ban')
     expect(host.querySelector('.section:last-child button')?.textContent).toBe(' End party')
+  })
+
+  test('renders verified FKN Social avatar, username, @handle and friend/rekeyed badges cleanly', async () => {
+    const listeners = new Set<(list: unknown[]) => void>()
+    const participants = [
+      { memberId: 'host', status: 'friend' as const, identity: { handle: 'host#TAG1', name: 'alice', displayName: 'Alice', avatar: 'data:image/png;base64,AAAA', nickname: 'Ali' }, self: true },
+      { memberId: 'bob', status: 'verified' as const, identity: { handle: 'bob#TAG2', name: 'bob', displayName: '', avatar: null, identicon: 'data:image/svg+xml,bob' }, self: false },
+      { memberId: 'eve', status: 'rekeyed' as const, identity: { handle: 'eve#TAG3', name: 'eve', displayName: 'Eve', avatar: null }, self: false },
+    ]
+    const social: SocialPresenceApi = {
+      attach: async () => ({
+        participants: () => participants,
+        of: id => participants.find(p => p.memberId === id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'host' },
+        on: listener => { listeners.add(listener as never); return () => listeners.delete(listener as never) },
+        ingest: () => false,
+        memberJoined: () => {},
+        memberLeft: () => {},
+        announce: async () => {},
+        detach: async () => {},
+      }),
+    }
+    const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'bob', 'eve'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+    const host = await page('', store => store.create())
+
+    const hostRow = host.querySelector('[data-member="host"]')!
+    expect(hostRow.querySelector('.party-avatar img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
+    expect(hostRow.querySelector('.name')?.textContent).toBe('Ali')
+    expect(hostRow.querySelector('.handle')?.textContent).toBe('@alice')
+    expect([...hostRow.querySelectorAll('.badge')].map(b => b.textContent)).toEqual(['friend', 'host', 'you'])
+
+    const bobRow = host.querySelector('[data-member="bob"]')!
+    expect(bobRow.querySelector('.party-avatar img')?.getAttribute('src')).toBe('data:image/svg+xml,bob')
+    expect(bobRow.querySelector('.name.grow')?.textContent).toBe('@bob')
+
+    const eveRow = host.querySelector('[data-member="eve"]')!
+    expect(eveRow.querySelector('.badge.warn')?.textContent).toBe('new key')
+  })
+
+  test('ignores empty/unsafe avatar URLs and uses friend nickname initial as fallback', async () => {
+    const participants = [
+      { memberId: 'host', status: 'friend' as const, identity: { handle: 'host#TAG1', name: 'alice', displayName: 'Alice', avatar: '', identicon: 'data:image/svg+xml,fallback', nickname: 'Zed' }, self: true },
+      { memberId: 'bob', status: 'verified' as const, identity: { handle: 'bob#TAG2', name: 'bob', displayName: 'Bob', avatar: 'javascript:alert(1)' }, self: false },
+      { memberId: 'carol', status: 'friend' as const, identity: { handle: 'carol#TAG3', name: 'carol', displayName: 'Carol', avatar: null, nickname: 'Mina' }, self: false },
+    ]
+    const social: SocialPresenceApi = {
+      attach: async () => ({
+        participants: () => participants,
+        of: id => participants.find(p => p.memberId === id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'host' },
+        on: () => () => {},
+        ingest: () => false,
+        memberJoined: () => {},
+        memberLeft: () => {},
+        announce: async () => {},
+        detach: async () => {},
+      }),
+    }
+    const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'bob', 'carol'] })
+    current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+    const host = await page('', store => store.create())
+
+    expect(host.querySelector('[data-member="host"] .party-avatar img')?.getAttribute('src')).toBe('data:image/svg+xml,fallback')
+    expect(host.querySelector('[data-member="bob"] .party-avatar img')).toBeNull()
+    expect(host.querySelector('[data-member="bob"] .party-avatar')?.textContent).toBe('B')
+    expect(host.querySelector('[data-member="carol"] .party-avatar img')).toBeNull()
+    expect(host.querySelector('[data-member="carol"] .party-avatar')?.textContent).toBe('M')
   })
 })
 

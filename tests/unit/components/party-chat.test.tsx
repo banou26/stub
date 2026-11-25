@@ -2,12 +2,11 @@
 import { mount, unmount, withIntl } from './dom'
 
 import type { PartyMessage, PlaybackState } from '../../../src/party/protocol'
-import type { PartyStore } from '../../../src/party/store'
+import { createPartyStore, type PartyStore, type SocialPresenceApi } from '../../../src/party/store'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
-import { createPartyStore } from '../../../src/party/store'
 import { encodePartyMessage } from '../../../src/party/protocol'
 import { api, fakeRoom, INVITE, memoryStorage } from '../party/fake-room'
 
@@ -140,6 +139,43 @@ describe('the chat\'s English', () => {
     say('me', { t: 'chat', text: 'hey' })
     expect([...host.querySelectorAll('.line .who')].map(who => who.textContent)).toEqual(['host', 'Alex', 'sam123', 'you'])
     expect(host.querySelector('.empty')).toBeNull()
+  })
+
+  test('renders verified FKN Social username and avatar in chat and updates lines when presence arrives', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'alice1'] })
+    const map = new Map<string, { memberId: string, status: 'verified', identity: { handle: string, name: string, displayName: string, avatar: string | null }, self: boolean }>()
+    const listeners = new Set<(list: unknown[]) => void>()
+    const social: SocialPresenceApi = {
+      attach: async () => ({
+        participants: () => [...map.values()],
+        of: id => map.get(id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'me' },
+        on: l => { listeners.add(l as never); return () => listeners.delete(l as never) },
+        ingest: () => false,
+        memberJoined: () => {},
+        memberLeft: () => {},
+        announce: async () => {},
+        detach: async () => {},
+      }),
+    }
+    current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+    await current.store.join(INVITE)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+
+    const host = mount(withIntl(<PartyChat/>))
+    hosts.push(host)
+    act(() => {
+      fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'alice1', at: 1, text: encodePartyMessage({ t: 'chat', text: 'hello' }) }, replayed: false })
+      host.querySelector<HTMLButtonElement>('button.toggle')!.click()
+    })
+    expect(host.querySelector('.line .who')?.textContent).toBe('alice1')
+    expect(host.querySelector('.line .party-avatar')).toBeNull()
+
+    await act(async () => {
+      map.set('alice1', { memberId: 'alice1', status: 'verified', identity: { handle: 'alice#H', name: 'alice', displayName: 'Alice', avatar: 'data:image/png;base64,BBB' }, self: false })
+      for (const l of listeners) l([...map.values()])
+    })
+    expect(host.querySelector('.line .who')?.textContent).toBe('Alice')
+    expect(host.querySelector('.line .party-avatar img')?.getAttribute('src')).toBe('data:image/png;base64,BBB')
   })
 })
 

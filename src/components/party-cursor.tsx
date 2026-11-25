@@ -4,9 +4,10 @@ import { useIntl } from 'react-intl'
 import { useLocation, useSearch } from 'wouter'
 
 import { party } from '../party'
-import { useParty, usePartyMessages } from '../party/use-party'
+import { useParty, usePartyMessages, usePartyPresence } from '../party/use-party'
 import { layer } from '../layers'
 import { withoutPluginUris } from '../utils/plugin-links'
+import PartyAvatar from './party-avatar'
 
 // Where the host is pointing, drawn on every follower's page. Mounted once at the router root.
 
@@ -33,6 +34,9 @@ const style = css`
   }
 
   .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     margin-top: 1.4rem;
     padding: 0.2rem 0.6rem;
     border-radius: 0.4rem;
@@ -52,6 +56,7 @@ const alongTheLine = (x: number, y: number) =>
 const PartyCursor = () => {
   const intl = useIntl()
   const state = useParty()
+  usePartyPresence()
   const role = state.status === 'active' ? state.role : undefined
   const [location] = useLocation()
   const search = useSearch()
@@ -110,6 +115,7 @@ const PartyCursor = () => {
   // what the host calls itself, which everyone repeats on a heartbeat, rather than only what it has
   // said in the chat: a host that never typed anything used to be labelled "host" for ever
   const name = state.status === 'active' ? party.nameOf(state.owner) : undefined
+  const hostIdentity = state.status === 'active' ? party.identityOf(state.owner) : undefined
   return (
     <div
       css={style}
@@ -119,7 +125,10 @@ const PartyCursor = () => {
       <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
         <path d="M2 2 L2 17 L6.5 13 L9.5 20 L12 19 L9 12.5 L15 12 Z" fill="#4ade80" stroke="#06120a" strokeWidth="1.2" strokeLinejoin="round"/>
       </svg>
-      <span className="tag">{name ?? intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>
+      <span className="tag">
+        <PartyAvatar participant={hostIdentity} size={16}/>
+        <span>{name ?? intl.formatMessage({ id: 'host#the party\'s host', defaultMessage: 'host', description: 'the party\'s host' })}</span>
+      </span>
     </div>
   )
 }

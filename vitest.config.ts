@@ -89,6 +89,6 @@ export default defineConfig({
     //
     // @floating-ui/react likewise, so the tracking row's chip cards render here: externalized, its
     // `import 'react'` dies with "Cannot find package 'react'". react-intl the same.
-    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@videojs\//, /@floating-ui\//, /react-intl/] } },
+    server: { deps: { inline: [/graphql-yoga/, /@envelop\//, /@graphql-tools\//, /@whatwg-node\//, /@emotion\//, /wouter/, /use-sync-external-store/, /@xyflow\//, /zustand/, /classcat/, /@banou\/media-player/, /@banou\/social/, /@videojs\//, /@floating-ui\//, /react-intl/] } },
   },
 })

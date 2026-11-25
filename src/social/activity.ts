@@ -1,9 +1,18 @@
+import type { Post, PublishingState } from '@banou/social'
 import type { Activity } from '../tracking/compact'
-import type { Post, PublishingState } from './protocol'
 
 import { getRoutePath, Route } from '../router/path'
 import { entryMediaUri, identify, newEntryIdentity } from '../tracking/identity'
 import { asAggregatedUri, isAggregatedUri } from '../utils/uri'
+
+/** Canonical site origin used when stub runs on an ephemeral *.sdbx.app sandbox tenant frame. */
+export const CANONICAL_SANDBOX_ORIGIN = 'https://stub.fkn.app'
+
+/** Resolves the origin used in published FKN Social links so sandbox hosts map to https://stub.fkn.app. */
+export const activityOrigin = (loc: { origin: string, hostname?: string } = globalThis.location): string => {
+  const hostname = loc.hostname ?? (() => { try { return new URL(loc.origin).hostname } catch { return '' } })()
+  return hostname === 'sdbx.app' || hostname.endsWith('.sdbx.app') ? CANONICAL_SANDBOX_ORIGIN : loc.origin
+}
 
 /** The kinds stub asks to post: a show started, an episode count raised, a show completed. */
 export const POSTED_KINDS: Post['kind'][] = ['started', 'watched', 'completed']

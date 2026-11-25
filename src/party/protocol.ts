@@ -72,6 +72,7 @@ export type PartyMessage =
   | { t: 'ask', c: 'audio', audio: string | null }
   | { t: 'chat', text: string }
   | { t: 'name', name: string }
+  | { t: 'social', p: string }
   | { t: 'ping', n: number, at: number }
   | { t: 'pong', n: number, at: number, host: number }
   | { t: 'status', s: FollowerState, path?: string, time?: number, rate?: number }
@@ -89,6 +90,7 @@ export const isHostOnly = (message: PartyMessage): boolean => HOST_ONLY.has(mess
 /** The longest chat line and name the room carries. The room's own cap is 262,144 bytes of the whole message. */
 export const CHAT_MAX_CHARS = 500
 export const NAME_MAX_CHARS = 32
+export const SOCIAL_MAX_CHARS = 3_500
 
 /** A typed line or name as the wire carries it: trimmed, bounded, and nothing when empty. */
 export const chatText = (raw: string): string | undefined => {
@@ -135,6 +137,10 @@ export const decodePartyMessage = (text: string): PartyMessage | undefined => {
       const name = typeof value.name === 'string' ? displayName(value.name) : undefined
       return name ? { t: 'name', name } : undefined
     }
+    case 'social':
+      return typeof value.p === 'string' && value.p.length > 0 && value.p.length <= SOCIAL_MAX_CHARS
+        ? { t: 'social', p: value.p }
+        : undefined
     case 'ping':
       return isStamp(value.n) && isStamp(value.at) ? { t: 'ping', n: value.n, at: value.at } : undefined
     case 'pong':

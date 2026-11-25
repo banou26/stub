@@ -534,6 +534,46 @@ describe("posting to the viewer's FKN Social page", () => {
     }])
   })
 
+  const renderWatch = (link: { apply: () => void, seek: () => void, onReport: (listener: (s: { paused: boolean, time: number, rate: number, at: number }) => void) => () => void, duration?: () => number, ended?: () => boolean, dispose: () => void }) => {
+    const store = expandedStore()
+    const host = mount(withIntl(
+      <MediaTracking
+        work={FRIEREN}
+        address={FRIEREN}
+        uri={FRIEREN}
+        title="Frieren"
+        episodeCount={28}
+        link={link}
+        episode={4}
+        prefsStore={store}
+      />,
+    ))
+    hosts.push(host)
+    return host
+  }
+
+  test('auto-watching an episode past 85% posts watched activity with canonical sandbox origin', async () => {
+    vi.stubGlobal('location', { origin: 'https://0x3lk9k4779agjbj1og4i6hu.sdbx.app', hostname: '0x3lk9k4779agjbj1og4i6hu.sdbx.app' })
+    social.state = { state: 'allowed', kinds: ['started', 'watched', 'completed'] }
+    let report: (s: { paused: boolean, time: number, rate: number, at: number }) => void = () => {}
+    renderWatch({
+      apply: () => {},
+      seek: () => {},
+      onReport: listener => { report = listener; return () => {} },
+      duration: () => 1000,
+      dispose: () => {},
+    })
+    await act(async () => { report({ paused: false, time: 900, rate: 1, at: Date.now() }) })
+    await vi.waitFor(() => expect(social.posted).toHaveLength(1))
+    expect(social.posted).toStrictEqual([{
+      kind: 'watched',
+      title: 'Frieren',
+      link: 'https://stub.fkn.app/title/ag:(anilist:154587)',
+      detail: 'Episode 4',
+      subject: 'anilist:154587',
+    }])
+  })
+
   test('nothing while off or asked', async () => {
     for (const state of [{ state: 'off' }, { state: 'asked' }]) {
       social.state = state

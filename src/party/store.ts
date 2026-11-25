@@ -1,5 +1,6 @@
 import type { rooms } from '@fkn/lib'
 import type { EmbedTracks, TrackKind } from '../embed-tracks'
+import type { Participant, Presence, RoomBinding } from '../social'
 import type { Ask, Control, Grants, PartyMessage, PlaybackState } from './protocol'
 import type { MyTrack } from './tracks'
 import type { FollowerStatus } from './status'
@@ -29,8 +30,11 @@ export type PartyState =
   | { status: 'ended', reason: PartyEndReason }
   | { status: 'failed', code: rooms.RoomsErrorCode | 'unknown' }
 
+/** The slice of `@banou/social` room presence the party store uses, injectable for tests. */
+export type SocialPresenceApi = { attach: (binding: RoomBinding) => Promise<Presence> }
+
 /** Who is in the party, as the party page lists them. */
-export type PartyMember = { id: string, name?: string, host: boolean, self: boolean }
+export type PartyMember = { id: string, name?: string, identity?: Participant, host: boolean, self: boolean }
 
 /**
  * One line of the room's chat. `seq` is the api's, so two tabs order it the same way. A line is what a member typed,
@@ -69,15 +73,17 @@ export type PartyStore = {
   resume: () => Promise<void>
   /** Steering is the host's; talking is anyone's. A guest's steering message is dropped here. */
   send: (message: PartyMessage) => void
-  /** Everyone in the party, names included where they were given. */
+  /** Everyone in the party, names and verified social identities included where known. */
   roster: () => Promise<PartyMember[]>
   /**
-   * What a member calls itself, if it has said so.
-   *
-   * Everyone with a name repeats it on a heartbeat and on every join, so this fills in shortly after
-   * anyone arrives and does not depend on them having spoken in the chat.
+   * What a member is called: friend nickname, verified FKN Social name, self-declared nickname, or
+   * undefined when none is known.
    */
   nameOf: (id: string) => string | undefined
+  /** Verified FKN Social participant for a member, or undefined while silent/unverified. */
+  identityOf: (id: string) => Participant | undefined
+  /** Subscribes to FKN Social room presence updates (names, avatars, friend badges). */
+  onPresence: (listener: () => void) => () => void
   /** The chat so far, newest last. */
   chat: () => PartyChatLine[]
   /** Call yourself this, here and in every room this tab joins. */
@@ -202,10 +208,17 @@ const defaultStorage = (): StorageLike | undefined => {
 const isRoomsError = (error: unknown): error is rooms.RoomsError =>
   error instanceof Error && typeof (error as { code?: unknown }).code === 'string'
 
-export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined = defaultStorage()): PartyStore => {
+const MAX_PENDING_SOCIAL = 64
+
+export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined = defaultStorage(), social?: SocialPresenceApi): PartyStore => {
   let state: PartyState = { status: 'idle' }
   let room: Room | undefined
   let unlisten: (() => void) | undefined
+  let presence: Presence | undefined
+  let presenceUnlisten: (() => void) | undefined
+  let pendingSocial: { from: string, frame: string, at: number, seq: number }[] = []
+  let pendingMembership: { type: 'joined' | 'left', id: string }[] = []
+  const presenceListeners = new Set<() => void>()
   const snapshot: PartySnapshot = { path: '/', y: 0 }
   const stateListeners = new Set<(state: PartyState) => void>()
   const messageListeners = new Set<(message: PartyMessage, meta: PartyMessageMeta) => void>()
@@ -251,6 +264,21 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
   const roleIn = (joined: Room): PartyRole => joined.owner === joined.self.id ? 'host' : 'guest'
 
   const tell = (message: PartyMessage, meta: PartyMessageMeta) => { for (const listener of messageListeners) listener(message, meta) }
+  const notifyPresence = () => { for (const listener of presenceListeners) listener() }
+  const verifiedOf = (id: string): Participant | undefined => {
+    const participant = presence?.of(id)
+    return participant?.identity ? participant : undefined
+  }
+  const resolvedNameOf = (id: string): string | undefined => {
+    const participant = verifiedOf(id)
+    const identity = participant?.identity
+    if (identity) {
+      if (participant.status === 'friend' && identity.nickname?.trim()) return identity.nickname.trim()
+      if (identity.displayName.trim()) return identity.displayName.trim()
+      if (identity.name) return identity.name
+    }
+    return names.get(id)
+  }
 
   const memberCount = async (joined: Room) => {
     const members = await joined.members().catch(() => undefined)
@@ -391,6 +419,16 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     clock = undefined
     pings.clear()
     mine = FOLLOW_PARTY
+    presenceUnlisten?.()
+    presenceUnlisten = undefined
+    const detaching = presence
+    presence = undefined
+    pendingSocial = []
+    pendingMembership = []
+    if (detaching) {
+      void detaching.detach().catch(() => {})
+      notifyPresence()
+    }
   }
 
   const attach = async (joined: Room) => {
@@ -456,6 +494,13 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
             if (role === 'host' && message.c === 'subs') choose('subtitles', message.sub)
             if (role === 'host' && message.c === 'audio') choose('audio', message.audio)
           }
+          if (message.t === 'social') {
+            if (presence) presence.ingest(from, message.p, event.message.at, event.message.seq)
+            else if (pendingSocial.length < MAX_PENDING_SOCIAL) {
+              pendingSocial.push({ from, frame: message.p, at: event.message.at, seq: event.message.seq })
+            }
+            return
+          }
           if (message.t === 'name') names.set(from, message.name)
           if (message.t === 'status' && role === 'host' && !self) {
             const { t: _, ...told } = message
@@ -475,6 +520,10 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           // it again, since a joiner heard none of the introductions.
           if (role === 'host') send(whereWeAre())
           if (ownName) send({ t: 'name', name: ownName })
+          if (presence) presence.memberJoined(event.member.id)
+          else if (social && pendingMembership.length < MAX_PENDING_SOCIAL) {
+            pendingMembership.push({ type: 'joined', id: event.member.id })
+          }
           void memberCount(joined)
           return
         }
@@ -489,6 +538,10 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
           // stays: the same tab comes back with the same id after the seat hold, and "everyone except
           // Sam" must not lift because Sam's connection dropped.
           statuses.delete(event.id)
+          if (presence) presence.memberLeft(event.id)
+          else if (social && pendingMembership.length < MAX_PENDING_SOCIAL) {
+            pendingMembership.push({ type: 'left', id: event.id })
+          }
           const entry = issued?.by[event.id]
           if (role === 'host' && issued && entry && !Object.values(entry).includes(false)) {
             issued = { ...issued, by: Object.fromEntries(Object.entries(issued.by).filter(([id]) => id !== event.id)) }
@@ -512,6 +565,37 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
     introductions = setInterval(() => { if (ownName) send({ t: 'name', name: ownName }) }, NAME_HEARTBEAT_MS)
     if (ownName) send({ t: 'name', name: ownName })
     void memberCount(joined)
+    if (social) {
+      const currentRoom = joined
+      void social.attach({
+        roomId: joined.id,
+        selfMemberId: joined.self.id,
+        send: frame => { if (room === currentRoom) send({ t: 'social', p: frame }) },
+      }).then(async attached => {
+        if (room !== currentRoom) {
+          await attached.detach().catch(() => {})
+          return
+        }
+        const currentMembers = await joined.members().catch(() => [])
+        if (room !== currentRoom) {
+          await attached.detach().catch(() => {})
+          return
+        }
+        presence = attached
+        presenceUnlisten = attached.on(() => notifyPresence())
+        for (const member of currentMembers) {
+          if (member.id !== joined.self.id) attached.memberJoined(member.id)
+        }
+        for (const event of pendingMembership.splice(0)) {
+          if (event.type === 'joined' && event.id !== joined.self.id) attached.memberJoined(event.id)
+          else if (event.type === 'left') attached.memberLeft(event.id)
+        }
+        for (const buffered of pendingSocial.splice(0)) {
+          attached.ingest(buffered.from, buffered.frame, buffered.at, buffered.seq)
+        }
+        notifyPresence()
+      }, () => {})
+    }
     joined.closed.then(({ reason }) => {
       if (room !== joined) return
       detach()
@@ -599,19 +683,28 @@ export const createPartyStore = (api: RoomsApi, storage: StorageLike | undefined
       }
       if (!following) { following = true; setState({ ...state }) }
     },
-    nameOf: id => names.get(id),
+    nameOf: resolvedNameOf,
+    identityOf: verifiedOf,
+    onPresence: listener => { presenceListeners.add(listener); return () => { presenceListeners.delete(listener) } },
     roster: async () => {
       if (!room) return []
       const current = room
       const members = await current.members().catch(() => [])
-      return members.map(member => ({
-        id: member.id,
-        name: names.get(member.id),
-        host: member.id === current.owner,
-        self: member.id === current.self.id,
-      }))
+      return members.map(member => {
+        const identity = verifiedOf(member.id)
+        return {
+          id: member.id,
+          name: resolvedNameOf(member.id),
+          ...identity ? { identity } : {},
+          host: member.id === current.owner,
+          self: member.id === current.self.id,
+        }
+      })
     },
-    chat: () => lines.slice(),
+    chat: () => lines.map(line => {
+      const name = resolvedNameOf(line.from) ?? line.name
+      return name === line.name ? line : { ...line, name }
+    }),
     setName: name => {
       ownName = name
       try { name ? storage?.setItem(PARTY_NAME_KEY, name) : storage?.removeItem(PARTY_NAME_KEY) } catch {}

@@ -1,8 +1,8 @@
-import type { Post, PublishAnswer, PublishingState } from '../../../src/social/protocol'
+import type { Post, PublishAnswer, PublishingState } from '@banou/social'
 
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { createPoster, postOf } from '../../../src/social/activity'
+import { activityOrigin, createPoster, postOf } from '../../../src/social/activity'
 import { activityOf } from '../../../src/tracking/compact'
 
 // STUB-58 (publish what you watch to your FKN Social profile): what a save of the tracking row posts, and when.
@@ -88,6 +88,16 @@ describe('the poster', () => {
     now += 1
     await post({ ...saved, detail: 'Episode 14' })
     expect(calls.posted.at(-1)?.detail).toBe('Episode 14')
+  })
+
+  test('maps *.sdbx.app sandbox origins to https://stub.fkn.app while keeping site origins intact', () => {
+    expect(activityOrigin({ origin: 'https://0x3lk9k4779agjbj1og4i6hu.sdbx.app', hostname: '0x3lk9k4779agjbj1og4i6hu.sdbx.app' })).toBe('https://stub.fkn.app')
+    expect(activityOrigin({ origin: 'https://0x3lk9k4779agjbj1og4i6hu.sdbx.app' })).toBe('https://stub.fkn.app')
+    expect(postOf(saved, activityOrigin({ origin: 'https://0x3lk9k4779agjbj1og4i6hu.sdbx.app' }))?.link)
+      .toBe('https://stub.fkn.app/title/ag:(anilist:154587)')
+    expect(activityOrigin({ origin: 'https://anime.fkn.app', hostname: 'anime.fkn.app' })).toBe('https://anime.fkn.app')
+    expect(activityOrigin({ origin: 'https://evil.sdbx.app.example.com', hostname: 'evil.sdbx.app.example.com' })).toBe('https://evil.sdbx.app.example.com')
+    expect(postOf(saved, activityOrigin({ origin: 'http://localhost:4560', hostname: 'localhost' }))).toBeUndefined()
   })
 
   test('never throws, whatever fails', async () => {

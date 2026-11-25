@@ -4,7 +4,8 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { api, fakeRoom, INVITE, memoryStorage } from './fake-room'
-import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, STATUS_GAP_MS, STATUS_HEARTBEAT_MS, type PartyState } from '../../../src/party/store'
+import type { Participant, Presence, RoomBinding } from '../../../src/social'
+import { CLOCK_SAMPLES, CLOCK_SPACING_MS, createPartyStore, NAME_HEARTBEAT_MS, PARTY_NAME_KEY, PARTY_SESSION_KEY, STATE_HEARTBEAT_MS, STATUS_GAP_MS, STATUS_HEARTBEAT_MS, type PartyState, type SocialPresenceApi } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -943,5 +944,228 @@ describe('a follower\'s status', () => {
     rooms.create.mockResolvedValueOnce(fakeRoom({ self: 'me', owner: 'me', members: ['me'] }).room)
     await host.create()
     expect(host.statuses().size).toBe(0)
+  })
+})
+
+describe('FKN Social room presence', () => {
+  const identity = (over: Partial<NonNullable<Participant['identity']>> = {}) => ({
+    handle: 'alice#ABCDEFGHJKLMNPQR',
+    name: 'alice',
+    displayName: 'Alice',
+    avatar: 'data:image/png;base64,AAAA',
+    identicon: 'data:image/svg+xml,ident',
+    signKey: 'K'.repeat(43),
+    nickname: null,
+    ...over,
+  })
+
+  const fakeSocial = (deferAttach = false) => {
+    const map = new Map<string, Participant>()
+    const listeners = new Set<(participants: Participant[]) => void>()
+    const calls: { binding?: RoomBinding, joined: string[], left: string[], ingested: { from: string, frame: string, at: number, seq: number }[], detached: number } = {
+      joined: [],
+      left: [],
+      ingested: [],
+      detached: 0,
+    }
+    let resolveAttach!: (presence: Presence) => void
+    const presence: Presence = {
+      participants: () => [...map.values()],
+      of: id => map.get(id) ?? { memberId: id, status: 'silent', identity: null, self: id === calls.binding?.selfMemberId },
+      on: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+      ingest: (from, frame, at, seq) => {
+        if (!frame.includes('"social.')) return false
+        calls.ingested.push({ from, frame, at, seq })
+        return true
+      },
+      memberJoined: id => { calls.joined.push(id) },
+      memberLeft: id => { map.delete(id); calls.left.push(id) },
+      announce: async () => {},
+      detach: async () => { calls.detached += 1 },
+    }
+    const apiImpl: SocialPresenceApi = {
+      attach: binding => {
+        calls.binding = binding
+        return deferAttach ? new Promise<Presence>(resolve => { resolveAttach = resolve }) : Promise.resolve(presence)
+      },
+    }
+    const emitParticipant = (participant: Participant) => {
+      map.set(participant.memberId, participant)
+      for (const listener of listeners) listener(presence.participants())
+    }
+    return { api: apiImpl, presence, calls, emitParticipant, finishAttach: () => resolveAttach(presence) }
+  }
+
+  test('binds social over the room, forwards outbound frames, and buffers early inbound social frames', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann'] })
+    const social = fakeSocial(true)
+    const party = createPartyStore(api(fake.room), memoryStorage(), social.api)
+    const onPresence = vi.fn()
+    party.onPresence(onPresence)
+    await party.join(INVITE)
+
+    // inbound social frames sent before social.attach resolves are held rather than forwarded to message listeners
+    const appMessages: string[] = []
+    party.onMessage(msg => appMessages.push(msg.t))
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'ann', at: 100, text: encodePartyMessage({ t: 'chat', text: 'hi' }) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'ann', at: 200, text: encodePartyMessage({ t: 'social', p: '{"t":"social.hello","v":1}' }) }, replayed: false })
+    expect(appMessages).toEqual(['chat'])
+    expect(social.calls.ingested).toEqual([])
+
+    social.finishAttach()
+    await settle()
+
+    expect(social.calls.binding?.roomId).toBe(fake.room.id)
+    expect(social.calls.binding?.selfMemberId).toBe('me')
+    expect(social.calls.joined).toEqual(['host', 'me', 'ann'].filter(id => id !== 'me'))
+    expect(social.calls.ingested).toEqual([{ from: 'ann', frame: '{"t":"social.hello","v":1}', at: 200, seq: 2 }])
+    expect(onPresence).toHaveBeenCalled()
+
+    await social.calls.binding!.send('{"t":"social.hello","out":1}')
+    expect(decodePartyMessage(fake.sent.at(-1)!)).toEqual({ t: 'social', p: '{"t":"social.hello","out":1}' })
+
+    // incoming joined / left / later social frames reach presence directly
+    fake.emit({ type: 'joined', member: { id: 'bob', permissions: { send: true, receive: true, remove: false, block: false }, maxMessageBytes: 262_144 } })
+    fake.emit({ type: 'left', id: 'ann', reason: 'left' })
+    expect(social.calls.joined).toContain('bob')
+    expect(social.calls.left).toEqual(['ann'])
+  })
+
+  test('prefers friend nickname, then verified displayName, then @name, then self-declared nickname, updating chat retroactively', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann', 'bob', 'raw'] })
+    const social = fakeSocial()
+    const party = createPartyStore(api(fake.room), memoryStorage(), social.api)
+    await party.join(INVITE)
+    await settle()
+
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'host', at: 10, text: encodePartyMessage({ t: 'name', name: 'FallbackHost' }) }, replayed: false })
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'ann', at: 20, text: encodePartyMessage({ t: 'chat', text: 'earlier' }) }, replayed: false })
+    expect(party.chat()[0]?.name).toBeUndefined()
+
+    social.emitParticipant({ memberId: 'host', status: 'friend', identity: identity({ name: 'hostuser', displayName: 'Host Public', nickname: 'Bestie' }), self: false })
+    social.emitParticipant({ memberId: 'ann', status: 'verified', identity: identity({ name: 'annhandle', displayName: 'AnnDisplay' }), self: false })
+    social.emitParticipant({ memberId: 'bob', status: 'verified', identity: identity({ name: 'bobhandle', displayName: '   ' }), self: false })
+    // unverified exposes no identity, falling back cleanly
+    social.emitParticipant({ memberId: 'raw', status: 'unverified', identity: null, self: false })
+
+    expect(party.nameOf('host')).toBe('Bestie')
+    expect(party.nameOf('ann')).toBe('AnnDisplay')
+    expect(party.nameOf('bob')).toBe('bobhandle')
+    expect(party.nameOf('raw')).toBeUndefined()
+    expect(party.chat()[0]?.name).toBe('AnnDisplay')
+    expect(party.identityOf('ann')?.identity?.name).toBe('annhandle')
+    expect(party.identityOf('raw')).toBeUndefined()
+
+    const roster = await party.roster()
+    expect(roster.find(m => m.id === 'host')?.identity?.status).toBe('friend')
+    expect(roster.find(m => m.id === 'raw')?.identity).toBeUndefined()
+  })
+
+  test('detaches cleanly on leave and detaches late attaches after leaving', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const social = fakeSocial()
+    const party = createPartyStore(api(fake.room), memoryStorage(), social.api)
+    await party.join(INVITE)
+    await settle()
+    await party.leave()
+    expect(social.calls.detached).toBe(1)
+
+    const second = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const slow = fakeSocial(true)
+    const party2 = createPartyStore(api(second.room), memoryStorage(), slow.api)
+    await party2.join(INVITE)
+    await party2.leave()
+    expect(slow.calls.detached).toBe(0)
+    slow.finishAttach()
+    await settle()
+    expect(slow.calls.detached).toBe(1)
+  })
+
+  test('buffers social frames arriving while joined.members() resolves in strict arrival order', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann'] })
+    const originalMembers = fake.room.members
+    let releaseMembers!: () => void
+    let callCount = 0
+    fake.room.members = vi.fn<typeof originalMembers>(() => {
+      callCount += 1
+      if (callCount === 2) {
+        return new Promise(resolve => {
+          releaseMembers = () => void originalMembers().then(resolve)
+        })
+      }
+      return originalMembers()
+    })
+    const social = fakeSocial()
+    const party = createPartyStore(api(fake.room), memoryStorage(), social.api)
+    await party.join(INVITE)
+
+    fake.emit({ type: 'message', message: { envelope: null, seq: 1, from: 'ann', at: 100, text: encodePartyMessage({ t: 'social', p: '{"t":"social.hello","n":1}' }) }, replayed: false })
+    await Promise.resolve()
+    // second frame arrives after social.attach resolved but before joined.members() resolved
+    fake.emit({ type: 'message', message: { envelope: null, seq: 2, from: 'ann', at: 200, text: encodePartyMessage({ t: 'social', p: '{"t":"social.hello","n":2}' }) }, replayed: false })
+    expect(social.calls.ingested).toEqual([])
+
+    releaseMembers()
+    await settle()
+    expect(social.calls.ingested.map(item => item.seq)).toEqual([1, 2])
+    expect(social.calls.ingested.map(item => item.frame)).toEqual(['{"t":"social.hello","n":1}', '{"t":"social.hello","n":2}'])
+  })
+
+  test('drops late outbound social frames emitted from a superseded room binding', async () => {
+    const roomA = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const roomB = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me'] })
+    const rooms = api(roomA.room)
+    const bindings: RoomBinding[] = []
+    const social = fakeSocial()
+    const trackingSocial: SocialPresenceApi = {
+      attach: binding => {
+        bindings.push(binding)
+        return social.api.attach(binding)
+      },
+    }
+    const party = createPartyStore(rooms, memoryStorage(), trackingSocial)
+    await party.create()
+    await settle()
+
+    rooms.create.mockResolvedValueOnce(roomB.room)
+    await party.leave()
+    await party.create()
+    await settle()
+
+    expect(bindings).toHaveLength(2)
+    roomA.sent.length = 0
+    roomB.sent.length = 0
+    await bindings[0]!.send('{"t":"social.hello","stale":1}')
+    expect(roomA.sent).toEqual([])
+    expect(roomB.sent).toEqual([])
+
+    await bindings[1]!.send('{"t":"social.hello","fresh":1}')
+    expect(decodePartyMessage(roomB.sent.at(-1)!)).toEqual({ t: 'social', p: '{"t":"social.hello","fresh":1}' })
+  })
+
+  test('replays membership leave events arriving while joined.members() is resolving', async () => {
+    const fake = fakeRoom({ self: 'me', owner: 'host', members: ['host', 'me', 'ann'] })
+    const originalMembers = fake.room.members
+    let releaseMembers!: () => void
+    let callCount = 0
+    fake.room.members = vi.fn<typeof originalMembers>(() => {
+      callCount += 1
+      if (callCount === 2) {
+        return new Promise(resolve => {
+          releaseMembers = () => void originalMembers().then(resolve)
+        })
+      }
+      return originalMembers()
+    })
+    const social = fakeSocial()
+    const party = createPartyStore(api(fake.room), memoryStorage(), social.api)
+    await party.join(INVITE)
+
+    fake.emit({ type: 'left', id: 'ann', reason: 'left' })
+    expect(social.calls.left).toEqual([])
+
+    releaseMembers()
+    await settle()
+    expect(social.calls.left).toEqual(['ann'])
   })
 })

@@ -10,8 +10,9 @@ import { useIntl } from 'react-intl'
 import { party } from '../party'
 import { chatText, clockText } from '../party/protocol'
 import { durationLocale } from '../utils/countdown'
-import { useParty, usePartyMessages } from '../party/use-party'
+import { useParty, usePartyMessages, usePartyPresence } from '../party/use-party'
 import { layer } from '../layers'
+import PartyAvatar from './party-avatar'
 
 const style = css`
   position: fixed;
@@ -101,7 +102,7 @@ const style = css`
 
   /* a name is up to 32 characters with no space to wrap at */
   .line { display: flex; flex-direction: column; gap: 0.1rem; overflow-wrap: anywhere; }
-  .line .who { font-size: 1.1rem; color: rgba(255, 255, 255, 0.45); }
+  .line .who { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; color: rgba(255, 255, 255, 0.45); }
   .line.self .who { color: #4ade80; }
   .line.action { color: rgba(255, 255, 255, 0.5); font-size: 1.2rem; font-style: italic; }
   .empty { color: rgba(255, 255, 255, 0.4); }
@@ -187,6 +188,7 @@ const actionText = (intl: IntlShape, ask: Ask, member: string, self: boolean): s
 const PartyChat = () => {
   const intl = useIntl()
   const state = useParty()
+  const presence = usePartyPresence()
   const active = state.status === 'active'
   const [open, setOpen] = useState(false)
   const [lines, setLines] = useState<PartyChatLine[]>(() => party.chat())
@@ -199,6 +201,7 @@ const PartyChat = () => {
   usePartyMessages(message => {
     if (message.t === 'chat' || message.t === 'name' || message.t === 'ask') setLines(party.chat())
   })
+  useEffect(() => { if (active) setLines(party.chat()) }, [active, presence])
   useEffect(() => { if (open) setSeen(lines.at(-1)?.seq ?? 0) }, [open, lines])
   useEffect(() => { if (!active) { setLines([]); setSeen(0); setOpen(false) } }, [active])
   const unread = open ? 0 : lines.filter(line => line.seq > seen && !line.self).length
@@ -230,7 +233,10 @@ const PartyChat = () => {
               ? <div key={line.seq} className="line action">{actionText(intl, line.ask, actor(intl, line, owner), line.self)}</div>
               : (
                 <div key={line.seq} className={`line${line.self ? ' self' : ''}`}>
-                  <span className="who">{memberLabel(intl, line, owner)}</span>
+                  <span className="who">
+                    <PartyAvatar participant={party.identityOf(line.from)} size={18}/>
+                    <span>{memberLabel(intl, line, owner)}</span>
+                  </span>
                   <span className="text">{line.text}</span>
                 </div>
               ))}

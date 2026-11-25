@@ -1,14 +1,13 @@
 // FIRST: ./dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from './dom'
 
-import type { PartyStore } from '../../../src/party/store'
+import { createPartyStore, type PartyStore, type SocialPresenceApi } from '../../../src/party/store'
 
 import type { PartyMessage } from '../../../src/party/protocol'
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { act } from 'preact/test-utils'
 
-import { createPartyStore } from '../../../src/party/store'
 import { decodePartyMessage, encodePartyMessage } from '../../../src/party/protocol'
 import { api, fakeRoom, memoryStorage } from '../party/fake-room'
 
@@ -173,4 +172,29 @@ describe('the host sees each follower\'s status', () => {
     expect(off.status('ann')).toBeUndefined()
     expect(off.host.querySelectorAll('.time')).toHaveLength(0)
   })
+})
+
+test('follower rows show verified FKN Social avatar and name in grants table', async () => {
+  const fake = fakeRoom({ self: 'host', owner: 'host', members: ['host', 'ann'] })
+  const participants = [{ memberId: 'ann', status: 'friend' as const, identity: { handle: 'ann#T', name: 'ann', displayName: 'Ann Social', avatar: 'data:image/png;base64,ANN' }, self: false }]
+  const social: SocialPresenceApi = {
+    attach: async () => ({
+      participants: () => participants,
+      of: id => participants.find(p => p.memberId === id) ?? { memberId: id, status: 'silent', identity: null, self: id === 'host' },
+      on: () => () => {},
+      ingest: () => false,
+      memberJoined: () => {},
+      memberLeft: () => {},
+      announce: async () => {},
+      detach: async () => {},
+    }),
+  }
+  current.store = createPartyStore(api(fake.room), memoryStorage(), social)
+  await current.store.create()
+  const host = mount(withIntl(<PartyGrants/>))
+  hosts.push(host)
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+  const row = host.querySelectorAll('tbody tr')[1]!
+  expect(row.querySelector('.who .name')?.textContent).toBe('Ann Social')
+  expect(row.querySelector('.who .party-avatar img')?.getAttribute('src')).toBe('data:image/png;base64,ANN')
 })

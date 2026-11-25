@@ -149,12 +149,13 @@
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },
   "dependencies": {
-    "@banou/media-player": "^0.10.61",
-    "@banou/ponyfill": "^0.0.13",
+    "@banou/media-player": "^0.10.62",
+    "@banou/ponyfill": "^0.0.16",
+    "@banou/social": "^0.0.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@envelop/on-resolve": "^6.0.0",
-    "@fkn/lib": "^0.9.86",
+    "@fkn/lib": "^0.9.87",
     "@floating-ui/react": "^0.27.16",
     "@formatjs/icu-messageformat-parser": "^3.5.22",
     "@graphql-yoga/plugin-defer-stream": "^3.15.1",

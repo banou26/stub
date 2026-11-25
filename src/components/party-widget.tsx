@@ -1,4 +1,5 @@
 import type { MessageDescriptor } from 'react-intl'
+import type { PartyMember } from '../party'
 import type { FollowerState } from '../party/protocol'
 
 import { css } from '@emotion/react'
@@ -16,8 +17,9 @@ import { useEffect, useState } from 'preact/hooks'
 import { party, partyLink } from '../party'
 import { CONTROLS, FOLLOWER_STATES, isWatchPath } from '../party/protocol'
 import { shownStatus } from '../party/status'
-import { useParty, usePartyMessages } from '../party/use-party'
+import { useParty, usePartyMessages, usePartyPresence } from '../party/use-party'
 import { layer } from '../layers'
+import PartyAvatar from './party-avatar'
 import PartyGrants, { CONTROL_LABEL, StatusIcon } from './party-grants'
 import PartyTracks from './party-tracks'
 import { switchStyle } from './switch-style'
@@ -129,6 +131,23 @@ const menuStyle = css`
     gap: 0.4rem;
   }
 
+  .avatars {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+  }
+
+  .avatars-member {
+    display: inline-flex;
+  }
+
+  .avatars-more {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
   .link {
     display: flex;
     align-items: center;
@@ -234,15 +253,42 @@ const TALLY: Readonly<Record<FollowerState, MessageDescriptor>> = defineMessages
 const PartyWidget = () => {
   const intl = useIntl()
   const state = useParty()
+  const presence = usePartyPresence()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [roster, setRoster] = useState<PartyMember[]>([])
   const [page, navigate] = useLocation()
   const search = useSearch()
   const here = withoutPluginUris(search ? `${page}?${search}` : page)
   // Play for everyone and the host's count read the store, which moves on these and re-renders nothing
   const [, heard] = useState(0)
-  usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state' || message.t === 'status') heard(n => n + 1) })
+  usePartyMessages(message => { if (message.t === 'nav' || message.t === 'state' || message.t === 'status' || message.t === 'name') heard(n => n + 1) })
   const toParty = () => { setOpen(false); navigate(getRoutePath(Route.PARTY)) }
+
+  const live = state.status === 'active'
+  const memberCount = live ? state.members : 0
+  useEffect(() => {
+    if (!open || !live) { setRoster([]); return }
+    let cancelled = false
+    void party.roster().then(list => { if (!cancelled) setRoster(list) })
+    return () => { cancelled = true }
+  }, [open, live, memberCount, presence])
+  const socialMembers = roster.filter(member => member.identity?.identity)
+  const renderAvatars = () => {
+    if (!socialMembers.length) return undefined
+    const shown = socialMembers.slice(0, 6)
+    const extra = socialMembers.length - shown.length
+    return (
+      <div className="avatars">
+        {shown.map(member => (
+          <span key={member.id} className="avatars-member" title={member.name ?? member.id}>
+            <PartyAvatar participant={member.identity} size={24}/>
+          </span>
+        ))}
+        {extra > 0 && <span className="avatars-more">{intl.formatNumber(extra, { signDisplay: 'always' })}</span>}
+      </div>
+    )
+  }
 
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -279,7 +325,6 @@ const PartyWidget = () => {
     )
   }
 
-  const live = state.status === 'active'
   const can = CONTROLS.filter(control => party.may(control))
   const watching = isWatchPath(here) ? here : undefined
   const now = Date.now()
@@ -323,6 +368,7 @@ const PartyWidget = () => {
                         : intl.formatMessage({ id: '{count, plural, one {{count} person is following you.} other {{count} people are following you.}}', defaultMessage: '{count, plural, one {{count} person is following you.} other {{count} people are following you.}}' }, { count: state.members - 1 })
                     }
                   </div>
+                  {renderAvatars()}
                   {standing.length > 0 && (
                     <div className="tally">
                       {FOLLOWER_STATES.map(s => {
@@ -351,6 +397,7 @@ const PartyWidget = () => {
                   <div className="hint">
                     {intl.formatMessage({ id: '{count, plural, one {{count} in the party.} other {{count} in the party.}}', defaultMessage: '{count, plural, one {{count} in the party.} other {{count} in the party.}}' }, { count: state.members })}
                   </div>
+                  {renderAvatars()}
                   <label className="follow">
                     {intl.formatMessage({ id: 'Follow playback', defaultMessage: 'Follow playback' })}
                     <input type="checkbox" role="switch" css={switchStyle} checked={party.following()} onChange={event => party.setFollowing(event.currentTarget.checked)}/>

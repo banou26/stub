@@ -12,6 +12,13 @@ export const useParty = (): PartyState => {
   return state
 }
 
+/** Increments whenever verified FKN Social room presence changes (names, avatars, friend badges). */
+export const usePartyPresence = (): number => {
+  const [tick, setTick] = useState(0)
+  useEffect(() => party.onPresence(() => setTick(value => value + 1)), [])
+  return tick
+}
+
 /**
  * What the host said, for a guest to act on.
  *

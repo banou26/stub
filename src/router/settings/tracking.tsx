@@ -1,4 +1,4 @@
-import type { PublishingState } from '../../social/protocol'
+import type { PublishingState } from '../../social'
 
 import { css } from '@emotion/react'
 import { useEffect, useState } from 'preact/hooks'

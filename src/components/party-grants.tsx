@@ -10,8 +10,9 @@ import { defineMessages, useIntl } from 'react-intl'
 import { party } from '../party'
 import { clockText, CONTROLS } from '../party/protocol'
 import { shownStatus } from '../party/status'
-import { useParty, usePartyMessages } from '../party/use-party'
+import { useParty, usePartyMessages, usePartyPresence } from '../party/use-party'
 import { durationLocale } from '../utils/countdown'
+import PartyAvatar from './party-avatar'
 import { memberLabel } from './party-chat'
 
 export const CONTROL_LABEL: Readonly<Record<Control, MessageDescriptor>> = defineMessages({
@@ -93,6 +94,7 @@ const withMember = (grants: Grants, id: string, control: Control, value: boolean
 const PartyGrants = ({ page }: { page?: string }) => {
   const intl = useIntl()
   const state = useParty()
+  const presence = usePartyPresence()
   const [members, setMembers] = useState<PartyMember[]>([])
   const [, tick] = useState(0)
   const count = state.status === 'active' ? state.members : 0
@@ -100,7 +102,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
     let cancelled = false
     void party.roster().then(list => { if (!cancelled) setMembers(list) })
     return () => { cancelled = true }
-  }, [count])
+  }, [count, presence])
   usePartyMessages(message => {
     if (message.t === 'name') void party.roster().then(setMembers)
     if (message.t === 'status') tick(n => n + 1)
@@ -160,6 +162,7 @@ const PartyGrants = ({ page }: { page?: string }) => {
                 <th scope="row" title={label}>
                   <span className="who">
                     {shown && <StatusIcon s={shown.s}/>}
+                    <PartyAvatar participant={member.identity} size={18}/>
                     <span className="name">{label}</span>
                     {shown?.time !== undefined && <span className="time">{clockText(shown.time, durationLocale())}</span>}
                   </span>
