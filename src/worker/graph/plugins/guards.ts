@@ -1091,6 +1091,60 @@ const disagreeingVerdict = (
   }
 }
 
+const weighClaimants = (leftUri: string, rightUri: string, target: string, ledger: ContestLedger) => {
+  const contesting = ledger.components.without(sharedCut(leftUri, rightUri, target, ledger.claims))
+  if (contesting.keyOf(leftUri) === contesting.keyOf(rightUri)) return undefined
+  const left = contesting.membersOf(leftUri)
+  const right = contesting.membersOf(rightUri)
+  const straddle = straddlingDisagreement(left, right, ledger.parentOf)
+  if (!straddle) return undefined
+  // THE TARGET'S OWN CLAIMS SETTLE IT, counting only a claimed row in an id space both sides
+  // hold: when every such row sits on one and the same side, that side keeps the target and the
+  // other side's claim is refused with no downgrade, since the target itself says it is wrong.
+  const own = [target, ...ledger.ownClaims.get(target) ?? []].filter(row =>
+    left.some(uri => identitySpaceOf(uri) === identitySpaceOf(row))
+    && right.some(uri => identitySpaceOf(uri) === identitySpaceOf(row)))
+  const holds = (side: string[], row: string) => side.some(uri => identityOf(uri) === identityOf(row))
+  const settledLeft = own.length > 0 && own.every(row => holds(left, row))
+  const settledRight = own.length > 0 && own.every(row => holds(right, row))
+  return { contesting, left, right, straddle, settledLeft, settledRight }
+}
+
+/**
+ * Whether `site` is held in an unsettled contest by a claimant sitting on `side` against a rival
+ * outside `side`.
+ *
+ * Caller precondition: `!ourSideIsLeft && !ourSideIsRight`, so `other` sits in neither contesting
+ * component. When a third show outside `side` contests one side's row (`n10`/`n11`), recognizing an
+ * unsettled claim from `side` keeps the neighboring contested hub from joining it. Non-recursive by
+ * design so healthy multi-claimant hubs cannot ripple across neighbors.
+ */
+const unsettledWithSide = (site: string, side: string[], ledger: ContestLedger): boolean => {
+  if (!ledger.conflictSites.has(site)) return false
+  const claimants = [...new Set((ledger.claimsInto.get(site) ?? []).map(claim => claim.claimant))]
+    .filter(uri => uri !== site && !ledger.refused4.has(pairKey(uri, site)))
+    .sort(compare)
+  if (claimants.length < 2) return false
+  const sideSet = new Set(side)
+  for (const claimant of claimants) {
+    if (!sideSet.has(claimant)) continue
+    let refuted = false
+    let unsettled = false
+    for (const rival of claimants) {
+      if (rival === claimant || sideSet.has(rival)) continue
+      const weighed = weighClaimants(claimant, rival, site, ledger)
+      if (!weighed) continue
+      if (weighed.settledRight) {
+        refuted = true
+        break
+      }
+      if (!weighed.settledLeft) unsettled = true
+    }
+    if (unsettled && !refuted) return true
+  }
+  return false
+}
+
 const contestVerdict = (aUri: string, bUri: string, ledger: ContestLedger): SameAsVerdict | undefined => {
   for (const [target, other] of [[bUri, aUri], [aUri, bUri]] as const) {
     if (!ledger.conflictSites.has(target)) continue
@@ -1100,27 +1154,24 @@ const contestVerdict = (aUri: string, bUri: string, ledger: ContestLedger): Same
     if (claimants.length < 2) continue
     for (let i = 0; i < claimants.length; i += 1) {
       for (let j = i + 1; j < claimants.length; j += 1) {
-        const contesting = ledger.components.without(sharedCut(claimants[i]!, claimants[j]!, target, ledger.claims))
+        const weighed = weighClaimants(claimants[i]!, claimants[j]!, target, ledger)
+        if (!weighed) continue
+        const { contesting, left, right, straddle, settledLeft, settledRight } = weighed
         const otherKey = contesting.keyOf(other)
-        const left = contesting.membersOf(claimants[i]!)
-        const right = contesting.membersOf(claimants[j]!)
-        if (contesting.keyOf(claimants[i]!) === contesting.keyOf(claimants[j]!)) continue
-        const straddle = straddlingDisagreement(left, right, ledger.parentOf)
-        if (!straddle) continue
-        // this proposal is one of the contesting claims only when its other end is one of the two
-        // components: a third row that agrees with neither is refused on its own evidence, not here
-        const ourSideIsLeft = contesting.keyOf(claimants[i]!) === otherKey
-        const ourSideIsRight = contesting.keyOf(claimants[j]!) === otherKey
-        if (!ourSideIsLeft && !ourSideIsRight) continue
-        // THE TARGET'S OWN CLAIMS SETTLE IT, counting only a claimed row in an id space both sides
-        // hold: when every such row sits on one and the same side, that side keeps the target and the
-        // other side's claim is refused with no downgrade, since the target itself says it is wrong.
-        const own = [target, ...ledger.ownClaims.get(target) ?? []].filter(row =>
-          left.some(uri => identitySpaceOf(uri) === identitySpaceOf(row))
-          && right.some(uri => identitySpaceOf(uri) === identitySpaceOf(row)))
-        const holds = (side: string[], row: string) => side.some(uri => identityOf(uri) === identityOf(row))
-        const settledLeft = own.length > 0 && own.every(row => holds(left, row))
-        const settledRight = own.length > 0 && own.every(row => holds(right, row))
+        // This proposal is one of the contesting claims when its other end sits in one of the two
+        // claimant components, or was detached exclusively from one of them by an unsettled contest
+        // of its own (n10/n11). Requiring exclusivity (`onLeft !== onRight`) avoids shattering
+        // healthy multi-claimant hubs claimed by rogue rows on both sides.
+        let ourSideIsLeft = contesting.keyOf(claimants[i]!) === otherKey
+        let ourSideIsRight = contesting.keyOf(claimants[j]!) === otherKey
+        if (!ourSideIsLeft && !ourSideIsRight) {
+          const otherMembers = contesting.membersOf(other)
+          const onLeft = otherMembers.some(uri => unsettledWithSide(uri, left, ledger))
+          const onRight = otherMembers.some(uri => unsettledWithSide(uri, right, ledger))
+          if (onLeft === onRight) continue
+          ourSideIsLeft = onLeft
+          ourSideIsRight = onRight
+        }
         if (ourSideIsLeft ? settledLeft : settledRight) continue
         const evidence = {
           theirs: ourSideIsLeft ? straddle[1] : straddle[0],

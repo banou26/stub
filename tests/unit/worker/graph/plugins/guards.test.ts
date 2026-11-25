@@ -434,6 +434,98 @@ test('settleLedger excludes pairwise-refused claims while keeping unprofiled own
   expect(ledger.claims.get('kitsu:42337')?.has('mal:39473')).toBe(true)
 })
 
+test('settleLedger keeps a contested row apart when a third show also contests one or both sides', () => {
+  const claim = (claimant: string, target: string) => ({
+    claimant, target, claimer: claimant.slice(0, claimant.indexOf(':')), provenance: 'source',
+  })
+  const profilesFor = (uris: string[]) => new Map(uris.map(uri => [uri, { scope: 'RUN', idParent: null }]))
+  const baseClaims = [
+    claim('anilist:189046', 'mal:61316'),
+    claim('anilist:189046', 'mal:63830'),
+    claim('kitsu:49746', 'anilist:189046'),
+    claim('kitsu:49746', 'mal:61316'),
+    claim('kitsu:50665', 'anilist:189046'),
+    claim('kitsu:50665', 'mal:63830'),
+  ]
+
+  // n10: third show claims mal:63830
+  const n10Claims = [...baseClaims, claim('kitsu:77777', 'mal:63830')]
+  const n10Profiles = profilesFor(['anilist:189046', 'kitsu:49746', 'kitsu:50665', 'kitsu:77777', 'mal:61316', 'mal:63830'])
+  const n10 = settleLedger(n10Profiles, n10Claims)
+  expect(n10.unsettled.size).toBe(0)
+  expect([...n10.contested].sort()).toEqual(['anilist:189046', 'mal:63830'])
+  expect(n10.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(n10.components.membersOf('mal:63830')).toEqual(['mal:63830'])
+  expect(n10.components.membersOf('kitsu:49746')).toEqual(['kitsu:49746', 'mal:61316'])
+  const n10Reversed = settleLedger(n10Profiles, [...n10Claims].reverse())
+  expect(n10Reversed.unsettled.size).toBe(0)
+  expect(n10Reversed.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(n10Reversed.components.membersOf('mal:63830')).toEqual(['mal:63830'])
+  expect(n10Reversed.components.membersOf('kitsu:49746')).toEqual(['kitsu:49746', 'mal:61316'])
+
+  // n11: third show claims mal:61316
+  const n11 = settleLedger(
+    profilesFor(['anilist:189046', 'kitsu:49746', 'kitsu:50665', 'kitsu:77777', 'mal:61316', 'mal:63830']),
+    [...baseClaims, claim('kitsu:77777', 'mal:61316')]
+  )
+  expect(n11.unsettled.size).toBe(0)
+  expect([...n11.contested].sort()).toEqual(['anilist:189046', 'mal:61316'])
+  expect(n11.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(n11.components.membersOf('mal:61316')).toEqual(['mal:61316'])
+  expect(n11.components.membersOf('kitsu:50665')).toEqual(['kitsu:50665', 'mal:63830'])
+
+  // n10-both: third shows claim both MAL rows
+  const both = settleLedger(
+    profilesFor(['anilist:189046', 'kitsu:49746', 'kitsu:50665', 'kitsu:77777', 'kitsu:88888', 'mal:61316', 'mal:63830']),
+    [...baseClaims, claim('kitsu:77777', 'mal:63830'), claim('kitsu:88888', 'mal:61316')]
+  )
+  expect(both.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(both.components.membersOf('mal:61316')).toEqual(['mal:61316'])
+  expect(both.components.membersOf('mal:63830')).toEqual(['mal:63830'])
+
+  // n10-chain: contested row reaches mal:63830 through anizip:777 while third show contests mal:63830
+  const chain = settleLedger(
+    profilesFor(['anilist:189046', 'anizip:777', 'kitsu:49746', 'kitsu:50665', 'kitsu:77777', 'mal:61316', 'mal:63830']),
+    [
+      claim('anilist:189046', 'mal:61316'),
+      claim('anilist:189046', 'anizip:777'),
+      claim('anizip:777', 'mal:63830'),
+      claim('kitsu:49746', 'anilist:189046'),
+      claim('kitsu:49746', 'mal:61316'),
+      claim('kitsu:50665', 'anilist:189046'),
+      claim('kitsu:50665', 'mal:63830'),
+      claim('kitsu:77777', 'mal:63830'),
+    ]
+  )
+  expect(chain.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(chain.components.membersOf('anizip:777')).toEqual(['anizip:777', 'mal:63830'])
+  expect(chain.components.membersOf('kitsu:49746')).toEqual(['kitsu:49746', 'mal:61316'])
+
+  // Control 1: two rogues claiming both rows of a healthy cluster stay refused without shattering it
+  const healthy = settleLedger(
+    profilesFor(['anilist:133007', 'mal:48820', 'nf:80041086', 'nf:80041087']),
+    [
+      claim('anilist:133007', 'mal:48820'),
+      claim('nf:80041086', 'anilist:133007'),
+      claim('nf:80041086', 'mal:48820'),
+      claim('nf:80041087', 'anilist:133007'),
+      claim('nf:80041087', 'mal:48820'),
+    ]
+  )
+  expect(healthy.components.membersOf('anilist:133007')).toEqual(['anilist:133007', 'mal:48820'])
+  expect(healthy.components.membersOf('nf:80041086')).toEqual(['nf:80041086'])
+  expect(healthy.components.membersOf('nf:80041087')).toEqual(['nf:80041087'])
+
+  // Control 2: mal:63830 settling in favor of kitsu:77777 keeps Break Time apart without disturbing Season 4
+  const settledThird = settleLedger(
+    profilesFor(['anilist:189046', 'kitsu:49746', 'kitsu:50665', 'kitsu:77777', 'mal:61316', 'mal:63830']),
+    [...baseClaims, claim('kitsu:77777', 'mal:63830'), claim('mal:63830', 'kitsu:77777')]
+  )
+  expect(settledThird.components.membersOf('anilist:189046')).toEqual(['anilist:189046'])
+  expect(settledThird.components.membersOf('kitsu:49746')).toEqual(['kitsu:49746', 'mal:61316'])
+  expect(settledThird.components.membersOf('kitsu:77777')).toEqual(['kitsu:77777', 'mal:63830'])
+})
+
 // (5) CONTESTED, evaluated over every CLAIM rather than over active links, so two claimants landing
 // in different flushes still meet and the verdict is the same on every later pass. This is 8.6 end to
 // end: two PART_OF badges and no card, rather than one lost row and a third card.

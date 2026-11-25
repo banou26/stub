@@ -892,6 +892,110 @@ test('f6xs breaks its cyclic contest cleanly with zero welds across arrival orde
   }
 })
 
+test('n10 refuses a contested row to both sides even when a third show contests one side\'s MyAnimeList row', async () => {
+  const row = (uri: string, fields: Record<string, unknown>, handles: string[] = []): Rows[string] =>
+    () => answer('media', media(uri, { ...fields, handles: handles.map(handle => sameAs(media(handle))) }))
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const rows = reZero([sameAs(media('mal:61316')), sameAs(media('mal:63830'))], {
+    third: row('kitsu:77777', THIRD, ['mal:63830']),
+  })
+  const hiddenOf = async () => Object.fromEntries(
+    (await rowsOf('MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster) RETURN m.uri AS uri, c.hidden AS hidden ORDER BY uri'))
+      .map(entry => [String(entry.uri), Boolean(entry.hidden)])
+  )
+  const plans = samplePlans(Object.keys(rows))
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anilist:189046',
+    'cluster kitsu:49746 mal:61316',
+    'cluster kitsu:50665',
+    'cluster kitsu:77777',
+    'cluster mal:63830',
+  ])
+  expect(first).toContain('link anilist:189046 -> mal:61316 SAME_AS refused contested')
+  expect(first).toContain('link anilist:189046 -> mal:63830 SAME_AS refused contested')
+  expect(await hiddenOf()).toEqual({
+    'anilist:189046': true,
+    'kitsu:49746': false,
+    'kitsu:50665': false,
+    'kitsu:77777': false,
+    'mal:61316': false,
+    'mal:63830': true,
+  })
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
+  }
+})
+
+test('n11 refuses a contested row to both sides even when a third show contests the other side\'s MyAnimeList row', async () => {
+  const row = (uri: string, fields: Record<string, unknown>, handles: string[] = []): Rows[string] =>
+    () => answer('media', media(uri, { ...fields, handles: handles.map(handle => sameAs(media(handle))) }))
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const rows = reZero([sameAs(media('mal:61316')), sameAs(media('mal:63830'))], {
+    third: row('kitsu:77777', THIRD, ['mal:61316']),
+  })
+  const hiddenOf = async () => Object.fromEntries(
+    (await rowsOf('MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster) RETURN m.uri AS uri, c.hidden AS hidden ORDER BY uri'))
+      .map(entry => [String(entry.uri), Boolean(entry.hidden)])
+  )
+  const plans = samplePlans(Object.keys(rows))
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anilist:189046',
+    'cluster kitsu:49746',
+    'cluster kitsu:50665 mal:63830',
+    'cluster kitsu:77777',
+    'cluster mal:61316',
+  ])
+  expect(first).toContain('link anilist:189046 -> mal:61316 SAME_AS refused contested')
+  expect(first).toContain('link anilist:189046 -> mal:63830 SAME_AS refused contested')
+  expect(await hiddenOf()).toEqual({
+    'anilist:189046': true,
+    'kitsu:49746': false,
+    'kitsu:50665': false,
+    'kitsu:77777': false,
+    'mal:61316': true,
+    'mal:63830': false,
+  })
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
+  }
+})
+
+test('turned-round n10 keeps the contested row and contested target as separate singletons in every arrival order', async () => {
+  const THIRD = { ...OTHER, titles: [title('en', 'A third show')] }
+  const rows: Rows = {
+    ...turnedRound,
+    third: () => answer('media', media('anilist:77777', { ...THIRD, handles: [sameAs(media('kitsu:63830'))] })),
+  }
+  const hiddenOf = async () => Object.fromEntries(
+    (await rowsOf('MATCH (m:Media)-[:MEMBER_OF]->(c:Cluster) RETURN m.uri AS uri, c.hidden AS hidden ORDER BY uri'))
+      .map(entry => [String(entry.uri), Boolean(entry.hidden)])
+  )
+  const plans = samplePlans(Object.keys(rows))
+  const first = await buildSettled(rows, plans[0]!)
+  expect(first.filter(line => line.startsWith('cluster'))).toEqual([
+    'cluster anilist:49746 kitsu:61316',
+    'cluster anilist:50665',
+    'cluster anilist:77777',
+    'cluster kitsu:63830',
+    'cluster mal:189046',
+  ])
+  expect(first).toContain('link mal:189046 -> kitsu:61316 SAME_AS refused contested')
+  expect(first).toContain('link mal:189046 -> kitsu:63830 SAME_AS refused contested')
+  expect(await hiddenOf()).toEqual({
+    'anilist:49746': false,
+    'anilist:50665': false,
+    'anilist:77777': false,
+    'kitsu:61316': false,
+    'kitsu:63830': true,
+    'mal:189046': true,
+  })
+  for (const plan of plans.slice(1)) {
+    expect(await buildSettled(rows, plan), JSON.stringify(plan)).toEqual(first)
+  }
+})
+
 test('f6wf guard 4 chain builds one graph with zero welds in every arrival order', async () => {
   const episodes = Array.from({ length: 19 }, (_, index) => episode(`mal:61316-${index + 1}`, 'mal:61316', { episodeNumber: index + 1 }))
   const rows: Rows = {
