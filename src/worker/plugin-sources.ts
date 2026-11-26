@@ -1,7 +1,23 @@
 // nothing here touches the graph or the source barrel, so it stays importable outside a browser
 
 import type { ExternalSubtitleFormat } from '@banou/media-player'
-import type { PluginSettingField, PluginSettingKind, PluginValues, SourceAccess, SourceAccount, SourceCheck, SubtitleQueryContext } from '../plugin-api'
+import type {
+  CatalogAction,
+  CatalogActionIcon,
+  CatalogActionResult,
+  CatalogBadge,
+  CatalogItem,
+  CatalogMetric,
+  CatalogQueryContext,
+  CatalogTone,
+  PluginSettingField,
+  PluginSettingKind,
+  PluginValues,
+  SourceAccess,
+  SourceAccount,
+  SourceCheck,
+  SubtitleQueryContext,
+} from '../plugin-api'
 
 import { normalizeSubtitleLanguage } from '../subtitles/languages'
 
@@ -43,14 +59,14 @@ export type RegisteredSource = Pick<PluginSourceMeta, 'origin' | 'name' | 'icon'
   subtitlesOnly?: true
   hasSubtitles?: true
   hasSubtitlePicker?: true
+  hasCatalog?: true
 }
 
 // the single-source shape stays supported: it is what the example plugin and every plugin written before this sends
 /**
  * The sources a payload declares, each validated on its own.
  *
- * A payload is either ONE source, or a `sources` list so a single package can ship a family of them
- * (an indexer package serving animetosho and nyaa, say). The single shape stays supported because it
+ * A payload is either ONE source, or a `sources` list so a single package can ship a family of them. The single shape stays supported because it
  * is what the example plugin and every plugin written before this sends.
  *
  * A source in a family is an ordinary standalone source that happens to arrive over a shared
@@ -207,7 +223,7 @@ const readHandles = (handles: unknown, depth: number): PluginEdge[] =>
  * A plugin's media with its handles in the shape the store reads.
  *
  * `stub-source@1` plugins were written against `handles: [Media!]!`, a bare list of the rows a media is
- * the same as, and every one of them still sends it: the nyaa package restates the cluster's handles as
+ * the same as, and some still send it: a source plugin may restate the cluster's handles as
  * bare rows. The schema made a handle an edge, `{ node, relation }`, on 2026-09-04 and the worker read
  * `handle.node` from then on, so a bare row was an edge with no node, the unwrap dereferenced it, and
  * the shared insert batch rejected for every extractor in it, first-party sources included
@@ -341,5 +357,233 @@ export const askPluginSubtitleContent = (
   return Promise.race([
     Promise.resolve().then(() => load(trackId)).then(text => typeof text === 'string' && text.length > 0 ? text : undefined, () => undefined),
     new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), SUBTITLE_LOAD_WAIT_MS) }),
+  ]).finally(() => clearTimeout(timer))
+}
+
+export const CATALOG_DESCRIBE_WAIT_MS = 5_000
+export const CATALOG_ACTION_WAIT_MS = 15_000
+export const MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024
+export const MAX_COPY_CHARS = 16_384
+
+const CATALOG_TONES: readonly unknown[] = ['neutral', 'positive', 'warning', 'muted'] satisfies CatalogTone[]
+const CATALOG_ACTION_ICONS: readonly unknown[] = ['copy', 'download', 'external', 'info', 'action'] satisfies CatalogActionIcon[]
+
+const cleanCatalogText = (value: unknown, maxLength = 512): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed.slice(0, maxLength) : undefined
+}
+
+const readCatalogStringArray = (value: unknown, maxItems = 16, maxLength = 64): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  const items: string[] = []
+  const seen = new Set<string>()
+  for (const entry of value) {
+    const cleaned = cleanCatalogText(entry, maxLength)
+    if (!cleaned || seen.has(cleaned)) continue
+    seen.add(cleaned)
+    items.push(cleaned)
+    if (items.length >= maxItems) break
+  }
+  return items.length ? items : undefined
+}
+
+const readCatalogBadges = (raw: unknown): CatalogBadge[] | undefined => {
+  if (!Array.isArray(raw)) return undefined
+  const out: CatalogBadge[] = []
+  const seen = new Set<string>()
+  for (const badge of raw) {
+    if (!isObject(badge)) continue
+    const id = cleanCatalogText(badge.id, 64)
+    const label = cleanCatalogText(badge.label, 64)
+    if (!id || !label || seen.has(id)) continue
+    seen.add(id)
+    out.push({
+      id,
+      label,
+      ...(CATALOG_TONES.includes(badge.tone) ? { tone: badge.tone as CatalogTone } : {}),
+      ...(badge.filterable === true ? { filterable: true } : {}),
+    })
+    if (out.length >= 16) break
+  }
+  return out.length ? out : undefined
+}
+
+const readCatalogMetrics = (raw: unknown): CatalogMetric[] | undefined => {
+  if (!Array.isArray(raw)) return undefined
+  const out: CatalogMetric[] = []
+  const seen = new Set<string>()
+  for (const metric of raw) {
+    if (!isObject(metric)) continue
+    const id = cleanCatalogText(metric.id, 64)
+    const label = cleanCatalogText(metric.label, 64)
+    if (!id || !label || seen.has(id)) continue
+    if (typeof metric.value !== 'number' || !Number.isFinite(metric.value)) continue
+    seen.add(id)
+    const display = cleanCatalogText(metric.display, 64)
+    out.push({
+      id,
+      label,
+      value: metric.value,
+      ...(display ? { display } : {}),
+      ...(metric.sort === 'asc' || metric.sort === 'desc' ? { sort: metric.sort } : {}),
+      ...(CATALOG_TONES.includes(metric.tone) ? { tone: metric.tone as CatalogTone } : {}),
+    })
+    if (out.length >= 16) break
+  }
+  return out.length ? out : undefined
+}
+
+const readCatalogActions = (raw: unknown): CatalogAction[] | undefined => {
+  if (!Array.isArray(raw)) return undefined
+  const out: CatalogAction[] = []
+  const seen = new Set<string>()
+  for (const action of raw) {
+    if (!isObject(action)) continue
+    const id = cleanCatalogText(action.id, 64)
+    const label = cleanCatalogText(action.label, 64)
+    if (!id || !label || seen.has(id)) continue
+    seen.add(id)
+    out.push({
+      id,
+      label,
+      ...(CATALOG_ACTION_ICONS.includes(action.icon) ? { icon: action.icon as CatalogActionIcon } : {}),
+    })
+    if (out.length >= 8) break
+  }
+  return out.length ? out : undefined
+}
+
+/** Validates generic declarative catalogue item records returned by a plugin source. */
+export const readCatalogItems = (raw: unknown, allowedUris?: ReadonlySet<string>): CatalogItem[] => {
+  if (!Array.isArray(raw)) return []
+  const out: CatalogItem[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    if (!isObject(item)) continue
+    const uri = cleanCatalogText(item.uri, 1024)
+    const title = cleanCatalogText(item.title, 512)
+    if (!uri || !title || seen.has(uri)) continue
+    if (allowedUris && !allowedUris.has(uri)) continue
+    seen.add(uri)
+
+    const rawTitle = cleanCatalogText(item.rawTitle, 1024)
+    const subtitle = cleanCatalogText(item.subtitle, 256)
+    const resolution = typeof item.resolution === 'number' && Number.isFinite(item.resolution) && item.resolution > 0 ? item.resolution : undefined
+    const videoQualities = readCatalogStringArray(item.videoQualities)
+    const audioQualities = readCatalogStringArray(item.audioQualities)
+    const audioLanguages = readCatalogStringArray(item.audioLanguages)
+    const subtitleLanguages = readCatalogStringArray(item.subtitleLanguages)
+    const sizeBytes = typeof item.sizeBytes === 'number' && Number.isFinite(item.sizeBytes) && item.sizeBytes >= 0 ? item.sizeBytes : undefined
+    const sizeText = cleanCatalogText(item.sizeText, 64)
+    const publishedAt = typeof item.publishedAt === 'number' && Number.isFinite(item.publishedAt) && item.publishedAt > 0 ? item.publishedAt : undefined
+    const badges = readCatalogBadges(item.badges)
+    const metrics = readCatalogMetrics(item.metrics)
+    const actions = readCatalogActions(item.actions)
+
+    out.push({
+      uri,
+      title,
+      ...(rawTitle ? { rawTitle } : {}),
+      ...(subtitle ? { subtitle } : {}),
+      ...(resolution !== undefined ? { resolution } : {}),
+      ...(videoQualities ? { videoQualities } : {}),
+      ...(audioQualities ? { audioQualities } : {}),
+      ...(audioLanguages ? { audioLanguages } : {}),
+      ...(subtitleLanguages ? { subtitleLanguages } : {}),
+      ...(sizeBytes !== undefined ? { sizeBytes } : {}),
+      ...(sizeText ? { sizeText } : {}),
+      ...(publishedAt !== undefined ? { publishedAt } : {}),
+      ...(badges ? { badges } : {}),
+      ...(metrics ? { metrics } : {}),
+      ...(actions ? { actions } : {}),
+    })
+  }
+  return out
+}
+
+const allowedCatalogOpenUrl = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const sanitizeDownloadFilename = (value: unknown): string => {
+  const cleaned = cleanCatalogText(value, 256)?.replace(/[\\/\0\r\n]/g, '_').replace(/^\.+/, '')
+  return cleaned || 'download'
+}
+
+const decodedBase64Bytes = (raw: string): string | undefined => {
+  const compact = raw.replace(/\s+/g, '')
+  if (!compact || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 === 1) return undefined
+  if (compact.includes('=') && compact.length % 4 !== 0) return undefined
+  const padding = compact.endsWith('==') ? 2 : compact.endsWith('=') ? 1 : 0
+  const bytes = Math.floor((compact.length * 3) / 4) - padding
+  if (bytes <= 0 || bytes > MAX_DOWNLOAD_BYTES) return undefined
+  return compact
+}
+
+/** Validates the declarative browser outcome returned by `runCatalogAction`. */
+export const readCatalogActionResult = (raw: unknown): CatalogActionResult | null => {
+  if (!isObject(raw) || typeof raw.kind !== 'string') return null
+  const message = cleanCatalogText(raw.message, 256)
+  switch (raw.kind) {
+    case 'done':
+    case 'refresh':
+    case 'error':
+      return { kind: raw.kind, ...(message ? { message } : {}) }
+    case 'copy': {
+      if (typeof raw.text !== 'string' || raw.text.length === 0 || raw.text.length > MAX_COPY_CHARS) return null
+      return { kind: 'copy', text: raw.text, ...(message ? { message } : {}) }
+    }
+    case 'download': {
+      if (typeof raw.base64 !== 'string') return null
+      const base64 = decodedBase64Bytes(raw.base64)
+      if (!base64) return null
+      const mimeType = cleanCatalogText(raw.mimeType, 128)
+      return {
+        kind: 'download',
+        filename: sanitizeDownloadFilename(raw.filename),
+        ...(mimeType ? { mimeType } : {}),
+        base64,
+        ...(message ? { message } : {}),
+      }
+    }
+    case 'open': {
+      const url = allowedCatalogOpenUrl(raw.url)
+      return url ? { kind: 'open', url } : null
+    }
+    default:
+      return null
+  }
+}
+
+/** Queries one plugin's `catalogItems`, bounded by `CATALOG_DESCRIBE_WAIT_MS` and isolating rejections. */
+export const askPluginCatalogItems = (
+  describe: (uris: string[], context?: CatalogQueryContext) => Promise<unknown>,
+  uris: string[],
+  context?: CatalogQueryContext,
+): Promise<unknown> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    Promise.resolve().then(() => describe(uris, context)).catch(() => []),
+    new Promise<unknown[]>(resolve => { timer = setTimeout(() => resolve([]), CATALOG_DESCRIBE_WAIT_MS) }),
+  ]).finally(() => clearTimeout(timer))
+}
+
+/** Runs one plugin's `runCatalogAction`, bounded by `CATALOG_ACTION_WAIT_MS` and isolating rejections. */
+export const askPluginCatalogAction = (
+  run: (uri: string, actionId: string) => Promise<unknown>,
+  uri: string,
+  actionId: string,
+): Promise<unknown> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    Promise.resolve().then(() => run(uri, actionId)).catch(() => null),
+    new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), CATALOG_ACTION_WAIT_MS) }),
   ]).finally(() => clearTimeout(timer))
 }

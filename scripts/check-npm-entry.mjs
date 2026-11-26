@@ -318,12 +318,21 @@ const languageChunk = language => new RegExp(`^lib-${language.replace(/[^\w-]/g,
  *
  * @returns {string[]} one line per problem, each naming the file it is about
  */
+const exportTargets = value => typeof value === 'string'
+  ? [value.replace(/^\.?\//, '')]
+  : value && typeof value === 'object'
+    ? Object.values(value).flatMap(exportTargets)
+    : []
+
 export const unpackedFilesProblems = (pkg, tree, paths, languages) => {
   const page = posix.join(dirname(pkg.main), 'embed.html')
   const named = namedBy(tree, page)
   const loaded = pageFiles(pkg, tree)
   const fetched = [...new Set(loaded.flatMap(path => namedIn(tree, path, URL_NAMED)))]
+  const exported = [...new Set(exportTargets(pkg.exports))]
   return [
+    ...exported.filter(file => tree.read(file) === undefined).map(file => `package.json "exports" names ${file}, which does not exist`),
+    ...exported.filter(file => !paths.includes(file)).map(file => `package.json "exports" names ${file}, and package.json "files" leaves it out`),
     ...named.filter(file => !paths.includes(file)).map(file => `${page} names ${file}, and package.json "files" leaves it out`),
     ...loaded.filter(file => !paths.includes(file) && !named.includes(file)).map(file => `a page imports ${file}, and package.json "files" leaves it out`),
     ...fetched.filter(file => !paths.includes(file)).map(file => `a page fetches ${file}, and package.json "files" leaves it out`),

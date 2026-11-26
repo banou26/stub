@@ -7,22 +7,28 @@ import { useIntl } from 'react-intl'
 import { useRouter, Link } from 'wouter'
 
 import { NAME_LIST } from '../i18n'
+import { languageName } from '../sources/catalog'
 import { useHiddenIcons } from '../sources/hidden-icons'
 import { nextThumbnail } from '../utils/thumbnails'
 import Placeholder from './placeholder'
 import SourcePopup from './source-popup'
 
-/** One concrete pick within an origin, e.g. a single release out of an indexer's several. */
+/** One concrete pick within an origin, e.g. a single release out of several. */
 export type SourceRelease = {
   uri: string
   label: string
   href?: string
   external: boolean
   active: boolean
+  videoQualities?: readonly string[] | null
+  audioQualities?: readonly string[] | null
+  audioLanguages?: readonly string[] | null
+  subtitleLanguages?: readonly string[] | null
 }
 
 export type WatchSource = {
   id: string
+  uri?: string
   name: string
   icon?: string | null
   color?: string | null
@@ -33,13 +39,15 @@ export type WatchSource = {
    * Every handle this origin contributed for the episode, when there is more than one.
    *
    * An origin used to resolve to exactly one handle via `handles.find(h => h.origin === id)`, which
-   * silently dropped the rest: an indexer contributing five releases for one episode showed a single
+   * silently dropped the rest: a source contributing five releases for one episode showed a single
    * button pointing at whichever sorted first. When this is set the origin expands into a choice
    * instead, and the compact selector routes to the watch page so the choice has somewhere to happen.
    */
   releases?: SourceRelease[]
   /** set when the source is a plugin that renders its own picker, which replaces the inline list */
   picker?: { pluginUri: string }
+  /** set when a plugin source exposes generic `catalogItems` metadata for Stub's source browser */
+  hasCatalog?: true
   /**
    * What the watch page's card shows, and nothing else does: the pictures to try in order (the
    * source's own, then the episode's), and what the source states about its stream before it plays,
@@ -71,7 +79,7 @@ const FALLBACK_COLOR = '#9aa0a6'
 /** The colour a source is drawn in: its own, else its brand's, else a neutral grey. */
 export const brandColor = (source: WatchSource) => source.color || BRAND_COLORS[source.id] || FALLBACK_COLOR
 
-const style = css`
+export const style = css`
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -496,15 +504,6 @@ const compactStyle = css`
   }
 `
 
-// a card names the language, not the region or script it is in: es-419 and es-ES are both Spanish. A language
-// subtag Intl cannot read leaves the tag as the source wrote it
-const languageName = (intl: IntlShape, tag: string) => {
-  // BCP 47's tag for several languages, which a Nyaa release saying Multi-Subs or MULTi carries: Chrome 156 names it 'mul'
-  if (tag === 'mul') return intl.formatMessage({ id: 'Multiple languages', defaultMessage: 'Multiple languages' })
-  const language = tag.split('-')[0]!
-  return /^(?:[a-z]{2,3}|[a-z]{5,8})$/i.test(language) ? intl.formatDisplayName(language, { type: 'language' }) ?? tag : tag
-}
-
 const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | null }) => {
   const intl = useIntl()
   const names = [...new Set((tags ?? []).map(tag => languageName(intl, tag)))]
@@ -529,11 +528,11 @@ const Languages = ({ label, tags }: { label: string, tags?: readonly string[] | 
 /** What a click on a source does, drawn the same in every language. */
 export const MARKS = { external: '↗', play: '▶', picker: '›', open: '▾', closed: '▸' } as const
 
-const detailed = (source: WatchSource) =>
+export const detailed = (source: WatchSource) =>
   Boolean(source.thumbnails?.length || source.videoQualities?.length || source.audioQualities?.length || source.audioLanguages?.length || source.subtitleLanguages?.length)
 
 /** The watch page's card: the source's picture over its usual row, then what its stream offers. */
-const Details = ({ source, head }: { source: WatchSource, head: ComponentChildren }) => {
+export const Details = ({ source, head }: { source: WatchSource, head: ComponentChildren }) => {
   const intl = useIntl()
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set())
   const thumbnail = nextThumbnail(source.thumbnails, failed)
@@ -551,7 +550,7 @@ const Details = ({ source, head }: { source: WatchSource, head: ComponentChildre
   )
 }
 
-const SourceIcon = ({ source }: { source: WatchSource }) => {
+export const SourceIcon = ({ source }: { source: WatchSource }) => {
   const [failed, setFailed] = useState(false)
   return (
     <span className="icon">
@@ -565,7 +564,7 @@ const SourceIcon = ({ source }: { source: WatchSource }) => {
 /** Internal route link that uses client navigation by default, or a native new-tab anchor preserving router hrefs. */
 export const RouteLink = (
   { newTab, href, ...props }:
-  { newTab?: boolean, href: string, className?: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true' | 'page', 'aria-label'?: string, children?: ComponentChildren }
+  { newTab?: boolean, href: string, className?: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true' | 'page', 'aria-label'?: string, onClick?: () => void, children?: ComponentChildren }
 ) => {
   const router = useRouter()
   if (!newTab) return <Link {...props} href={href}/>
@@ -574,9 +573,9 @@ export const RouteLink = (
 }
 
 // a source played in stub is a client side navigation, which keeps the worker and every match it made this session
-const SourceLink = (
+export const SourceLink = (
   { external, openInNewTab, href, ...props }:
-  { external: boolean, openInNewTab?: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true', children: ComponentChildren }
+  { external: boolean, openInNewTab?: boolean, href?: string, className: string, style?: Record<string, string>, title?: string, 'aria-current'?: 'true', onClick?: () => void, children: ComponentChildren }
 ) =>
   external || !href
     ? <a {...props} href={href} target="_blank" rel="noreferrer"/>
@@ -676,8 +675,8 @@ const MultiReleaseSource = ({ source, onOpenPicker }: { source: WatchSource, onO
   const intl = useIntl()
   const releases = source.releases ?? []
   const [open, setOpen] = useState(releases.some(release => release.active))
-  // a plugin that renders its own picker replaces the inline list entirely: it knows what its releases
-  // are (seeders, size, subtitle tracks) where stub only ever sees a flattened label
+  // a plugin that renders its own picker replaces the inline list entirely: it knows what its entries
+  // are (metrics, size, subtitle tracks) where stub only ever sees a flattened label
   const owned = Boolean(source.picker)
   const head = (
     <>

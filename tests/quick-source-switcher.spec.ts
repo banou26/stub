@@ -84,7 +84,7 @@ const serve = async (page: Page) => {
   await addMontserrat(page)
 }
 
-test('switches sources and subsources from inside the player without leaving fullscreen, and hides when only one release exists', async ({ browser }) => {
+test('switches sources and subsources from inside the player without leaving fullscreen, places sources beside episodes on desktop, and toggles Cards/List', async ({ browser }) => {
   test.setTimeout(90_000)
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   try {
@@ -94,6 +94,34 @@ test('switches sources and subsources from inside the player without leaving ful
     const embed = page.frameLocator('.stage iframe')
     const switchBtn = embed.locator('button.source-switch')
     await expect(switchBtn).toBeVisible({ timeout: 30_000 })
+
+    // Inline /watch places sources on the left and episodes on the right on wide viewports, with collapsed Cards default
+    const [sourcesBox, episodesBox] = await Promise.all([
+      page.locator('.watch-info.sources').boundingBox(),
+      page.locator('.watch-info.episodes').boundingBox(),
+    ])
+    expect(sourcesBox).toBeTruthy()
+    expect(episodesBox).toBeTruthy()
+    expect(sourcesBox!.x).toBeLessThan(episodesBox!.x)
+    expect(sourcesBox!.x + sourcesBox!.width).toBeLessThanOrEqual(episodesBox!.x + 1)
+
+    const inlineCardsBtn = page.locator('.watch-info.sources .view-btn', { hasText: 'Cards' })
+    const inlineListBtn = page.locator('.watch-info.sources .view-btn', { hasText: 'List' })
+    await expect(inlineCardsBtn).toHaveAttribute('aria-pressed', 'true')
+    const folderCard = page.locator('.watch-info.sources .list button.source').first()
+    await expect(folderCard).not.toHaveAttribute('aria-expanded', /.*/)
+    await expect(page.locator('.watch-info.sources a.release')).toHaveCount(0)
+
+    await folderCard.click()
+    await expect(page.locator('.watch-info.sources button.back-btn')).toBeVisible()
+    await expect(page.locator('.watch-info.sources a.release[title="Release 2"]')).toBeVisible()
+    await page.locator('.watch-info.sources button.back-btn').click()
+    await expect(folderCard).toBeVisible()
+
+    await inlineListBtn.click()
+    await expect(inlineListBtn).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.watch-info.sources a.release[title="Release 2"]')).toBeVisible()
+    await inlineCardsBtn.click()
 
     // Verify source switch sits before settings in the right control group
     const order = await page.frames().find(f => f.url().startsWith(`${ORIGIN}/embed.html?`))!.evaluate(() => {
@@ -121,8 +149,8 @@ test('switches sources and subsources from inside the player without leaving ful
     await switchBtn.click()
     await expect(dialog).toBeVisible()
 
-    // Expand Spec Torrents group and switch straight to Release 2 without exiting fullscreen
-    await dialog.getByRole('button', { name: /Spec Torrents/ }).click()
+    // Dialog defaults to unified List view with Release 2 directly clickable without extra expands
+    await expect(dialog.locator('.view-btn', { hasText: 'List' })).toHaveAttribute('aria-pressed', 'true')
     const release2 = dialog.locator('button[title="Release 2"]')
     await expect(release2).toBeVisible()
     await release2.click()

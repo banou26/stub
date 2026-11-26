@@ -51,6 +51,8 @@ vi.mock('../../../../src/worker', () => ({
   remoteAccount: async () => undefined,
   remoteCheck: async () => undefined,
   searchAgain: async () => {},
+  fetchRemoteCatalogItems: async () => [],
+  runRemoteCatalogAction: async () => null,
   findRemoteSubtitles: async () => [],
   loadRemoteSubtitle: async () => '',
   selectRemoteSubtitle: async () => [],
@@ -104,7 +106,7 @@ vi.mock('../../../../src/embed-fullscreen', () => ({ serveEmbedFullscreen: () =>
 vi.mock('../../../../src/embed-episode', () => ({ serveEmbedEpisodeNavigation: () => () => {} }))
 vi.mock('../../../../src/embed-subtitles', () => ({ serveEmbedExternalSubtitles: () => () => {} }))
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Captions', 'Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'ExternalLink', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Search', 'Share2', 'SlidersHorizontal', 'Smile', 'Star', 'X'].map(name => [name, () => null]),
+  ['ArrowLeft', 'Captions', 'Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Copy', 'Download', 'ExternalLink', 'Frown', 'Info', 'LayoutGrid', 'List', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Search', 'Share2', 'SlidersHorizontal', 'Smile', 'Sparkles', 'Star', 'X'].map(name => [name, () => null]),
 ))
 
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')

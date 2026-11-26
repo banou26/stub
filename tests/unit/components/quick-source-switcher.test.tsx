@@ -8,7 +8,7 @@ import type { WatchSource } from '../../../src/components/source-selector'
 
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['ChevronDown', 'ChevronRight', 'ExternalLink', 'Play', 'SlidersHorizontal', 'X'].map(name => [name, () => null]),
+  ['ArrowLeft', 'Check', 'ChevronDown', 'ChevronRight', 'Copy', 'Download', 'ExternalLink', 'Info', 'LayoutGrid', 'List', 'Play', 'Search', 'SlidersHorizontal', 'Sparkles', 'X'].map(name => [name, () => null]),
 ))
 vi.mock('../../../src/components/source-popup', () => ({ default: () => null }))
 
@@ -28,19 +28,19 @@ const release = (uri: string, active = false) => ({
 const sources: WatchSource[] = [
   { id: 'cr', name: 'Crunchyroll', href: '/watch/m/e/cr:1', external: false, active: false, videoQualities: ['1080p'] },
   {
-    id: 'nyaa',
-    name: 'Nyaa',
-    href: '/watch/m/e/nyaa:a',
+    id: 'provider-b',
+    name: 'Provider B',
+    href: '/watch/m/e/provider-b:a',
     external: false,
     active: true,
     picker: { pluginUri: 'https://stub.plugins.banou.dev' },
-    releases: [release('nyaa:a', true), release('nyaa:b', false)],
+    releases: [release('provider-b:a', true), release('provider-b:b', false)],
   },
   { id: 'hulu', name: 'Hulu', href: 'https://www.hulu.com/watch/1', external: true, active: false },
 ]
 
 describe('QuickSourceSwitcher', () => {
-  test('renders sources, auto-expands active multi-release source, picks subsource, opens plugin picker, and dismisses', () => {
+  test('opens in unified list view, picks items, opens legacy picker, switches Cards/List view, and dismisses', () => {
     const onSelectHref = vi.fn()
     const onOpenPicker = vi.fn()
     const onClose = vi.fn()
@@ -57,16 +57,25 @@ describe('QuickSourceSwitcher', () => {
 
     const click = (target: Element) => act(() => { target.dispatchEvent(new Event('click')) })
 
-    // Active multi-release Nyaa group is auto-expanded so subsources are 1 click away
-    expect(host.querySelector('button[title="nyaa:b"]')).toBeTruthy()
+    // Unified list view shows every item upfront without extra expand clicks
+    expect(host.querySelector('button[title="provider-b:b"]')).toBeTruthy()
     expect(host.querySelector('button[title="Crunchyroll"] .tag')?.textContent).toBe('1080p')
     expect(host.querySelector('a[title="Hulu"]')?.getAttribute('target')).toBe('_blank')
 
-    click(host.querySelector('button[title="nyaa:b"]')!)
-    expect(onSelectHref).toHaveBeenCalledExactlyOnceWith('/watch/m/e/nyaa:b')
+    click(host.querySelector('button[title="provider-b:b"]')!)
+    expect(onSelectHref).toHaveBeenCalledExactlyOnceWith('/watch/m/e/provider-b:b')
 
     click(host.querySelector('.picker-btn')!)
     expect(onOpenPicker).toHaveBeenCalledExactlyOnceWith(sources[1])
+
+    // Can switch dialog between List and Cards
+    const cardsBtn = [...host.querySelectorAll<HTMLButtonElement>('.view-btn')].find(btn => btn.textContent?.includes('Cards'))!
+    click(cardsBtn)
+    expect(host.querySelector('button[title="2 releases on Provider B"]')).toBeTruthy()
+
+    const listBtn = [...host.querySelectorAll<HTMLButtonElement>('.view-btn')].find(btn => btn.textContent?.includes('List'))!
+    click(listBtn)
+    expect(host.querySelector('button[title="provider-b:b"]')).toBeTruthy()
 
     // Clicking inside the panel must not dismiss the overlay
     click(host.querySelector('.panel')!)

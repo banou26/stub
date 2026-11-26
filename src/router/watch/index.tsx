@@ -1,4 +1,5 @@
 import type { RouteParams } from '../path'
+import type { CatalogItem } from '../../plugin-sdk'
 import type { WatchSource } from '../../components/source-selector'
 
 import { css } from '@emotion/react'
@@ -8,7 +9,7 @@ import { useIntl } from 'react-intl'
 import { useSubscription } from 'urql'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
 
-import { remoteAccount, remotePicker, remotePlayer } from '../../worker'
+import { fetchRemoteCatalogItems, remoteAccount, remotePicker, remotePlayer, runRemoteCatalogAction } from '../../worker'
 
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
@@ -20,7 +21,7 @@ import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources
 import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-order'
 import { useSetting } from '../../utils/use-setting'
 import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
-import SourceSelector from '../../components/source-selector'
+import SourceBrowser from '../../components/source-browser'
 import SourcePopup from '../../components/source-popup'
 import QuickSourceSwitcher from '../../components/quick-source-switcher'
 import SubtitleBrowser, { type SubtitleBrowserPluginPicker } from '../../components/subtitle-browser'
@@ -325,12 +326,40 @@ const style = css`
     }
   }
 
+  .watch-body {
+    width: 100%;
+    max-width: 2200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+
+    @media (min-width: 1024px) {
+      &.with-episodes {
+        display: grid;
+        grid-template-columns: minmax(34rem, 42%) minmax(0, 1fr);
+        align-items: start;
+        gap: 0 2.4rem;
+      }
+
+      &.with-episodes > .watch-info.sources {
+        padding-inline-end: 0;
+      }
+
+      &.with-episodes > .watch-info.episodes {
+        padding-inline-start: 0;
+        padding-top: 0.8rem;
+      }
+    }
+  }
+
   .watch-info {
     padding: 1.6rem 2.4rem;
     width: 100%;
     max-width: 2200px;
     margin: 0 auto;
     box-sizing: border-box;
+    min-width: 0;
 
     &.sources {
       padding-top: 0.8rem;
@@ -731,8 +760,8 @@ const Watch = () => {
     return () => { cancelled = true }
   }, [accountsKey])
 
-  // The source's own player wins over stub's built-in ones: it is the source saying how its releases
-  // are played, and a release stub cannot open any other way (a magnet) is exactly the case for it.
+  // The source's own player wins over stub's built-in ones: it is the source saying how its entries
+  // are played, and an entry stub cannot open any other way is exactly the case for it.
   // A background worker disconnect/reconnect clears `players[origin]` while the mounted player frame
   // itself is still alive, so hold the active mount until the plugin is removed or the viewer moves on.
   const activePluginPlayer = useRef<{ pluginUri: string, release: { uri: string, url?: string } } | undefined>(undefined)
@@ -875,9 +904,8 @@ const Watch = () => {
       }
       return (originData?.originPage?.nodes ?? []).map(origin => {
         const handles = episodeHandles.filter(h => h.origin === origin.id)
-        // a source that plays its own releases makes every one of them playable IN stub, so the link
-        // goes to the watch route rather than out to whatever the raw url opens (for a torrent index
-        // that url is a magnet, which leaves the browser entirely)
+        // a source that plays its own entries makes every one of them playable IN stub, so the link
+        // goes to the watch route rather than out to whatever the raw url opens (which may leave the browser)
         const selfPlaying = Boolean(players?.[origin.id])
         const playableHandle = (handle: typeof handles[number]) =>
           Boolean(handle?.embedUrl || selfPlaying || canPlay(origin.id, handle?.url, backend))
@@ -893,6 +921,10 @@ const Watch = () => {
           href: playableHandle(handle) ? pathFor(handle.uri) : (handle.url ?? undefined),
           external: !playableHandle(handle),
           active: selectedSourceUri === handle.uri,
+          videoQualities: handle.videoQualities,
+          audioQualities: handle.audioQualities,
+          audioLanguages: handle.audioLanguages,
+          subtitleLanguages: handle.subtitleLanguages,
         }))
 
         const first = handles.at(0)
@@ -900,6 +932,7 @@ const Watch = () => {
         const shown = handles.find(handle => handle.uri === selectedSourceUri) ?? first
         return {
           id: origin.id,
+          uri: first?.uri,
           name: origin.name ?? origin.id,
           icon: origin.icon,
           color: origin.color,
@@ -908,6 +941,7 @@ const Watch = () => {
           active: releases.some(release => release.active),
           releases: releases.length > 1 ? releases : undefined,
           picker: pickers[origin.id] ? { pluginUri: pickers[origin.id]! } : undefined,
+          hasCatalog: addedSources.some(addedSource => addedSource.origin === origin.id && addedSource.hasCatalog) ? true as const : undefined,
           thumbnails: [...shown?.thumbnails ?? [], ...episode?.thumbnails ?? []],
           videoQualities: shown?.videoQualities,
           audioQualities: shown?.audioQualities,
@@ -917,8 +951,88 @@ const Watch = () => {
       }).filter(source => source.href || source.releases)
         .sort((a, b) => rank(a.id) - rank(b.id))
     },
-    [originData, episodeHandles, episode?.thumbnails, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend, orderedOrigins]
+    [originData, episodeHandles, episode?.thumbnails, params.mediaUri, params.episodeUri, selectedSourceUri, pickers, players, backend, orderedOrigins, addedSources]
   )
+
+  const [catalogItems, setCatalogItems] = useState<ReadonlyMap<string, CatalogItem>>(() => new Map())
+  const [catalogRefresh, setCatalogRefresh] = useState(0)
+  const catalogTargets = useMemo(() => {
+    const targets: { origin: string, uris: string[] }[] = []
+    for (const source of sources) {
+      if (!source.hasCatalog) continue
+      const uris = [...new Set([
+        ...(source.releases?.map(release => release.uri) ?? []),
+        ...(source.uri ? [source.uri] : []),
+      ])]
+      if (uris.length) targets.push({ origin: source.id, uris })
+    }
+    return targets
+  }, [sources])
+  const activeCatalogUrisRef = useRef<Set<string>>(new Set())
+  activeCatalogUrisRef.current = new Set(catalogTargets.flatMap(target => target.uris))
+  const localeRef = useRef(intl.locale)
+  localeRef.current = intl.locale
+  const unmountedRef = useRef(false)
+  useEffect(() => {
+    unmountedRef.current = false
+    return () => { unmountedRef.current = true }
+  }, [])
+  const fetchedCatalogRef = useRef<Map<string, string>>(new Map())
+  const catalogKey = `${catalogRefresh}:${intl.locale}:${catalogTargets.map(target => `${target.origin}=${target.uris.join(',')}`).join('|')}`
+
+  useEffect(() => {
+    setCatalogItems(prev => {
+      if (!prev.size) return prev
+      let changed = false
+      const next = new Map<string, CatalogItem>()
+      for (const [uri, item] of prev) {
+        if (activeCatalogUrisRef.current.has(uri)) next.set(uri, item)
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+    const activeOrigins = new Set(catalogTargets.map(target => target.origin))
+    for (const origin of fetchedCatalogRef.current.keys()) {
+      if (!activeOrigins.has(origin)) fetchedCatalogRef.current.delete(origin)
+    }
+    if (!catalogTargets.length) return
+
+    const timer = setTimeout(() => {
+      const requestLocale = localeRef.current
+      for (const target of catalogTargets) {
+        const signature = `${catalogRefresh}:${requestLocale}:${target.uris.join(',')}`
+        if (fetchedCatalogRef.current.get(target.origin) === signature) continue
+        fetchedCatalogRef.current.set(target.origin, signature)
+        void fetchRemoteCatalogItems(target.origin, target.uris, { locale: requestLocale })
+          .then(items => {
+            if (unmountedRef.current || localeRef.current !== requestLocale) return
+            if (!items.length) return
+            setCatalogItems(prev => {
+              const next = new Map<string, CatalogItem>()
+              for (const [uri, item] of prev) {
+                if (activeCatalogUrisRef.current.has(uri)) next.set(uri, item)
+              }
+              for (const item of items) {
+                if (activeCatalogUrisRef.current.has(item.uri)) next.set(item.uri, item)
+              }
+              return next
+            })
+          })
+          .catch(() => {
+            if (fetchedCatalogRef.current.get(target.origin) === signature) {
+              fetchedCatalogRef.current.delete(target.origin)
+            }
+          })
+      }
+    }, 80)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [catalogKey])
+
+  const runCatalogActionHandler = (origin: string, uri: string, actionId: string) =>
+    runRemoteCatalogAction(origin, uri, actionId)
 
   // a stream stub plays here only with the extension: Netflix, and Prime Video outside Japan
   const extensionOnly = (handle: { origin: string, url?: string | null, embedUrl?: string | null }) =>
@@ -1200,7 +1314,7 @@ const Watch = () => {
   }, [viaPlugin, readyEmbedUrl, canSwitchSource])
   // a guest follows the host to the next episode, as to any page; one that lists sources but nothing to play asks there
   const upNext = !guest && playableHandlesOf(next?.episode.handles).length ? nextLink : undefined
-  // the release Next opens, for the torrent player to prepare
+  // the entry Next opens, for the plugin player to prepare
   const nextUri = upNext && viaPlugin ? sourceOf(playableHandlesOf(next?.episode.handles)) : undefined
   const nextHandle = nextUri ? playableHandlesOf(next?.episode.handles).find(handle => handle.uri === nextUri) : undefined
   const nextRelease = nextHandle ? { uri: nextHandle.uri, url: nextHandle.url ?? undefined } : undefined
@@ -1298,8 +1412,11 @@ const Watch = () => {
                   ? (
                     <QuickSourceSwitcher
                       sources={sources}
+                      catalogItems={catalogItems}
                       onSelectHref={href => { setQuickSwitcherOpen(false); navigate(href) }}
                       onOpenPicker={openStagePicker}
+                      onRunAction={runCatalogActionHandler}
+                      onRefreshCatalog={() => setCatalogRefresh(count => count + 1)}
                       onClose={() => setQuickSwitcherOpen(false)}
                     />
                   )
@@ -1371,17 +1488,48 @@ const Watch = () => {
         </div>
       </div>
 
-      <div className="watch-info sources">
-        <SourceChecks sources={addedSources.filter(({ origin }) => ways.settled(origin))}/>
-        <SourceSelector
-          sources={sources}
-          onPickRelease={uri =>
-            navigate(getRoutePath(Route.WATCH, {
-              mediaUri: params.mediaUri,
-              episodeUri: params.episodeUri,
-              sourceUri: uri
-            }))}
-        />
+      <div className={media && !film ? 'watch-body with-episodes' : 'watch-body'}>
+        <div className="watch-info sources">
+          <SourceChecks sources={addedSources.filter(({ origin }) => ways.settled(origin))}/>
+          <SourceBrowser
+            sources={sources}
+            catalogItems={catalogItems}
+            variant="inline"
+            onOpenPicker={setStagePicker}
+            onRunAction={runCatalogActionHandler}
+            onRefreshCatalog={() => setCatalogRefresh(count => count + 1)}
+          />
+        </div>
+        {
+          media && !film
+            ? (
+              <div className="watch-info episodes">
+                <MediaSeasons
+                  seasons={playing?.seasons}
+                  currentUris={picked ? [picked.uri] : playingUris}
+                  onPick={uri => setSeason({ uri, on: params.episodeUri })}
+                />
+                <section data-episodes>
+                  <h2>{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</h2>
+                  {
+                    listed
+                      ? (
+                        <Episodes
+                          key={pickedUri ?? params.mediaUri}
+                          media={listed}
+                          tracked={tracked}
+                          current={picked || index < 0 ? undefined : index}
+                          mediaUri={pickedUri ?? params.mediaUri}
+                          sourceOf={row => row === episode ? selectedSourceUri : sourceOf(playableHandlesOf(row.handles))}
+                        />
+                      )
+                      : <EpisodesPlaceholder/>
+                  }
+                </section>
+              </div>
+            )
+            : undefined
+        }
       </div>
       {stagePicker?.picker
         ? (
@@ -1418,37 +1566,6 @@ const Watch = () => {
           />
         )
         : undefined}
-
-      {
-        media && !film
-          ? (
-            <div className="watch-info episodes">
-              <MediaSeasons
-                seasons={playing?.seasons}
-                currentUris={picked ? [picked.uri] : playingUris}
-                onPick={uri => setSeason({ uri, on: params.episodeUri })}
-              />
-              <section data-episodes>
-                <h2>{intl.formatMessage({ id: 'Episodes', defaultMessage: 'Episodes' })}</h2>
-                {
-                  listed
-                    ? (
-                      <Episodes
-                        key={pickedUri ?? params.mediaUri}
-                        media={listed}
-                        tracked={tracked}
-                        current={picked || index < 0 ? undefined : index}
-                        mediaUri={pickedUri ?? params.mediaUri}
-                        sourceOf={row => row === episode ? selectedSourceUri : sourceOf(playableHandlesOf(row.handles))}
-                      />
-                    )
-                    : <EpisodesPlaceholder/>
-                }
-              </section>
-            </div>
-          )
-          : undefined
-      }
     </div>
   )
 }

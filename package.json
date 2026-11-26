@@ -125,11 +125,19 @@
   ],
   "type": "module",
   "main": "build/index.js",
+  "exports": {
+    ".": "./build/index.js",
+    "./plugin": {
+      "types": "./build/plugin.d.ts",
+      "import": "./build/plugin.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "postinstall": "patch-package",
     "dev": "vp dev --port 4560",
     "test-server": "vp dev --port 7357 --config vite.test.config.ts",
-    "build": "npm run data:build && vp build && vp build --config vite.lib.config.ts && vp build --config vite.preview.config.ts && node scripts/check-npm-entry.mjs",
+    "build": "npm run data:build && vp build && vp build --config vite.lib.config.ts && vp build --config vite.preview.config.ts && node scripts/build-plugin-sdk.mjs && node scripts/check-npm-entry.mjs",
     "data:build": "npm run gql-generate && node scripts/build-anime-data.mjs",
     "data:build-offline": "npm run gql-generate && node scripts/build-anime-data.mjs --offline",
     "icons:render": "sh scripts/render-icons.sh",

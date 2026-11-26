@@ -99,6 +99,8 @@ vi.mock('../../../../src/worker', async () => {
       return await lookups.check[id]?.() ?? undefined
     },
     searchAgain: async () => {},
+    fetchRemoteCatalogItems: async () => [],
+    runRemoteCatalogAction: async () => null,
     findRemoteSubtitles: async () => [],
     loadRemoteSubtitle: async () => '',
     selectRemoteSubtitle: async () => [],
@@ -328,7 +330,7 @@ vi.mock('../../../../src/embed-subtitles', () => ({
 }))
 // lucide-react is CommonJS and requires react under node; no behaviour here
 vi.mock('lucide-react', () => Object.fromEntries(
-  ['Captions', 'Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'ExternalLink', 'Frown', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Search', 'Share2', 'SlidersHorizontal', 'Smile', 'Star', 'X'].map(name => [name, () => null])))
+  ['ArrowLeft', 'Captions', 'Check', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ChevronsLeft', 'ChevronsRight', 'ChevronsLeftRight', 'ChevronsRightLeft', 'Copy', 'Download', 'ExternalLink', 'Frown', 'Info', 'LayoutGrid', 'List', 'LoaderCircle', 'Meh', 'Minus', 'Play', 'Plus', 'Search', 'Share2', 'SlidersHorizontal', 'Smile', 'Sparkles', 'Star', 'X'].map(name => [name, () => null])))
 vi.stubGlobal('__STUB_EMBED_PAGE__', '/embed.html')
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => stored.get(key) ?? null,
@@ -1519,7 +1521,9 @@ describe('an address names an episode with few of its rows', () => {
     twoReleases()
     const host = await open('ag:(anilist:1-2,nyaa:e1,nyaa:f1)')
     const group = host.querySelector<HTMLElement>('button.source[title="3 releases on nyaa"]')!
-    expect(group.getAttribute('aria-expanded'), 'open on the release playing').toBe('true')
+    expect(group.getAttribute('aria-expanded'), 'collapsed by default so episodes stay visible').toBeNull()
+    expect(host.querySelectorAll('a.release').length).toBe(0)
+    await act(async () => { group.click() })
     const links = [...host.querySelectorAll('a.release')].map(link => link.getAttribute('href'))
     expect(links).toEqual(['a', 'e1', 'f1'].map(id => watchPath(2, `nyaa:${id}`)))
     params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:e1' }

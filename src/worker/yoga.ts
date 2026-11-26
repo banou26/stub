@@ -1,7 +1,7 @@
 import type { YogaInitialContext } from 'graphql-yoga'
 import type { Resolvers as MainThreadResolvers } from '../worker'
 import type { RegisteredSource } from './plugin-sources'
-import type { PluginSettingField, PluginValues, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
+import type { CatalogQueryContext, PluginSettingField, PluginValues, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
 
 import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
 import { createSchema, createYoga, useErrorHandler, useExecutionCancellation } from 'graphql-yoga'
@@ -9,7 +9,7 @@ import { expose } from 'osra'
 
 import { typeDefs } from '../generated/schema/typeDefs.generated'
 import { resolvers } from './resolvers'
-import { configureRemoteExtractor, extractors, findRemoteSubtitles, loadRemoteSubtitle, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remoteCheck, remotePicker, remotePlayer, searchAgain, selectRemoteRelease, selectRemoteSubtitle } from './extractor'
+import { configureRemoteExtractor, extractors, fetchRemoteCatalogItems, findRemoteSubtitles, loadRemoteSubtitle, registerRemoteExtractor, unregisterRemoteExtractor, remoteAccount, remoteCheck, remotePicker, remotePlayer, runRemoteCatalogAction, searchAgain, selectRemoteRelease, selectRemoteSubtitle } from './extractor'
 import { setDisabledOrigins } from './disabled-origins'
 import { holdPickedCountry } from '../sources/country'
 import { holdViewerLanguages } from '../viewer-languages'
@@ -112,6 +112,8 @@ export const osraResolvers = {
   remoteCheck: (origin: string) => remoteCheck(origin),
   searchAgain: (origin: string) => searchAgain(origin),
   selectRemoteRelease: (origin: string, uris: string[], playing?: string) => selectRemoteRelease(origin, uris, playing),
+  fetchRemoteCatalogItems: (origin: string, uris: string[], context?: CatalogQueryContext) => fetchRemoteCatalogItems(origin, uris, context),
+  runRemoteCatalogAction: (origin: string, uri: string, actionId: string) => runRemoteCatalogAction(origin, uri, actionId),
   findRemoteSubtitles: (context: SubtitleQueryContext, origins?: string[]) => findRemoteSubtitles(context, origins),
   loadRemoteSubtitle: (origin: string, remoteTrackId: string) => loadRemoteSubtitle(origin, remoteTrackId),
   selectRemoteSubtitle: (origin: string, context: SubtitleQueryContext) => selectRemoteSubtitle(origin, context),

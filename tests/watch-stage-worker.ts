@@ -7,6 +7,8 @@ export const remotePicker = async () => null
 export const remotePlayer = async (origin: string) => origin === TORRENT_ORIGIN ? { pluginUri: STAGE_PLUGIN } : null
 export const trackerCheck = async () => {}
 export const selectRemoteRelease = async () => null
+export const fetchRemoteCatalogItems = async () => []
+export const runRemoteCatalogAction = async () => null
 export const remoteCheck = async () => null
 export const searchAgain = async () => {}
 export const findRemoteSubtitles = async () => []

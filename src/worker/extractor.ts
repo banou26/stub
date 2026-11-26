@@ -4,7 +4,7 @@ import type { Exchange } from 'urql'
 import type { Episode, Media, Origin, Resolvers, SimilarMediaInput } from '../generated/schema/types.generated'
 import type { Uri } from 'src/utils/uri'
 import type { Episode as StoreEpisode, Origin as StoreOrigin, ClaimedRelation } from './store/types'
-import type { PluginSettingField, PluginValues, SourceAccount, SourceCheck, StubSource, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
+import type { CatalogActionResult, CatalogItem, CatalogQueryContext, PluginSettingField, PluginValues, SourceAccount, SourceCheck, StubSource, SubtitleQueryContext, ViewerLanguages } from '../plugin-api'
 
 import { useOnResolve } from '@envelop/on-resolve'
 import { createSchema, createYoga } from 'graphql-yoga'
@@ -32,9 +32,13 @@ import { listenMultipleIterator } from './store/events'
 import {
   askAccount,
   askCheck,
+  askPluginCatalogAction,
+  askPluginCatalogItems,
   askPluginSubtitleContent,
   askPluginSubtitles,
   handValues,
+  readCatalogActionResult,
+  readCatalogItems,
   readPluginPayload,
   readPluginSettings,
   readPluginSources,
@@ -720,6 +724,42 @@ export const selectRemoteRelease = async (origin: string, uris: string[], playin
   return (await picker.select(uris, { playing })) ?? null
 }
 
+type RemoteCatalogProvider = {
+  pluginUri: string
+  origin: string
+  describe: (uris: string[], context?: CatalogQueryContext) => Promise<unknown>
+  runAction?: (uri: string, actionId: string) => Promise<unknown>
+}
+const catalogProviders = new Map<string, RemoteCatalogProvider>()
+
+/** Fetches generic catalogue item metadata exposed by plugin `origin` for `uris`. */
+export const fetchRemoteCatalogItems = async (
+  origin: string,
+  uris: string[],
+  context?: CatalogQueryContext,
+): Promise<CatalogItem[]> => {
+  if (disabledOrigins().has(origin)) return []
+  const provider = catalogProviders.get(origin)
+  if (!provider) return []
+  const cleanUris = [...new Set(uris.filter((uri): uri is string => typeof uri === 'string' && uri.length > 0))]
+  if (!cleanUris.length) return []
+  const raw = await askPluginCatalogItems(provider.describe, cleanUris, context)
+  return readCatalogItems(raw, new Set(cleanUris))
+}
+
+/** Invokes a plugin-declared secondary catalogue action on `uri` owned by `origin`. */
+export const runRemoteCatalogAction = async (
+  origin: string,
+  uri: string,
+  actionId: string,
+): Promise<CatalogActionResult | null> => {
+  if (disabledOrigins().has(origin)) return null
+  const provider = catalogProviders.get(origin)
+  if (!provider?.runAction) return null
+  const raw = await askPluginCatalogAction(provider.runAction, uri, actionId)
+  return readCatalogActionResult(raw)
+}
+
 // A source that plays its own releases, unlike the picker, is only ever announced here: the app MOUNTS
 // the package's frame in its player area and calls `play` on that connection, not on this one. The two
 // are different documents of the same package, so a call made here would render into a frame nobody is
@@ -892,6 +932,16 @@ export const registerRemoteExtractor = async (
       if (typeof picker === 'function') {
         pickers.set(meta.origin, { pluginUri, select: picker as RemotePicker['select'] })
       }
+      const describe = (source as { catalogItems?: unknown }).catalogItems
+      const runAction = (source as { runCatalogAction?: unknown }).runCatalogAction
+      if (typeof describe === 'function') {
+        catalogProviders.set(meta.origin, {
+          pluginUri,
+          origin: meta.origin,
+          describe: describe as RemoteCatalogProvider['describe'],
+          ...(typeof runAction === 'function' ? { runAction: runAction as RemoteCatalogProvider['runAction'] } : {}),
+        })
+      }
       if (typeof (source as { play?: unknown }).play === 'function') players.set(meta.origin, pluginUri)
       const account = (source as { account?: unknown }).account
       if (meta.access !== 'none' && typeof account === 'function') accounts.set(meta.origin, { pluginUri, ask: account as () => Promise<unknown> })
@@ -918,6 +968,7 @@ export const registerRemoteExtractor = async (
         access: meta.access,
         ...(find ? { hasSubtitles: true as const } : {}),
         ...(select ? { hasSubtitlePicker: true as const } : {}),
+        ...(typeof describe === 'function' ? { hasCatalog: true as const } : {}),
       })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
@@ -940,6 +991,9 @@ export const registerRemoteExtractor = async (
 export const unregisterRemoteExtractor = (pluginUri: string) => {
   for (const [origin, entry] of subtitleSources) {
     if (entry.pluginUri === pluginUri) subtitleSources.delete(origin)
+  }
+  for (const [origin, provider] of catalogProviders) {
+    if (provider.pluginUri === pluginUri) catalogProviders.delete(origin)
   }
   for (const [origin, picker] of pickers) {
     if (picker.pluginUri === pluginUri) pickers.delete(origin)
