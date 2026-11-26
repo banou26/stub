@@ -157,8 +157,8 @@
     "calibrate": "node scripts/fetch-title-corpus.mjs && vitest run --config vitest.calibration.config.ts --disableConsoleIntercept --reporter=verbose"
   },
   "dependencies": {
-    "@banou/media-player": "^0.10.63",
-    "@banou/ponyfill": "^0.0.17",
+    "@banou/media-player": "^0.10.64",
+    "@banou/ponyfill": "^0.0.18",
     "@banou/social": "^0.0.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
