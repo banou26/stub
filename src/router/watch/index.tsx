@@ -14,7 +14,7 @@ import { fetchRemoteCatalogItems, remoteAccount, remotePicker, remotePlayer, run
 import { OriginFilter } from '../../generated/graphql'
 import { gql } from '../../generated'
 import { pluginAccounts } from '../../plugin-accounts'
-import { builtInSources } from '../../sources/built-in'
+import { builtInSources, NON_WATCH_ORIGINS } from '../../sources/built-in'
 import { crunchyrollEpisodeId, skipEventsToChapters, useSkipEvents } from '../../sources/crunchyroll/skip-events'
 import { readDisabledSources, watchDisabledSources } from '../../sources/disabled-sources'
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
@@ -337,18 +337,22 @@ const style = css`
     @media (min-width: 1024px) {
       &.with-episodes {
         display: grid;
-        grid-template-columns: minmax(34rem, 42%) minmax(0, 1fr);
+        grid-template-areas: 'episodes sources';
+        grid-template-columns: minmax(0, 1fr) minmax(34rem, 42%);
         align-items: start;
         gap: 0 2.4rem;
-      }
-
-      &.with-episodes > .watch-info.sources {
-        padding-inline-end: 0;
+        reading-flow: grid-rows;
       }
 
       &.with-episodes > .watch-info.episodes {
-        padding-inline-start: 0;
+        grid-area: episodes;
+        padding-inline-end: 0;
         padding-top: 0.8rem;
+      }
+
+      &.with-episodes > .watch-info.sources {
+        grid-area: sources;
+        padding-inline-start: 0;
       }
     }
   }
@@ -902,7 +906,9 @@ const Watch = () => {
         const at = orderedOrigins.indexOf(id)
         return at === -1 ? orderedOrigins.length : at
       }
-      return (originData?.originPage?.nodes ?? []).map(origin => {
+      return (originData?.originPage?.nodes ?? [])
+        .filter(origin => !NON_WATCH_ORIGINS.has(origin.id))
+        .map(origin => {
         const handles = episodeHandles.filter(h => h.origin === origin.id)
         // a source that plays its own entries makes every one of them playable IN stub, so the link
         // goes to the watch route rather than out to whatever the raw url opens (which may leave the browser)

@@ -52,6 +52,12 @@ export const builtInSources: BuiltInSource[] = [
 // api only sources are never drawn; IMDb is drawn as the `imdb` origin, which answers nothing and has no row above
 const NEVER_DRAWN = new Set(['anizip', 'jw', 'kitsu', 'livechart', 'offline', 'simkl', 'trakt', 'tvmaze', 'watchmode'])
 
+/**
+ * Built-in metadata and reference origins (`isApiOnly: false` so media badges still link to them)
+ * that never stream video and must not appear as watch sources.
+ */
+export const NON_WATCH_ORIGINS: ReadonlySet<string> = new Set(['anilist', 'mal', 'tmdb', 'tvdb', 'imdb', 'animethemes', 'ann'])
+
 /** The origin a built-in source's icon is drawn as, on every site, or undefined when stub never draws it. */
 export const drawnAs = (origin: string): string | undefined =>
   NEVER_DRAWN.has(origin) ? undefined : origin === 'omdb' ? 'imdb' : origin

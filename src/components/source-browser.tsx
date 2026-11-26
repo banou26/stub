@@ -288,6 +288,21 @@ const browserStyle = css`
     gap: 0.55rem;
   }
 
+  &.watch .entries {
+    box-sizing: border-box;
+    max-height: clamp(28rem, 58vh, 56rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.2rem;
+    padding-inline-end: 0.4rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+
+    > * {
+      flex-shrink: 0;
+    }
+  }
+
   .entry-row {
     display: flex;
     align-items: stretch;

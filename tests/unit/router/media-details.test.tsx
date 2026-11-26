@@ -1,7 +1,7 @@
 // FIRST: ../components/dom installs the document @emotion/react reads at module scope.
 import { mount, unmount, withIntl } from '../components/dom'
 
-import type { DetailsMedia } from '../../../src/router/home/media-details'
+import type { DetailsEpisode, DetailsMedia } from '../../../src/router/home/media-details'
 import type { Tracked } from '../../../src/router/title/facts'
 import type { FknBackend } from '../../../src/utils/fkn-backend'
 
@@ -22,7 +22,7 @@ vi.mock('../../../src/worker', () => ({}))
 vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => fkn.backend }))
 vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => null }))
 
-const { Episodes, SourceLinks, useTrackingSummary } = await import('../../../src/router/home/media-details')
+const { Episodes, SourceLinks, useTrackingSummary, watchOriginIds } = await import('../../../src/router/home/media-details')
 const { setIconShown } = await import('../../../src/sources/hidden-icons')
 const { startLanguage } = await import('../../../src/i18n')
 
@@ -750,6 +750,28 @@ describe('a hidden source icon', () => {
     setIconShown('b', false)
     expect(await draw()).toEqual(['Watch on A', 'Watch on C', 'Watch on D', 'Watch on E', 'Watch on F'])
   })
+
+  test('an episode row omits non-streaming built-in metadata origins even when carrying a url', async () => {
+    const withAnilist = {
+      uri: 'ag:(anilist:1)',
+      episodes: [{
+        ...media.episodes[0],
+        handles: [
+          { relation: 'SAME_AS', node: { uri: 'nf:1', origin: 'nf', url: 'https://www.netflix.com/watch/1' } },
+          { relation: 'SAME_AS', node: { uri: 'anilist:1-1', origin: 'anilist', url: 'https://anilist.co/anime/1' } },
+        ],
+      }],
+    } as unknown as DetailsMedia
+    const origins = [
+      { id: 'nf', name: 'Netflix' },
+      { id: 'anilist', name: 'AniList' },
+    ]
+    const { hook } = memoryLocation({ path: '/' })
+    const host = mount(withIntl(<Provider value={client(origins)}><Router hook={hook}><Episodes media={withAnilist}/></Router></Provider>))
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+    expect([...host.querySelectorAll('.episode .src')].map(src => src.getAttribute('title'))).toEqual(['Watch on Netflix'])
+  })
 })
 
 describe('the streaming links after the source icons', () => {
@@ -912,6 +934,37 @@ describe('the streaming links after the source icons', () => {
     expect(await draw([ANILIST, kitsu], [{ site: 'iQ', url: 'https://www.iq.com/album/1' }])).toEqual([
       'AniList https://anilist.co/anime/191656', 'iQ https://www.iq.com/album/1',
     ])
+  })
+
+  test('watchOriginIds excludes non-streaming metadata origins so AniList stays visible in SourceLinks on anime films', async () => {
+    const film = {
+      uri: 'ag:(anilist:191656-1,cr:G1)',
+      handles: [
+        { relation: 'SAME_AS', node: { uri: 'anilist:191656-1', origin: 'anilist', url: 'https://anilist.co/anime/191656' } },
+        { relation: 'SAME_AS', node: { uri: 'tmdb:50-1', origin: 'tmdb', url: null } },
+        { relation: 'SAME_AS', node: { uri: 'cr:G1', origin: 'cr', url: 'https://www.crunchyroll.com/watch/G1' } },
+        { relation: 'SAME_AS', node: { uri: 'multi:1', origin: 'multi', url: null } },
+        { relation: 'SAME_AS', node: { uri: 'multi:2', origin: 'multi', url: null } },
+      ],
+    } as unknown as DetailsEpisode
+    const offers = [
+      { relation: 'SAME_AS', node: { origin: 'amazon', url: 'https://www.primevideo.com/detail/1' } },
+    ]
+    const origins = [
+      { id: 'anilist', name: 'AniList', icon: 'https://anilist.co/i.png', url: 'https://anilist.co' },
+      { id: 'cr', name: 'Crunchyroll', icon: 'https://www.crunchyroll.com/i.png', url: 'https://www.crunchyroll.com' },
+    ]
+    const mediaHandles = [
+      ANILIST,
+      { relation: 'SAME_AS', node: { origin: 'cr', url: 'https://www.crunchyroll.com/series/1' } },
+    ]
+    const excluded = watchOriginIds(film, offers)
+    expect(excluded).toEqual(['cr', 'multi', 'amazon'])
+
+    const host = mount(<Provider value={client(origins)}><SourceLinks uri="ag:(anilist:191656)" handles={mediaHandles} except={excluded}/></Provider>)
+    hosts.push(host)
+    await act(() => new Promise(resolve => setTimeout(resolve, 10)))
+    expect([...host.querySelectorAll('.origin')].map(el => el.getAttribute('title'))).toEqual(['AniList'])
   })
 })
 

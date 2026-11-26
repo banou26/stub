@@ -37,6 +37,19 @@ const media = {
         { relation: 'SAME_AS', node: { uri: 'cr:GSWITCH1', origin: 'cr', id: 'GSWITCH1', url: 'https://www.crunchyroll.com/watch/GSWITCH1', shortDescriptions: [{ shortDescription: 'Crunchyroll Official' }] } },
         { relation: 'SAME_AS', node: { uri: `${TORRENT_ORIGIN}:rel1`, origin: TORRENT_ORIGIN, id: 'rel1', url: 'magnet:?xt=urn:btih:rel1', shortDescriptions: [{ shortDescription: 'Release 1' }] } },
         { relation: 'SAME_AS', node: { uri: `${TORRENT_ORIGIN}:rel2`, origin: TORRENT_ORIGIN, id: 'rel2', url: 'magnet:?xt=urn:btih:stage1', shortDescriptions: [{ shortDescription: 'Release 2' }] } },
+        ...Array.from({ length: 24 }, (_, idx) => {
+          const n = idx + 1
+          return {
+            relation: 'SAME_AS',
+            node: {
+              uri: `spec-archive:item-${n}`,
+              origin: 'spec-archive',
+              id: `item-${n}`,
+              url: `https://archive.spec.test/watch/item-${n}`,
+              shortDescriptions: [{ shortDescription: `Archive Item ${n}` }],
+            },
+          }
+        }),
       ],
     },
     {
@@ -57,6 +70,7 @@ const origins = {
     nodes: [
       { id: 'cr', url: 'https://www.crunchyroll.com', name: 'Crunchyroll', icon: null, color: null, isApiOnly: false },
       { id: TORRENT_ORIGIN, url: 'https://torrents.spec.test', name: 'Spec Torrents', icon: null, color: null, isApiOnly: false },
+      { id: 'spec-archive', url: 'https://archive.spec.test', name: 'Spec Archive', icon: null, color: null, isApiOnly: false },
     ],
   },
 }

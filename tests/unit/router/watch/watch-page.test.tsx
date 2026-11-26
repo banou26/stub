@@ -4560,3 +4560,17 @@ test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay for both bui
   expect(await pluginPlayers.externalSubtitles!.load('xunlei:xl2')).toBe('[Script Info]\nTitle: Xunlei\n')
   expect(relay.asked).toContain('https://subtitle.v.geilijiasu.com/ep2.ass')
 })
+
+test('never lists non-streaming built-in metadata sites such as AniList in watch sources', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'anilist']
+  const anilistHandle = handle('anilist:1-1', 'anilist', 'https://anilist.co/anime/1')
+  media = { ...single, episodes: [{ uri: 'ag:(anilist:1-1,cr:GX1)', handles: [allHandles[0]!, anilistHandle] }] }
+  params = { ...params, episodeUri: 'ag:(anilist:1-1,cr:GX1)', sourceUri: 'cr:GX1' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+
+  expect(host.querySelector('.watch-info.sources [title="cr"]')).not.toBeNull()
+  expect(host.querySelector('.watch-info.sources [title="anilist"]')).toBeNull()
+})

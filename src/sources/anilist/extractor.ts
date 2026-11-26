@@ -446,7 +446,7 @@ const fallbackEpisodes = (media: Media, normalized: GQLMedia, startDate: string 
       descriptions: (normalized.descriptions ?? []).map(entry => ({ ...entry, score: FALLBACK_EPISODE_SCORE })),
       shortDescriptions: (normalized.shortDescriptions ?? []).map(entry => ({ ...entry, score: FALLBACK_EPISODE_SCORE })),
       covers: (normalized.covers ?? []).map(cover => ({ ...cover, score: FALLBACK_EPISODE_SCORE })),
-    }, { releaseDate: startDate })]
+    }, { url: undefined, releaseDate: startDate })]
   }
   if (media.episodes != null && media.episodes > 1) {
     const byNumber = new Map<number, number>()
@@ -463,7 +463,6 @@ const fallbackEpisodes = (media: Media, normalized: GQLMedia, startDate: string 
         origin,
         id: `${media.id}-${episodeNumber}`,
         mediaUri: normalized.uri,
-        url: normalized.url ?? undefined,
         score: FALLBACK_EPISODE_SCORE,
         episodeNumber,
         releaseDate: new Date(airingAt * 1000).toISOString(),

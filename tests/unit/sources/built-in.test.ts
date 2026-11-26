@@ -4,7 +4,8 @@
 import { expect, test } from 'vite-plus/test'
 
 import * as sources from '../../../src/sources/index'
-import { builtInSources, drawnAs } from '../../../src/sources/built-in'
+import { builtInSources, drawnAs, NON_WATCH_ORIGINS } from '../../../src/sources/built-in'
+import { STREAMING_ORIGINS } from '../../../src/sources/justwatch/id'
 
 test('names every source that answers, under its own origin, name, site and icon, in the order they run', () => {
   const answering = Object.values(sources)
@@ -29,4 +30,17 @@ test('names the origin of exactly the icons stub draws, IMDb\'s as imdb', () => 
   expect(builtInSources.flatMap(source => drawnAs(source.origin) ?? []).sort(byName)).toEqual([...drawn].sort(byName))
   expect(drawnAs('omdb')).toBe('imdb')
   expect(drawnAs('kitsu'), 'an api only source').toBeUndefined()
+})
+
+test('every non-API-only source is either a streaming origin or in NON_WATCH_ORIGINS', () => {
+  for (const origin of NON_WATCH_ORIGINS) {
+    expect(STREAMING_ORIGINS.has(origin), origin).toBe(false)
+  }
+  for (const source of Object.values(sources)) {
+    if (source.isApiOnly) continue
+    expect(
+      STREAMING_ORIGINS.has(source.origin) || NON_WATCH_ORIGINS.has(source.origin),
+      source.origin,
+    ).toBe(true)
+  }
 })

@@ -622,6 +622,7 @@ test('STUB-390 & STUB-411: media fallback builds 1-episode specials/movies and m
   expect(special.episodes).toHaveLength(1)
   expect(special.episodes[0].score).toBe(0.1)
   expect(special.episodes[0].episodeNumber).toBe(1)
+  expect(special.episodes[0].url).toBeUndefined()
 
   const unreleased = await fetchMedia(baseMedia({ id: 999001, format: 'SPECIAL', episodes: 1, status: 'NOT_YET_RELEASED' }))
   expect(unreleased.episodes ?? []).toEqual([])
@@ -650,6 +651,7 @@ test('STUB-390 & STUB-411: media fallback builds 1-episode specials/movies and m
   expect(stage2.episodes[0].episodeNumber).toBe(1)
   expect(stage2.episodes[0].score).toBe(0.1)
   expect(stage2.episodes[10].episodeNumber).toBe(11)
+  expect(stage2.episodes.every((ep: { url?: string }) => ep.url === undefined)).toBe(true)
 
   const pageSubscribe = (resolvers.Subscription as any).mediaPage.subscribe
   const browseFetch = async () => ({

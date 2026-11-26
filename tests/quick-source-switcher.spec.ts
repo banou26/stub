@@ -84,7 +84,7 @@ const serve = async (page: Page) => {
   await addMontserrat(page)
 }
 
-test('switches sources and subsources from inside the player without leaving fullscreen, places sources beside episodes on desktop, and toggles Cards/List', async ({ browser }) => {
+test('switches sources and subsources from inside the player without leaving fullscreen, places episodes left of sources on desktop, and scrolls long inline lists', async ({ browser }) => {
   test.setTimeout(90_000)
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   try {
@@ -95,15 +95,15 @@ test('switches sources and subsources from inside the player without leaving ful
     const switchBtn = embed.locator('button.source-switch')
     await expect(switchBtn).toBeVisible({ timeout: 30_000 })
 
-    // Inline /watch places sources on the left and episodes on the right on wide viewports, with collapsed Cards default
+    // Inline /watch places episodes on the left and sources on the right on wide viewports, with collapsed Cards default
     const [sourcesBox, episodesBox] = await Promise.all([
       page.locator('.watch-info.sources').boundingBox(),
       page.locator('.watch-info.episodes').boundingBox(),
     ])
     expect(sourcesBox).toBeTruthy()
     expect(episodesBox).toBeTruthy()
-    expect(sourcesBox!.x).toBeLessThan(episodesBox!.x)
-    expect(sourcesBox!.x + sourcesBox!.width).toBeLessThanOrEqual(episodesBox!.x + 1)
+    expect(episodesBox!.x).toBeLessThan(sourcesBox!.x)
+    expect(episodesBox!.x + episodesBox!.width).toBeLessThanOrEqual(sourcesBox!.x + 1)
 
     const inlineCardsBtn = page.locator('.watch-info.sources .view-btn', { hasText: 'Cards' })
     const inlineListBtn = page.locator('.watch-info.sources .view-btn', { hasText: 'List' })
@@ -118,9 +118,34 @@ test('switches sources and subsources from inside the player without leaving ful
     await page.locator('.watch-info.sources button.back-btn').click()
     await expect(folderCard).toBeVisible()
 
+    const expectScrollableEntries = async () => {
+      const entries = page.locator('.watch-info.sources .entries')
+      await expect(entries).toBeVisible()
+      const metrics = await entries.evaluate(el => {
+        el.scrollTop = el.scrollHeight
+        return {
+          overflowY: getComputedStyle(el).overflowY,
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          scrollTop: el.scrollTop,
+        }
+      })
+      expect(metrics.overflowY).toBe('auto')
+      expect(metrics.clientHeight).toBeLessThanOrEqual(Math.ceil(0.58 * 720) + 1)
+      expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight)
+      expect(metrics.scrollTop).toBeGreaterThan(0)
+    }
+
+    await page.locator('.watch-info.sources .list button.source[title*="Spec Archive"]').click()
+    await expect(page.locator('.watch-info.sources a.release[title="Archive Item 1"]')).toBeVisible()
+    await expectScrollableEntries()
+    await page.locator('.watch-info.sources button.back-btn').click()
+    await expect(folderCard).toBeVisible()
+
     await inlineListBtn.click()
     await expect(inlineListBtn).toHaveAttribute('aria-pressed', 'true')
     await expect(page.locator('.watch-info.sources a.release[title="Release 2"]')).toBeVisible()
+    await expectScrollableEntries()
     await inlineCardsBtn.click()
 
     // Verify source switch sits before settings in the right control group
@@ -151,6 +176,21 @@ test('switches sources and subsources from inside the player without leaving ful
 
     // Dialog defaults to unified List view with Release 2 directly clickable without extra expands
     await expect(dialog.locator('.view-btn', { hasText: 'List' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(dialog.locator('.dialog .entries')).toBeVisible()
+    expect(await dialog.locator('.dialog .entries').evaluate(el => getComputedStyle(el).overflowY)).toBe('visible')
+    const dialogBodyMetrics = await dialog.locator('.body').evaluate(el => {
+      el.scrollTop = el.scrollHeight
+      return {
+        overflowY: getComputedStyle(el).overflowY,
+        clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+      }
+    })
+    expect(dialogBodyMetrics.overflowY).toBe('auto')
+    expect(dialogBodyMetrics.scrollHeight).toBeGreaterThan(dialogBodyMetrics.clientHeight)
+    expect(dialogBodyMetrics.scrollTop).toBeGreaterThan(0)
+    await dialog.locator('.body').evaluate(el => { el.scrollTop = 0 })
     const release2 = dialog.locator('button[title="Release 2"]')
     await expect(release2).toBeVisible()
     await release2.click()

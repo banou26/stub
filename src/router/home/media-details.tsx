@@ -35,6 +35,7 @@ import { useHiddenIcons } from '../../sources/hidden-icons'
 import { viewerCountry } from '../../sources/country'
 import { detectBackend } from '../../utils/fkn-backend'
 import { STREAMING_ORIGINS } from '../../sources/justwatch/id'
+import { NON_WATCH_ORIGINS } from '../../sources/built-in'
 import { episodeOriginIds } from './episode-origins'
 import { namesSameWork } from './modal-media'
 import { currentEpisode, playTarget, watchedEpisode, type Tracked } from '../title/facts'
@@ -331,8 +332,20 @@ const watchLinks = (offers: readonly Offer[]) =>
  * The origins `useWatchSources` draws its sources from, known in the same render as the media, while the sources
  * themselves wait on their own query.
  */
-export const watchOriginIds = (episode: DetailsEpisode | undefined, offers: readonly Offer[] = []): string[] =>
-  episode ? [...new Set([...episodeOriginIds(episode), ...watchLinks(offers).map(handle => handle.node.origin)])] : []
+export const watchOriginIds = (episode: DetailsEpisode | undefined, offers: readonly Offer[] = []): string[] => {
+  if (!episode) return []
+  const byOrigin = new Map<string, number>()
+  const withUrl = new Set<string>()
+  for (const handle of episode.handles ?? []) {
+    if (handle.relation !== 'SAME_AS' || NON_WATCH_ORIGINS.has(handle.node.origin)) continue
+    byOrigin.set(handle.node.origin, (byOrigin.get(handle.node.origin) ?? 0) + 1)
+    if (handle.node.url) withUrl.add(handle.node.origin)
+  }
+  const episodeSources = [...byOrigin.entries()]
+    .filter(([origin, count]) => count > 1 || withUrl.has(origin))
+    .map(([origin]) => origin)
+  return [...new Set([...episodeSources, ...watchLinks(offers).map(handle => handle.node.origin)])]
+}
 
 /**
  * Where an episode plays or can be watched: stub's own players first, then the sites' own pages.
@@ -364,6 +377,7 @@ const watchSources = (
   episode: ListEpisode, mediaUri: string, origins: readonly Origin[], backend: FknBackend | undefined, links: readonly Offer[] = []
 ): WatchSource[] =>
   origins
+    .filter(origin => !NON_WATCH_ORIGINS.has(origin.id))
     .map(origin => {
       // SAME_AS only. Everything below routes into PLAYBACK: `sourceUri` is handed to the watch route
       // and resolved back to a handle to play, so a node that is merely PART_OF this episode would be
