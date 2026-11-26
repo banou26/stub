@@ -49,13 +49,15 @@ export type Graph = {
  */
 const WRITES = /\b(CREATE|MERGE|SET|DELETE|DETACH|DROP|ALTER|COPY|INSTALL|LOAD)\b/i
 
-const writeListeners: ((cypher: string) => void)[] = []
+const writeListeners: ((cypher: string, tables?: ReadonlySet<string>) => void)[] = []
 
-export const onGraphWrite = (listener: (cypher: string) => void): void => { writeListeners.push(listener) }
+export const onGraphWrite = (listener: (cypher: string, tables?: ReadonlySet<string>) => void): void => {
+  writeListeners.push(listener)
+}
 
-const announceWrite = (cypher: string): void => {
-  if (!WRITES.test(cypher)) return
-  for (const listener of writeListeners) listener(cypher)
+const announceWrite = (cypher: string, tables?: ReadonlySet<string>): void => {
+  if (tables ? tables.size === 0 : !WRITES.test(cypher)) return
+  for (const listener of writeListeners) listener(cypher, tables)
 }
 
 let turn: Promise<unknown> = Promise.resolve()
@@ -85,15 +87,11 @@ let opening: Promise<Graph> | undefined
 let store: CypherStore | undefined
 
 const open = async (): Promise<Graph> => {
-  const opened = createCypherStore()
+  const opened = createCypherStore({ onWrite: (tables, cypher) => announceWrite(cypher, tables) })
   store = opened
   return {
     // a plain object with `query` as a writable own property: see `Graph`
-    query: async (cypher, params) => {
-      const rows = await opened.query(cypher, params) as GraphRow[]
-      announceWrite(cypher)
-      return rows
-    },
+    query: (cypher, params) => opened.query(cypher, params) as Promise<GraphRow[]>,
     version: 'cypher-store',
   }
 }

@@ -167,6 +167,6 @@ describe('watchPlayerPermission', () => {
     })
 
     expect(watchPlayerPermission('nf', 'https://www.netflix.com/watch/1')).toBeUndefined()
-    expect(watchPlayerPermission('nyaa', 'magnet:?xt=urn:btih:1')).toBeUndefined()
+    expect(watchPlayerPermission('extsrc', 'plugin-stream://1')).toBeUndefined()
   })
 })

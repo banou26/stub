@@ -43,9 +43,9 @@ test('85% played marks the source finished, and so does the end; through the cre
   later()
   savePosition('nf:1', { time: 1300, duration: 1400 })
   expect(kept()).toEqual([['nf:1', 2_000]])
-  savePosition('nyaa:a', { time: 700 })
-  savePosition('nyaa:a', { time: 1400, ended: true })
-  expect(kept()).toEqual([['nf:1', 2_000], ['nyaa:a', 3_000]])
+  savePosition('extsrc:a', { time: 700 })
+  savePosition('extsrc:a', { time: 1400, ended: true })
+  expect(kept()).toEqual([['nf:1', 2_000], ['extsrc:a', 3_000]])
 })
 
 test('under 30 s, or before a player with a length has said it, nothing is written and an older point stays where it is', () => {
@@ -59,8 +59,8 @@ test('under 30 s, or before a player with a length has said it, nothing is writt
 })
 
 test('a player that never says its length is kept with a length of 0, and only its end marks it finished', () => {
-  savePosition('nyaa:a', { time: 1300 })
-  expect(kept()).toEqual([['nyaa:a', 1300, 0, 1_000]])
+  savePosition('extsrc:a', { time: 1300 })
+  expect(kept()).toEqual([['extsrc:a', 1300, 0, 1_000]])
 })
 
 test('the 200 newest are kept, and as many finished sources beside them', () => {

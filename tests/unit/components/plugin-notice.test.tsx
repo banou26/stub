@@ -40,7 +40,7 @@ vi.spyOn(console, 'warn').mockImplementation(() => {})
 const { addInvites, closeInvites } = await import('../../../src/plugin-invites')
 const { default: PluginNotice } = await import('../../../src/components/plugin-notice')
 
-const NYAA = 'https:stub.plugins.banou.dev'
+const SRC_PLUGIN = 'https:stub.plugins.banou.dev'
 const hosts: HTMLElement[] = []
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
@@ -68,11 +68,11 @@ test('the live region is there before anything is said, or a screen reader never
 })
 
 test('a source says its name and that it was enabled, with Remove and OK, and no prompt', async () => {
-  plugins.statuses = [{ uri: NYAA, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }, { origin: 'tosho', name: 'AnimeTosho' }] }]
-  const host = await drawn([NYAA])
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }, { origin: 'tosho', name: 'AnimeTosho' }] }]
+  const host = await drawn([SRC_PLUGIN])
 
-  expect(host.querySelector('li span')!.textContent).toBe('Source enabled: Nyaa, AnimeTosho')
-  expect(buttons(host)).toEqual(['Remove Nyaa, AnimeTosho', 'OK'])
+  expect(host.querySelector('li span')!.textContent).toBe('Source enabled: ExtSource, AnimeTosho')
+  expect(buttons(host)).toEqual(['Remove ExtSource, AnimeTosho', 'OK'])
   expect(host.querySelector('[role="status"] button')).not.toBeNull()
   expect(host.querySelector('[role="dialog"]')).toBeNull()
 })
@@ -92,8 +92,8 @@ test('several sources share one notice, each with its own Remove, and Remove tak
 })
 
 test('OK closes it and removes nothing', async () => {
-  plugins.statuses = [{ uri: NYAA, state: 'connected' }]
-  const host = await drawn([NYAA])
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'connected' }]
+  const host = await drawn([SRC_PLUGIN])
   press(host, 'OK')
 
   expect(buttons(host)).toEqual([])
@@ -101,9 +101,9 @@ test('OK closes it and removes nothing', async () => {
 })
 
 test('the last Remove closes it', async () => {
-  plugins.statuses = [{ uri: NYAA, state: 'connected' }]
-  const host = await drawn([NYAA])
-  press(host, `Remove ${NYAA}`)
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'connected' }]
+  const host = await drawn([SRC_PLUGIN])
+  press(host, `Remove ${SRC_PLUGIN}`)
 
   expect(host.querySelector('.notice')).toBeNull()
 })
@@ -120,11 +120,11 @@ test('an install FKN refused says so in one line, with nothing to remove', async
 test('a source that installed and failed to connect is removed again, so it says so with nothing to remove', async () => {
   const connected = Promise.reject(new Error('failed to boot'))
   connected.catch(() => {})
-  plugins.enablePlugin.mockResolvedValueOnce({ uri: NYAA, connected })
-  plugins.statuses = [{ uri: NYAA, state: 'error' }]
-  const host = await drawn([NYAA])
+  plugins.enablePlugin.mockResolvedValueOnce({ uri: SRC_PLUGIN, connected })
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'error' }]
+  const host = await drawn([SRC_PLUGIN])
 
-  expect(host.querySelector('.failed')!.textContent).toBe(`Could not add ${NYAA}`)
+  expect(host.querySelector('.failed')!.textContent).toBe(`Could not add ${SRC_PLUGIN}`)
   expect(buttons(host)).toEqual(['OK'])
 })
 
@@ -142,23 +142,23 @@ test('a source that left the list since, in Settings or anywhere else, is no lon
 
 test('where FKN can hold a source for one tab, Make temporary sits before Remove, and the row then says Temporary', async () => {
   plugins.supportsTemporary.mockResolvedValueOnce(true)
-  plugins.statuses = [{ uri: NYAA, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
-  const host = await drawn([NYAA])
-  expect(buttons(host)).toEqual(['Make Nyaa temporary', 'Remove Nyaa', 'OK'])
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }]
+  const host = await drawn([SRC_PLUGIN])
+  expect(buttons(host)).toEqual(['Make ExtSource temporary', 'Remove ExtSource', 'OK'])
   expect(host.querySelector('li button')!.textContent).toBe('Make temporary')
 
-  press(host, 'Make Nyaa temporary')
-  expect(plugins.makeTemporary.mock.calls).toEqual([[NYAA]])
+  press(host, 'Make ExtSource temporary')
+  expect(plugins.makeTemporary.mock.calls).toEqual([[SRC_PLUGIN]])
   expect(plugins.disablePlugin).not.toHaveBeenCalled()
-  expect(buttons(host)).toEqual(['Remove Nyaa', 'OK'])
+  expect(buttons(host)).toEqual(['Remove ExtSource', 'OK'])
   expect(host.querySelector('.actions')!.textContent).toBe('TemporaryRemove')
 })
 
 test('where FKN cannot hold a source for one tab, there is no Make temporary', async () => {
   plugins.supportsTemporary.mockResolvedValueOnce(false)
-  plugins.statuses = [{ uri: NYAA, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
-  const host = await drawn([NYAA])
+  plugins.statuses = [{ uri: SRC_PLUGIN, state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }]
+  const host = await drawn([SRC_PLUGIN])
 
-  expect(buttons(host)).toEqual(['Remove Nyaa', 'OK'])
+  expect(buttons(host)).toEqual(['Remove ExtSource', 'OK'])
   expect(host.textContent).not.toContain('emporary')
 })

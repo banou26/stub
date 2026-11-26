@@ -28,6 +28,7 @@ import { getRoutePath, Route } from '../path'
 import { releaseDateAttribute, releaseDateDisplay } from '../../utils/release-date'
 import { formatCountdown } from '../../utils/countdown'
 import { readOpenInNewTab, watchOpenInNewTab } from '../../utils/open-in-new-tab'
+import { safeHttpUrl } from '../../utils/url'
 import { useNow } from '../../utils/use-now'
 import { useSetting } from '../../utils/use-setting'
 import { canPlay } from '../../sources/playable'
@@ -394,7 +395,7 @@ const watchSources = (
       const watchPath = episode.uri && sourceUri
         ? getRoutePath(Route.WATCH, { mediaUri, episodeUri: episode.uri, sourceUri })
         : undefined
-      // a browser opens no magnet, so a release off the web plays on the watch page, which hands it to its plugin
+      // Non-web handles open on the watch page so the source plugin handles playback.
       const inApp = handles.length > 1 || playable || (handle?.url != null && !/^https?:/.test(handle.url))
       return {
         id: origin.id,
@@ -403,7 +404,7 @@ const watchSources = (
         color: origin.color,
         href: inApp
           ? watchPath
-          : (handle?.url ?? links.find(link => link.node.origin === origin.id)?.node.url ?? undefined),
+          : safeHttpUrl(handle?.url ?? links.find(link => link.node.origin === origin.id)?.node.url),
         external: !inApp,
         active: false,
         releases: handles.length > 1

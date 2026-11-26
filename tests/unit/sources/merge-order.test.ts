@@ -37,7 +37,7 @@ test('the default order is every scored extractor, best first, at the score its 
 
 test('the order followed names the built-in sources kept first, then every other one in the default order', () => {
   expect(mergeOrder([])).toEqual(DEFAULT_MERGE_ORDER)
-  expect(mergeOrder(['anilist', 'nyaa', 'kitsu'])).toEqual(['anilist', 'kitsu', ...DEFAULT_MERGE_ORDER.filter(origin => origin !== 'anilist' && origin !== 'kitsu')])
+  expect(mergeOrder(['anilist', 'extsrc', 'kitsu'])).toEqual(['anilist', 'kitsu', ...DEFAULT_MERGE_ORDER.filter(origin => origin !== 'anilist' && origin !== 'kitsu')])
 })
 
 test('an order written is read back, and a kept value stub cannot read keeps nothing', () => {
@@ -69,6 +69,6 @@ test('a watcher hears this tab\'s changes and another tab\'s, and nothing once s
 test('the worker\'s copy says it changed only when the order followed did', () => {
   expect(holdMergeOrder(DEFAULT_MERGE_ORDER), 'the default spelled out is the default').toBe(false)
   expect(holdMergeOrder(['anilist'])).toBe(true)
-  expect(holdMergeOrder(['anilist', 'nyaa']), 'an added source is not in it').toBe(false)
+  expect(holdMergeOrder(['anilist', 'extsrc']), 'an added source is not in it').toBe(false)
   expect(holdMergeOrder([])).toBe(true)
 })

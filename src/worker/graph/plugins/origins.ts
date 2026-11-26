@@ -10,7 +10,7 @@
  *
  * READ ORDER, and it matters: a field the row itself declares wins, then the table below, then the
  * default. An origin the declared count table does not name, which is every remote plugin source
- * today, counts a list (`listLength`): the nyaa plugin counted 120 releases as the episodes of a
+ * today, counts a list (`listLength`): an index plugin counted 120 releases as the episodes of a
  * twelve episode run (2026-09-09), which is what a declared `countKind` exists to stop.
  *
  * Every token here is the origin as the extractor stamps it, not the directory it lives in:

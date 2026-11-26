@@ -99,7 +99,7 @@ export type TraktLists = {
 export const seasonKey = (show: number, season: number) => `${show}:${season}`
 
 type Item = {
-  show?: { title?: unknown, ids?: RawIds }
+  show?: { title?: unknown, aired_episodes?: unknown, ids?: RawIds }
   movie?: { title?: unknown, ids?: RawIds }
   season?: { number?: unknown }
   rating?: unknown
@@ -108,7 +108,13 @@ type Item = {
   last_watched_at?: unknown
   reset_at?: unknown
   plays?: unknown
-  seasons?: { number?: unknown, episodes?: { number?: unknown, plays?: unknown, last_watched_at?: unknown }[] }[]
+  seasons?: {
+    number?: unknown
+    aired?: unknown
+    aired_episodes?: unknown
+    episode_count?: unknown
+    episodes?: { number?: unknown, plays?: unknown, last_watched_at?: unknown }[]
+  }[]
 }
 
 const itemsOf = (body: unknown[]): Item[] => body.filter((item): item is Item => Boolean(item) && typeof item === 'object')
@@ -355,9 +361,14 @@ const movieMediaUri = (movie: ListedMedia): string | null =>
   : `trakt:${movie.trakt}`
 
 /** Every listed show season and movie combined into `viewerLists` items. */
-export const listItemsOf = (user: string, lists: TraktLists, watchedShowsRaw: unknown[]): ListItem[] => {
+export const listItemsOf = (
+  user: string,
+  lists: TraktLists,
+  watchedShowsRaw: unknown[],
+  seasonCounts?: ReadonlyMap<string, number>,
+): ListItem[] => {
   const items: ListItem[] = []
-  const seasonProgress = new Map<string, { episodes: number, watchedAt: string | null, resetAt: string | null }>()
+  const seasonProgress = new Map<string, { episodes: number, total: number | null, watchedAt: string | null, resetAt: string | null }>()
   const shows = new Map(lists.meta.shows)
 
   for (const raw of itemsOf(watchedShowsRaw)) {
@@ -365,13 +376,21 @@ export const listItemsOf = (user: string, lists: TraktLists, watchedShowsRaw: un
     if (!meta) continue
     shows.set(meta.trakt, meta)
     const resetAt = strOf(raw.reset_at)
-    for (const season of raw.seasons ?? []) {
+    const showAired = wholeOf(raw.show?.aired_episodes)
+    const rawSeasons = raw.seasons ?? []
+    for (const season of rawSeasons) {
       const s = wholeOf(season.number)
       if (!s || s <= 0) continue
       const eps = (season.episodes ?? []).filter(ep => (wholeOf(ep.plays) ?? 0) > 0)
       if (!eps.length) continue
+      const key = seasonKey(meta.trakt, s)
+      const inlineTotal = wholeOf(season.aired_episodes) ?? wholeOf(season.aired) ?? wholeOf(season.episode_count)
+      const resolvedTotal = seasonCounts?.get(key)
+        ?? inlineTotal
+        ?? (rawSeasons.length === 1 && s === 1 && showAired !== undefined && showAired > 0 && eps.length >= showAired ? showAired : undefined)
+        ?? null
       const latest = eps.flatMap(ep => strOf(ep.last_watched_at) ?? []).sort().at(-1) ?? strOf(raw.last_watched_at)
-      seasonProgress.set(seasonKey(meta.trakt, s), { episodes: eps.length, watchedAt: latest, resetAt })
+      seasonProgress.set(key, { episodes: eps.length, total: resolvedTotal, watchedAt: latest, resetAt })
     }
   }
 
@@ -391,11 +410,13 @@ export const listItemsOf = (user: string, lists: TraktLists, watchedShowsRaw: un
     emittedShows.add(showId)
     const prog = seasonProgress.get(key)
     const watched = prog?.episodes ?? 0
+    const episodeCount = prog?.total ?? seasonCounts?.get(key) ?? null
     const rating = lists.ratings.get(key)
     const dropped = lists.dropped.has(showId)
     const planned = lists.watchlist.has(key) || lists.watchlist.has(String(showId))
-    const status: ListStatus | null =
-      dropped ? 'DROPPED'
+    const status: ListStatus | null = episodeCount !== null && episodeCount > 0
+      ? statusOf({ dropped, rewatching: Boolean(prog?.resetAt), watched, total: episodeCount, planned })
+      : dropped ? 'DROPPED'
       : watched > 0 ? (prog?.resetAt ? 'REWATCHING' : 'WATCHING')
       : planned ? 'PLANNING'
       : null
@@ -415,9 +436,9 @@ export const listItemsOf = (user: string, lists: TraktLists, watchedShowsRaw: un
         url: `${TRAKT_URL}/shows/${meta.slug ?? showId}/seasons/${season}`,
         title: meta.title,
         cover: null,
-        episodeCount: null,
+        episodeCount,
       },
-      episodeCount: null,
+      episodeCount,
       mediaStatus: null,
       type: 'TV',
     })
@@ -533,11 +554,13 @@ export const planShowWrite = (
 
   if (wantWatchlist && !beforeSeasonWatchlist && !beforeShowWatchlist) {
     steps.push({ path: '/sync/watchlist', body: { shows: [{ ids: { trakt: showId }, seasons: [{ number: range.season }] }] } })
-  } else if (!wantWatchlist && (beforeSeasonWatchlist || (beforeShowWatchlist && targetWatched === 0))) {
-    const showBody = beforeShowWatchlist
-      ? { ids: { trakt: showId } }
-      : { ids: { trakt: showId }, seasons: [{ number: range.season }] }
-    steps.push({ path: '/sync/watchlist/remove', body: { shows: [showBody] } })
+  } else if (!wantWatchlist) {
+    if (beforeSeasonWatchlist) {
+      steps.push({ path: '/sync/watchlist/remove', body: { shows: [{ ids: { trakt: showId }, seasons: [{ number: range.season }] }] } })
+    }
+    if (beforeShowWatchlist && targetWatched === 0) {
+      steps.push({ path: '/sync/watchlist/remove', body: { shows: [{ ids: { trakt: showId } }] } })
+    }
   }
 
   const runNumbers = Array.from({ length: total }, (_, idx) => range.from + idx)
@@ -582,10 +605,16 @@ export const planShowRemove = (range: TraktRange, lists: TraktLists): TraktWrite
   if (lists.dropped.has(showId)) steps.push({ path: '/users/hidden/dropped/remove', body: { shows: [{ ids: { trakt: showId } }] } })
   const onShow = lists.watchlist.has(String(showId))
   const onSeason = lists.watchlist.has(seasonKey(showId, range.season))
-  if (onShow || onSeason) {
+  if (onSeason) {
     steps.push({
       path: '/sync/watchlist/remove',
-      body: { shows: [onShow ? { ids: { trakt: showId } } : { ids: { trakt: showId }, seasons: [{ number: range.season }] }] },
+      body: { shows: [{ ids: { trakt: showId }, seasons: [{ number: range.season }] }] },
+    })
+  }
+  if (onShow) {
+    steps.push({
+      path: '/sync/watchlist/remove',
+      body: { shows: [{ ids: { trakt: showId } }] },
     })
   }
   if (lists.ratings.has(seasonKey(showId, range.season))) {

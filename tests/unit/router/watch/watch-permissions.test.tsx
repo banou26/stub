@@ -17,7 +17,7 @@ const navigate = vi.fn()
 const stored = new Map<string, string>()
 let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = {
   mediaUri: 'ag:(anilist:182255)',
-  episodeUri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,nyaa:2090638)',
+  episodeUri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,extsrc:2090638)',
 }
 let media: object | undefined
 let backend: 'cloud' | 'extension' = 'cloud'
@@ -47,7 +47,7 @@ vi.mock('wouter', async importOriginal => ({
 }))
 vi.mock('../../../../src/worker', () => ({
   remotePicker: async () => null,
-  remotePlayer: async (id: string) => id === 'nyaa' ? { pluginUri: 'https:stub.plugins.banou.dev' } : null,
+  remotePlayer: async (id: string) => id === 'extsrc' ? { pluginUri: 'https:stub.plugins.banou.dev' } : null,
   remoteAccount: async () => undefined,
   remoteCheck: async () => undefined,
   searchAgain: async () => {},
@@ -59,7 +59,7 @@ vi.mock('../../../../src/worker', () => ({
 }))
 vi.mock('../../../../src/plugins', () => ({
   addPlugins: async () => {},
-  pluginStatuses: () => [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }],
+  pluginStatuses: () => [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }],
   onPluginsChange: () => () => {},
 }))
 vi.mock('../../../../src/party/use-party', () => ({ useParty: () => ({ status: 'idle' }), usePartyMessages: () => {} }))
@@ -133,11 +133,11 @@ const primeMedia = {
   handles: [],
   settled: true,
   episodes: [{
-    uri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,nyaa:2090638)',
+    uri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,extsrc:2090638)',
     episodeNumber: 1,
     handles: [
       { relation: 'SAME_AS', node: { uri: 'amazon:amzn1.dv.gti.98c', origin: 'amazon', url: primeUrl } },
-      { relation: 'SAME_AS', node: { uri: 'nyaa:2090638', origin: 'nyaa', url: 'magnet:?xt=urn:btih:abc' } },
+      { relation: 'SAME_AS', node: { uri: 'extsrc:2090638', origin: 'extsrc', url: 'plugin-stream://abc' } },
     ],
   }],
 }
@@ -149,7 +149,7 @@ beforeEach(() => {
   locationHook = memoryLocation().hook
   params = {
     mediaUri: 'ag:(anilist:182255)',
-    episodeUri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,nyaa:2090638)',
+    episodeUri: 'ag:(anizip:18886-10,amazon:amzn1.dv.gti.98c,extsrc:2090638)',
   }
   media = undefined
   backend = 'cloud'
@@ -216,7 +216,7 @@ describe('watch permission batching', () => {
     stored.set(CONNECTED_KEY, JSON.stringify(['mal', 'cr']))
     const askSpy = vi.spyOn(evaluationPermissionBatch, 'ask')
     media = primeMedia
-    params = { ...params, sourceUri: 'nyaa:2090638' }
+    params = { ...params, sourceUri: 'extsrc:2090638' }
 
     const host = mountWatch()
     hosts.push(host)

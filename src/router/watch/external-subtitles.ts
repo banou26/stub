@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { readDisabledSources, watchDisabledSources } from '../../sources/disabled-sources'
 import {
+  buildOpenTarget,
   capPluginSubtitles,
   extractAniId,
   extractImdbId,
@@ -56,10 +57,12 @@ export function useExternalSubtitles(options: {
   const { enabled, mediaUri = '', episodeUri = '', media, episode, selected, film, locale } = options
   const [builtinCandidates, setBuiltinCandidates] = useState<SubtitleCandidate[]>([])
   const [resolvedImdbId, setResolvedImdbId] = useState<string>()
+  const [resolvedForKey, setResolvedForKey] = useState('')
   const [pluginCandidates, setPluginCandidates] = useState<SubtitleCandidate[]>([])
   const [picked, setPicked] = useState<SubtitleCandidate[]>([])
   const [selectRequest, setSelectRequest] = useState<ExternalSubtitleSelection>()
   const seqRef = useRef(0)
+  const episodeSeqRef = useRef(0)
 
   const plugins = usePluginStatuses()
   const disabled = useSetting(readDisabledSources, watchDisabledSources)
@@ -80,6 +83,10 @@ export function useExternalSubtitles(options: {
   const episodeNumber = episode?.episodeNumber ?? undefined
   const title = media?.titles?.find(entry => entry?.title?.trim())?.title?.trim() || undefined
   const releaseName = extractReleaseName(selected, episode)
+  const imdbResolveKey = enabled && isAnime && !imdbId && aniId
+    ? `${episodeUri}\0${aniProvider ?? ''}\0${aniId}`
+    : ''
+  const imdbPending = Boolean(imdbResolveKey && resolvedForKey !== imdbResolveKey)
 
   const viewer = viewerLanguages()
   const preferred = [viewer.subtitles, viewer.language, viewer.audio].filter((lang): lang is string => Boolean(lang))
@@ -118,9 +125,12 @@ export function useExternalSubtitles(options: {
   const openSearchCacheRef = useRef<{ key: string, promise: Promise<SubtitleCandidate[]> } | null>(null)
 
   useEffect(() => {
+    seqRef.current += 1
+    episodeSeqRef.current += 1
     setPicked(prev => prev.length ? [] : prev)
     setSelectRequest(prev => prev ? undefined : prev)
     setResolvedImdbId(undefined)
+    setResolvedForKey('')
     loadCacheRef.current.clear()
     openSearchCacheRef.current = null
   }, [episodeUri])
@@ -128,7 +138,9 @@ export function useExternalSubtitles(options: {
   useEffect(() => {
     setBuiltinCandidates([])
     if (!enabled) return
-    if (!imdbId && !aniId && !title && !releaseName) return
+    if (!imdbId && !aniId && !title && !releaseName) {
+      return
+    }
 
     const controller = new AbortController()
     let active = true
@@ -148,13 +160,20 @@ export function useExternalSubtitles(options: {
       preferredLanguages: preferredKey ? preferredKey.split(',') : [],
       locale,
       signal: controller.signal,
+      onImdbResolved: nextImdbId => {
+        if (!active || controller.signal.aborted) return
+        setResolvedImdbId(nextImdbId)
+        if (imdbResolveKey) setResolvedForKey(imdbResolveKey)
+      },
     }).then(next => {
       if (!active || controller.signal.aborted) return
       setResolvedImdbId(next.imdbId)
       setBuiltinCandidates(next.candidates)
+      if (imdbResolveKey) setResolvedForKey(imdbResolveKey)
     }).catch(() => {
       if (!active || controller.signal.aborted) return
       setBuiltinCandidates([])
+      if (imdbResolveKey) setResolvedForKey(imdbResolveKey)
     })
 
     return () => {
@@ -174,6 +193,7 @@ export function useExternalSubtitles(options: {
     releaseName,
     preferredKey,
     locale,
+    imdbResolveKey,
   ])
 
   useEffect(() => {
@@ -181,6 +201,7 @@ export function useExternalSubtitles(options: {
       setPluginCandidates(prev => prev.length ? [] : prev)
       return
     }
+    if (imdbPending) return
     let active = true
     const normalizedPreferred = (preferredKey ? preferredKey.split(',') : [])
       .map(lang => normalizeSubtitleLanguage(lang))
@@ -202,6 +223,7 @@ export function useExternalSubtitles(options: {
     searchablePluginOriginsKey,
     context,
     preferredKey,
+    imdbPending,
   ])
 
   const bundle = useMemo<ExternalSubtitleBundle | undefined>(() => {
@@ -272,6 +294,7 @@ export function useExternalSubtitles(options: {
       locale,
     ].join('\0')
 
+    const episodeSeq = episodeSeqRef.current
     const fetchOpenCandidates = () => {
       if (openSearchCacheRef.current?.key === openKey) {
         return openSearchCacheRef.current.promise
@@ -283,13 +306,9 @@ export function useExternalSubtitles(options: {
           aniId: aniProvider && aniId ? { providerId: aniProvider, id: aniId } : undefined,
           isAnime,
         })
-        if (resolvedId) setResolvedImdbId(prev => prev ?? resolvedId)
+        if (resolvedId && episodeSeqRef.current === episodeSeq) setResolvedImdbId(prev => prev ?? resolvedId)
         if (!resolvedId) return []
-        const openTarget = film
-          ? { kind: 'movie' as const, imdbId: resolvedId }
-          : episodeNumber !== undefined && Number.isInteger(episodeNumber) && episodeNumber >= 0
-            ? { kind: 'series' as const, imdbId: resolvedId, season, episode: episodeNumber }
-            : undefined
+        const openTarget = buildOpenTarget(resolvedId, { film, season, episode: episodeNumber })
         if (!openTarget) return []
         return fetchOpenSubtitles(openTarget, {
           fetch: viewerFetch,

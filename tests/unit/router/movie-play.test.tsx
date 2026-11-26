@@ -100,31 +100,31 @@ test('the tracking shares Play\'s row, and the row under the date of a film not 
   expect(classes(ahead)).toEqual(['tracking-compact'])
 })
 
-// a browser cannot open a magnet, and the watch page plays a torrent plugin's release itself
+// a browser cannot open a custom non-HTTP scheme, and the watch page plays a source plugin's release itself
 test('a lone release a browser cannot open plays on the watch page, so Play shows', () => {
-  origin = 'nyaa'
-  const magnet = {
-    uri: 'ag:(nyaa:a)',
-    handles: [{ relation: 'SAME_AS', node: { uri: 'nyaa:a', origin: 'nyaa', url: 'magnet:?xt=urn:btih:a' } }],
+  origin = 'extsrc'
+  const customScheme = {
+    uri: 'ag:(extsrc:a)',
+    handles: [{ relation: 'SAME_AS', node: { uri: 'extsrc:a', origin: 'extsrc', url: 'plugin-stream://a' } }],
   } as unknown as DetailsEpisode
-  const host = render(magnet)
-  expect(host.querySelector('a[href^="magnet:"]')).toBeNull()
+  const host = render(customScheme)
+  expect(host.querySelector('a[href^="plugin-stream:"]')).toBeNull()
   const button = host.querySelector('a.source')
-  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
+  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(extsrc:a)/extsrc:a')
   expect(button?.getAttribute('target')).toBeNull()
   expect(button?.querySelector('.count'), 'one release, no count').toBeNull()
-  expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)')
+  expect(host.querySelector('a.play')?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(extsrc:a)')
 })
 
 test('a source with several releases of the film shows how many, and opens the watch page on the first', () => {
-  origin = 'nyaa'
+  origin = 'extsrc'
   const two = {
-    uri: 'ag:(nyaa:a)',
-    handles: ['a', 'b'].map(id => ({ relation: 'SAME_AS', node: { uri: `nyaa:${id}`, origin: 'nyaa', url: `https://nyaa.si/view/${id}` } })),
+    uri: 'ag:(extsrc:a)',
+    handles: ['a', 'b'].map(id => ({ relation: 'SAME_AS', node: { uri: `extsrc:${id}`, origin: 'extsrc', url: `https://source-a.test/view/${id}` } })),
   } as unknown as DetailsEpisode
   const button = render(two).querySelector('a.source')
   expect(button?.querySelector('.count')?.textContent).toBe('2')
-  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(nyaa:a)/nyaa:a')
+  expect(button?.getAttribute('href')).toBe('/watch/ag:(anilist:9)/ag:(extsrc:a)/extsrc:a')
   expect(button?.getAttribute('target')).toBeNull()
 })
 

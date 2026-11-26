@@ -14,11 +14,11 @@ export type PlayerBuffer = { time: number, readyState: number, ranges: [number, 
  * Seconds loaded past the party's position for a follower to be ready, and the fewer it may drop to
  * before it is not.
  *
- * Not the browser's own "enough data": on every swarm torrent measured through torrent.fkn.app
- * (2026-10-20 and 2026-10-22, four torrents, eight observations) the video said it had enough with
- * under 5 s loaded, and 10 s came from half a second to half a minute later. A paused torrent player
+ * Not the browser's own "enough data": on remote streams measured through external players
+ * (2026-10-20 and 2026-10-22, four streams, eight observations) the video said it had enough with
+ * under 5 s loaded, and 10 s came from half a second to half a minute later. A paused remote player
  * keeps loading to about 30 s (media-player's buffer target), so 10 s is always reached given time.
- * The lower bound keeps a follower playing on a thin buffer, as a torrent does, from flickering.
+ * The lower bound keeps a follower playing on a thin buffer, as a remote stream does, from flickering.
  */
 export const READY_AHEAD_S = 10
 export const STALL_AHEAD_S = 2

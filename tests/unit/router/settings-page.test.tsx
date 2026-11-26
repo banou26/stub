@@ -158,39 +158,39 @@ const move = (host: HTMLElement, label: string) => host.querySelector<HTMLButton
 // for preferred playback (for sources that don't offer playback the element would be hidden of course)"
 test('Sources ranks the cards of stub\'s three players and every added source first, in the play order, numbered, the end buttons disabled', async () => {
   plugins.statuses = [
-    { uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] },
+    { uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] },
     { uri: 'npm:@spec/slow-source', state: 'connecting' },
   ]
   const host = await open('#sources')
   expect([...host.querySelectorAll('h3.part')].map(heading => heading.textContent)).toEqual(['Play order', 'Merge order', 'Other sources', 'Added'])
   const cardHeadings = [...host.querySelectorAll('[data-source] h2, [data-source] h3, [data-source] h4')]
   expect(new Set(cardHeadings.map(heading => heading.tagName)), 'a card\'s name is a level under its group\'s').toEqual(new Set(['H4']))
-  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'Nyaa'])
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Netflix', 'ExtSource'])
   expect([...host.querySelectorAll('ol.play-order > li .place')].map(place => place.textContent)).toEqual(['1', '2', '3', '4'])
   expect(host.querySelectorAll('ul.cards [aria-label^="Move "], ul.cards .place'), 'a source Play never tries has no place').toHaveLength(0)
   expect([...host.querySelectorAll('ol.play-order .order button')].map(button => [button.getAttribute('aria-label'), button.getAttribute('aria-disabled')])).toEqual([
     ['Move Crunchyroll up', 'true'], ['Move Crunchyroll down', null],
     ['Move Prime Video up', null], ['Move Prime Video down', null],
     ['Move Netflix up', null], ['Move Netflix down', null],
-    ['Move Nyaa up', null], ['Move Nyaa down', 'true'],
+    ['Move ExtSource up', null], ['Move ExtSource down', 'true'],
   ])
   await act(() => { move(host, 'Move Crunchyroll up').click() })
-  await act(() => { move(host, 'Move Nyaa down').click() })
+  await act(() => { move(host, 'Move ExtSource down').click() })
   expect(stored.has(PLAY_ORDER_KEY), 'an end button moves nothing').toBe(false)
 })
 
 test('a move swaps the row with the one beside it and is kept, and a reopened page reads it', async () => {
-  plugins.statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }]
+  plugins.statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }]
   const host = await open('#sources')
-  await act(() => { move(host, 'Move Nyaa up').click() })
-  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'Nyaa', 'Netflix'])
+  await act(() => { move(host, 'Move ExtSource up').click() })
+  expect(playOrder(host)).toEqual(['Crunchyroll', 'Prime Video', 'ExtSource', 'Netflix'])
   await act(() => { move(host, 'Move Crunchyroll down').click() })
-  expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
-  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['amazon', 'cr', 'nyaa', 'nf'])
+  expect(playOrder(host)).toEqual(['Prime Video', 'Crunchyroll', 'ExtSource', 'Netflix'])
+  expect(JSON.parse(stored.get(PLAY_ORDER_KEY)!)).toEqual(['amazon', 'cr', 'extsrc', 'nf'])
   expect(move(host, 'Move Prime Video up').getAttribute('aria-disabled')).toBe('true')
   expect(move(host, 'Move Crunchyroll up').getAttribute('aria-disabled')).toBeNull()
   unmount(hosts.pop()!)
-  expect(playOrder(await open('#sources')), 'kept').toEqual(['Prime Video', 'Crunchyroll', 'Nyaa', 'Netflix'])
+  expect(playOrder(await open('#sources')), 'kept').toEqual(['Prime Video', 'Crunchyroll', 'ExtSource', 'Netflix'])
 })
 
 test('a source turned off keeps its card and its place, and another tab\'s order is followed', async () => {

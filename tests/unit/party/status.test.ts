@@ -1,6 +1,6 @@
 // What a follower tells the host about its player, and how the host reads it back. Pure, so the
-// thresholds are pinned on values: the cases are the ones measured on torrents through
-// torrent.fkn.app on 2026-10-20 and 2026-10-22, where the video said it had enough data with under
+// thresholds are pinned on values: the cases are the ones measured on remote streams
+// on 2026-10-20 and 2026-10-22, where the video said it had enough data with under
 // 5 s loaded every time.
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -25,7 +25,7 @@ describe('bufferedAhead', () => {
 })
 
 describe('readiness', () => {
-  test('enough data with under 4 s loaded is still loading, the measured torrent case', () => {
+  test('enough data with under 4 s loaded is still loading, the measured stream case', () => {
     expect(readiness(undefined, buffer([[596.03, 600 + 3.97]]), 600)).toBe('loading')
   })
 
@@ -39,10 +39,10 @@ describe('readiness', () => {
     expect(readiness(undefined, buffer([[1400, 1418]]), 1417, 1420)).toBe('loading')
   })
 
-  // Two torrents through torrent.fkn.app (Sintel, and a 1080p mkv from the swarm), held paused 6 s
+  // Two streams measured through external players (Sintel, and a 1080p mkv), held paused 6 s
   // before the end, 2026-10-23: once loaded to the end, the last range ended exactly at the duration
   // the player reported, which moved there from the file's own when the stream ended.
-  test('a torrent loaded to its end is ready, and one a moment short of it not yet', () => {
+  test('a stream loaded to its end is ready, and one a moment short of it not yet', () => {
     expect(readiness(undefined, { time: 1415.418, readyState: 4, ranges: [[1414, 1421.5]] }, 1415.418, 1421.5)).toBe('ready')
     expect(readiness(undefined, { time: 1415.418, readyState: 4, ranges: [[1414, 1421.2]] }, 1415.418, 1421.5)).toBe('loading')
   })

@@ -27,8 +27,8 @@ export const SPEC_PLUGINS: Record<string, Omit<PluginStatus, 'uri'>> = {
     sources: [{ origin: 'spec-a', name: 'Spec Releases' }, { origin: 'spec-b', name: 'Spec Batches' }, { origin: 'spec-c', name: 'Spec Archive' }],
     rejected: [{ origin: 'spec-d', reason: 'declares no catalogue' }],
   },
-  // the package tests/watch-stage.spec.ts mounts to play its torrents
-  'npm:@spec/stage-player': { state: 'connected', sources: [{ origin: 'spec-torrent', name: 'Spec Torrents' }] },
+  // the package tests/watch-stage.spec.ts mounts to play its staged releases
+  'npm:@spec/stage-player': { state: 'connected', sources: [{ origin: 'spec-plugin', name: 'Spec Source' }] },
   'npm:@spec/slow-source': { state: 'connecting' },
   'https:still.connecting.spec.test': { state: 'connecting' },
   'npm:@spec/broken-source': { state: 'error' },
@@ -47,12 +47,12 @@ const row = (origin: string, id: string, fields: object = {}) => ({
 })
 
 const release = (origin: string, id: string, score: number, media = '900070', episodeNumber = 1) =>
-  row(origin, id, { mediaUri: `${origin}:${media}`, episodeNumber, url: `magnet:?xt=urn:btih:${id}`, score })
+  row(origin, id, { mediaUri: `${origin}:${media}`, episodeNumber, url: `plugin-stream://${id}`, score })
 
 // Registered in the worker itself while added, as src/plugins.ts registers a package's connection, so it is
-// asked like any source. It plays its own releases, as the stub plugin's Nyaa does, and answers Spec Prime
+// asked like any source. It plays its own releases, as a catalog plugin does, and answers Spec Prime
 // Film (anilist:900070, tests/fake-fetch.ts) with three releases of its one episode, each ranked in its score
-// as Nyaa ranks them, the first with the highest id, and Spec Rated (anilist:900040) with one release of each
+// order, the first with the highest id, and Spec Rated (anilist:900040) with one release of each
 // of its first three episodes.
 const releasing = (origin: string, name: string, fields: object = {}) => ({
   origin,

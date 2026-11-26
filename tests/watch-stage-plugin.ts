@@ -1,9 +1,9 @@
 import { expose } from 'osra'
 
-import { CHAPTERLESS_TORRENT, PLAYER_ORIGIN } from './watch-stage-media'
+import { CHAPTERLESS_PLUGIN, PLAYER_ORIGIN } from './watch-stage-media'
 
-// The source package tests/watch-stage.spec.ts mounts for its torrents, two frames down as stub-plugin plays one: it
-// frames a player at another origin (./watch-stage-ripple.ts) as the plugin frames ripple, and answers stub's calls
+// The source package tests/watch-stage.spec.ts mounts for its staged releases, two frames down: it
+// frames a player at another origin (./watch-stage-nested-player.ts) as a plugin frames a nested player, and answers stub's calls
 // as stub-plugin's src/ui/playback.ts does, its `focus` included, and reports first once the player is up, as
 // @banou/media-player's mirror does at `ready`. Each episode runs 40 s, its ending from 2 to 20 s with a scene after
 // it, and plays from 18.5 s; the second's file marks no ending. With `stageEndingCloses` on the window the ending closes
@@ -55,7 +55,7 @@ addEventListener('message', event => {
 
 const api = {
   play: async ({ url }: { url?: string }) => {
-    chapters = url === `magnet:?xt=urn:btih:stage${CHAPTERLESS_TORRENT}` ? CHAPTERLESS : 'stageEndingCloses' in window ? CLOSING : CHAPTERS
+    chapters = url === `plugin-stream://stage${CHAPTERLESS_PLUGIN}` ? CHAPTERLESS : 'stageEndingCloses' in window ? CLOSING : CHAPTERS
     endingOffered = true
     frame = document.createElement('iframe')
     loaded = false

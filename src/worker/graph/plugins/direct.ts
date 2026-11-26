@@ -22,6 +22,7 @@
  */
 import type { LinkProposal, Plugin, PluginContext, PluginOutput } from './contract'
 
+import { filterFlippedRefusals } from './guards'
 import { claimEndpoints } from './profile'
 
 /**
@@ -156,19 +157,24 @@ const scan = async (ctx: PluginContext, uris: string[] | undefined): Promise<Can
  */
 const subjectsOf = async (ctx: PluginContext): Promise<string[] | undefined> => {
   if (ctx.delta.full) return undefined
-  // A claim whose settled Guard 4 or Guard 5 verdict changed from refused to accepted is not in
-  // `ctx.delta` when a distant edge moved the settlement, so previously refused rows re-enter scope.
+  const baseSubjects = [...new Set([
+    ...ctx.delta.media,
+    ...await claimEndpoints(ctx, ctx.delta.claims),
+  ])]
+  // A cross-origin claim whose settled Guard 4 or Guard 5 verdict flipped from refused to accepted
+  // is not in `ctx.delta` when a distant edge moved settlement, so check the warm ledger first.
   const refused = await ctx.query<{ fromUri: string, toUri: string }>(
     `MATCH (a:Media)-[l:LINK]->(b:Media)
      WHERE l.by = 'plugin:direct' AND l.kind = 'SAME_AS' AND l.status = 'refused'
-       AND l.reason IN ['disagreeing-ids', 'contested']
+       AND a.origin <> b.origin AND l.reason IN ['disagreeing-ids', 'contested']
      RETURN a.uri AS fromUri, b.uri AS toUri`
   )
-  const subjects = [...new Set([
-    ...ctx.delta.media,
-    ...await claimEndpoints(ctx, ctx.delta.claims),
-    ...refused.flatMap(row => [row.fromUri, row.toUri]),
-  ])]
+  const flipped = await filterFlippedRefusals(
+    ctx.query,
+    refused.map(row => ({ fromUri: String(row.fromUri), toUri: String(row.toUri) })),
+  )
+  const subjects = [...new Set([...baseSubjects, ...flipped])]
+  if (subjects.length === 0) return []
   const [row] = await ctx.query<{ total: number }>('MATCH (m:Media) RETURN count(m) AS total')
   return subjects.length * WHOLE_GRAPH_FRACTION >= Number(row?.total ?? 0) ? undefined : subjects
 }

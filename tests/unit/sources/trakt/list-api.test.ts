@@ -156,6 +156,20 @@ describe('entries and viewerLists items', () => {
       type: 'MOVIE',
       entry: { status: 'PLANNING', progress: 0 },
     })
+
+    const completedItems = listItemsOf('viewer', lists, [{
+      plays: 12,
+      last_watched_at: '2026-10-01T00:00:00.000Z',
+      last_updated_at: '2026-10-01T00:00:00.000Z',
+      reset_at: null,
+      show: { title: 'Done Show', year: 2024, aired_episodes: 12, ids: { trakt: 901, slug: 'done-show', tmdb: 9010, imdb: 'tt901' } },
+      seasons: [{ number: 1, aired: 12, episodes: Array.from({ length: 12 }, (_, idx) => ({ number: idx + 1, plays: 1 })) }],
+    }])
+    expect(completedItems.find(i => i.entry._id === 'trakt:viewer:s:901:1')).toMatchObject({
+      type: 'TV',
+      episodeCount: 12,
+      entry: { status: 'COMPLETED', progress: 12, episodeCount: 12 },
+    })
   })
 })
 
@@ -207,6 +221,26 @@ describe('write and removal planning', () => {
     expect(planMovieRemove(DUNE, listed)).toEqual([
       { path: '/sync/watchlist/remove', body: { movies: [{ ids: { trakt: 486228 } }] } },
       { path: '/sync/ratings/remove', body: { movies: [{ ids: { trakt: 486228 } }] } },
+    ])
+
+    const dualWatchlist = buildLists({
+      ratingsSeasons: [],
+      ratingsMovies: [],
+      watchlistShows: [watchlistItem(198225)],
+      watchlistSeasons: [watchlistItem(198225, 1)],
+      watchlistMovies: [],
+      dropped: [],
+      watchedMovies: [],
+    })
+    expect(planShowWrite(RUN, progress({ 1: { watched: [], aired: 38 } }), dualWatchlist, { status: 'COMPLETED' }, NOW)).toEqual({
+      steps: [
+        { path: '/sync/watchlist/remove', body: { shows: [{ ids: { trakt: 198225 }, seasons: [{ number: 1 }] }] } },
+        { path: '/sync/history', body: { shows: [{ ids: { trakt: 198225 }, seasons: [{ number: 1, episodes: Array.from({ length: 10 }, (_, idx) => ({ number: 29 + idx, watched_at: NOW })) }] }] } },
+      ],
+    })
+    expect(planShowRemove(RUN, dualWatchlist)).toEqual([
+      { path: '/sync/watchlist/remove', body: { shows: [{ ids: { trakt: 198225 }, seasons: [{ number: 1 }] }] } },
+      { path: '/sync/watchlist/remove', body: { shows: [{ ids: { trakt: 198225 } }] } },
     ])
   })
 })

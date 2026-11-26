@@ -35,7 +35,7 @@ export type SceneAnswer =
   | { matches: SceneMatch[], engines?: SceneEngine[] }
   | { error: SceneError, engines?: SceneEngine[] }
 
-const sameMoment = (a: SceneMoment, b: SceneMoment) =>
+export const sameMoment = (a: SceneMoment, b: SceneMoment) =>
   (a.season ?? null) === (b.season ?? null) && a.episode === b.episode
 
 /**

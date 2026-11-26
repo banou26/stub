@@ -9,6 +9,7 @@ import { ACCOUNT_SETTINGS_KEY } from '../../settings-store'
 import { SETTINGS_KEYS } from '../../settings-sync'
 import { CONNECTED_KEY } from '../../tracking/connections'
 import { SITE_STATUS_KEY } from '../../tracking/site-status'
+import { TRAKT_SESSION_GEN_KEY } from '../../sources/trakt/session'
 import { PLAYER_VOLUME_KEY } from '../../utils/player-volume'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../utils/watch-positions'
 import { RECOMMENDED_KEY } from '../home/recommended'
@@ -63,10 +64,10 @@ export const STORED: readonly StoredItem[] = [
   {
     id: 'connected-sites',
     title: 'Connected tracking sites',
-    what: 'Which of AniList, MyAnimeList, Trakt and Crunchyroll you signed in to through stub on this device, so stub reaches only those.',
+    what: 'Which of AniList, MyAnimeList, Trakt and Crunchyroll you signed in to through stub on this device, so stub reaches only those, and a random session marker for Trakt so a signed-out fallback token is never reused.',
     where: LOCAL,
     lasts: "Until you sign out of them, or clear this site's data in your browser",
-    keys: { store: 'local', names: [CONNECTED_KEY] },
+    keys: { store: 'local', names: [CONNECTED_KEY, TRAKT_SESSION_GEN_KEY] },
   },
   {
     id: 'site-status',
@@ -120,7 +121,7 @@ export const STORED: readonly StoredItem[] = [
     title: 'Site sign-ins',
     what: "Your Crunchyroll, Prime Video, AniList, MyAnimeList and Trakt sessions, which stub plays and tracks with: the cookies each site sets, and for Trakt also the sign-in Trakt's own page keeps in its storage and a fallback copy of the access token stub keeps there while signed in.",
     where: 'Without the FKN extension, FKN keeps them for every fkn.app app. With it, your browser does.',
-    lasts: "Until you sign out, or the site ends the session; the fallback copy in app.trakt.tv's storage is removed on the next Trakt connect or when the token expires",
+    lasts: "Until you sign out, or the site ends the session; fallback copies in app.trakt.tv's storage are cleared on sign out when Trakt's session frame is open, invalidated at once by stub's session marker otherwise, and removed on startup expiry cleanup or the next Trakt connect",
   },
   {
     id: 'fkn-account',

@@ -1,7 +1,7 @@
 import type { SubtitleQueryContext } from '../src/plugin-api'
 import type { NormalizedPluginSubtitle } from '../src/worker/plugin-sources'
 
-import { STAGE_PLUGIN, TORRENT_ORIGIN } from './watch-stage-media'
+import { STAGE_PLUGIN, PLUGIN_SOURCE_ORIGIN } from './watch-stage-media'
 
 const PLUGIN_ORIGIN = 'spec-subs'
 
@@ -53,7 +53,7 @@ export const unregisterRemoteSource = async () => {}
 export const configureRemoteSource = async () => {}
 export const remoteAccount = async () => undefined
 export const remotePicker = async () => null
-export const remotePlayer = async (origin: string) => origin === TORRENT_ORIGIN ? { pluginUri: STAGE_PLUGIN } : null
+export const remotePlayer = async (origin: string) => origin === PLUGIN_SOURCE_ORIGIN ? { pluginUri: STAGE_PLUGIN } : null
 export const trackerCheck = async () => {}
 export const selectRemoteRelease = async () => null
 export const fetchRemoteCatalogItems = async () => []

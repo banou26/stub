@@ -94,6 +94,11 @@ const Privacy = () => (
       keeps these posts and shows them to the people you chose there, where you can delete them. Turning the switch off
       stops new posts.
     </p>
+    <p>
+      If you are signed in to FKN Social when you join or host a watch party, stub silently connects to FKN Social in
+      the background and shares your verified FKN Social profile, display name and avatar with other signed-in party
+      participants.
+    </p>
 
     <h2>Network requests &amp; third parties</h2>
     <p>
@@ -123,8 +128,8 @@ const Privacy = () => (
       <li>Anime News Network <span className="host">cdn.animenewsnetwork.com</span></li>
       <li>AnimeThemes <span className="host">graphql.animethemes.moe</span></li>
       <li>
-        AniSkip <span className="host">api.aniskip.com</span>, for where a torrent's ending starts: it gets the show's
-        MyAnimeList id, the episode's number and its length
+        AniSkip <span className="host">api.aniskip.com</span>, for where an episode's ending starts when the player does
+        not report chapters: it gets the show's MyAnimeList id, the episode's number and its length
       </li>
       <li>AniZip <span className="host">api.ani.zip</span></li>
       <li>Apple TV <span className="host">uts-api.itunes.apple.com</span></li>
@@ -159,11 +164,9 @@ const Privacy = () => (
       that goes.
     </p>
     <p>
-      Playing a torrent uses Ripple, whose peer traffic goes through the FKN VPN by default. If you switch the
-      player's VPN off, the player connects directly from your browser instead, so the torrent's other peers, the
-      trackers tracker.openwebtorrent.com and tracker.webtorrent.dev (and any WebSocket tracker a torrent names), the
-      STUN host stun.l.google.com, and your device's own DNS resolver see your IP address. That switch applies only
-      inside stub's player and does not change Ripple's own site.
+      Sources you add in <Link to="/settings#sources">Settings</Link> run their own code in an isolated frame. When a
+      stream plays through an added source or third-party embed, that player or host sees your IP address and handles
+      connections under its own privacy policy.
     </p>
 
     <h2>The optional browser extension</h2>

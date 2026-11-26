@@ -272,20 +272,19 @@ export const PluginPlayer = ({ pluginUri, release, onUnplayable, onPlayback, sta
         that failed once could never be retried, not even for a different release.
 
         The capabilities are granted HERE because permissions policy is read at navigation and is not
-        inherited. The plugin passes the same set down to whatever it nests inside itself (ripple, for a
-        torrent release), and it can only pass on what this frame was granted.
+        inherited. The plugin passes the same set down to whatever player frame it nests inside itself,
+        and it can only pass on what this frame was granted.
 
         SANDBOX FLAGS ARE THE SAME STORY and go one worse: a nested frame INHERITS this set and can only
         add to it, so a player two frames down cannot ask for anything back.
 
-        Measured 2026-09-09 on Chrome 149, driving this frame chain against the live torrent.fkn.app
-        and clicking ripple's own "Open this torrent in Ripple", one run per flag set:
+        Measured 2026-09-09 on Chrome 149 driving a three-frame nested player chain and clicking an
+        external-open link inside the nested player frame:
 
-          allow-scripts allow-same-origin            NOTHING HAPPENS. "Blocked opening
-                                                     'https://torrent.fkn.app/?torrent=...' in a new
-                                                     window because the request was made in a
-                                                     sandboxed frame whose 'allow-popups' permission
-                                                     is not set", in the console and nowhere else.
+          allow-scripts allow-same-origin            NOTHING HAPPENS. "Blocked opening external URL in a
+                                                     new window because the request was made in a sandboxed
+                                                     frame whose 'allow-popups' permission is not set", in
+                                                     the console and nowhere else.
           + allow-popups                             the tab opens, still sandboxed: measured over the
                                                      same chain, a download is refused and a form
                                                      submit does nothing.

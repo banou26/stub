@@ -224,7 +224,7 @@ export type PluginContext = {
   /**
    * The shared scorers, so every plugin scores exactly as the record measured. `titleSimilarity` is
    * `src/sources/utils.ts:253-270`: frizbee, each direction divided by that side's own self score,
-   * the weaker direction taken. Never the nyaa matcher's min(self(alias), self(candidate)).
+   * the weaker direction taken. Never a release matcher's min(self(alias), self(candidate)).
    */
   titleSimilarity: (a: string, b: string) => Promise<number>
   maxPossibleSimilarity: (a: string, b: string) => number

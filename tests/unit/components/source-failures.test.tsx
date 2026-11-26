@@ -29,15 +29,15 @@ vi.stubGlobal('removeEventListener', () => {})
 const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
 
 test('a source whose picker fails to boot says so in one line, without FKN\'s message', async () => {
-  const host = mount(withIntl(<SourcePopup pluginUri="https:dead.spec.test" origin="nyaa" name="Nyaa" uris={['nyaa:1']} onPick={() => {}} onClose={() => {}}/>))
+  const host = mount(withIntl(<SourcePopup pluginUri="https:dead.spec.test" origin="extsrc" name="ExtSource" uris={['extsrc:1']} onPick={() => {}} onClose={() => {}}/>))
   hosts.push(host)
   await settle()
   expect(host.querySelector('.fallback')?.textContent).toBe('This source could not open its picker.')
-  expect([host.querySelector('[role="dialog"]')?.getAttribute('aria-label'), host.querySelector('.close')?.textContent]).toEqual(['Choose a source from Nyaa', 'Close'])
+  expect([host.querySelector('[role="dialog"]')?.getAttribute('aria-label'), host.querySelector('.close')?.textContent]).toEqual(['Choose a source from ExtSource', 'Close'])
 })
 
 test('a source whose player fails to boot says so in one line, without FKN\'s message', async () => {
-  const host = mount(withIntl(<PluginPlayer pluginUri="https:dead.spec.test" release={{ uri: 'nyaa:1' }} onUnplayable={() => {}}/>))
+  const host = mount(withIntl(<PluginPlayer pluginUri="https:dead.spec.test" release={{ uri: 'extsrc:1' }} onUnplayable={() => {}}/>))
   hosts.push(host)
   await settle()
   expect(host.querySelector('.failed')?.textContent).toBe('This source could not start playback.')

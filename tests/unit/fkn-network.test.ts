@@ -45,10 +45,10 @@ test('names every host stub asks from the browser, every source icon it draws an
   expect(unlisted(needed)).toEqual([])
 })
 
-// the owner's answer of 2026-11-21: stub-plugin hands stub each source icon as a data url, so the list does not grow
-test("names none of stub-plugin's icon hosts", () => {
-  const icons = ['eztvx.to', 'knaben.org', 'nyaa.si', 'thepiratebay.org', 'torrentio.strem.fun', 'yts.gg']
-  expect(network.hosts.filter(host => icons.includes(host))).toEqual([])
+// the owner's answer of 2026-11-21: remote plugin packages hand stub each source icon as a data url, so the list does not grow
+test('keeps third-party plugin icon hosts out of fkn.network', () => {
+  const disallowed = ['source-icon.example', 'cdn.plugin-source.test']
+  expect(network.hosts.filter(host => disallowed.includes(host))).toEqual([])
 })
 
 // manami takes each picture from whichever source supplied it, so the shipped data names hosts no source asks

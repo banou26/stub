@@ -9,11 +9,11 @@ import { bestSource, playPick, useAutoPick, type Access, type Ways } from '../..
 
 const cr = { uri: 'cr:GX1', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX1' }
 const prime = { uri: 'amazon:gti1', origin: 'amazon', url: 'https://watch.amazon.co.jp/watch?gti=gti1' }
-const nyaa = (id: string) => ({ uri: `nyaa:${id}`, origin: 'nyaa', url: `magnet:?xt=urn:btih:${id}` })
+const extSrc = (id: string) => ({ uri: `extsrc:${id}`, origin: 'extsrc', url: `plugin-stream://${id}` })
 
 const ways = (overrides: Partial<Ways> = {}): Ways => ({
   builtIn: origin => origin === 'cr' || origin === 'amazon',
-  selfPlaying: origin => origin === 'nyaa',
+  selfPlaying: origin => origin === 'extsrc',
   off: () => false,
   order: ['cr', 'amazon', 'nf'],
   possible: () => true,
@@ -23,26 +23,26 @@ const ways = (overrides: Partial<Ways> = {}): Ways => ({
 
 describe('bestSource', () => {
   test('a stream stub plays itself wins over a release listed before it, at once', () => {
-    expect(bestSource([nyaa('1'), cr], ways())).toEqual({ uri: 'cr:GX1', now: true })
+    expect(bestSource([extSrc('1'), cr], ways())).toEqual({ uri: 'cr:GX1', now: true })
   })
 
   test('of several releases, the first listed wins, not the lowest uri', () => {
-    expect(bestSource([nyaa('3'), nyaa('1'), nyaa('2')], ways())).toEqual({ uri: 'nyaa:3', now: false })
+    expect(bestSource([extSrc('3'), extSrc('1'), extSrc('2')], ways())).toEqual({ uri: 'extsrc:3', now: false })
   })
 
   test('before the plugin lookup answers, a release is not picked but Crunchyroll is', () => {
-    expect(bestSource([nyaa('1')], ways({ selfPlaying: undefined }))).toBeUndefined()
-    expect(bestSource([nyaa('1'), cr], ways({ selfPlaying: undefined }))).toEqual({ uri: 'cr:GX1', now: true })
+    expect(bestSource([extSrc('1')], ways({ selfPlaying: undefined }))).toBeUndefined()
+    expect(bestSource([extSrc('1'), cr], ways({ selfPlaying: undefined }))).toEqual({ uri: 'cr:GX1', now: true })
   })
 
-  test('a source turned off, a handle with no url and a magnet with no plugin player are never picked', () => {
+  test('a source turned off, a handle with no url and a custom scheme with no plugin player are never picked', () => {
     expect(bestSource([cr], ways({ builtIn: () => false }))).toBeUndefined()
-    expect(bestSource([nyaa('1'), { ...nyaa('2'), embedUrl: 'https://embed.test/2' }, cr], ways({ order: ['nyaa', 'cr'], off: origin => origin === 'nyaa', possible: origin => origin !== 'nyaa' })))
+    expect(bestSource([extSrc('1'), { ...extSrc('2'), embedUrl: 'https://embed.test/2' }, cr], ways({ order: ['extsrc', 'cr'], off: origin => origin === 'extsrc', possible: origin => origin !== 'extsrc' })))
       .toEqual({ uri: 'cr:GX1', now: true })
     expect(bestSource([{ ...cr, url: null }], ways())).toBeUndefined()
-    expect(bestSource([nyaa('1')], ways({ selfPlaying: () => false }))).toBeUndefined()
-    expect(bestSource([{ ...nyaa('1'), embedUrl: 'https://embed.test/1' }], ways({ selfPlaying: () => false })))
-      .toEqual({ uri: 'nyaa:1', now: false })
+    expect(bestSource([extSrc('1')], ways({ selfPlaying: () => false }))).toBeUndefined()
+    expect(bestSource([{ ...extSrc('1'), embedUrl: 'https://embed.test/1' }], ways({ selfPlaying: () => false })))
+      .toEqual({ uri: 'extsrc:1', now: false })
   })
 
   // Frieren from Japan, 2026-10-18: Prime Video answered first and was opened in 13 of 16 fresh runs
@@ -52,14 +52,14 @@ describe('bestSource', () => {
   })
 
   test('a release the viewer ranks first beats Crunchyroll', () => {
-    expect(bestSource([cr, nyaa('1')], ways({ order: ['nyaa', 'cr', 'amazon', 'nf'], settled: () => true }))).toEqual({ uri: 'nyaa:1', now: true })
+    expect(bestSource([cr, extSrc('1')], ways({ order: ['extsrc', 'cr', 'amazon', 'nf'], settled: () => true }))).toEqual({ uri: 'extsrc:1', now: true })
   })
 
   test('a lower-ranked source waits while one ranked above has not answered, and opens once it has', () => {
-    const order = ['nyaa', 'cr', 'amazon', 'nf']
+    const order = ['extsrc', 'cr', 'amazon', 'nf']
     expect(bestSource([cr], ways({ order }))).toEqual({ uri: 'cr:GX1', now: false })
-    expect(bestSource([cr], ways({ order, settled: origin => origin !== 'nyaa' })), 'only the source below answered').toEqual({ uri: 'cr:GX1', now: false })
-    expect(bestSource([cr], ways({ order, settled: origin => origin === 'nyaa' }))).toEqual({ uri: 'cr:GX1', now: true })
+    expect(bestSource([cr], ways({ order, settled: origin => origin !== 'extsrc' })), 'only the source below answered').toEqual({ uri: 'cr:GX1', now: false })
+    expect(bestSource([cr], ways({ order, settled: origin => origin === 'extsrc' }))).toEqual({ uri: 'cr:GX1', now: true })
   })
 
   test('a source ranked above that cannot play here does not hold the pick', () => {
@@ -68,7 +68,7 @@ describe('bestSource', () => {
 
   test('an origin the order does not name comes after every one it names', () => {
     const embed = { uri: 'other:1', origin: 'other', url: null, embedUrl: 'https://embed.test/1' }
-    expect(bestSource([embed, nyaa('1')], ways({ order: ['nyaa'], settled: () => true }))?.uri).toBe('nyaa:1')
+    expect(bestSource([embed, extSrc('1')], ways({ order: ['extsrc'], settled: () => true }))?.uri).toBe('extsrc:1')
   })
 })
 
@@ -110,13 +110,13 @@ describe('playPick for a viewer signed out of their favourite', () => {
   // outside Japan need the extension, which it can add
   const cloud = (never: string[]): Access => ({
     plays: handle => handle.origin !== 'cr' && handle.uri !== prime.uri,
-    free: handle => handle.origin === 'nyaa',
+    free: handle => handle.origin === 'extsrc',
     neverSignedIn: handle => never.includes(handle.origin) && !extensionOnly(handle),
   })
   // with the extension nothing owes a sign in or needs the extension
   const extension = (never: string[]): Access => ({
     plays: () => true,
-    free: handle => handle.origin === 'nyaa',
+    free: handle => handle.origin === 'extsrc',
     neverSignedIn: handle => never.includes(handle.origin),
   })
   const answered = { answered: true, asked: false, moving: false, pending: false }
@@ -124,16 +124,16 @@ describe('playPick for a viewer signed out of their favourite', () => {
 
   test('a favourite never signed in to gives way to the release, once the sources ranked above it have answered', () => {
     for (const [backend, access] of backends) {
-      expect(playPick([cr, nyaa('1')], every, access(['cr']), answered), backend).toEqual({ pick: { uri: 'nyaa:1', now: true }, stuck: false })
-      expect(playPick([cr, nyaa('1')], ways(), access(['cr']), answered), `${backend}: Crunchyroll not answered yet, and not opened meanwhile`)
-        .toEqual({ pick: { uri: 'nyaa:1', now: false }, stuck: false })
+      expect(playPick([cr, extSrc('1')], every, access(['cr']), answered), backend).toEqual({ pick: { uri: 'extsrc:1', now: true }, stuck: false })
+      expect(playPick([cr, extSrc('1')], ways(), access(['cr']), answered), `${backend}: Crunchyroll not answered yet, and not opened meanwhile`)
+        .toEqual({ pick: { uri: 'extsrc:1', now: false }, stuck: false })
     }
   })
 
   test('a favourite signed in to here before opens, for its player to ask the viewer to sign in again', () => {
     for (const [backend, access] of backends) {
-      expect(playPick([cr, nyaa('1')], every, access([]), answered), backend).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
-      expect(playPick([prime, nyaa('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), access(['cr']), answered).pick?.uri, `${backend}: Prime Video`).toBe(prime.uri)
+      expect(playPick([cr, extSrc('1')], every, access([]), answered), backend).toEqual({ pick: { uri: 'cr:GX1', now: true }, stuck: false })
+      expect(playPick([prime, extSrc('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), access(['cr']), answered).pick?.uri, `${backend}: Prime Video`).toBe(prime.uri)
     }
   })
 
@@ -151,19 +151,19 @@ describe('playPick for a viewer signed out of their favourite', () => {
   })
 
   test('Netflix or Prime Video outside Japan ranked between them, which need the extension, never take the release\'s place', () => {
-    expect(playPick([cr, nf, nyaa('1')], every, cloud(['cr']), answered).pick?.uri).toBe('nyaa:1')
-    expect(playPick([cr, primeUs, nyaa('1')], every, cloud(['cr']), answered).pick?.uri).toBe('nyaa:1')
+    expect(playPick([cr, nf, extSrc('1')], every, cloud(['cr']), answered).pick?.uri).toBe('extsrc:1')
+    expect(playPick([cr, primeUs, extSrc('1')], every, cloud(['cr']), answered).pick?.uri).toBe('extsrc:1')
   })
 
   test('a favourite that needs the extension still opens, with the viewer never signed in to the source below it', () => {
-    expect(playPick([cr, nf, nyaa('1')], ways({ ...every, order: ['nf', 'cr', 'amazon'] }), cloud(['cr']), answered).pick?.uri).toBe('nf:81')
-    expect(playPick([cr, primeUs, nyaa('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), cloud(['cr', 'amazon']), answered).pick?.uri, 'Prime Video outside Japan').toBe('amazon:us')
+    expect(playPick([cr, nf, extSrc('1')], ways({ ...every, order: ['nf', 'cr', 'amazon'] }), cloud(['cr']), answered).pick?.uri).toBe('nf:81')
+    expect(playPick([cr, primeUs, extSrc('1')], ways({ ...every, order: ['amazon', 'cr', 'nf'] }), cloud(['cr', 'amazon']), answered).pick?.uri, 'Prime Video outside Japan').toBe('amazon:us')
   })
 
   test('moving on from a failed pick goes to the release past a source never signed in to, not past one signed in to before', () => {
     const order = ['amazon', 'cr', 'nf']
-    expect(playPick([cr, nyaa('1')], ways({ ...every, order }), cloud(['cr']), { ...answered, moving: true }).pick?.uri).toBe('nyaa:1')
-    expect(playPick([cr, nyaa('1')], ways({ ...every, order }), cloud([]), { ...answered, moving: true }).pick?.uri).toBe('cr:GX1')
+    expect(playPick([cr, extSrc('1')], ways({ ...every, order }), cloud(['cr']), { ...answered, moving: true }).pick?.uri).toBe('extsrc:1')
+    expect(playPick([cr, extSrc('1')], ways({ ...every, order }), cloud([]), { ...answered, moving: true }).pick?.uri).toBe('cr:GX1')
   })
 })
 
@@ -194,8 +194,8 @@ describe('useAutoPick', () => {
   })
 
   test('a pick on a link that names every release writes the short address', () => {
-    const { navigate } = page({ ...at, episodeUri: 'ag:(anilist:1-1,nyaa:1,nyaa:2)', best: { uri: 'nyaa:2', now: true } })
-    expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:2', { replace: true })
+    const { navigate } = page({ ...at, episodeUri: 'ag:(anilist:1-1,extsrc:1,extsrc:2)', best: { uri: 'extsrc:2', now: true } })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/extsrc:2', { replace: true })
   })
 
   test('a pick that is not now never opens on a timer, and opens as soon as it is', () => {
@@ -204,8 +204,8 @@ describe('useAutoPick', () => {
     act(() => { vi.advanceTimersByTime(60_000) })
     expect(navigate).not.toHaveBeenCalled()
 
-    update({ ...at, best: { uri: 'nyaa:1', now: true } })
-    expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:1', { replace: true })
+    update({ ...at, best: { uri: 'extsrc:1', now: true } })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/extsrc:1', { replace: true })
   })
 
   // the owner, 2026-10-19: only when their source cannot play it should Play go to the next best ranked one
@@ -236,11 +236,11 @@ describe('useAutoPick', () => {
   test('Play\'s pick that cannot play waits for the next pick to be now, and stays when there is none', () => {
     const { navigate, update } = page({ ...at, best: { uri: 'cr:GX1', now: true } })
     update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: undefined })
-    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'nyaa:1', now: false } })
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'extsrc:1', now: false } })
     expect(navigate).toHaveBeenCalledOnce()
 
-    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'nyaa:1', now: true } })
-    expect(navigate).toHaveBeenLastCalledWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:1', { replace: true })
+    update({ ...at, sourceUri: 'cr:GX1', cannotPlay: true, best: { uri: 'extsrc:1', now: true } })
+    expect(navigate).toHaveBeenLastCalledWith('/watch/ag:(anilist:1)/ag:(anilist:1-1)/extsrc:1', { replace: true })
   })
 
   // a scene search's link names the second to start at, and Play's pick must not drop it
@@ -251,7 +251,7 @@ describe('useAutoPick', () => {
 
   test('nothing opens when the address names a source, or for a party guest', () => {
     vi.useFakeTimers()
-    const named = page({ ...at, sourceUri: 'nyaa:1', best: { uri: 'cr:GX1', now: true } })
+    const named = page({ ...at, sourceUri: 'extsrc:1', best: { uri: 'cr:GX1', now: true } })
     const guest = page({ ...at, guest: true, best: { uri: 'cr:GX1', now: true } })
     act(() => { vi.advanceTimersByTime(60_000) })
     expect(named.navigate).not.toHaveBeenCalled()

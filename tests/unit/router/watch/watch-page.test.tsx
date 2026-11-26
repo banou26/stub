@@ -15,7 +15,7 @@ import { share } from '../../components/share'
 
 const navigate = vi.fn()
 // the episode, and what an address names of it, which leaves the added source's release out
-const allUri = 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a)'
+const allUri = 'ag:(anilist:1-1,cr:GX1,nf:81,extsrc:a)'
 const addressUri = 'ag:(anilist:1-1,cr:GX1,nf:81)'
 let params: { mediaUri: string, episodeUri: string, sourceUri?: string } = { mediaUri: 'ag:(anilist:1)', episodeUri: addressUri }
 // the address's query string, without its `?`
@@ -24,7 +24,7 @@ const handle = (uri: string, origin: string, url: string) => ({ relation: 'SAME_
 const allHandles = [
   handle('cr:GX1', 'cr', 'https://www.crunchyroll.com/watch/GX1'),
   handle('nf:81', 'nf', 'https://www.netflix.com/watch/81'),
-  handle('nyaa:a', 'nyaa', 'magnet:?xt=urn:btih:a'),
+  handle('extsrc:a', 'extsrc', 'plugin-stream://a'),
 ]
 const episode = { uri: allUri, handles: allHandles }
 const single = { uri: params.mediaUri, handles: [], episodes: [episode], settled: true }
@@ -86,7 +86,7 @@ vi.mock('../../../../src/worker', async () => {
     remotePicker: async () => null,
     remotePlayer: async (id: string) => {
       await lookups.held
-      return id === 'nyaa' || id === 'paid' ? { pluginUri: `plugin:${id}` } : null
+      return id === 'extsrc' || id === 'paid' ? { pluginUri: `plugin:${id}` } : null
     },
     remoteAccount: async (id: string) => {
       lookups.asked.push(id)
@@ -121,7 +121,7 @@ vi.mock('../../../../src/plugin-accounts', async importOriginal => {
     } satisfies ReturnType<typeof createPluginAccounts>,
   }
 })
-// the added sources as src/plugins.ts reports them: Nyaa's package connected unless a test says otherwise;
+// the added sources as src/plugins.ts reports them: ExtSource's package connected unless a test says otherwise;
 // `browse` is FKN's package browser
 const plugins = vi.hoisted(() => ({ statuses: [] as object[], listeners: new Set<() => void>(), browse: vi.fn(async () => {}) }))
 vi.mock('../../../../src/plugins', () => ({
@@ -211,7 +211,7 @@ vi.mock('../../../../src/party/bridge', () => ({
     return link
   },
 }))
-// the nyaa plugin's play(): it declines a release with no magnet, and hands over its player otherwise, whose link
+// the extsrc plugin's play(): it declines a release with no stream URL, and hands over its player otherwise, whose link
 // says the file's `chapters` and hands the keys on through the plugin (each player's `focus`); `stages` are where
 // each was put. With `ending`, the plugin relays the player's skip offer: `asked` is what stub said, and `offered`
 // the player's own word, which a test changes when the player would have
@@ -223,7 +223,7 @@ vi.mock('../../../../src/components/plugin-player', async () => {
       pluginPlayers.episodeNav = episodeNavigation
       pluginPlayers.externalSubtitles = externalSubtitles
       useEffect(() => {
-        if (!release.url?.startsWith('magnet:')) return onUnplayable()
+        if (!release.url?.startsWith('plugin-stream://')) return onUnplayable()
         pluginPlayers.stages.push(stage?.current)
         const focus = vi.fn()
         pluginPlayers.focus.push(focus)
@@ -257,7 +257,7 @@ vi.mock('../../../../src/utils/fetch', () => ({
     return typeof value === 'string' ? new Response(value) : Response.json(value)
   },
 }))
-// Crunchyroll's length of each episode, read when a torrent plays, and the viewer's own browser, which answers aniskip
+// Crunchyroll's length of each episode, read when a plugin release plays, and the viewer's own browser, which answers aniskip
 const lengths = vi.hoisted(() => ({ byUrl: {} as Record<string, number>, asked: [] as string[] }))
 vi.mock('../../../../src/sources/crunchyroll/relay-check', () => ({
   unlistedRelays: async () => [],
@@ -354,9 +354,9 @@ const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
 const { Router } = await import('wouter')
 const page = () => mount(withIntl(<Router hook={memoryLocation().hook}><Watch/></Router>))
 
-const NYAA_PACKAGE = 'https:stub.plugins.banou.dev'
-const connectedNyaa = { uri: NYAA_PACKAGE, state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }
-beforeEach(() => { plugins.statuses = [connectedNyaa] })
+const EXT_SRC_PACKAGE = 'https:stub.plugins.banou.dev'
+const connectedExtSrc = { uri: EXT_SRC_PACKAGE, state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }
+beforeEach(() => { plugins.statuses = [connectedExtSrc] })
 
 // the Prime Video links below are Japan's, which play in stub for a viewer in Japan alone
 beforeEach(() => { vi.stubEnv('TZ', 'Asia/Tokyo') })
@@ -440,7 +440,7 @@ const signedOutAgain = (site: string) => {
 // into his account"
 test('a Crunchyroll ranked first that the viewer signed in to here before opens at once, for its player to ask them to sign in again', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   lookups.held = new Promise(() => {})
   statuses = {}
   signedOutAgain('crunchyroll')
@@ -451,7 +451,7 @@ test('a Crunchyroll ranked first that the viewer signed in to here before opens 
 
 test('a member still joining a party does not pick, since it follows the host', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   party = { status: 'joining' }
   hosts.push(page())
   await settle()
@@ -461,7 +461,7 @@ test('a member still joining a party does not pick, since it follows the host', 
 // the page asks for the extension where Netflix needs it, so the backend does not decide the pick
 test('Netflix ranked first opens at once, before the backend is known', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   detecting.held = new Promise(() => {})
   stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
   hosts.push(page())
@@ -528,9 +528,9 @@ test('a linked source the episode holds only as PART_OF is not played', async ()
 
 test('a release the address names before the episode holds it plays once its handle arrives', async () => {
   vi.useFakeTimers()
-  origins = ['nyaa']
+  origins = ['extsrc']
   Object.assign(episode, { handles: [] })
-  params = { ...params, sourceUri: 'nyaa:a' }
+  params = { ...params, sourceUri: 'extsrc:a' }
   const location = memoryLocation()
   const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
@@ -540,30 +540,30 @@ test('a release the address names before the episode holds it plays once its han
   Object.assign(episode, { handles: [allHandles[2]] })
   act(() => { render(tree(), host) })
   await settle()
-  expect(host.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:a')
+  expect(host.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('plugin-stream://a')
 })
 
 test('a plugin player stays mounted across a background plugin worker reconnect, and unmounts if removed', async () => {
   vi.useFakeTimers()
-  const nyaaPlugin = { uri: 'plugin:nyaa', state: 'connected', sources: [{ origin: 'nyaa', name: 'Nyaa' }] }
-  plugins.statuses = [nyaaPlugin]
-  params = { ...params, sourceUri: 'nyaa:a' }
+  const extSrcPlugin = { uri: 'plugin:extsrc', state: 'connected', sources: [{ origin: 'extsrc', name: 'ExtSource' }] }
+  plugins.statuses = [extSrcPlugin]
+  params = { ...params, sourceUri: 'extsrc:a' }
   const host = page()
   hosts.push(host)
   await settle()
 
   const initial = host.querySelector('.plugin-player')
-  expect(initial?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:a')
+  expect(initial?.getAttribute('data-url')).toBe('plugin-stream://a')
   expect(pluginPlayers.stages).toHaveLength(1)
 
   // Background worker drops and schedules reconnect: the mounted player frame must stay put
-  await pluginsChange({ uri: 'plugin:nyaa', state: 'connecting', retry: true })
+  await pluginsChange({ uri: 'plugin:extsrc', state: 'connecting', retry: true })
   await settle()
   expect(host.querySelector('.plugin-player'), 'unmounted while reconnecting').toBe(initial)
   expect(pluginPlayers.stages).toHaveLength(1)
 
   // Background worker reconnects: still the same mounted player, never torn down and autoplayed again
-  await pluginsChange(nyaaPlugin)
+  await pluginsChange(extSrcPlugin)
   await settle()
   expect(host.querySelector('.plugin-player'), 'remounted after reconnect').toBe(initial)
   expect(pluginPlayers.stages).toHaveLength(1)
@@ -606,9 +606,9 @@ test('with no source named, a Prime Video episode is picked at once, on the clou
 })
 
 test('a Prime Video ranked first gives way to the release for a viewer never signed in to it here, and opens for one signed in to it before', async () => {
-  for (const [viewer, to] of [['nothing known', 'nyaa:a'], ['signed out', 'nyaa:a'], ['signed out since a sign in', PRIME]] as const) {
+  for (const [viewer, to] of [['nothing known', 'extsrc:a'], ['signed out', 'extsrc:a'], ['signed out since a sign in', PRIME]] as const) {
     vi.useFakeTimers()
-    origins = ['amazon', 'nyaa']
+    origins = ['amazon', 'extsrc']
     statuses = {}
     if (viewer === 'signed out') statuses.prime = 'signed-out'
     if (viewer === 'signed out since a sign in') signedOutAgain('prime')
@@ -696,7 +696,7 @@ test('a sign in heard from a player or another tab opens the source', async () =
 
 test('Browse sources opens FKN\'s package browser, the page keeps asking while the source connects, and opens the release it brings', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   statuses = {}
   plugins.statuses = []
   Object.assign(episode, { handles: [allHandles[0]] })
@@ -706,13 +706,13 @@ test('Browse sources opens FKN\'s package browser, the page keeps asking while t
   await act(async () => { button(host, 'Browse sources')!.click() })
   expect(plugins.browse).toHaveBeenCalledOnce()
 
-  await pluginsChange({ uri: NYAA_PACKAGE, state: 'connecting' })
+  await pluginsChange({ uri: EXT_SRC_PACKAGE, state: 'connecting' })
   expect(noSource(host), 'connecting').not.toBeNull()
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
   media = { ...single }
   await rerender()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('extsrc:a'), { replace: true })
 })
 
 test('with only sources turned off or opening elsewhere, the page offers Browse sources alone', async () => {
@@ -732,7 +732,7 @@ test('with only sources turned off or opening elsewhere, the page offers Browse 
 
 test('a source the play order names whose package is gone does not hold the page', async () => {
   premiumEpisode()
-  stored.set('stub.sources.play-order', JSON.stringify(['nyaa', 'cr', 'amazon', 'nf']))
+  stored.set('stub.sources.play-order', JSON.stringify(['extsrc', 'cr', 'amazon', 'nf']))
   const host = page()
   hosts.push(host)
   await settle()
@@ -758,13 +758,13 @@ test('an episode out that lists no source offers Browse sources once every sourc
   expect(button(noSource(host)!, 'Browse sources')).toBeTruthy()
 })
 
-// STUB-396: an address naming a torrent plugin's release, opened without the plugin, sat on the episode's still (2026-11-11)
+// STUB-396: an address naming a plugin's release, opened without the plugin, sat on the episode's still (2026-11-11)
 test('an episode out that lists no source offers Browse sources too when the address names a source it does not list, and one listing sources to pick keeps its still', async () => {
   vi.useFakeTimers()
   origins = ['cr']
   plugins.statuses = []
   Object.assign(episode, { handles: [] })
-  params = { ...params, sourceUri: 'nyaa:1234567' }
+  params = { ...params, sourceUri: 'extsrc:1234567' }
   const host = page()
   hosts.push(host)
   await settle()
@@ -828,13 +828,13 @@ test('an episode no source names is no 404 while the last address\'s answer is s
 
 test('an episode no source names is no 404 while an added source is still connecting', async () => {
   vi.useFakeTimers()
-  plugins.statuses = [{ ...connectedNyaa, state: 'connecting' }]
+  plugins.statuses = [{ ...connectedExtSrc, state: 'connecting' }]
   media = { uri: params.mediaUri, handles: [], episodes: [], settled: true }
   const { host, rerender } = live()
   await settle()
   expect(host.textContent).not.toContain('404')
 
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   // the worker answers again once the source has
   media = { ...media }
   await rerender()
@@ -856,7 +856,7 @@ test('an episode no source names is no 404 when the address names a Netflix epis
 
 test('nothing is asked before every source has answered, and Play waits on a favourite still to sign in to until another plays', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   statuses = {}
   signedOutAgain('crunchyroll')
   Object.assign(episode, { handles: [allHandles[0]] })
@@ -874,32 +874,32 @@ test('nothing is asked before every source has answered, and Play waits on a fav
 // the answer on screen when a package connects was reached before the worker asked its source
 test('an added source that connects after the answer on screen holds the page until the worker answers again', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   statuses = {}
-  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  plugins.statuses = [{ uri: EXT_SRC_PACKAGE, state: 'connecting' }]
   Object.assign(episode, { handles: [allHandles[0]] })
   const { host, rerender } = live()
   await settle()
   expect(noSource(host), 'connecting').toBeNull()
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   expect(noSource(host), 'connected, the answer on screen from before').toBeNull()
 
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
   media = { ...single }
   await rerender()
-  expect(navigate, 'the release, as the viewer never signed in to Crunchyroll here').toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+  expect(navigate, 'the release, as the viewer never signed in to Crunchyroll here').toHaveBeenCalledExactlyOnceWith(toWatch('extsrc:a'), { replace: true })
   expect(noSource(host)).toBeNull()
 })
 
 test('an added source that answers with nothing for the episode leaves the page asking', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   statuses = {}
   plugins.statuses = []
   Object.assign(episode, { handles: [allHandles[0]] })
   const { host, rerender } = live()
   await settle()
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   media = { ...single }
   await rerender()
   expect(signInRows(host).map(([origin]) => origin)).toEqual(['cr'])
@@ -1113,11 +1113,11 @@ test('the languages last picked, the account\'s when signed in, reach the next e
 const row = (n: number, ...handles: ReturnType<typeof handle>[]) =>
   ({ uri: `ag:(anilist:1-${n})`, episodeNumber: n, titles: [{ title: `Title ${n}` }], handles })
 const crunchyroll = (n: number) => handle(`cr:GX${n}`, 'cr', `https://www.crunchyroll.com/watch/GX${n}`)
-const release = (id: string) => handle(`nyaa:${id}`, 'nyaa', `magnet:?xt=urn:btih:${id}`)
+const release = (id: string) => handle(`extsrc:${id}`, 'extsrc', `plugin-stream://${id}`)
 // three episodes, the address on the second; the third as given. The answer names the media by more
 // sources than the address does, as it does once sources join.
 const SERIES = 'ag:(anilist:1,tvdb:1)'
-const series = (third: object = {}, sourceUri = 'nyaa:a') => {
+const series = (third: object = {}, sourceUri = 'extsrc:a') => {
   media = {
     uri: SERIES,
     handles: [],
@@ -1131,21 +1131,21 @@ const episodeLinks = (host: HTMLElement) =>
 
 test('the episodes either side are linked, the next on the release playing now, the previous where the Play pick decides', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   const host = page()
   hosts.push(host)
   await settle()
   expect(episodeLinks(host)).toEqual([
     ['Previous episode', watchPath(1), 'E1 - Title 1'],
-    ['Next episode', watchPath(3, 'nyaa:b'), 'E3 - Title 3'],
+    ['Next episode', watchPath(3, 'extsrc:b'), 'E3 - Title 3'],
   ])
 })
 
 // HOR-1011: big buttons at the row's two ends, each saying which episode it opens
 test('each episode button names the episode it opens under its label, and sits at its own end of the row', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   const host = page()
   hosts.push(host)
@@ -1167,7 +1167,7 @@ test('each episode button names the episode it opens under its label, and sits a
 // HOR-1022: a way back to the show other than the browser's Back
 test('the show\'s name under the episode\'s title opens the show\'s page', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   media = { ...media, titles: [{ title: 'Frieren' }] }
   const host = page()
@@ -1197,7 +1197,7 @@ test('a film is headed by its title alone, which opens its page, and the player\
 // Spirited Away: AniZip lists it as "Complete Movie", then "Part 1 of 2" and "Part 2 of 2"
 test('a film listed in parts names each part as an episode, under the film\'s title', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   media = { ...media, type: 'MOVIE', titles: [{ title: 'Spirited Away' }] }
   const host = page()
@@ -1211,19 +1211,19 @@ test('a film listed in parts names each part as an episode, under the film\'s ti
 
 test('Share, beside the episode\'s title, copies a short link to this episode on the release playing, with the sources the address names', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  params = { ...params, sourceUri: 'nyaa:a' }
+  origins = ['cr', 'extsrc']
+  params = { ...params, sourceUri: 'extsrc:a' }
   const host = page()
   hosts.push(host)
   await settle()
   const { link, opens } = await share(host.querySelector('.episode-info > button.share'), 'https://anime.fkn.app/watch/ag:(anilist:1)/x/y?plugins=https:stub.plugins.banou.dev&t=12')
   expect(link).toMatch(/^https:\/\/anime\.fkn\.app\/s\//)
-  expect(opens).toBe(`https://anime.fkn.app/watch/ag:(anilist:1)/${addressUri}/nyaa:a?plugins=https:stub.plugins.banou.dev`)
+  expect(opens).toBe(`https://anime.fkn.app/watch/ag:(anilist:1)/${addressUri}/extsrc:a?plugins=https:stub.plugins.banou.dev`)
 })
 
 test('an episode not out yet is not linked as the next one', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series({ releaseDate: '2099-01-01' })
   const host = page()
   hosts.push(host)
@@ -1234,7 +1234,7 @@ test('an episode not out yet is not linked as the next one', async () => {
 // only the clock is faked, so nothing but its tick draws the page again
 test('the next episode is linked on the clock\'s next tick once it has aired', async () => {
   vi.useFakeTimers({ now: Date.parse('2026-10-16T13:59:50Z'), toFake: ['Date', 'setInterval', 'clearInterval'] })
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   media = { ...media, nextAiringEpisode: { episodeNumber: 3, airingAt: '2026-10-16T14:00:00Z' } }
   const host = page()
@@ -1246,7 +1246,7 @@ test('the next episode is linked on the clock\'s next tick once it has aired', a
   const drawnNow = page()
   hosts.push(drawnNow)
   expect(episodeLinks(drawnNow).map(([label]) => label), 'the control: a page drawn now links it').toEqual(['Previous episode', 'Next episode'])
-  expect(episodeLinks(host).at(-1)).toEqual(['Next episode', watchPath(3, 'nyaa:b'), 'E3 - Title 3'])
+  expect(episodeLinks(host).at(-1)).toEqual(['Next episode', watchPath(3, 'extsrc:b'), 'E3 - Title 3'])
 })
 
 test('a film\'s one episode links nothing', async () => {
@@ -1263,17 +1263,17 @@ test('a film\'s one episode links nothing', async () => {
 // its stream; the release playing speaks for a source with several
 test('a source\'s card shows its own row\'s picture and stream, the episode\'s picture without one, and the playing release\'s', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   const crunchyroll = handle('cr:GX1', 'cr', 'https://www.crunchyroll.com/watch/GX1')
   Object.assign(crunchyroll.node, {
     thumbnails: [{ url: 'https://img.example/cr.jpg' }],
     audioLanguages: ['ja-JP', 'en-US'],
     subtitleLanguages: ['en-US', 'es-419'],
   })
-  const releases = ['a', 'b'].map(id => handle(`nyaa:${id}`, 'nyaa', `magnet:?xt=urn:btih:${id}`))
+  const releases = ['a', 'b'].map(id => handle(`extsrc:${id}`, 'extsrc', `plugin-stream://${id}`))
   Object.assign(releases[1]!.node, { videoQualities: ['1080p', 'HEVC'] })
   media = { ...single, episodes: [{ ...episode, thumbnails: [{ url: 'https://img.example/episode.jpg' }], handles: [crunchyroll, allHandles[1]!, ...releases] }] }
-  params = { ...params, sourceUri: 'nyaa:b' }
+  params = { ...params, sourceUri: 'extsrc:b' }
   const host = page()
   hosts.push(host)
   await settle()
@@ -1284,7 +1284,7 @@ test('a source\'s card shows its own row\'s picture and stream, the episode\'s p
   expect(card('cr').querySelector('.languages')?.textContent).toBe('AudioJapanese, English')
   expect(picture('nf'), 'Netflix has none of its own').toBe('https://img.example/episode.jpg')
   expect(card('nf').querySelector('.qualities, .languages')).toBeNull()
-  expect([...card('2 releases on nyaa').querySelectorAll('.qualities > *')].map(chip => chip.textContent)).toEqual(['1080p', 'HEVC'])
+  expect([...card('2 releases on extsrc').querySelectorAll('.qualities > *')].map(chip => chip.textContent)).toEqual(['1080p', 'HEVC'])
   expect(watchQuery, 'what each card reads off its own row').toMatch(/shortDescription\s*\}\s*thumbnails \{\s*url\s*\}\s*videoQualities\s*audioQualities\s*audioLanguages\s*subtitleLanguages/)
 })
 
@@ -1307,7 +1307,7 @@ const listRows = (host: HTMLElement) => [...host.querySelectorAll('[data-episode
 
 test('the run\'s episodes are listed under the sources, the one playing marked, each on the site playing and the address\'s media', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series()
   const host = page()
   hosts.push(host)
@@ -1315,8 +1315,8 @@ test('the run\'s episodes are listed under the sources, the one playing marked, 
   expect(host.querySelector('[data-episodes] h2')?.textContent).toBe('Episodes')
   expect(listRows(host)).toEqual([
     [1, watchPath(1), undefined],
-    [2, watchPath(2, 'nyaa:a'), 'page'],
-    [3, watchPath(3, 'nyaa:b'), undefined],
+    [2, watchPath(2, 'extsrc:a'), 'page'],
+    [3, watchPath(3, 'extsrc:b'), undefined],
   ])
   expect(host.querySelector('.watch-info.sources + .watch-info [data-episodes]'), 'right after the sources').not.toBeNull()
 })
@@ -1357,7 +1357,7 @@ describe('a show\'s other seasons', () => {
 
   test('are each a button that lists its season in place, on the site playing, while the episode plays on', async () => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     const host = page()
     hosts.push(host)
     await settle()
@@ -1368,11 +1368,11 @@ describe('a show\'s other seasons', () => {
     await settle()
     expect(seasonButtons(host)).toEqual([['Season 1', 'false'], ['Season 2', 'true']])
     expect(listRows(host)).toEqual([
-      [1, `/watch/${SEASON_2}/ag:(tmdb:9-s2e1)/nyaa:s2e1`, undefined],
-      [2, `/watch/${SEASON_2}/ag:(tmdb:9-s2e2)/nyaa:s2e2`, undefined],
+      [1, `/watch/${SEASON_2}/ag:(tmdb:9-s2e1)/extsrc:s2e1`, undefined],
+      [2, `/watch/${SEASON_2}/ag:(tmdb:9-s2e2)/extsrc:s2e2`, undefined],
     ])
     expect(navigate).not.toHaveBeenCalled()
-    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'still playing').toBe('magnet:?xt=urn:btih:a')
+    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'still playing').toBe('plugin-stream://a')
 
     act(() => { button(host, 'Season 1')!.click() })
     await settle()
@@ -1381,7 +1381,7 @@ describe('a show\'s other seasons', () => {
 
   test('the season picked, once one of its episodes plays, lists it marked', async () => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     const location = memoryLocation()
     const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
     const host = mount(tree())
@@ -1391,7 +1391,7 @@ describe('a show\'s other seasons', () => {
     await settle()
 
     media = runs[SEASON_2]!
-    params = { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e2)', sourceUri: 'nyaa:s2e2' }
+    params = { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e2)', sourceUri: 'extsrc:s2e2' }
     act(() => { render(tree(), host) })
     await settle()
     expect(seasonButtons(host)).toEqual([['Season 1', 'false'], ['Season 2', 'true']])
@@ -1400,7 +1400,7 @@ describe('a show\'s other seasons', () => {
 
   test('the season picked gives way to the playing one once another episode plays', async () => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     const first = { media, params }
     const location = memoryLocation()
     const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
@@ -1417,14 +1417,14 @@ describe('a show\'s other seasons', () => {
 
     act(() => { button(host, 'Season 2')!.click() })
     await settle()
-    await play({ media: first.media, params: { ...first.params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' } })
+    await play({ media: first.media, params: { ...first.params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:b' } })
     expect(seasonButtons(host), 'Next in the same run').toEqual([['Season 1', 'true'], ['Season 2', 'false']])
     expect(marked()).toEqual([[1, undefined], [2, undefined], [3, 'page']])
 
     act(() => { button(host, 'Season 2')!.click() })
     await settle()
     expect(seasonButtons(host), 'the control: picked again').toEqual([['Season 1', 'false'], ['Season 2', 'true']])
-    await play({ media: runs[SEASON_2]!, params: { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e1)', sourceUri: 'nyaa:s2e1' } })
+    await play({ media: runs[SEASON_2]!, params: { mediaUri: SEASON_2, episodeUri: 'ag:(tmdb:9-s2e1)', sourceUri: 'extsrc:s2e1' } })
     await play(first)
     expect(seasonButtons(host), 'back into the first season').toEqual([['Season 1', 'true'], ['Season 2', 'false']])
     expect(marked()).toEqual([[1, undefined], [2, 'page'], [3, undefined]])
@@ -1432,7 +1432,7 @@ describe('a show\'s other seasons', () => {
 
   test('another season picked opens on its first page', async () => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     const three = [...seasons, { number: 3, uri: 'tmdb:9-s3' }]
     const run = (season: number) => ({
       uri: `ag:(tmdb:9-s${season})`,
@@ -1454,37 +1454,37 @@ describe('a show\'s other seasons', () => {
     expect(numbers(), 'the control: the second page').toEqual([13, 14])
     act(() => { button(host, 'Season 3')!.click() })
     await settle()
-    expect(listRows(host)[0]?.[1]).toBe('/watch/ag:(tmdb:9-s3)/ag:(tmdb:9-s3e1)/nyaa:s3e1')
+    expect(listRows(host)[0]?.[1]).toBe('/watch/ag:(tmdb:9-s3)/ag:(tmdb:9-s3e1)/extsrc:s3e1')
     expect(numbers()).toEqual(Array.from({ length: 12 }, (_, at) => at + 1))
   })
 })
 
 test('the row playing links the release playing, not the site\'s first', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  series({}, 'nyaa:z')
+  origins = ['cr', 'extsrc']
+  series({}, 'extsrc:z')
   ;(media as { episodes: ReturnType<typeof row>[] }).episodes[1]!.handles.push(release('z'))
   const host = page()
   hosts.push(host)
   await settle()
-  expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: the second release plays').toBe('magnet:?xt=urn:btih:z')
+  expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: the second release plays').toBe('plugin-stream://z')
   expect(listRows(host)).toEqual([
     [1, watchPath(1), undefined],
-    [2, watchPath(2, 'nyaa:z'), 'page'],
-    [3, watchPath(3, 'nyaa:b'), undefined],
+    [2, watchPath(2, 'extsrc:z'), 'page'],
+    [3, watchPath(3, 'extsrc:b'), undefined],
   ])
 })
 
 describe('an address names an episode with few of its rows', () => {
   const twoReleases = () => {
     series()
-    ;(media as { episodes: ReturnType<typeof row>[] }).episodes.forEach((each, at) => { each.uri = `ag:(anilist:1-${at + 1},nyaa:e${at},nyaa:f${at})` })
+    ;(media as { episodes: ReturnType<typeof row>[] }).episodes.forEach((each, at) => { each.uri = `ag:(anilist:1-${at + 1},extsrc:e${at},extsrc:f${at})` })
     ;(media as { episodes: ReturnType<typeof row>[] }).episodes[1]!.handles.push(release('e1'), release('f1'))
-    params = { ...params, sourceUri: 'nyaa:f1' }
+    params = { ...params, sourceUri: 'extsrc:f1' }
   }
   const open = async (episodeUri: string) => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     params = { ...params, episodeUri }
     const host = page()
     hosts.push(host)
@@ -1492,14 +1492,14 @@ describe('an address names an episode with few of its rows', () => {
     return host
   }
   const opened = (host: HTMLElement) => [host.querySelector('.episode-title')?.textContent, host.querySelector('.plugin-player')?.getAttribute('data-url')]
-  const SECOND = ['E2 - Title 2', 'magnet:?xt=urn:btih:f1']
+  const SECOND = ['E2 - Title 2', 'plugin-stream://f1']
 
   test('a link with every id, as already shared, opens its episode and release, and Share hands out the short one', async () => {
     twoReleases()
-    const host = await open('ag:(anilist:1-2,nyaa:e1,nyaa:f1)')
+    const host = await open('ag:(anilist:1-2,extsrc:e1,extsrc:f1)')
     expect(opened(host)).toEqual(SECOND)
     const { opens } = await share(host.querySelector('.episode-info > button.share'), 'https://anime.fkn.app/watch/x/y/z')
-    expect(opens).toBe(`https://anime.fkn.app/watch/${params.mediaUri}/ag:(anilist:1-2)/nyaa:f1`)
+    expect(opens).toBe(`https://anime.fkn.app/watch/${params.mediaUri}/ag:(anilist:1-2)/extsrc:f1`)
   })
 
   test('the short one finds an episode holding more ids, on a reload or a Back alike', async () => {
@@ -1509,7 +1509,7 @@ describe('an address names an episode with few of its rows', () => {
 
   test('one naming none of the rows listed now finds the episode of the release it plays', async () => {
     twoReleases()
-    expect(opened(await open('ag:(nyaa:gone)'))).toEqual(SECOND)
+    expect(opened(await open('ag:(extsrc:gone)'))).toEqual(SECOND)
   })
 
   test('the ids it names go before the release it plays, which another episode\'s address may name', async () => {
@@ -1520,23 +1520,23 @@ describe('an address names an episode with few of its rows', () => {
 
   test('the releases listed keep the episode part, and the one picked plays', async () => {
     twoReleases()
-    const host = await open('ag:(anilist:1-2,nyaa:e1,nyaa:f1)')
-    const group = host.querySelector<HTMLElement>('button.source[title="3 releases on nyaa"]')!
+    const host = await open('ag:(anilist:1-2,extsrc:e1,extsrc:f1)')
+    const group = host.querySelector<HTMLElement>('button.source[title="3 releases on extsrc"]')!
     expect(group.getAttribute('aria-expanded'), 'collapsed by default so episodes stay visible').toBeNull()
     expect(host.querySelectorAll('a.release').length).toBe(0)
     await act(async () => { group.click() })
     const links = [...host.querySelectorAll('a.release')].map(link => link.getAttribute('href'))
-    expect(links).toEqual(['a', 'e1', 'f1'].map(id => watchPath(2, `nyaa:${id}`)))
-    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:e1' }
+    expect(links).toEqual(['a', 'e1', 'f1'].map(id => watchPath(2, `extsrc:${id}`)))
+    params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'extsrc:e1' }
     unmount(hosts.pop()!)
     hosts.push(page())
     await settle()
-    expect(hosts.at(-1)!.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('magnet:?xt=urn:btih:e1')
+    expect(hosts.at(-1)!.querySelector('.plugin-player')?.getAttribute('data-url')).toBe('plugin-stream://e1')
   })
 
   test('where the viewer stopped is kept by release, so the short address resumes a point saved on the long one', async () => {
     twoReleases()
-    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nyaa:f1', 600, 1000]]))
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['extsrc:f1', 600, 1000]]))
     await open('ag:(anilist:1-2)')
     await report({ paused: false, time: 2 })
     expect(bridge.links.at(-1)!.seek.mock.calls.flat()).toEqual([600])
@@ -1547,11 +1547,11 @@ describe('an address names an episode with few of its rows', () => {
 // history, so after Next one Back moved only the player back, and the page still named the next episode
 // A source package keeps its frame for its next releases instead, putting each in a frame of its own: WebKit lets its
 // document hand the keys on only once the viewer has clicked in it (WebKit 26.4 and 27.2, 2026-10-26)
-test('another episode gets a fresh player, so Back leaves the page rather than the frame, and a torrent the same package', async () => {
+test('another episode gets a fresh player, so Back leaves the page rather than the frame, and another release the same package', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  for (const [origin, player] of [['cr', 'iframe'], ['nyaa', '.plugin-player']] as const) {
-    series({}, origin === 'cr' ? 'cr:GX2' : 'nyaa:a')
+  origins = ['cr', 'extsrc']
+  for (const [origin, player] of [['cr', 'iframe'], ['extsrc', '.plugin-player']] as const) {
+    series({}, origin === 'cr' ? 'cr:GX2' : 'extsrc:a')
     const location = memoryLocation()
     const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
     const host = mount(tree())
@@ -1559,14 +1559,14 @@ test('another episode gets a fresh player, so Back leaves the page rather than t
     await settle()
     const before = host.querySelector(player)
     expect(before, origin).not.toBeNull()
-    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: origin === 'cr' ? 'cr:GX3' : 'nyaa:b' }
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: origin === 'cr' ? 'cr:GX3' : 'extsrc:b' }
     act(() => { render(tree(), host) })
     await settle()
     expect(host.querySelector(player), origin).not.toBeNull()
     if (origin === 'cr') expect(host.querySelector(player), origin).not.toBe(before)
     else {
       expect(host.querySelector(player), origin).toBe(before)
-      expect(before?.getAttribute('data-url'), 'playing the next release').toBe('magnet:?xt=urn:btih:b')
+      expect(before?.getAttribute('data-url'), 'playing the next release').toBe('plugin-stream://b')
     }
   }
 })
@@ -1574,7 +1574,7 @@ test('another episode gets a fresh player, so Back leaves the page rather than t
 // the episode playing on Crunchyroll, whose next one Crunchyroll has too, or on the source named
 const atTheEnd = async (third: object = {}, sourceUri = 'cr:GX2') => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series(third, sourceUri)
   const location = memoryLocation()
   const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
@@ -1631,7 +1631,7 @@ test('a source joining the next episode during the countdown keeps it, and it op
 test('another source picked during the countdown withdraws it', async () => {
   const { host, rerender } = await atTheEnd()
   await report(played, ended)
-  params = { ...params, sourceUri: 'nyaa:a' }
+  params = { ...params, sourceUri: 'extsrc:a' }
   rerender()
   await wait(UP_NEXT_MS * 2)
   expect(host.querySelector('.up-next')).toBeNull()
@@ -1857,7 +1857,7 @@ test('a seek back before the moment withdraws Next episode, until playback reach
 
 test('another source picked before the moment brings no Next episode at the old one\'s moment', async () => {
   const { host, rerender } = await atTheCredits()
-  params = { ...params, sourceUri: 'nyaa:a' }
+  params = { ...params, sourceUri: 'extsrc:a' }
   rerender()
   await settle()
   expect(host.querySelector('.plugin-player'), 'the other source plays').not.toBeNull()
@@ -2039,11 +2039,11 @@ test('Cancel gives the keys back to the player', async () => {
   expect(focus).toHaveBeenCalledTimes(1)
 })
 
-// HOR-1014: a torrent plays two frames down, ripple's player inside the plugin's frame
-test('a torrent\'s own ending brings Next episode a second before what follows it', async () => {
+// HOR-1014: a plugin release plays two frames down, the nested player inside the plugin's frame
+test('a plugin player\'s own ending brings Next episode a second before what follows it', async () => {
   pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1370, title: 'ED' }, { start: 1370, end: 1395, title: 'Part B' }]
   bridge.duration = 1395
-  const { host } = await atTheEnd({}, 'nyaa:a')
+  const { host } = await atTheEnd({}, 'extsrc:a')
   expect(host.querySelector('.plugin-player'), 'the plugin plays it').not.toBeNull()
   await report({ paused: false, time: 1360 })
   await wait(8_900)
@@ -2053,17 +2053,17 @@ test('a torrent\'s own ending brings Next episode a second before what follows i
   expect(host.querySelector('.up-next.counting, .up-next-cancel'), 'no countdown').toBeNull()
 })
 
-// ripple's player offers Skip Ending from a second before it, in Next's corner, 10 px away, so Next takes it only once
+// the nested player offers Skip Ending from a second before it, in Next's corner, 10 px away, so Next takes it only once
 // the player has said Skip Ending is gone
 const ENDS_THE_FILE = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
 const relayedEnding = async (chapters = ENDS_THE_FILE) => {
   pluginPlayers.chapters = chapters
   pluginPlayers.ending = { asked: [], offered: true }
   bridge.duration = 1395
-  return { ...await atTheEnd({}, 'nyaa:a'), ending: pluginPlayers.ending }
+  return { ...await atTheEnd({}, 'extsrc:a'), ending: pluginPlayers.ending }
 }
 
-test('a torrent\'s own ending with nothing after it has Next episode take Skip Ending\'s corner a second before it', async () => {
+test('a plugin player\'s own ending with nothing after it has Next episode take Skip Ending\'s corner a second before it', async () => {
   const { host, ending } = await relayedEnding()
   await report({ paused: false, time: 1200 })
   expect(ending.asked, 'as soon as it knows').toEqual([false])
@@ -2100,7 +2100,7 @@ test('a player that never says, too old for the plugin\'s call, keeps its Skip E
 test('a plugin with no such call leaves the player its Skip Ending, and Next episode comes at the end', async () => {
   pluginPlayers.chapters = ENDS_THE_FILE
   bridge.duration = 1395
-  const { host } = await atTheEnd({}, 'nyaa:a')
+  const { host } = await atTheEnd({}, 'extsrc:a')
   await report({ paused: false, time: 1290 })
   await wait(9_000)
   expect(nextShown(host), 'at 1299 s').toBeUndefined()
@@ -2114,7 +2114,7 @@ test('an ending with something after it stays the player\'s to offer', async () 
   pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1370, title: 'ED' }, { start: 1370, end: 1395, title: 'Part B' }]
   pluginPlayers.ending = { asked: [], offered: true }
   bridge.duration = 1395
-  await atTheEnd({}, 'nyaa:a')
+  await atTheEnd({}, 'extsrc:a')
   await report({ paused: false, time: 1290 })
   expect(pluginPlayers.ending.asked).not.toContain(false)
 })
@@ -2148,7 +2148,7 @@ test('opened past an ending with the closing one still to come, Next episode wai
 test('a plugin with no such call brings no Next episode at an ending the closing one comes after', async () => {
   pluginPlayers.chapters = TWO_ENDINGS
   bridge.duration = 1395
-  const { host } = await atTheEnd({}, 'nyaa:a')
+  const { host } = await atTheEnd({}, 'extsrc:a')
   await report({ paused: false, time: 1285 })
   expect(nextShown(host), 'at 1285 s').toBeUndefined()
   await report({ ...ended, time: 1395 })
@@ -2180,7 +2180,7 @@ test('the next file in the same player is asked again', async () => {
   const { episodes } = media as { episodes: object[] }
   Object.assign(episodes[2]!, { handles: [release('a')] })
   episodes.push(row(4, crunchyroll(4), release('c')))
-  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:a' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:a' }
   await rerender()
   await settle()
   expect(bridge.links, 'the same player').toHaveLength(1)
@@ -2211,10 +2211,10 @@ test('after a seek into the last seconds of Crunchyroll\'s credits, Next episode
   await seekNearItsEnd(host)
 })
 
-test('after a seek into the last seconds of a torrent\'s ending, Next episode stands above Skip Ending until it goes', async () => {
+test('after a seek into the last seconds of a plugin player\'s ending, Next episode stands above Skip Ending until it goes', async () => {
   pluginPlayers.chapters = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }, { start: 1390, end: 1420, title: 'Part B' }]
   bridge.duration = 1420
-  const { host } = await atTheEnd({}, 'nyaa:a')
+  const { host } = await atTheEnd({}, 'extsrc:a')
   await seekNearItsEnd(host)
 })
 
@@ -2256,7 +2256,7 @@ test('a player left before its skip offer came takes that offer with it, and Nex
   bridge.duration = 1420
   const { host, rerender } = await atTheEnd()
   await report({ paused: false, time: 1290 })
-  params = { ...params, sourceUri: 'nyaa:a' }
+  params = { ...params, sourceUri: 'extsrc:a' }
   rerender()
   await settle()
   await report(played, ended)
@@ -2265,13 +2265,13 @@ test('a player left before its skip offer came takes that offer with it, and Nex
   expect(aboveSkip(host), 'the first player\'s offer would have come 9 s on').toBe(false)
 })
 
-// HOR-1014 step 5: a torrent whose file marks no ending takes Crunchyroll's credits when its length is Crunchyroll's,
-// else aniskip's ending. The second episode as a torrent of 1395 s whose file's chapters are `chapters`, on a show
+// HOR-1014 step 5: a plugin release whose chapters mark no ending takes Crunchyroll's credits when its length is Crunchyroll's,
+// else aniskip's ending. The second episode as a plugin release of 1395 s whose chapters are `chapters`, on a show
 // MyAnimeList knows as 5, its third episode as given.
-const torrentOf = async (chapters: object[] | undefined, third: object = {}) => {
+const pluginMediaOf = async (chapters: object[] | undefined, third: object = {}) => {
   pluginPlayers.chapters = chapters
   bridge.duration = 1395
-  const page = await atTheEnd(third, 'nyaa:a')
+  const page = await atTheEnd(third, 'extsrc:a')
   Object.assign(media, { uri: 'ag:(anilist:1,mal:5,tvdb:1)' })
   await page.rerender()
   return page
@@ -2280,10 +2280,10 @@ const PARTS = [{ start: 0, end: 700, title: 'Part A' }, { start: 700, end: 1395,
 const CREDITS = { credits: { start: 1300, end: 1390 } }
 const crunchyrollUrl = (n: number) => `https://www.crunchyroll.com/watch/GX${n}`
 
-test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when its length is Crunchyroll\'s', async () => {
+test('a plugin release whose chapters mark no ending takes Crunchyroll\'s credits when its length is Crunchyroll\'s', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
   relay.files[skipEventsUrl('GX2')] = CREDITS
-  const { host } = await torrentOf(PARTS)
+  const { host } = await pluginMediaOf(PARTS)
   await report({ paused: false, time: 1290 })
   await settle()
   expect(lengths.asked).toEqual([crunchyrollUrl(2)])
@@ -2297,10 +2297,10 @@ test('a torrent whose chapters mark no ending takes Crunchyroll\'s credits when 
   expect(nextShown(host), 'at 1299 s').toBe('E3 - Title 3')
 })
 
-test('Crunchyroll\'s credits time Next episode on a torrent, and are no Skip Ending of its player to stand above', async () => {
+test('Crunchyroll\'s credits time Next episode on a plugin release, and are no Skip Ending of its player to stand above', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1420
   relay.files[skipEventsUrl('GX2')] = CREDITS
-  const { host } = await torrentOf(PARTS)
+  const { host } = await pluginMediaOf(PARTS)
   bridge.duration = 1420
   await report({ paused: false, time: 600 })
   await settle()
@@ -2309,10 +2309,10 @@ test('Crunchyroll\'s credits time Next episode on a torrent, and are no Skip End
   expect(host.querySelector('.above-skip')).toBeNull()
 })
 
-test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor aniskip', async () => {
+test('a plugin release whose own chapters mark its ending asks neither Crunchyroll nor aniskip', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
   relay.files[skipEventsUrl('GX2')] = { credits: { start: 1320, end: 1390 } }
-  const { host } = await torrentOf([{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }])
+  const { host } = await pluginMediaOf([{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }])
   await report({ paused: false, time: 1290 })
   await settle()
   await report({ paused: false, time: 1291 })
@@ -2323,7 +2323,7 @@ test('a torrent whose own chapters mark its ending asks neither Crunchyroll nor 
 
 test('with no Crunchyroll handle, Crunchyroll is asked nothing and aniskip\'s ending, asked from the browser, brings Next episode', async () => {
   direct.answers[aniskipUrl('5', 2, 1395)] = { found: true, results: [{ interval: { startTime: 1300, endTime: 1390 }, skipType: 'ed', episodeLength: 1395.02 }] }
-  const { host, rerender } = await torrentOf(undefined)
+  const { host, rerender } = await pluginMediaOf(undefined)
   Object.assign((media as { episodes: object[] }).episodes[1]!, { handles: [release('a')] })
   await rerender()
   await report({ paused: false, time: 1290 })
@@ -2335,9 +2335,9 @@ test('with no Crunchyroll handle, Crunchyroll is asked nothing and aniskip\'s en
   expect(nextShown(host)).toBe('E3 - Title 3')
 })
 
-test('a torrent asks for an ending only once it plays, and once', async () => {
+test('a plugin release asks for an ending only once it plays, and once', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
-  await torrentOf(PARTS)
+  await pluginMediaOf(PARTS)
   await report({ paused: true, time: 0 })
   await settle()
   expect([lengths.asked, nonSubtitleUrls(direct.asked)], 'paused').toEqual([[], []])
@@ -2349,9 +2349,9 @@ test('a torrent asks for an ending only once it plays, and once', async () => {
   expect(nonSubtitleUrls(direct.asked), 'aniskip, as Crunchyroll\'s events have no ending').toEqual([aniskipUrl('5', 2, 1395)])
 })
 
-test('a torrent with no next episode to offer asks for no ending', async () => {
+test('a plugin release with no next episode to offer asks for no ending', async () => {
   lengths.byUrl[crunchyrollUrl(2)] = 1394.95
-  await torrentOf(PARTS, { releaseDate: '2099-01-01' })
+  await pluginMediaOf(PARTS, { releaseDate: '2099-01-01' })
   await report({ paused: false, time: 1290 })
   await settle()
   expect([lengths.asked, nonSubtitleUrls(relay.asked), nonSubtitleUrls(direct.asked)]).toEqual([[], [], []])
@@ -2370,7 +2370,7 @@ test('a Crunchyroll embed asks neither Crunchyroll\'s length nor aniskip', async
 })
 
 test('without ending chapters, Next episode appears 30 s before the end on embeds and plugins and counts down only at ended', async () => {
-  for (const source of [undefined, 'nyaa:a'] as const) {
+  for (const source of [undefined, 'extsrc:a'] as const) {
     bridge.duration = 1420
     const { host } = await atTheEnd({}, source)
     await report({ paused: false, time: 1380 })
@@ -2410,30 +2410,30 @@ test('a non-Crunchyroll built-in embed falls back to AniSkip and late chapters o
   expect(nextShown(host), 'shown immediately on chapter arrival even while paused').toBe('E3 - Title 3')
 })
 
-test('a torrent\'s player is asked once, at PREPARE_AT of the episode, to prepare the release Next opens', async () => {
+test('a plugin player is asked once, at PREPARE_AT of the episode, to prepare the release Next opens', async () => {
   bridge.duration = 1000
-  await atTheEnd({}, 'nyaa:a')
+  await atTheEnd({}, 'extsrc:a')
   await report({ paused: false, time: 1000 * PREPARE_AT - 1 })
   expect(pluginPlayers.prepared).toEqual([])
   await report({ paused: false, time: 1000 * PREPARE_AT })
-  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }])
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'extsrc:b', url: 'plugin-stream://b' }])
   await report({ paused: false, time: 900 }, played, ended)
   expect(pluginPlayers.prepared).toHaveLength(1)
 })
 
-test('Next and the episode list open the next file of the torrent playing, which is what is prepared, over the episode\'s first release', async () => {
+test('Next and the episode list open the next episode of the release playing, which is what is prepared, over the episode\'s first release', async () => {
   bridge.duration = 1000
-  const pack = handle('nyaa:a-3', 'nyaa', 'magnet:?xt=urn:btih:a')
-  const { host } = await atTheEnd({ handles: [crunchyroll(3), release('b'), pack] }, 'nyaa:a')
-  expect(episodeLinks(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
-  expect(listRows(host).at(-1)?.[1]).toBe(watchPath(3, 'nyaa:a-3'))
+  const pack = handle('extsrc:a-3', 'extsrc', 'plugin-stream://a')
+  const { host } = await atTheEnd({ handles: [crunchyroll(3), release('b'), pack] }, 'extsrc:a')
+  expect(episodeLinks(host).at(-1)?.[1]).toBe(watchPath(3, 'extsrc:a-3'))
+  expect(listRows(host).at(-1)?.[1]).toBe(watchPath(3, 'extsrc:a-3'))
   await report({ paused: false, time: 900 })
-  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' }])
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'extsrc:a-3', url: 'plugin-stream://a' }])
 })
 
 test('STUB-428: timer triggers prepare at PREPARE_AT without extra reports, pauses/seeks reschedule it, late releases prepare, and failed prepares retry', async () => {
   bridge.duration = 1000
-  const { rerender } = await atTheEnd({}, 'nyaa:a')
+  const { rerender } = await atTheEnd({}, 'extsrc:a')
   await report({ paused: false, time: 0, rate: 1 })
   await wait(1000 * PREPARE_AT * 1000 - 500)
   expect(pluginPlayers.prepared).toEqual([])
@@ -2445,7 +2445,7 @@ test('STUB-428: timer triggers prepare at PREPARE_AT without extra reports, paus
   await wait(9_500)
   expect(pluginPlayers.prepared).toEqual([])
   await wait(500)
-  expect(pluginPlayers.prepared).toEqual([{ uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }])
+  expect(pluginPlayers.prepared).toEqual([{ uri: 'extsrc:b', url: 'plugin-stream://b' }])
   unmount(hosts.pop()!)
 
   // failed prepare (returns false or rejects) allows retry on a subsequent report
@@ -2456,7 +2456,7 @@ test('STUB-428: timer triggers prepare at PREPARE_AT without extra reports, paus
     if (mode === 'reject') throw new Error('busy')
     return true
   }
-  const retryRun = await atTheEnd({ handles: [crunchyroll(3), release('retry-next')] }, 'nyaa:a')
+  const retryRun = await atTheEnd({ handles: [crunchyroll(3), release('retry-next')] }, 'extsrc:a')
   await report({ paused: false, time: 800 })
   await settle()
   expect(pluginPlayers.prepared).toHaveLength(1)
@@ -2471,18 +2471,18 @@ test('STUB-428: timer triggers prepare at PREPARE_AT without extra reports, paus
 
   // late-arriving matching pack release triggers prepare for the updated target
   const { episodes } = media as { episodes: { handles: object[] }[] }
-  episodes[2]!.handles.push(handle('nyaa:a-3', 'nyaa', 'magnet:?xt=urn:btih:a'))
+  episodes[2]!.handles.push(handle('extsrc:a-3', 'extsrc', 'plugin-stream://a'))
   retryRun.rerender()
   await settle()
-  expect(pluginPlayers.prepared.at(-1)).toEqual({ uri: 'nyaa:a-3', url: 'magnet:?xt=urn:btih:a' })
+  expect(pluginPlayers.prepared.at(-1)).toEqual({ uri: 'extsrc:a-3', url: 'plugin-stream://a' })
 })
 
 test('a player that plays on into the next episode brings nothing of the last one\'s countdown with it', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   // one release holding episodes 2 and 3, so its player and link outlive the episode
   media = { uri: SERIES, handles: [], episodes: [row(1, crunchyroll(1)), row(2, release('a')), row(3, release('a')), row(4, release('c'))] }
-  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'extsrc:a' }
   const location = memoryLocation()
   const tree = () => withIntl(<Router hook={location.hook}><Watch/></Router>)
   const host = mount(tree())
@@ -2491,8 +2491,8 @@ test('a player that plays on into the next episode brings nothing of the last on
   await report(played, ended)
   expect(host.querySelector('.up-next.counting')?.getAttribute('title')).toBe('E3 - Title 3')
   await act(() => { host.querySelector<HTMLButtonElement>('.up-next')!.click() })
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:a'))
-  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:a' }
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'extsrc:a'))
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:a' }
   act(() => { render(tree(), host) })
   await settle()
   expect(bridge.links, 'the same player').toHaveLength(1)
@@ -2501,17 +2501,17 @@ test('a player that plays on into the next episode brings nothing of the last on
   expect(navigate).toHaveBeenCalledTimes(1)
 })
 
-test('a torrent\'s player is put on the stage, which keeps its fullscreen', async () => {
-  const { host } = await atTheEnd({}, 'nyaa:a')
+test('a plugin player is put on the stage, which keeps its fullscreen', async () => {
+  const { host } = await atTheEnd({}, 'extsrc:a')
   expect(pluginPlayers.stages).toEqual([host.querySelector('.stage')])
 })
 
 // once it first reports, since Chrome 155 can take a focus given while its frame loads back out of the plugin's document
-test('the next torrent\'s player takes the keys through the plugin once it reports; the page\'s first, and keys on a control of the page by then, stay where they are', async () => {
-  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+test('the next plugin player takes the keys through the plugin once it reports; the page\'s first, and keys on a control of the page by then, stay where they are', async () => {
+  const { host, rerender } = await atTheEnd({}, 'extsrc:a')
   await report(played)
   expect(pluginPlayers.focus[0], 'the page\'s first player').not.toHaveBeenCalled()
-  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:b' }
   rerender()
   await settle()
   expect(pluginPlayers.focus).toHaveLength(2)
@@ -2521,7 +2521,7 @@ test('the next torrent\'s player takes the keys through the plugin once it repor
   await report(played)
   expect(pluginPlayers.focus[1], 'at its first report only').toHaveBeenCalledTimes(1)
 
-  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'extsrc:a' }
   rerender()
   await settle()
   const control = host.querySelector('.episode-step')!
@@ -2536,12 +2536,12 @@ test('the next torrent\'s player takes the keys through the plugin once it repor
 })
 
 // the package's frame stays for the next release, so keys left in it are still on the page's player
-test('keys left on the torrent\'s player go on to the next one', async () => {
-  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+test('keys left on the plugin player go on to the next one', async () => {
+  const { host, rerender } = await atTheEnd({}, 'extsrc:a')
   const frame = host.querySelector('.stage .plugin-player')!
   Object.defineProperty(document, 'activeElement', { configurable: true, get: () => frame })
   try {
-    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+    params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:b' }
     rerender()
     await settle()
     await report(played)
@@ -2552,9 +2552,9 @@ test('keys left on the torrent\'s player go on to the next one', async () => {
   }
 })
 
-test('a torrent after a Crunchyroll episode takes the keys as well', async () => {
+test('a plugin release after a Crunchyroll episode takes the keys as well', async () => {
   const { rerender } = await atTheEnd()
-  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'nyaa:b' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-3)', sourceUri: 'extsrc:b' }
   rerender()
   await settle()
   await report(played)
@@ -2562,20 +2562,20 @@ test('a torrent after a Crunchyroll episode takes the keys as well', async () =>
   expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
 })
 
-test('Cancel hands the keys back to a torrent\'s player through the plugin', async () => {
-  const { host } = await atTheEnd({}, 'nyaa:a')
+test('Cancel hands the keys back to a plugin player through the plugin', async () => {
+  const { host } = await atTheEnd({}, 'extsrc:a')
   await report(played, ended)
   await act(() => { host.querySelector<HTMLButtonElement>('.up-next-cancel')!.click() })
   expect(pluginPlayers.focus[0]).toHaveBeenCalledTimes(1)
 })
 
 test('auto-advancing through Next forces focus onto the next player unless a text input is focused', async () => {
-  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  const { host, rerender } = await atTheEnd({}, 'extsrc:a')
   const { episodes } = media as { episodes: object[] }
   episodes.push(row(4, crunchyroll(4), release('c')))
   await report(played, ended)
   await wait(UP_NEXT_MS)
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'extsrc:b'))
 
   const control = host.querySelector('.episode-step')!
   Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
@@ -2595,7 +2595,7 @@ test('auto-advancing through Next forces focus onto the next player unless a tex
   expect(navigate).toHaveBeenCalledWith(watchPath(4, 'cr:GX4'))
   Object.defineProperty(document, 'activeElement', { configurable: true, get: () => control })
   try {
-    params = { ...params, episodeUri: 'ag:(anilist:1-4)', sourceUri: 'nyaa:c' }
+    params = { ...params, episodeUri: 'ag:(anilist:1-4)', sourceUri: 'extsrc:c' }
     rerender()
     await settle()
     await report(played)
@@ -2627,12 +2627,12 @@ test('auto-advancing through Next forces focus onto the next player unless a tex
 })
 
 test('auto-advancing through Next starts playback once when the next embed or plugin player reports paused', async () => {
-  const { rerender } = await atTheEnd({}, 'nyaa:a')
+  const { rerender } = await atTheEnd({}, 'extsrc:a')
   const { episodes } = media as { episodes: object[] }
   episodes.push(row(4, crunchyroll(4), release('c')))
   await report(played, ended)
   await wait(UP_NEXT_MS)
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'extsrc:b'))
 
   await toTheNext(rerender)
   // stale ended report must not trigger play; paused report on next episode triggers play once
@@ -2732,11 +2732,11 @@ test('Next episode while the last one plays past 85% counts the last one only', 
   expect((saved as { entry: { progress: number } }[]).map(({ entry }) => entry.progress)).toEqual([2])
 })
 
-test('a torrent\'s player is heard as the page\'s own', async () => {
+test('a plugin player is heard as the page\'s own', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   tracking = stubOnly
-  series({}, 'nyaa:a')
+  series({}, 'extsrc:a')
   hosts.push(page())
   await settle()
   expect(bridge.links, 'the control: the plugin handed its player over').toHaveLength(1)
@@ -2940,14 +2940,14 @@ test('an episode counted, then another release of it picked as the media moves t
 const sentSaves = () => (saved as { uri: string, entry: { progress: number } }[]).map(({ uri, entry }) => [uri, entry.progress])
 
 // a guest's page takes the host's address, which can name the same media by more of its sources than its own did
-test('a party guest\'s torrent episode counts once as the page follows the host\'s spelling of the media', async () => {
+test('a party guest\'s plugin episode counts once as the page follows the host\'s spelling of the media', async () => {
   for (const at of [100, 900]) {
     bridge.links = []
     bridge.greets = true
     party = { status: 'active', role: 'guest' } as typeof party
     tracking = stubOnly
     params = { mediaUri: 'ag:(anilist:1)', episodeUri: addressUri }
-    const { rerender } = await atTheEnd({}, 'nyaa:a')
+    const { rerender } = await atTheEnd({}, 'extsrc:a')
     await report({ paused: false, time: at })
     params = { ...params, mediaUri: SERIES }
     rerender()
@@ -2961,7 +2961,7 @@ test('a party guest\'s torrent episode counts once as the page follows the host\
 })
 
 // the guest's address is the show's, whose details are its first season; the host's is the season's own
-test('a party guest\'s torrent episode counts once as the page follows the host to the season its show\'s page was on', async () => {
+test('a party guest\'s plugin episode counts once as the page follows the host to the season its show\'s page was on', async () => {
   const SEASON = 'ag:(tvdb:1-s1)'
   for (const at of [100, 900]) {
     bridge.links = []
@@ -2969,7 +2969,7 @@ test('a party guest\'s torrent episode counts once as the page follows the host 
     party = { status: 'active', role: 'guest' } as typeof party
     tracking = stubOnly
     params = { mediaUri: 'ag:(tvdb:1)', episodeUri: addressUri }
-    const { rerender } = await atTheEnd({}, 'nyaa:a')
+    const { rerender } = await atTheEnd({}, 'extsrc:a')
     media = { ...media, uri: SEASON }
     rerender()
     await settle()
@@ -2985,20 +2985,20 @@ test('a party guest\'s torrent episode counts once as the page follows the host 
   }
 })
 
-test('another release from the torrent\'s package within the episode counts the episode once', async () => {
+test('another release from the same package within the episode counts the episode once', async () => {
   for (const at of [100, 900]) {
     bridge.links = []
     bridge.greets = true
     tracking = stubOnly
-    const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+    const { host, rerender } = await atTheEnd({}, 'extsrc:a')
     const { episodes } = media as { episodes: { handles: object[] }[] }
     episodes[1]!.handles.push(release('a2'))
     await report({ paused: false, time: at })
-    params = { ...params, sourceUri: 'nyaa:a2' }
+    params = { ...params, sourceUri: 'extsrc:a2' }
     rerender()
     await settle()
     expect(bridge.links, 'the control: the release in a player of its own').toHaveLength(2)
-    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: in the same package').toBe('magnet:?xt=urn:btih:a2')
+    expect(host.querySelector('.plugin-player')?.getAttribute('data-url'), 'the control: in the same package').toBe('plugin-stream://a2')
     await report({ paused: false, time: 950 })
     expect(sentSaves(), `moved at ${at}`).toEqual([[SERIES, 2]])
     unmount(hosts.pop()!)
@@ -3364,7 +3364,7 @@ const lastOf = (linked: object, sourceUri: string) => {
 }
 const open = async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   const host = page()
   hosts.push(host)
   await settle()
@@ -3372,23 +3372,23 @@ const open = async () => {
 }
 
 test('the last episode of an anime links the first of its sequel, on the release playing now', async () => {
-  lastOf({ relations: [SEQUEL] }, 'nyaa:b')
+  lastOf({ relations: [SEQUEL] }, 'extsrc:b')
   nextRun('ag:(anilist:2)')
   const host = await open()
   expect(episodeLinks(host)).toEqual([
-    ['Previous episode', watchPath(2, 'nyaa:a'), 'E2 - Title 2'],
-    ['Next episode', `${NEXT_SEASON}/nyaa:d`, 'E1 - Second season'],
+    ['Previous episode', watchPath(2, 'extsrc:a'), 'E2 - Title 2'],
+    ['Next episode', `${NEXT_SEASON}/extsrc:d`, 'E1 - Second season'],
   ])
   expect(asked).toEqual(['ag:(anilist:2)'])
 })
 
 test('the last episode of an anime whose sequel is a film names the film by its title alone', async () => {
   for (const type of ['TV', 'MOVIE']) {
-    lastOf({ relations: [{ ...SEQUEL, format: type }] }, 'nyaa:b')
+    lastOf({ relations: [{ ...SEQUEL, format: type }] }, 'extsrc:b')
     nextRun('ag:(anilist:2)')
     runs['ag:(anilist:2)'] = { ...runs['ag:(anilist:2)'], type, titles: [{ title: 'Mugen Train' }] }
     const host = await open()
-    expect(episodeLinks(host).at(-1), type).toEqual(['Next episode', `${NEXT_SEASON}/nyaa:d`, type === 'MOVIE' ? 'Mugen Train' : 'E1 - Second season'])
+    expect(episodeLinks(host).at(-1), type).toEqual(['Next episode', `${NEXT_SEASON}/extsrc:d`, type === 'MOVIE' ? 'Mugen Train' : 'E1 - Second season'])
     unmount(hosts.pop()!)
   }
 })
@@ -3462,7 +3462,7 @@ test('at the end of a season, the countdown opens the next season\'s first episo
 
 test('a run that has not answered yet is never read from the one asked before it', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   lastOf({ relations: [SEQUEL] }, 'cr:GX3')
   nextRun('ag:(anilist:2)')
   const location = memoryLocation()
@@ -3507,7 +3507,7 @@ test('the episode title holds its place until the episode is known, and an episo
   expect(title().textContent).toMatch(/^E3 - Plan$/)
 })
 
-const nyaaFirst = () => stored.set('stub.sources.play-order', JSON.stringify(['nyaa', 'cr', 'amazon', 'nf']))
+const extSrcFirst = () => stored.set('stub.sources.play-order', JSON.stringify(['extsrc', 'cr', 'amazon', 'nf']))
 const pluginsChange = async (...statuses: object[]) => {
   plugins.statuses = statuses
   await act(async () => { for (const listener of plugins.listeners) listener() })
@@ -3551,51 +3551,51 @@ test('Play\'s pick keeps the second a scene search opened the episode at', async
 
 // the order is a setting on the FKN account, kept in this browser's own key while signed out
 for (const [where, keep] of [
-  ['in this browser', nyaaFirst],
-  ['on the FKN account', () => stored.set('stub.settings.account', JSON.stringify({ 'stub.sources.play-order': '["nyaa","cr","amazon","nf"]' }))],
+  ['in this browser', extSrcFirst],
+  ['on the FKN account', () => stored.set('stub.settings.account', JSON.stringify({ 'stub.sources.play-order': '["extsrc","cr","amazon","nf"]' }))],
 ] as const) {
-  test(`an order kept ${where} with Nyaa first opens its release before Crunchyroll`, async () => {
+  test(`an order kept ${where} with ExtSource first opens its release before Crunchyroll`, async () => {
     vi.useFakeTimers()
-    origins = ['cr', 'nyaa']
+    origins = ['cr', 'extsrc']
     keep()
     hosts.push(page())
     await settle()
-    expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/extsrc:a`, { replace: true })
   })
 }
 
-// live on Frieren, Nyaa lists its releases at 3.9 to 5.6 s and Crunchyroll shows at about 2 s, and the last of them
+// live on Frieren, ExtSource lists its releases at 3.9 to 5.6 s and Crunchyroll shows at about 2 s, and the last of them
 // lands with `settled`; urql keeps the last origins answer until the one for the new origins comes
-test('Nyaa ranked first and answering after Crunchyroll, with settled in the same answer, opens the release and never Crunchyroll', async () => {
+test('ExtSource ranked first and answering after Crunchyroll, with settled in the same answer, opens the release and never Crunchyroll', async () => {
   vi.useFakeTimers()
   origins = ['cr']
-  nyaaFirst()
+  extSrcFirst()
   params = { ...params, episodeUri: 'ag:(anilist:1-1)' }
   Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1)', handles: [allHandles[0]] })
   media = { ...single, settled: false }
   const { rerender } = live()
   await settle()
-  expect(navigate, 'Crunchyroll waits for Nyaa, ranked above it').not.toHaveBeenCalled()
+  expect(navigate, 'Crunchyroll waits for ExtSource, ranked above it').not.toHaveBeenCalled()
 
-  Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1,nyaa:a)', handles: [allHandles[0], allHandles[2]] })
+  Object.assign(episode, { uri: 'ag:(anilist:1-1,cr:GX1,extsrc:a)', handles: [allHandles[0], allHandles[2]] })
   media = { ...single, settled: true }
   await rerender()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/extsrc:a`, { replace: true })
 })
 
 // a source that connects once the others have answered joins the worker's fan-out, but the worker answers again
 // only once that source does
 test('a ranked source connecting after a settled answer is waited for until an answer heard after it connected', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
-  nyaaFirst()
+  origins = ['cr', 'extsrc']
+  plugins.statuses = [{ uri: EXT_SRC_PACKAGE, state: 'connecting' }]
+  extSrcFirst()
   Object.assign(episode, { handles: [allHandles[0]] })
   const { rerender } = live()
   await settle()
   expect(navigate, 'its package still connecting').not.toHaveBeenCalled()
 
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   expect(navigate, 'the answer on screen was settled before it was asked').not.toHaveBeenCalled()
 
   media = { ...single }
@@ -3624,16 +3624,16 @@ test("a source connecting after a settled answer is asked its check once an answ
 test('a ranked added source turned off does not hold Play, connecting or connected', async () => {
   vi.useFakeTimers()
   origins = ['cr']
-  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
-  nyaaFirst()
-  stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+  plugins.statuses = [{ uri: EXT_SRC_PACKAGE, state: 'connecting' }]
+  extSrcFirst()
+  stored.set('stub.sources.disabled', JSON.stringify(['extsrc']))
   Object.assign(episode, { handles: [allHandles[0]] })
   live()
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 
   navigate.mockClear()
-  plugins.statuses = [connectedNyaa]
+  plugins.statuses = [connectedExtSrc]
   media = { ...single, settled: false }
   live()
   await settle()
@@ -3643,14 +3643,14 @@ test('a ranked added source turned off does not hold Play, connecting or connect
 // a source turned off keeps the handles it gave until a reload
 test('a release from an added source turned off is never opened, alone or ranked first', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+  origins = ['cr', 'extsrc']
+  stored.set('stub.sources.disabled', JSON.stringify(['extsrc']))
   Object.assign(episode, { handles: [allHandles[2]] })
   live()
   await settle()
   expect(navigate, 'its release alone').not.toHaveBeenCalled()
 
-  nyaaFirst()
+  extSrcFirst()
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
   live()
   await settle()
@@ -3660,14 +3660,14 @@ test('a release from an added source turned off is never opened, alone or ranked
 test('a ranked source whose package fails to connect does not hold Play', async () => {
   vi.useFakeTimers()
   origins = ['cr']
-  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
-  nyaaFirst()
+  plugins.statuses = [{ uri: EXT_SRC_PACKAGE, state: 'connecting' }]
+  extSrcFirst()
   Object.assign(episode, { handles: [allHandles[0]] })
   live()
   await settle()
   expect(navigate).not.toHaveBeenCalled()
 
-  await pluginsChange({ uri: NYAA_PACKAGE, state: 'error' })
+  await pluginsChange({ uri: EXT_SRC_PACKAGE, state: 'error' })
   expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/cr:GX1`, { replace: true })
 })
 
@@ -3675,8 +3675,8 @@ test('a ranked source whose package fails to connect does not hold Play', async 
 test('outside Japan on the cloud, Prime Video ranked above a release holds it until every source answered', async () => {
   vi.useFakeTimers()
   vi.stubEnv('TZ', 'America/Toronto')
-  origins = ['nyaa']
-  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'nyaa']))
+  origins = ['extsrc']
+  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'extsrc']))
   Object.assign(episode, { handles: [allHandles[2]] })
   media = { ...single, settled: false }
   const { rerender } = live()
@@ -3685,24 +3685,24 @@ test('outside Japan on the cloud, Prime Video ranked above a release holds it un
 
   media = { ...single }
   await rerender()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/extsrc:a`, { replace: true })
 })
 
 test('a settled answer heard while the lookup of the added sources is out does not open a source ranked below them', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  nyaaFirst()
+  origins = ['cr', 'extsrc']
+  extSrcFirst()
   let answer = () => {}
   lookups.held = new Promise<void>(resolve => { answer = resolve })
   const { rerender } = live()
   await settle()
   media = { ...single }
   await rerender()
-  expect(navigate, 'the lookup has not said Nyaa plays its releases').not.toHaveBeenCalled()
+  expect(navigate, 'the lookup has not said ExtSource plays its releases').not.toHaveBeenCalled()
 
   answer()
   await settle()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/nyaa:a`, { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(`/watch/${params.mediaUri}/${params.episodeUri}/extsrc:a`, { replace: true })
 })
 
 test('a plugin lookup that fails does not hold a pick ranked below a player that could still answer', async () => {
@@ -3755,20 +3755,20 @@ test('a turned-off Crunchyroll ranked first that has the episode is skipped for 
 
 test('a ranked package that drops and reconnects is waited for until an answer heard after it reconnected', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
-  nyaaFirst()
+  origins = ['cr', 'extsrc']
+  extSrcFirst()
   Object.assign(episode, { handles: [allHandles[0]] })
   media = { ...single, settled: false }
   const { rerender } = live()
   await settle()
-  expect(navigate, 'Nyaa has not answered').not.toHaveBeenCalled()
+  expect(navigate, 'ExtSource has not answered').not.toHaveBeenCalled()
 
-  await pluginsChange({ uri: NYAA_PACKAGE, state: 'connecting' })
+  await pluginsChange({ uri: EXT_SRC_PACKAGE, state: 'connecting' })
   media = { ...single }
   await rerender()
   expect(navigate, 'its package is connecting again').not.toHaveBeenCalled()
 
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   expect(navigate, 'the answer on screen is from before it reconnected').not.toHaveBeenCalled()
 
   media = { ...single }
@@ -3785,7 +3785,7 @@ const watching = (sourceUri: string) => `/watch/${params.mediaUri}/${params.epis
 // the owner, 2026-10-19: "Only if their sources aren't available should it go to the next best ranked source available."
 test('Play\'s pick that cannot play the episode here moves to the next ranked source that has it, replacing the address', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   const { host, rerender } = live()
   await settle()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(watching('cr:GX1'), { replace: true })
@@ -3800,7 +3800,7 @@ test('Play\'s pick that cannot play the episode here moves to the next ranked so
 
 test('a source picked by hand that cannot play the episode keeps its message', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   params = { ...params, sourceUri: 'cr:GX1' }
   const { host } = live()
   await settle()
@@ -3834,7 +3834,7 @@ test('when every source Play could open cannot play the episode, the last one ke
 // a reason the viewer can fix keeps their favourite: here the extension, which this browser can add
 test('Play\'s pick that needs the extension this browser can add shows the install button, and Play stays on it', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
   const { host, rerender } = live()
   await settle()
@@ -3850,7 +3850,7 @@ test('Play\'s pick that needs the extension this browser can add shows the insta
 test('where the browser cannot add the extension, Play\'s Netflix pick moves to the next source, and a hand pick still offers it', async () => {
   vi.useFakeTimers()
   detecting.addable = false
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   stored.set('stub.sources.play-order', JSON.stringify(['nf', 'cr', 'amazon']))
   const { rerender } = live()
   await settle()
@@ -3872,8 +3872,8 @@ test('where the browser cannot add the extension, Play\'s Netflix pick moves to 
 test('outside Japan where the browser cannot add the extension, Play\'s Prime Video pick moves to the release', async () => {
   vi.useFakeTimers()
   detecting.addable = false
-  origins = ['amazon', 'nyaa']
-  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'nyaa']))
+  origins = ['amazon', 'extsrc']
+  stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'extsrc']))
   canadianEpisode()
   Object.assign(episode, { handles: [...episode.handles, allHandles[2]] })
   const { rerender } = live()
@@ -3882,7 +3882,7 @@ test('outside Japan where the browser cannot add the extension, Play\'s Prime Vi
 
   params = { ...params, sourceUri: CANADA }
   await rerender()
-  expect(navigate).toHaveBeenLastCalledWith(watching('nyaa:a'), { replace: true })
+  expect(navigate).toHaveBeenLastCalledWith(watching('extsrc:a'), { replace: true })
 })
 
 test('where the browser cannot add the extension and nothing else plays the episode, the page offers Browse sources rather than Netflix', async () => {
@@ -3988,7 +3988,7 @@ test('where the browser cannot add the extension but has it, Netflix ranked firs
 // this harness answers on the first render, so an added source connected at load has answered only once `media` is new
 const crAndRelease = () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nf', 'nyaa']
+  origins = ['cr', 'nf', 'extsrc']
   statuses = {}
   before.clear()
   Object.assign(episode, { handles: [allHandles[0], allHandles[2]] })
@@ -3997,8 +3997,8 @@ const crAndRelease = () => {
 test('a Crunchyroll ranked first that the viewer never signed in to here gives way to the release, on the cloud and with the extension, and one they did opens', async () => {
   for (const each of ['cloud', 'extension']) {
     for (const [viewer, to] of [
-      ['nothing known', 'nyaa:a'],
-      ['signed out', 'nyaa:a'],
+      ['nothing known', 'extsrc:a'],
+      ['signed out', 'extsrc:a'],
       ['signed out since a sign in', 'cr:GX1'],
       ['signed in', 'cr:GX1'],
     ] as const) {
@@ -4019,7 +4019,7 @@ test('a Crunchyroll ranked first that the viewer never signed in to here gives w
 // the owner, 2026-10-26, on whether a sign out made in stub's Settings forgets that the viewer signed in before: "I guess so."
 test('after a sign out in Settings, Play gives way to the release as for a viewer never signed in, and after a session that expired it opens Crunchyroll to sign in again', async () => {
   for (const [signedOut, to] of [
-    ['in Settings', 'nyaa:a'],
+    ['in Settings', 'extsrc:a'],
     ['as the session expired', 'cr:GX1'],
   ] as const) {
     crAndRelease()
@@ -4049,7 +4049,7 @@ test('on the cloud, Netflix ranked between them, which needs the extension, neve
   Object.assign(episode, { handles: allHandles })
   const { rerender } = live()
   await settle()
-  expect(await followPicks(rerender)).toEqual(['nyaa:a'])
+  expect(await followPicks(rerender)).toEqual(['extsrc:a'])
 })
 
 // the review of 2026-10-26: stub never learns whether the viewer is signed in to Netflix, nor to Prime Video before its player says
@@ -4058,11 +4058,11 @@ test('with the extension, a Netflix or Prime Video not known to be signed in nev
   for (const [others, picks] of [
     [[allHandles[1]!], ['cr:GX1']],
     [[prime], ['cr:GX1']],
-    [[allHandles[1]!, prime, allHandles[2]!], ['nyaa:a']],
+    [[allHandles[1]!, prime, allHandles[2]!], ['extsrc:a']],
   ] as const) {
     crAndRelease()
     backend = 'extension'
-    origins = ['cr', 'nf', 'amazon', 'nyaa']
+    origins = ['cr', 'nf', 'amazon', 'extsrc']
     Object.assign(episode, { handles: [allHandles[0], ...others] })
     const { rerender } = live()
     await settle()
@@ -4079,7 +4079,7 @@ test('a Crunchyroll never signed in to gives way to a Prime Video the viewer was
   for (const each of ['cloud', 'extension']) {
     crAndRelease()
     backend = each
-    origins = ['cr', 'amazon', 'nyaa']
+    origins = ['cr', 'amazon', 'extsrc']
     statuses.prime = 'signed-in'
     Object.assign(episode, { handles: [allHandles[0], handle(PRIME, 'amazon', PRIME_LINK), allHandles[2]] })
     hosts.push(page())
@@ -4093,19 +4093,19 @@ test('a Crunchyroll never signed in to gives way to a Prime Video the viewer was
 test('outside Japan on the cloud, a Prime Video the viewer was found signed in to needs the extension, so the release opens instead', async () => {
   crAndRelease()
   vi.stubEnv('TZ', 'America/Toronto')
-  origins = ['cr', 'amazon', 'nyaa']
+  origins = ['cr', 'amazon', 'extsrc']
   statuses.prime = 'signed-in'
   Object.assign(episode, { handles: [allHandles[0], handle(CANADA, 'amazon', CANADA_LINK), allHandles[2]] })
   const { rerender } = live()
   await settle()
-  expect(await followPicks(rerender)).toEqual(['nyaa:a'])
+  expect(await followPicks(rerender)).toEqual(['extsrc:a'])
 })
 
 // HOR-758, the owner, 2026-10-19: the favourite is fixed, not skipped, where the fix is not a sign in
 test('outside Japan on the cloud, a Prime Video ranked first that the viewer never signed in to still opens, for the page to ask for the extension', async () => {
   crAndRelease()
   vi.stubEnv('TZ', 'America/Toronto')
-  origins = ['amazon', 'nyaa']
+  origins = ['amazon', 'extsrc']
   stored.set('stub.sources.play-order', JSON.stringify(['amazon', 'cr', 'nf']))
   Object.assign(episode, { handles: [handle(CANADA, 'amazon', CANADA_LINK), allHandles[2]] })
   hosts.push(page())
@@ -4146,7 +4146,7 @@ test('Play\'s own pick of a Crunchyroll signed in to before gives way to the rel
   await rerender()
   await act(async () => { await wiring.crunchyroll.signOut() })
   await settle()
-  expect(navigate.mock.calls.map(([to]) => to)).toEqual([toWatch('cr:GX1'), toWatch('nyaa:a')])
+  expect(navigate.mock.calls.map(([to]) => to)).toEqual([toWatch('cr:GX1'), toWatch('extsrc:a')])
 })
 
 // the step 1 report of 2026-10-26: Crunchyroll showed until the added source answered, then the release
@@ -4163,7 +4163,7 @@ test('for a viewer never signed in to Crunchyroll, Play opens nothing while the 
 
     answer()
     await settle()
-    expect(await followPicks(rerender), each).toEqual(['nyaa:a'])
+    expect(await followPicks(rerender), each).toEqual(['extsrc:a'])
     navigate.mockClear()
     params = { ...params, sourceUri: undefined }
     while (hosts.length) unmount(hosts.pop()!)
@@ -4173,13 +4173,13 @@ test('for a viewer never signed in to Crunchyroll, Play opens nothing while the 
 test('with the extension, a Crunchyroll never signed in to opens once the added source answered nothing, and the page never asks', async () => {
   crAndRelease()
   backend = 'extension'
-  plugins.statuses = [{ uri: NYAA_PACKAGE, state: 'connecting' }]
+  plugins.statuses = [{ uri: EXT_SRC_PACKAGE, state: 'connecting' }]
   Object.assign(episode, { handles: [allHandles[0]] })
   const { host, rerender } = live()
   await settle()
   expect(navigate, 'connecting').not.toHaveBeenCalled()
 
-  await pluginsChange(connectedNyaa)
+  await pluginsChange(connectedExtSrc)
   media = { ...single }
   await rerender()
   expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('cr:GX1'), { replace: true })
@@ -4188,11 +4188,11 @@ test('with the extension, a Crunchyroll never signed in to opens once the added 
 
 // a source turned off is never asked, so its answer never comes
 test('with the extension, a Crunchyroll never signed in to opens before the sources answer with no source added, one that failed to connect, or one turned off', async () => {
-  for (const [added, off] of [[[], false], [[{ uri: NYAA_PACKAGE, state: 'error' }], false], [[connectedNyaa], true]] as const) {
+  for (const [added, off] of [[[], false], [[{ uri: EXT_SRC_PACKAGE, state: 'error' }], false], [[connectedExtSrc], true]] as const) {
     crAndRelease()
     backend = 'extension'
     plugins.statuses = [...added]
-    if (off) stored.set('stub.sources.disabled', JSON.stringify(['nyaa']))
+    if (off) stored.set('stub.sources.disabled', JSON.stringify(['extsrc']))
     media = { ...single, settled: false }
     Object.assign(episode, { handles: [allHandles[0]] })
     live()
@@ -4204,7 +4204,7 @@ test('with the extension, a Crunchyroll never signed in to opens before the sour
 })
 
 test('Play\'s Crunchyroll never signed in to gives way to a release heard after it opened, and one signed in to before stays', async () => {
-  for (const [viewer, picks] of [['never signed in', ['cr:GX1', 'nyaa:a']], ['signed in before', ['cr:GX1']]] as const) {
+  for (const [viewer, picks] of [['never signed in', ['cr:GX1', 'extsrc:a']], ['signed in before', ['cr:GX1']]] as const) {
     crAndRelease()
     backend = 'extension'
     if (viewer === 'signed in before') signedOutAgain('crunchyroll')
@@ -4238,16 +4238,16 @@ test('a Crunchyroll the viewer opened by hand stays when its player finds them s
 })
 
 // HOR-1033, the owner, 2026-10-26, on whether an added source can say its releases need an account: "Yes, it should be
-// able to." The source here is ranked first, its release plays in its own player, and Nyaa's release needs nothing.
+// able to." The source here is ranked first, its release plays in its own player, and ExtSource's release needs nothing.
 const PAID_PACKAGE = 'https:paid.spec.test'
-const paidRelease = handle('paid:a', 'paid', 'magnet:?xt=urn:btih:p')
+const paidRelease = handle('paid:a', 'paid', 'plugin-stream://p')
 const connectedPaid = (access?: string) => ({ uri: PAID_PACKAGE, state: 'connected', sources: [{ origin: 'paid', name: 'paid', ...access ? { access } : {} }] })
 const paidFirst = (access?: string, account?: () => Promise<unknown>) => {
   vi.useFakeTimers()
-  origins = ['cr', 'paid', 'nyaa']
-  plugins.statuses = [connectedPaid(access), connectedNyaa]
+  origins = ['cr', 'paid', 'extsrc']
+  plugins.statuses = [connectedPaid(access), connectedExtSrc]
   if (account) lookups.account.paid = account
-  stored.set('stub.sources.play-order', JSON.stringify(['paid', 'nyaa', 'cr', 'amazon', 'nf']))
+  stored.set('stub.sources.play-order', JSON.stringify(['paid', 'extsrc', 'cr', 'amazon', 'nf']))
   Object.assign(episode, { handles: [paidRelease, allHandles[2]] })
 }
 // the page once the worker has answered again since the added sources connected, as it does in the app
@@ -4268,11 +4268,11 @@ const again = () => {
 test('an added source that needs an account gives way to a release that needs none, unless it says the viewer is signed in', async () => {
   for (const [access, answer, to] of [
     ['account', 'signed-in', 'paid:a'],
-    ['account', 'signed-out', 'nyaa:a'],
+    ['account', 'signed-out', 'extsrc:a'],
     ['paid', 'signed-in', 'paid:a'],
-    ['paid', 'no-plan', 'nyaa:a'],
-    ['paid', 'an answer of no known value', 'nyaa:a'],
-    ['account', 'no account to ask', 'nyaa:a'],
+    ['paid', 'no-plan', 'extsrc:a'],
+    ['paid', 'an answer of no known value', 'extsrc:a'],
+    ['account', 'no account to ask', 'extsrc:a'],
   ] as const) {
     paidFirst(access, answer === 'no account to ask' ? undefined : async () => answer)
     await answered()
@@ -4295,13 +4295,13 @@ test('an added source that needs no account is never asked and opens first as be
 
 test('a Crunchyroll never signed in to gives way to an added source that needs an account only while it says the viewer is signed in', async () => {
   for (const [access, answer, to] of [
-    ['account', 'signed-out', 'nyaa:a'],
+    ['account', 'signed-out', 'extsrc:a'],
     ['account', 'signed-in', 'paid:a'],
     [undefined, 'signed-out', 'paid:a'],
   ] as const) {
     paidFirst(access, async () => answer)
     statuses = {}
-    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'nyaa', 'amazon', 'nf']))
+    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'extsrc', 'amazon', 'nf']))
     Object.assign(episode, { handles: [allHandles[0], paidRelease, allHandles[2]] })
     await answered()
     expect(navigate, `${access}, ${answer}`).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
@@ -4314,7 +4314,7 @@ test('a Crunchyroll never signed in to gives way to an added source that needs a
 // his account, otherwise we wait for the free source"
 test('an added source that said in this page the viewer was signed in opens though they are signed out since, for its player to ask them to sign in again; with no plan since, it gives way', async () => {
   paidFirst('paid', async () => 'signed-in')
-  for (const [answer, to] of [['signed-in', 'paid:a'], ['signed-out', 'paid:a'], ['no-plan', 'nyaa:a']] as const) {
+  for (const [answer, to] of [['signed-in', 'paid:a'], ['signed-out', 'paid:a'], ['no-plan', 'extsrc:a']] as const) {
     lookups.account.paid = async () => answer
     await answered()
     expect(navigate, answer).toHaveBeenCalledExactlyOnceWith(toWatch(to), { replace: true })
@@ -4337,7 +4337,7 @@ test('the account is asked again on every episode', async () => {
 
 // an ask that never settles counts as no answer once the worker's wait is out, and the source then counts as never signed in
 test('an added source whose account never answers lists its release at once and holds Play for ACCOUNT_WAIT_MS at most, then gives way, and with nothing to give way to opens', async () => {
-  for (const [added, to] of [[[connectedPaid('account'), connectedNyaa], 'nyaa:a'], [[connectedPaid('account')], 'paid:a']] as const) {
+  for (const [added, to] of [[[connectedPaid('account'), connectedExtSrc], 'extsrc:a'], [[connectedPaid('account')], 'paid:a']] as const) {
     paidFirst('account', () => new Promise(() => {}))
     plugins.statuses = [...added]
     const { host } = await answered()
@@ -4361,7 +4361,7 @@ const nextEpisode = () => {
 test('on the next episode, Play opens nothing ranked below the source until its new answer, and not on the last one', async () => {
   paidFirst('account', async () => 'signed-out')
   const { rerender } = await answered()
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(toWatch('extsrc:a'), { replace: true })
   let answer = (_: string) => {}
   lookups.account.paid = () => new Promise(resolve => { answer = resolve })
   nextEpisode()
@@ -4381,7 +4381,7 @@ test('no answer on the next episode is not signed in, though the source said so 
   ] as const) {
     paidFirst('account', async () => 'signed-in')
     statuses = {}
-    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'nyaa', 'amazon', 'nf']))
+    stored.set('stub.sources.play-order', JSON.stringify(['cr', 'paid', 'extsrc', 'amazon', 'nf']))
     params = { ...params, episodeUri: addressUri }
     Object.assign(episode, { uri: allUri, handles: [allHandles[0], paidRelease, allHandles[2]] })
     const { rerender } = await answered()
@@ -4391,7 +4391,7 @@ test('no answer on the next episode is not signed in, though the source said so 
     await rerender()
     await act(async () => { await vi.advanceTimersByTimeAsync(ACCOUNT_WAIT_MS) })
     await settle()
-    expect(navigate, why).toHaveBeenCalledExactlyOnceWith(toWatch('nyaa:a'), { replace: true })
+    expect(navigate, why).toHaveBeenCalledExactlyOnceWith(toWatch('extsrc:a'), { replace: true })
     again()
     lookups.down = false
     said.reset()
@@ -4403,9 +4403,9 @@ const sourceOrder = (host: HTMLElement) => [...host.querySelectorAll('.watch .li
 
 test('orders the watch page sources list by playback preference and keeps unranked sources in order after ranked ones', async () => {
   vi.useFakeTimers()
-  origins = ['tubi', 'hulu', 'nyaa', 'nf', 'cr']
+  origins = ['tubi', 'hulu', 'extsrc', 'nf', 'cr']
   Object.assign(episode, {
-    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a,hulu:1,tubi:1)',
+    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,extsrc:a,hulu:1,tubi:1)',
     handles: [
       handle('tubi:1', 'tubi', 'https://tubitv.com/tv-shows/1'),
       handle('hulu:1', 'hulu', 'https://www.hulu.com/watch/1'),
@@ -4415,26 +4415,26 @@ test('orders the watch page sources list by playback preference and keeps unrank
   const host = page()
   hosts.push(host)
   await settle()
-  expect(sourceOrder(host), 'default playback order places Crunchyroll, Netflix, Nyaa, then unranked in arrival order')
-    .toEqual(['cr', 'nf', 'nyaa', 'tubi', 'hulu'])
+  expect(sourceOrder(host), 'default playback order places Crunchyroll, Netflix, ExtSource, then unranked in arrival order')
+    .toEqual(['cr', 'nf', 'extsrc', 'tubi', 'hulu'])
 })
 
 test('orders the watch page sources list by a saved custom play order and reorders when it changes', async () => {
   vi.useFakeTimers()
-  origins = ['hulu', 'cr', 'nf', 'nyaa']
-  stored.set(PLAY_ORDER_KEY, JSON.stringify(['nyaa', 'nf', 'cr']))
+  origins = ['hulu', 'cr', 'nf', 'extsrc']
+  stored.set(PLAY_ORDER_KEY, JSON.stringify(['extsrc', 'nf', 'cr']))
   Object.assign(episode, {
-    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,nyaa:a,hulu:1)',
+    uri: 'ag:(anilist:1-1,cr:GX1,nf:81,extsrc:a,hulu:1)',
     handles: [handle('hulu:1', 'hulu', 'https://www.hulu.com/watch/1'), ...allHandles],
   })
   const host = page()
   hosts.push(host)
   await settle()
-  expect(sourceOrder(host)).toEqual(['nyaa', 'nf', 'cr', 'hulu'])
+  expect(sourceOrder(host)).toEqual(['extsrc', 'nf', 'cr', 'hulu'])
 
-  await act(async () => { writePlayOrder(['nf', 'cr', 'nyaa']) })
+  await act(async () => { writePlayOrder(['nf', 'cr', 'extsrc']) })
   await settle()
-  expect(sourceOrder(host)).toEqual(['nf', 'cr', 'nyaa', 'hulu'])
+  expect(sourceOrder(host)).toEqual(['nf', 'cr', 'extsrc', 'hulu'])
 })
 
 test('opening Watch on a bare show container redirects to its first season while preserving episode, source, and search', async () => {
@@ -4463,13 +4463,13 @@ test('opening Watch on a bare show container redirects to its first season while
 })
 
 test('STUB-436: previous/next episode controls move into the player bar for embeds and plugins, omit missing ends and guests, and carry autoplay across navigation', async () => {
-  const { host, rerender } = await atTheEnd({}, 'nyaa:a')
+  const { host, rerender } = await atTheEnd({}, 'extsrc:a')
   expect(host.querySelectorAll('.player-episode-step')).toEqual([])
   expect(pluginPlayers.episodeNav).toMatchObject({ previous: 'E1 - Title 1', next: 'E3 - Title 3' })
 
   // Plugin onStep triggers navigation and carries autoplay onto the next episode
   await act(() => { pluginPlayers.episodeNav!.onStep('next') })
-  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'nyaa:b'))
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(watchPath(3, 'extsrc:b'))
   await toTheNext(rerender)
   await report({ paused: true, time: 0 })
   expect(bridge.links.at(-1)!.play).toHaveBeenCalledTimes(1)
@@ -4495,7 +4495,7 @@ test('STUB-436: previous/next episode controls move into the player bar for embe
   await settle()
   expect(episodeNavs.served.at(-1)?.[1]).toEqual({ previous: false, next: false })
 
-  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'nyaa:a' }
+  params = { ...params, episodeUri: 'ag:(anilist:1-2)', sourceUri: 'extsrc:a' }
   rerender()
   await settle()
   expect(pluginPlayers.episodeNav).toBeUndefined()
@@ -4503,7 +4503,7 @@ test('STUB-436: previous/next episode controls move into the player bar for embe
 
 test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay for both built-in embeds and plugin playback, and decodes selected tracks lazily', async () => {
   vi.useFakeTimers()
-  origins = ['cr', 'nyaa']
+  origins = ['cr', 'extsrc']
   series({}, 'cr:GX2')
   direct.answers['https://api.ani.zip/mappings?anilist_id=1&specials=1'] = {
     mappings: { imdb_id: 'tt1234567' },
@@ -4546,7 +4546,7 @@ test('STUB-439: fetches OpenSubtitles directly and Xunlei via relay for both bui
 
   relay.asked = []
   direct.asked = []
-  params = { ...params, sourceUri: 'nyaa:a' }
+  params = { ...params, sourceUri: 'extsrc:a' }
   act(() => { render(tree(), host) })
   await settle()
 

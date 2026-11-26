@@ -55,8 +55,8 @@ const PartyPlayback = ({ link, tracks }: { link: PlaybackLink | undefined, track
   const holdUntil = useRef(0)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const settleUntil = useRef(0)
-  // a correction seek is the player's until it lands, however long that takes: a torrent player seeking
-  // into a range it has not buffered can take longer than SETTLE_MS
+  // a correction seek is the player's until it lands, however long that takes: a buffered or streamed source
+  // seeking into an uncached range can take longer than SETTLE_MS
   const seekingTo = useRef<number | undefined>(undefined)
   const throttled = useRef(new Map<PlayerControl, { sentAt: number, next?: PlayerAsk, timer?: ReturnType<typeof setTimeout> }>())
   // the host's last playback sent, which the party follows while the host's own player is busy

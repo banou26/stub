@@ -6,6 +6,7 @@ export const SHORT_PATH = '/s/'
 
 // APPEND ONLY, all four. A code names a row by its index, so a row moved or removed reads every link already shared as
 // another address; tests/unit/utils/share-link.test.ts pins what each row reads as.
+// Slot 8 is frozen strictly for wire backwards-compatibility with previously generated share links.
 const ROUTES = ['title', 'media', 'watch']
 const ORIGINS = [
   '', 'anilist', 'anizip', 'cr', 'jw', 'kitsu', 'mal', 'nf', 'nyaa', 'offline', 'simkl', 'amazon', 'disney', 'tvmaze',

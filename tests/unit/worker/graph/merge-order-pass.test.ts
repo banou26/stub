@@ -58,7 +58,7 @@ test('a new order re-merges in a pass that wakes the cluster\'s readers, and the
   expect([after.id, after.facts], 'the clustering and the length vote stay').toEqual([before.id, before.facts])
   expect(schedulerStats().passes).toBe(passes + 1)
 
-  await setMergeOrder(['anilist', 'nyaa'])
+  await setMergeOrder(['anilist', 'extsrc'])
   expect(schedulerStats().passes, 'the order followed is the same').toBe(passes + 1)
 
   await setMergeOrder([])

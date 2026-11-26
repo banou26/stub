@@ -97,6 +97,8 @@ export class Store {
   private undo: Undo[] | undefined
   /** Containers an undo put something back into, which have to be re-ordered afterwards. */
   private restored: Set<Map<Value, NodeRecord> | Set<EdgeRecord>> | undefined
+  /** Tables mutated inside the active top-level transaction; discarded on rollback. */
+  private written: Set<string> | undefined
 
   /** Every table, in declaration order, for `CALL show_tables()`. */
   all (): readonly Table[] { return [...this.tables.values()] }
@@ -152,17 +154,28 @@ export class Store {
    * and the app is built on that; this is how that property is kept.
    */
   transact<T> (work: () => T): T {
-    if (this.undo) return work()
+    return this.transactWithTables(work).result
+  }
+
+  /** Like `transact`, and also returns the table names mutated when the transaction commits cleanly. */
+  transactWithTables<T> (work: () => T): { result: T, written: Set<string> } {
+    if (this.undo) {
+      return { result: work(), written: this.written ?? new Set() }
+    }
     const log: Undo[] = []
+    const tables = new Set<string>()
     this.undo = log
     this.restored = new Set()
+    this.written = tables
     try {
-      const out = work()
+      const result = work()
       this.undo = undefined
       this.restored = undefined
-      return out
+      this.written = undefined
+      return { result, written: tables }
     } catch (error) {
       this.undo = undefined
+      this.written = undefined
       const containers = this.restored ?? new Set()
       // `restored` STAYS SET while the undos run, because they are what report which containers they
       // put something back into. Clearing it first makes every `resort` call a silent no-op, and the
@@ -201,6 +214,7 @@ export class Store {
       out: new Map(), in: new Map(),
     }
     table.rows.set(key, node)
+    this.written?.add(table.name)
     this.record(() => { table.rows.delete(key) })
     return node
   }
@@ -221,6 +235,7 @@ export class Store {
       bucket.add(edge)
       table.byKey.set(key, bucket)
     }
+    this.written?.add(table.name)
     this.record(() => {
       table.edges.delete(edge)
       // the CONTAINER goes too when it empties, not just the entry. A node that never kept an edge
@@ -242,6 +257,7 @@ export class Store {
     const had = Object.prototype.hasOwnProperty.call(target.props, name)
     const previous = target.props[name]
     target.props[name] = value
+    this.written?.add(target.table.name)
     this.record(() => {
       if (had) target.props[name] = previous as Value
       else delete target.props[name]
@@ -257,6 +273,7 @@ export class Store {
     to.in.get(table)?.delete(edge)
     const key = table.byKey ? edge.props.key ?? null : undefined
     if (table.byKey && key !== undefined) table.byKey.get(key)?.delete(edge)
+    this.written?.add(table.name)
     this.record(() => {
       edge.deleted = false
       table.edges.add(edge)
@@ -287,6 +304,7 @@ export class Store {
     const { key } = node
     node.deleted = true
     node.table.rows.delete(key)
+    this.written?.add(node.table.name)
     this.record(() => {
       node.deleted = false
       node.table.rows.set(key, node)

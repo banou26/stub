@@ -740,7 +740,7 @@ test('the Function runs on title, media and watch addresses and short links alon
 })
 
 test('a crawler on a short link gets its address\'s card, kept under the same key, with the short link as its url', async () => {
-  const watch = '/watch/ag:(anilist:195604,mal:61967)/ag:(anizip:19444-1)/nyaa:2166874?plugins=https:stub.plugins.banou.dev'
+  const watch = '/watch/ag:(anilist:195604,mal:61967)/ag:(anizip:19444-1)/extsrc:2166874?plugins=https:stub.plugins.banou.dev'
   const address = `https://anime.fkn.app${SHORT_PATH}${shortenPath(watch)}`
   const { html, kept: done } = await call(address)
   await done

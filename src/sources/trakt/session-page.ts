@@ -29,8 +29,8 @@ export type TraktSessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeI
  * `retryAfter` in seconds, `pageCount` from `X-Pagination-Page-Count`.
  *
  * `signed-out`: the session holds no token, so nothing was asked. `no-session`: `/__data.json` answered
- * with no session data stub could read, so nothing was asked either. `challenge`: `/__data.json` hit an
- * anti-bot browser check (Cloudflare 403/503 challenge) with no cached or OIDC session token to fall back to.
+ * with no session data stub could read, so nothing was asked either. `challenge`: `/__data.json` hit a
+ * browser verification challenge (Cloudflare 403/503 challenge) with no cached or OIDC session token to fall back to.
  */
 export type TraktPageAnswer<T = unknown> =
   | { kind: 'answer', status: number, body: T | null, retryAfter: number | null, pageCount: number | null }
@@ -46,6 +46,8 @@ export type TraktPageApi = {
   get: (arg: { path: string }) => Promise<TraktPageAnswer>
   /** A POST write to Trakt's API with the session's token. Sent once; never retried on error or 401. */
   post: (arg: { path: string, body: unknown }) => Promise<TraktPageAnswer>
+  /** Drops held in-memory and fallback cached tokens when the viewer signs out. */
+  clearSession: () => Promise<void>
 }
 
 /** What `run` takes: serve the session over the port the app posts next, or answer whether anyone is signed in. */
@@ -109,15 +111,38 @@ const dropCachedSession = (storage: TraktSessionStorage | null | undefined) => {
 
 const writeCachedSession = (
   storage: TraktSessionStorage | null | undefined,
-  entry: { token: string, expiresAt: number | null, savedAt: number },
+  entry: { token: string, expiresAt: number | null, savedAt: number, gen?: string },
 ) => {
   try { storage?.setItem(TRAKT_SESSION_CACHE_KEY, JSON.stringify(entry)) } catch {}
+}
+
+const isValidCachedSession = (
+  cache: unknown,
+  nowMs: number,
+  sessionGen?: string,
+): cache is { token: string, expiresAt?: unknown, savedAt?: unknown, gen?: unknown } => {
+  if (!cache || typeof cache !== 'object') return false
+  const entry = cache as { token?: unknown, expiresAt?: unknown, savedAt?: unknown, gen?: unknown }
+  if (sessionGen !== undefined && entry.gen !== sessionGen) return false
+  const token = typeof entry.token === 'string' && entry.token !== '' ? entry.token : null
+  if (!token) return false
+  if (entry.expiresAt != null) {
+    return typeof entry.expiresAt === 'number' && Number.isFinite(entry.expiresAt) && toEpochMs(entry.expiresAt) > nowMs
+  }
+  return typeof entry.savedAt === 'number' && Number.isFinite(entry.savedAt) && nowMs - entry.savedAt < CACHE_FALLBACK_TTL_MS
+}
+
+const pruneExpiredCachedSession = (storage: TraktSessionStorage | null | undefined, nowMs: number, sessionGen?: string) => {
+  const raw = safeGet(storage, TRAKT_SESSION_CACHE_KEY)
+  if (raw === null) return
+  if (!isValidCachedSession(parsed(raw), nowMs, sessionGen)) dropCachedSession(storage)
 }
 
 const readFallbackToken = (
   storage: TraktSessionStorage | null | undefined,
   nowMs: number,
   rejectedToken?: string,
+  sessionGen?: string,
 ): string | null => {
   if (!storage) return null
   for (const key of TRAKT_OIDC_KEYS) {
@@ -131,14 +156,12 @@ const readFallbackToken = (
       return token
     }
   }
+  pruneExpiredCachedSession(storage, nowMs, sessionGen)
   const rawCache = safeGet(storage, TRAKT_SESSION_CACHE_KEY)
   if (!rawCache) return null
-  const cache = parsed(rawCache) as { token?: unknown, expiresAt?: unknown, savedAt?: unknown } | null
-  const token = typeof cache?.token === 'string' && cache.token !== '' ? cache.token : null
-  if (!token || token === rejectedToken) return null
-  const expiresAt = cache?.expiresAt
-  if (expiresAt != null) return typeof expiresAt === 'number' && Number.isFinite(expiresAt) && toEpochMs(expiresAt) > nowMs ? token : null
-  return typeof cache?.savedAt === 'number' && Number.isFinite(cache.savedAt) && nowMs - cache.savedAt < CACHE_FALLBACK_TTL_MS ? token : null
+  const cache = parsed(rawCache)
+  if (!isValidCachedSession(cache, nowMs, sessionGen)) return null
+  return cache.token === rejectedToken ? null : cache.token
 }
 
 const usernameOf = (body: unknown): string | null => {
@@ -167,17 +190,16 @@ export const createTraktPage = ({
   storage = null,
   now = Date.now,
   persist = false,
-  clearOnStart = false,
+  sessionGen,
 }: {
   fetch: PageFetch
   nonce: () => string
   storage?: TraktSessionStorage | null
   now?: () => number
   persist?: boolean
-  clearOnStart?: boolean
+  sessionGen?: string
 }): TraktPageApi => {
-  if (clearOnStart) dropCachedSession(storage)
-  let skipFallback = clearOnStart
+  pruneExpiredCachedSession(storage, now(), sessionGen)
   let held: Promise<Session> | undefined
 
   const readSession = async (rejectedToken?: string): Promise<Session> => {
@@ -186,15 +208,21 @@ export const createTraktPage = ({
     const sessionData = response.ok ? sessionDataOf(parsed(text)) : undefined
     if (sessionData !== undefined) {
       if (sessionData.token) {
-        skipFallback = false
-        if (persist) writeCachedSession(storage, { token: sessionData.token, expiresAt: sessionData.expiresAt, savedAt: now() })
+        if (persist) {
+          writeCachedSession(storage, {
+            token: sessionData.token,
+            expiresAt: sessionData.expiresAt,
+            savedAt: now(),
+            ...(sessionGen !== undefined ? { gen: sessionGen } : {}),
+          })
+        }
         return { kind: 'token', token: sessionData.token }
       }
       if (persist) dropCachedSession(storage)
       return { kind: 'signed-out' }
     }
     if (isChallengeResponse(response, text)) {
-      const fallback = skipFallback ? null : readFallbackToken(storage, now(), rejectedToken)
+      const fallback = readFallbackToken(storage, now(), rejectedToken, sessionGen)
       if (fallback) return { kind: 'token', token: fallback }
       return { kind: 'challenge', status: response.status }
     }
@@ -256,6 +284,10 @@ export const createTraktPage = ({
     },
     get,
     post,
+    clearSession: async () => {
+      held = undefined
+      dropCachedSession(storage)
+    },
   }
 }
 
@@ -277,12 +309,21 @@ const readStorage = (page: typeof globalThis): TraktSessionStorage | null => {
 /** The page script's entry: what `frame.evaluate` calls, in the site's own realm, with its arg. */
 export const run = (arg: TraktPageArg): Promise<boolean> | 'installed' | 'reinstalled' => {
   const page = globalThis as typeof globalThis & Record<symbol, unknown>
+  if (arg.kind === 'viewer') {
+    const api = createTraktPage({
+      fetch: (input, init) => page.fetch(input, init),
+      nonce: randomNonce,
+      storage: null,
+      persist: false,
+    })
+    return hasViewer(api)
+  }
   const api = createTraktPage({
     fetch: (input, init) => page.fetch(input, init),
     nonce: randomNonce,
-    storage: arg.kind === 'serve' ? readStorage(page) : null,
-    persist: arg.kind === 'serve',
-    clearOnStart: arg.kind === 'serve' && arg.freshOnly === true,
+    storage: readStorage(page),
+    persist: true,
+    sessionGen: arg.sessionGen,
   })
-  return arg.kind === 'viewer' ? hasViewer(api) : installSessionServer(arg, page, api)
+  return installSessionServer(arg, page, api)
 }

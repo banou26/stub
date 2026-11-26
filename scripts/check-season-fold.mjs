@@ -31,7 +31,7 @@ const chrome = process.env.CHROME_PATH ?? execFileSync('which', ['google-chrome-
 
 // Mushoku Tensei season 3, and four prequel hops down to the first cour. Every run in that chain is
 // one cour, and the two that Crunchyroll folds are hops 2 and 4.
-const START = 'ag:(anilist:178789,anizip:18727,cr:G24H1N3MP-GS00374452,jw:222366-490814,kitsu:49002,mal:59193,nf:80987039-3,nyaa:18727,offline:mal-59193)'
+const START = 'ag:(anilist:178789,anizip:18727,cr:G24H1N3MP-GS00374452,jw:222366-490814,kitsu:49002,mal:59193,nf:80987039-3,offline:mal-59193)'
 const HOPS = 4
 /** what each stop in the chain actually aired, so a row count has something to be wrong against */
 const AIRED = [14, 12, 12, 12, 11]

@@ -346,7 +346,7 @@ describe('while the media gains ids', () => {
 // 2nd Stage, MyAnimeList 61469 the 1st. The page resolves it to one cluster, whose own uri the
 // trackers are asked on once the details are in.
 describe('an old link naming two shows', () => {
-  const OLD = 'ag:(anilist:210482,mal:61469,nyaa:19287,offline:mal-61469)'
+  const OLD = 'ag:(anilist:210482,mal:61469,extsrc:19287,offline:mal-61469)'
   const FIRST_STAGE = 'ag:(anilist:190327,anizip:19287,mal:61469,offline:mal-61469)'
   const WELDED = 'ag:(anilist:190327,anilist:210482,anizip:19287,mal:61469,nf:82116553-1,offline:mal-61469,offline:mal-63825)'
   const TRACKERS = ['anilist', 'mal', 'stub']

@@ -141,17 +141,6 @@ export function extractSeasonNumber(media: MediaLike | undefined | null): number
   return 1
 }
 
-function magnetDisplayName(url: string | undefined | null): string | undefined {
-  if (!url?.startsWith('magnet:')) return undefined
-  try {
-    const query = url.slice(url.indexOf('?') + 1)
-    const dn = new URLSearchParams(query).get('dn')
-    return dn?.trim() || undefined
-  } catch {
-    return undefined
-  }
-}
-
 export function extractReleaseName(
   selected: EpisodeHandleLike | undefined | null,
   episode: EpisodeLike | undefined | null,
@@ -160,8 +149,6 @@ export function extractReleaseName(
   if (fromShort) return fromShort
   const fromSelectedTitle = selected?.titles?.at(0)?.title?.trim()
   if (fromSelectedTitle) return fromSelectedTitle
-  const fromMagnet = magnetDisplayName(selected?.url)
-  if (fromMagnet) return fromMagnet
   const fromEpisodeTitle = episode?.titles?.at(0)?.title?.trim()
   if (fromEpisodeTitle) return fromEpisodeTitle
   return undefined
@@ -224,6 +211,7 @@ export type ExternalSubtitleQueryOptions = {
   findPluginSubtitles?: (context: SubtitleQueryContext) => Promise<SubtitleCandidate[]>
   loadPluginSubtitle?: (origin: string, remoteTrackId: string) => Promise<string>
   fetchOpenCandidates?: () => Promise<SubtitleCandidate[]>
+  onImdbResolved?: (imdbId: string | undefined) => void
 }
 
 const PLUGIN_PER_LANG_LIMIT = 2
@@ -273,7 +261,7 @@ export async function resolveImdbIdForMedia(
   }
 }
 
-function buildOpenTarget(
+export function buildOpenTarget(
   imdbId: string | undefined,
   options: Pick<ExternalSubtitleQueryOptions, 'film' | 'season' | 'episode'>,
 ): OpenSubtitlesTarget | undefined {
@@ -332,6 +320,41 @@ async function resolveQueryInputs(options: ExternalSubtitleQueryOptions): Promis
   return { preferred, imdbId, context, openTarget, xunleiQuery }
 }
 
+const MAX_SUBTITLE_BYTES = 5 * 1024 * 1024
+
+async function readBoundedBytes(response: Response, maxBytes: number): Promise<Uint8Array> {
+  if (!response.body) {
+    const buffer = new Uint8Array(await response.arrayBuffer())
+    if (buffer.byteLength > maxBytes) throw new Error('Subtitle download exceeds 5 MiB limit')
+    return buffer
+  }
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value?.byteLength) continue
+      total += value.byteLength
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined)
+        throw new Error('Subtitle download exceeds 5 MiB limit')
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock?.()
+  }
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return out
+}
+
 /** Resolves text for a single `SubtitleCandidate` via inline content, plugin loader, or HTTP fetch. */
 export async function loadSubtitleCandidate(
   candidate: SubtitleCandidate,
@@ -344,101 +367,23 @@ export async function loadSubtitleCandidate(
   if (!candidate.url) throw new Error(`External subtitle source unavailable: ${candidate.id}`)
   const response = await options.fetch(candidate.url, { signal: options.signal })
   if (!response.ok) throw new Error(`Failed to fetch subtitle (${response.status})`)
-  const buffer = await response.arrayBuffer()
-  return decodeSubtitle(new Uint8Array(buffer), candidate.language)
-}
-
-/** Fetches built-in OpenSubtitles and Xunlei candidates together with any resolved IMDb id. */
-export async function fetchBuiltInExternalSubtitles(
-  options: ExternalSubtitleQueryOptions,
-): Promise<{ candidates: SubtitleCandidate[], imdbId?: string }> {
-  const { preferred, imdbId, openTarget, xunleiQuery } = await resolveQueryInputs(options)
-  const [openTracks, xunleiTracks] = await Promise.all([
-    openTarget
-      ? fetchOpenSubtitles(openTarget, {
-        fetch: options.fetch,
-        preferredLanguages: preferred,
-        releaseName: options.releaseName,
-        locale: options.locale,
-        signal: options.signal,
-      })
-      : Promise.resolve([]),
-    xunleiQuery
-      ? fetchXunleiSubtitles(xunleiQuery, {
-        fetch: options.fetch,
-        preferredLanguages: preferred,
-        locale: options.locale,
-        signal: options.signal,
-      })
-      : Promise.resolve([]),
-  ])
-  const candidates = [...openTracks, ...xunleiTracks].sort(
-    (a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred),
-  )
-  return { candidates, imdbId }
-}
-
-export async function fetchExternalSubtitles(options: ExternalSubtitleQueryOptions): Promise<ExternalSubtitleBundle> {
-  const { preferred, context, openTarget, xunleiQuery } = await resolveQueryInputs(options)
-
-  const [openTracks, xunleiTracks, pluginTracks] = await Promise.all([
-    openTarget
-      ? fetchOpenSubtitles(openTarget, {
-        fetch: options.fetch,
-        preferredLanguages: preferred,
-        releaseName: options.releaseName,
-        locale: options.locale,
-        signal: options.signal,
-      })
-      : Promise.resolve([]),
-    xunleiQuery
-      ? fetchXunleiSubtitles(xunleiQuery, {
-        fetch: options.fetch,
-        preferredLanguages: preferred,
-        locale: options.locale,
-        signal: options.signal,
-      })
-      : Promise.resolve([]),
-    options.findPluginSubtitles
-      ? options.findPluginSubtitles(context).catch(() => [])
-      : Promise.resolve([]),
-  ])
-
-  const candidates = [...openTracks, ...xunleiTracks, ...capPluginSubtitles(pluginTracks, preferred)].sort(
-    (a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred),
-  )
-  const byId = new Map(candidates.map(candidate => [candidate.id, candidate]))
-  const cache = new Map<string, Promise<string>>()
-
-  const load = (trackId: string): Promise<string> => {
-    const existing = cache.get(trackId)
-    if (existing) return existing
-    const candidate = byId.get(trackId)
-    if (!candidate) return Promise.reject(new Error(`Unknown external subtitle track: ${trackId}`))
-
-    const guarded = loadSubtitleCandidate(candidate, options).catch(err => {
-      cache.delete(trackId)
-      throw err
-    })
-    cache.set(trackId, guarded)
-    return guarded
+  const contentLength = Number(response.headers.get('content-length'))
+  if (Number.isFinite(contentLength) && contentLength > MAX_SUBTITLE_BYTES) {
+    await response.body?.cancel?.().catch(() => undefined)
+    throw new Error('Subtitle download exceeds 5 MiB limit')
   }
-
-  return {
-    tracks: toRemoteExternalTracks(candidates),
-    candidates,
-    load,
-  }
+  const bytes = await readBoundedBytes(response, MAX_SUBTITLE_BYTES)
+  return decodeSubtitle(bytes, candidate.language)
 }
 
-/** Searches OpenSubtitles, Xunlei, and enabled plugins without auto-population caps for the interactive subtitle browser. */
-export async function searchExternalSubtitles(
+async function queryBuiltInSubtitles(
   options: ExternalSubtitleQueryOptions,
-): Promise<{ candidates: SubtitleCandidate[], load: (candidate: SubtitleCandidate) => Promise<string> }> {
-  const { preferred, context, openTarget, xunleiQuery } = await resolveQueryInputs(options)
-
-  const [openTracks, xunleiTracks, pluginTracks] = await Promise.all([
-    options.fetchOpenCandidates
+  inputs: Awaited<ReturnType<typeof resolveQueryInputs>>,
+  limits?: { perLanguageLimit: number, totalLimit: number, xunleiLimit: number },
+): Promise<[SubtitleCandidate[], SubtitleCandidate[]]> {
+  const { preferred, openTarget, xunleiQuery } = inputs
+  return Promise.all([
+    limits && options.fetchOpenCandidates
       ? options.fetchOpenCandidates().catch(() => [])
       : openTarget
         ? fetchOpenSubtitles(openTarget, {
@@ -447,8 +392,7 @@ export async function searchExternalSubtitles(
           releaseName: options.releaseName,
           locale: options.locale,
           signal: options.signal,
-          perLanguageLimit: 50,
-          totalLimit: 200,
+          ...(limits ? { perLanguageLimit: limits.perLanguageLimit, totalLimit: limits.totalLimit } : {}),
         })
         : Promise.resolve([]),
     xunleiQuery
@@ -457,11 +401,34 @@ export async function searchExternalSubtitles(
         preferredLanguages: preferred,
         locale: options.locale,
         signal: options.signal,
-        limit: 50,
+        ...(limits ? { limit: limits.xunleiLimit } : {}),
       })
       : Promise.resolve([]),
+  ])
+}
+
+/** Fetches built-in OpenSubtitles and Xunlei candidates together with any resolved IMDb id. */
+export async function fetchBuiltInExternalSubtitles(
+  options: ExternalSubtitleQueryOptions,
+): Promise<{ candidates: SubtitleCandidate[], imdbId?: string }> {
+  const inputs = await resolveQueryInputs(options)
+  options.onImdbResolved?.(inputs.imdbId)
+  const [openTracks, xunleiTracks] = await queryBuiltInSubtitles(options, inputs)
+  const candidates = [...openTracks, ...xunleiTracks].sort(
+    (a, b) => languagePreferenceIndex(a.language, inputs.preferred) - languagePreferenceIndex(b.language, inputs.preferred),
+  )
+  return { candidates, imdbId: inputs.imdbId }
+}
+
+/** Searches OpenSubtitles, Xunlei, and enabled plugins without auto-population caps for the interactive subtitle browser. */
+export async function searchExternalSubtitles(
+  options: ExternalSubtitleQueryOptions,
+): Promise<{ candidates: SubtitleCandidate[], load: (candidate: SubtitleCandidate) => Promise<string> }> {
+  const inputs = await resolveQueryInputs(options)
+  const [[openTracks, xunleiTracks], pluginTracks] = await Promise.all([
+    queryBuiltInSubtitles(options, inputs, { perLanguageLimit: 50, totalLimit: 200, xunleiLimit: 50 }),
     options.findPluginSubtitles
-      ? options.findPluginSubtitles(context).catch(() => [])
+      ? options.findPluginSubtitles(inputs.context).catch(() => [])
       : Promise.resolve([]),
   ])
 
@@ -489,7 +456,7 @@ export async function searchExternalSubtitles(
       seen.add(candidate.id)
       return true
     })
-    .sort((a, b) => languagePreferenceIndex(a.language, preferred) - languagePreferenceIndex(b.language, preferred))
+    .sort((a, b) => languagePreferenceIndex(a.language, inputs.preferred) - languagePreferenceIndex(b.language, inputs.preferred))
 
   return {
     candidates: merged,

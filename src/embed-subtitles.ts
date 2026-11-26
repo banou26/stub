@@ -51,7 +51,6 @@ export const serveEmbedExternalSubtitles = (
   const onBrowse = options.onBrowse
   const select = options.select
 
-  let disposed = false
   const tracks = bundle?.tracks ?? []
   const send = () => {
     if (iframe.contentWindow) {
@@ -79,22 +78,22 @@ export const serveEmbedExternalSubtitles = (
       return
     }
     if (type !== LOAD || typeof requestId !== 'string' || typeof id !== 'string') return
+    const targetWindow = iframe.contentWindow
+    if (!targetWindow) return
     if (!bundle) {
-      if (iframe.contentWindow) {
-        postMessage(iframe.contentWindow, { type: LOADED, requestId, error: 'External subtitles unavailable' }, host.location.origin)
-      }
+      postMessage(targetWindow, { type: LOADED, requestId, error: 'External subtitles unavailable' }, host.location.origin)
       return
     }
     bundle.load(id).then(
       text => {
-        if (!disposed && iframe.contentWindow) {
-          postMessage(iframe.contentWindow, { type: LOADED, requestId, text }, host.location.origin)
+        if (iframe.contentWindow === targetWindow) {
+          postMessage(targetWindow, { type: LOADED, requestId, text }, host.location.origin)
         }
       },
       err => {
-        if (!disposed && iframe.contentWindow) {
+        if (iframe.contentWindow === targetWindow) {
           const error = err instanceof Error ? err.message : String(err)
-          postMessage(iframe.contentWindow, { type: LOADED, requestId, error }, host.location.origin)
+          postMessage(targetWindow, { type: LOADED, requestId, error }, host.location.origin)
         }
       },
     )
@@ -102,7 +101,6 @@ export const serveEmbedExternalSubtitles = (
   host.addEventListener('message', receive)
   send()
   return () => {
-    disposed = true
     host.removeEventListener('message', receive)
   }
 }

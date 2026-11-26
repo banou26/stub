@@ -1,6 +1,6 @@
 // SauceNAO scene search via an attached hidden browser frame (`https://saucenao.com/`).
 // Attaches lazily only when the viewer searches with a picture, sends same-origin `POST /search.php`
-// using the real browser session (no API key), and never waits out or solves anti-bot challenges.
+// using the real browser session (no API key), and never waits out or solves browser verification checks.
 
 import type { SauceNaoPageApi } from './saucenao-page'
 import type { SauceNaoAnswer } from './saucenao-parse'
@@ -73,7 +73,10 @@ export const createSauceNaoClient = ({ frames, prepare = preparePictureBytes }: 
       if (status === 429 || status === 403) return { error: 'busy' }
       if (status >= 400) return { error: 'failed' }
       return parsed
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'LocatorDeniedError' || error.name === 'PermissionDeniedError')) {
+        return { error: 'failed' }
+      }
       return { error: 'busy' }
     }
   }

@@ -10,7 +10,7 @@ import { intl } from '../src/i18n'
 import Settings from '../src/router/settings'
 import Watch from '../src/router/watch'
 import { getRouterRoutePath, Route as Routes } from '../src/router/path'
-import { TORRENT_ORIGIN } from './watch-stage-media'
+import { PLUGIN_SOURCE_ORIGIN } from './watch-stage-media'
 
 const MEDIA_URI = 'ag:(cr:GSUB900)'
 const EP1_URI = 'ag:(cr:GSUB900-1)'
@@ -35,7 +35,7 @@ const media = {
       thumbnails: [],
       handles: [
         { relation: 'SAME_AS', node: { uri: 'cr:GSUB1', origin: 'cr', id: 'GSUB1', url: 'https://www.crunchyroll.com/watch/GSUB1', shortDescriptions: [{ shortDescription: 'Crunchyroll Official' }] } },
-        { relation: 'SAME_AS', node: { uri: `${TORRENT_ORIGIN}:rel1`, origin: TORRENT_ORIGIN, id: 'rel1', url: 'magnet:?xt=urn:btih:gsub1', shortDescriptions: [{ shortDescription: 'Release 1' }] } },
+        { relation: 'SAME_AS', node: { uri: `${PLUGIN_SOURCE_ORIGIN}:rel1`, origin: PLUGIN_SOURCE_ORIGIN, id: 'rel1', url: 'plugin-stream://gsub1', shortDescriptions: [{ shortDescription: 'Release 1' }] } },
       ],
     },
   ],
@@ -45,7 +45,7 @@ const origins = {
   originPage: {
     nodes: [
       { id: 'cr', url: 'https://www.crunchyroll.com', name: 'Crunchyroll', icon: null, color: null, isApiOnly: false },
-      { id: TORRENT_ORIGIN, url: 'https://torrents.spec.test', name: 'Spec Torrents', icon: null, color: null, isApiOnly: false },
+      { id: PLUGIN_SOURCE_ORIGIN, url: 'https://sources.spec.test', name: 'Spec Source', icon: null, color: null, isApiOnly: false },
     ],
   },
 }

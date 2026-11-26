@@ -23,6 +23,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
+import { CypherError, createCypherStore } from '../../../../../src/worker/graph/cypher'
 import { closeGraph, openGraph } from '../../../../../src/worker/graph/engine'
 
 afterAll(async () => {
@@ -1345,5 +1346,53 @@ describe('the bugs the replacement does not have', () => {
 
     const rows = await run('MATCH (d:CDiverge {uri: $uri}) RETURN d.fieldSeq AS fieldSeq', { uri: 'd:9' })
     expect(rows).toEqual([{ fieldSeq: { titles: 7 } }])
+  })
+})
+
+describe('createCypherStore onWrite notifications', () => {
+  test('emits only for committed mutations with mutated table names and propagates listener errors unwrapped', async () => {
+    const events: { tables: string[], cypher: string }[] = []
+    let throwOnWrite: Error | null = null
+    const store = createCypherStore({
+      onWrite: (tables, cypher) => {
+        events.push({ tables: [...tables].sort(), cypher })
+        if (throwOnWrite) throw throwOnWrite
+      },
+    })
+
+    try {
+      await store.query('CREATE NODE TABLE CWriteNode(uri STRING PRIMARY KEY)')
+      await store.query('CREATE REL TABLE CWriteEdge(FROM CWriteNode TO CWriteNode, label STRING)')
+      expect(events.map(e => e.tables)).toEqual([['CWriteNode'], ['CWriteEdge']])
+      events.length = 0
+
+      // Read-only queries emit no onWrite.
+      expect(await store.query('MATCH (n:CWriteNode) RETURN n.uri AS uri')).toEqual([])
+      expect(events).toEqual([])
+
+      // Rolled-back multi-row failure emits no onWrite and leaves store unchanged.
+      await expect(store.query(
+        'UNWIND $rows AS r CREATE (:CWriteNode {uri: r.uri})',
+        { rows: [{ uri: 'w:1' }, { uri: 'w:1' }] },
+      )).rejects.toThrow(CypherError)
+      expect(events).toEqual([])
+      expect(await store.query('MATCH (n:CWriteNode) RETURN n.uri AS uri')).toEqual([])
+
+      // Committed write reports actual mutated tables.
+      await store.query('CREATE (:CWriteNode {uri: $uri})', { uri: 'w:committed' })
+      expect(events).toEqual([{ tables: ['CWriteNode'], cypher: 'CREATE (:CWriteNode {uri: $uri})' }])
+      events.length = 0
+
+      // Throwing listener propagates directly (not wrapped in CypherError) while write remains committed.
+      throwOnWrite = new Error('listener boom')
+      await expect(store.query('CREATE (:CWriteNode {uri: $uri})', { uri: 'w:listener-throws' })).rejects.toBe(throwOnWrite)
+      throwOnWrite = null
+      expect(await store.query('MATCH (n:CWriteNode) RETURN n.uri AS uri ORDER BY n.uri')).toEqual([
+        { uri: 'w:committed' },
+        { uri: 'w:listener-throws' },
+      ])
+    } finally {
+      store.close()
+    }
   })
 })

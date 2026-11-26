@@ -234,7 +234,7 @@ test('neverSignedIn holds until stub finds the viewer signed in to a streaming s
   expect(neverSignedIn('amazon', status), 'another site').toBe(true)
   statuses.record('prime', 'signed-in', NOW)
   expect(neverSignedIn('amazon', status)).toBe(false)
-  for (const origin of ['nf', 'nyaa', 'anilist']) expect(neverSignedIn(origin, status), origin).toBe(false)
+  for (const origin of ['nf', 'extsrc', 'anilist']) expect(neverSignedIn(origin, status), origin).toBe(false)
 })
 
 // Play counts one of stub's own paid players as free only while this holds (HOR-1033)
@@ -249,7 +249,7 @@ test('foundSignedIn says whether stub last found the viewer signed in to a strea
   statuses.record('crunchyroll', 'signed-out', NOW + HOUR)
   expect(foundSignedIn('cr', status), 'signed out since').toBe(false)
   statuses.record('anilist', 'signed-in', NOW)
-  for (const origin of ['nf', 'nyaa', 'anilist']) expect(foundSignedIn(origin, status), origin).toBe(false)
+  for (const origin of ['nf', 'extsrc', 'anilist']) expect(foundSignedIn(origin, status), origin).toBe(false)
 })
 
 describe('AniList and MyAnimeList', () => {

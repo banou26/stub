@@ -4,11 +4,11 @@ import { createPluginAccounts } from '../../src/plugin-accounts'
 
 test('a source that needs no account is free and never counts as signed out, whatever it said', () => {
   const accounts = createPluginAccounts()
-  expect(accounts.free('nyaa', 'none')).toBe(true)
-  expect(accounts.neverSignedIn('nyaa', 'none')).toBe(false)
-  accounts.record('nyaa', 'signed-out')
-  expect(accounts.free('nyaa', 'none')).toBe(true)
-  expect(accounts.neverSignedIn('nyaa', 'none')).toBe(false)
+  expect(accounts.free('extsrc', 'none')).toBe(true)
+  expect(accounts.neverSignedIn('extsrc', 'none')).toBe(false)
+  accounts.record('extsrc', 'signed-out')
+  expect(accounts.free('extsrc', 'none')).toBe(true)
+  expect(accounts.neverSignedIn('extsrc', 'none')).toBe(false)
 })
 
 test('a source that needs an account is free only while it says the viewer is signed in', () => {

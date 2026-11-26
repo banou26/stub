@@ -201,6 +201,72 @@ describe('writes, removals and viewerLists', () => {
     const refreshed = (await lists.next()).data.viewerLists.lists[0]
     expect(refreshed.items.find((i: any) => i.entry._id === 'trakt:viewer:movie-486228').entry.score).toBe(100)
   })
+
+  test('marks completed shows as COMPLETED in viewerLists using extended show counts and caches public season lookups', async () => {
+    const { target, reads } = setup({
+      watchedShows: [{
+        ...watchedShowItem(190742, { 1: [1, 2, 3, 4] }),
+        show: { title: 'Show 190742', year: 2023, aired_episodes: 10, ids: { trakt: 190742, slug: 'show-190742', tmdb: 1907420, imdb: 'tt190742' } } as any,
+      }],
+    })
+    // Override public fetch for /shows/190742/seasons?extended=full so season 1 has aired_episodes: 4
+    const baseFetch = reads.fetch.getMockImplementation()!
+    reads.fetch.mockImplementation(async (url: string) => {
+      if (url === 'https://apiz.trakt.tv/shows/190742/seasons?extended=full') {
+        return new Response(JSON.stringify([{ number: 1, aired_episodes: 4, episode_count: 4 }]), { status: 200 })
+      }
+      return baseFetch(url)
+    })
+
+    const lists = watchLists(target)
+    const initial = (await lists.next()).data.viewerLists.lists[0]
+    expect(initial.items.find((i: any) => i.entry._id === 'trakt:viewer:s:190742:1')).toMatchObject({
+      type: 'TV',
+      episodeCount: 4,
+      entry: { status: 'COMPLETED', progress: 4, episodeCount: 4 },
+    })
+  })
+
+  test('bounds concurrent public /shows/:id/seasons lookups to at most 4 while resolving all watched shows', async () => {
+    const showIds = Array.from({ length: 8 }, (_, idx) => 190751 + idx)
+    const { target, reads } = setup({
+      watchedShows: showIds.map(id => ({
+        ...watchedShowItem(id, { 1: [1, 2, 3, 4] }),
+        show: { title: `Show ${id}`, year: 2023, aired_episodes: 10, ids: { trakt: id, slug: `show-${id}`, tmdb: id * 10, imdb: `tt${id}` } } as any,
+      })),
+    })
+    const baseFetch = reads.fetch.getMockImplementation()!
+    let inFlight = 0
+    let maxInFlight = 0
+    let seasonCalls = 0
+    reads.fetch.mockImplementation(async (url: string) => {
+      if (/\/shows\/\d+\/seasons\?extended=full$/.test(url)) {
+        inFlight += 1
+        maxInFlight = Math.max(maxInFlight, inFlight)
+        seasonCalls += 1
+        try {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          return new Response(JSON.stringify([{ number: 1, aired_episodes: 4, episode_count: 4 }]), { status: 200 })
+        } finally {
+          inFlight -= 1
+        }
+      }
+      return baseFetch(url)
+    })
+
+    const lists = watchLists(target)
+    const initial = (await lists.next()).data.viewerLists.lists[0]
+    expect(seasonCalls).toBe(8)
+    expect(maxInFlight).toBeGreaterThan(1)
+    expect(maxInFlight).toBeLessThanOrEqual(4)
+    for (const id of showIds) {
+      expect(initial.items.find((i: any) => i.entry._id === `trakt:viewer:s:${id}:1`)).toMatchObject({
+        type: 'TV',
+        episodeCount: 4,
+        entry: { status: 'COMPLETED', progress: 4, episodeCount: 4 },
+      })
+    }
+  })
 })
 
 describe('a read that failed is never NOT_LISTED', () => {

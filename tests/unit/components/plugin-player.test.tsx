@@ -24,11 +24,11 @@ vi.mock('@fkn/lib', () => ({
 const { PluginPlayer } = await import('../../../src/components/plugin-player')
 
 const PACKAGE = 'https:stub.plugins.banou.dev'
-const release = (n: number) => ({ uri: `nyaa:${n}`, url: `magnet:?xt=urn:btih:${n}` })
+const release = (n: number) => ({ uri: `extsrc:${n}`, url: `plugin-stream://${n}` })
 const playing = () => {
   const played: string[] = []
   const source = {
-    play: vi.fn(async ({ uri }: { uri: string, languages?: object }) => { played.push(uri); return uri !== 'nyaa:9' }),
+    play: vi.fn(async ({ uri }: { uri: string, languages?: object }) => { played.push(uri); return uri !== 'extsrc:9' }),
     onPlayback: vi.fn(async (_listener: (report: object) => void) => {}),
     applyPlayback: vi.fn(async () => {}),
     onFullscreenRequest: vi.fn(async () => {}),
@@ -78,7 +78,7 @@ test("the source's player is handed the release and the viewer's languages", asy
   keepAudioLanguage('Japanese')
   keepSubtitleLanguage(null)
   await shown(1)
-  expect(source.play).toHaveBeenCalledWith({ uri: 'nyaa:1', url: 'magnet:?xt=urn:btih:1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null, alwaysSubtitles: false } })
+  expect(source.play).toHaveBeenCalledWith({ uri: 'extsrc:1', url: 'plugin-stream://1', languages: { language: 'fr-FR', audio: 'ja', subtitles: null, alwaysSubtitles: false } })
 })
 
 test('a track the viewer picks in the source\'s player is what the next release starts in', async () => {
@@ -92,7 +92,7 @@ test('a track the viewer picks in the source\'s player is what the next release 
   ear!({ ...state, picked: { alwaysSubtitles: true } })
   ear!({ ...state, picked: { audio: 7, subtitles: {} } })
   await next(2)
-  expect(source.play).toHaveBeenLastCalledWith({ uri: 'nyaa:2', url: 'magnet:?xt=urn:btih:2', languages: { language: 'fr-FR', audio: 'ja', subtitles: 'fr', alwaysSubtitles: true } })
+  expect(source.play).toHaveBeenLastCalledWith({ uri: 'extsrc:2', url: 'plugin-stream://2', languages: { language: 'fr-FR', audio: 'ja', subtitles: 'fr', alwaysSubtitles: true } })
   ear!({ ...state, picked: { subtitles: null } })
   await next(3)
   expect(source.play.mock.lastCall![0].languages, 'subtitles turned off').toMatchObject({ subtitles: null })
@@ -121,7 +121,7 @@ test('a release the viewer left while the document took its values is not played
   await next(2)
   for (const take of takes) take()
   await settle()
-  expect(played).toEqual(['nyaa:2'])
+  expect(played).toEqual(['extsrc:2'])
 })
 
 test('one document of the package plays each release of its source in turn, and goes with the player', async () => {
@@ -129,7 +129,7 @@ test('one document of the package plays each release of its source in turn, and 
   const { next } = await shown(1)
   await next(2)
   expect(fkn.mounts, 'mounted once').toBe(1)
-  expect(played).toEqual(['nyaa:1', 'nyaa:2'])
+  expect(played).toEqual(['extsrc:1', 'extsrc:2'])
   expect(fkn.unmounted, 'kept between its releases').toBe(0)
   unmount(hosts.pop()!)
   await settle()
@@ -155,7 +155,7 @@ test('a mount that failed says so, and is tried again for the next release', asy
   fkn.fail = false
   await next(2)
   expect(fkn.mounts).toBe(2)
-  expect(played).toEqual(['nyaa:2'])
+  expect(played).toEqual(['extsrc:2'])
   expect(host.querySelector('.failed')).toBeNull()
 })
 
@@ -166,7 +166,7 @@ test('a release its source cannot play falls back, and the package stays for the
   expect(fkn.unmounted).toBe(0)
   await next(2)
   expect(fkn.mounts).toBe(1)
-  expect(played).toEqual(['nyaa:9', 'nyaa:2'])
+  expect(played).toEqual(['extsrc:9', 'extsrc:2'])
 })
 
 test('its fullscreen is kept on the stage it is given, a release at a time, and left to the player without one', async () => {
@@ -234,7 +234,7 @@ test('updates episodeNavigation and externalSubtitles without restarting playbac
   hosts.push(host)
   await settle()
 
-  expect(played).toEqual(['nyaa:1'])
+  expect(played).toEqual(['extsrc:1'])
   expect(applyEpisodeNavigation).toHaveBeenCalledWith({ previous: 'E1', next: 'E3' })
   expect(applyExternalSubtitles).toHaveBeenCalledWith(subs1.tracks)
 
@@ -250,7 +250,7 @@ test('updates episodeNavigation and externalSubtitles without restarting playbac
   await settle()
 
   // Updating navigation or external subtitles syncs without re-calling source.play()
-  expect(played).toEqual(['nyaa:1'])
+  expect(played).toEqual(['extsrc:1'])
   expect(applyEpisodeNavigation).toHaveBeenLastCalledWith({ previous: 'E1', next: false })
   expect(applyExternalSubtitles).toHaveBeenLastCalledWith(subs2.tracks)
 })
@@ -286,7 +286,7 @@ test('forwards browseSubtitles and triggers selectExternalSubtitle once per seq 
   hosts.push(host)
   await settle()
 
-  expect(played).toEqual(['nyaa:1'])
+  expect(played).toEqual(['extsrc:1'])
   expect(applyBrowseSubtitles).toHaveBeenCalledWith('Browse')
   expect(selectExternalSubtitle).toHaveBeenCalledTimes(1)
   expect(selectExternalSubtitle).toHaveBeenLastCalledWith('s1')
@@ -321,7 +321,7 @@ test('forwards browseSubtitles and triggers selectExternalSubtitle once per seq 
     }), host)
   })
   await settle()
-  expect(played).toEqual(['nyaa:1'])
+  expect(played).toEqual(['extsrc:1'])
   expect(applyBrowseSubtitles).toHaveBeenLastCalledWith(true)
   expect(selectExternalSubtitle).toHaveBeenCalledTimes(2)
   expect(selectExternalSubtitle).toHaveBeenLastCalledWith('s2')

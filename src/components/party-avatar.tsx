@@ -36,7 +36,7 @@ const avatarStyle = css`
 const safeAvatarSrc = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim()
   if (!trimmed) return null
-  return trimmed.startsWith('data:image/') || trimmed.startsWith('https://') ? trimmed : null
+  return trimmed.startsWith('data:image/') ? trimmed : null
 }
 
 const initialOf = (participant: Participant) => {

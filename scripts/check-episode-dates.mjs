@@ -38,7 +38,7 @@ const ORIGIN = process.env.STUB_ORIGIN ?? 'http://localhost:4560'
  * subscribes.
  */
 const CANDIDATES = (process.env.STUB_MEDIA ? [process.env.STUB_MEDIA] : []).concat([
-  '/media/ag:(anilist:207141,anizip:19873,jw:518630-563252,kitsu:50551,mal:63403,nf:82760630-1,nyaa:19873,offline:mal-63403)',
+  '/media/ag:(anilist:207141,anizip:19873,jw:518630-563252,kitsu:50551,mal:63403,nf:82760630-1,offline:mal-63403)',
 ])
 /** Nine hours east and seven west, so a UTC midnight falls on a different day in each. */
 const ZONES = { east: 'Asia/Tokyo', west: 'America/Los_Angeles' }

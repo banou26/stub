@@ -142,6 +142,7 @@ test('registers subtitlesOnly plugins outside extractors, rejects missing subtit
       findSubtitles: async () => [
         { id: 'u1', language: 'en', label: 'English URL', format: 'srt', url: 'https://url-subs.test/1.srt' },
         { id: 'huge', language: 'en', label: 'Too Big', format: 'srt', content: 'x'.repeat(5 * 1024 * 1024 + 1) },
+        { id: 'huge-cjk', language: 'ja', label: 'Too Big CJK', format: 'srt', content: '日'.repeat(2 * 1024 * 1024) },
       ],
     }],
   }
@@ -159,6 +160,21 @@ test('registers subtitlesOnly plugins outside extractors, rejects missing subtit
     remoteTrackId: 'u1',
   }])
   unregisterRemoteExtractor('https:url-subs.spec.test')
+
+  // Multi-byte UTF-8 inline subtitles > 5 MiB returned from loadSubtitle are also rejected.
+  port.payload = {
+    sources: [{
+      origin: 'cjk-load-subs',
+      originUrl: 'https://cjk-subs.test',
+      name: 'CJK Load Subs',
+      subtitlesOnly: true,
+      findSubtitles: async () => [{ id: 'cjk', language: 'ja', label: 'Too Big CJK', format: 'srt' }],
+      loadSubtitle: async () => '日'.repeat(2 * 1024 * 1024),
+    }],
+  }
+  await registerRemoteExtractor(new MessageChannel().port1, 'https:cjk-subs.spec.test')
+  await expect(loadRemoteSubtitle('cjk-load-subs', 'cjk')).rejects.toThrow('no content')
+  unregisterRemoteExtractor('https:cjk-subs.spec.test')
 
   expect(await loadRemoteSubtitle('opensub-plugin', 'sub-1')).toContain('Loaded')
   await expect(loadRemoteSubtitle('opensub-plugin', 'empty')).rejects.toThrow('no content')

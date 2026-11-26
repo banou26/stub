@@ -173,8 +173,8 @@ test('a url that names no episode asks nothing', async () => {
   expect(broker.calls).toEqual([])
 })
 
-// HOR-1014: a torrent takes Crunchyroll's skip events only when its length is Crunchyroll's, which Crunchyroll can
-// change by re-cutting the episode, so it is read when the torrent plays. Recorded through Prague on 2026-10-26 for
+// HOR-1014: an added-source release takes Crunchyroll's skip events only when its length is Crunchyroll's,
+// which Crunchyroll can change by re-cutting the episode, so it is read when the release plays. Recorded through Prague on 2026-10-26 for
 // Saga of Tanya the Evil II e3 (GE00380133JAJP) and trimmed, its season listing's `duration_ms` the same.
 const WITH_LENGTH = recorded('episode-with-length-through-prague.json')
 const TANYA = 'https://www.crunchyroll.com/watch/GE00380133JAJP/well-intentioned-mediator'

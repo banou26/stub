@@ -255,6 +255,15 @@ export const SUBTITLE_FIND_WAIT_MS = 10_000
 export const SUBTITLE_LOAD_WAIT_MS = 15_000
 export const MAX_INLINE_SUBTITLE_BYTES = 5 * 1024 * 1024
 
+const utf8Encoder = new TextEncoder()
+
+/** Returns true when `value`'s UTF-8 byte length exceeds `maxBytes`. */
+export const exceedsUtf8ByteLimit = (value: string, maxBytes: number): boolean => {
+  if (value.length > maxBytes) return true
+  if (value.length * 3 <= maxBytes) return false
+  return utf8Encoder.encode(value).byteLength > maxBytes
+}
+
 export type NormalizedPluginSubtitle = {
   id: string
   language: string
@@ -308,7 +317,9 @@ export const readPluginSubtitles = (
     if (!remoteTrackId || seen.has(remoteTrackId)) continue
     const label = sanitizeSubtitleText(item.label)
     if (!label || !SUBTITLE_FORMATS.includes(item.format)) continue
-    const content = typeof item.content === 'string' && item.content.length <= MAX_INLINE_SUBTITLE_BYTES ? item.content : undefined
+    const content = typeof item.content === 'string' && !exceedsUtf8ByteLimit(item.content, MAX_INLINE_SUBTITLE_BYTES)
+      ? item.content
+      : undefined
     const url = allowedSubtitleUrl(item.url)
     if (content === undefined && !url && !hasLoader) continue
     seen.add(remoteTrackId)
@@ -355,7 +366,10 @@ export const askPluginSubtitleContent = (
 ): Promise<string | undefined> => {
   let timer: ReturnType<typeof setTimeout> | undefined
   return Promise.race([
-    Promise.resolve().then(() => load(trackId)).then(text => typeof text === 'string' && text.length > 0 ? text : undefined, () => undefined),
+    Promise.resolve().then(() => load(trackId)).then(
+      text => typeof text === 'string' && text.length > 0 && !exceedsUtf8ByteLimit(text, MAX_INLINE_SUBTITLE_BYTES) ? text : undefined,
+      () => undefined,
+    ),
     new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), SUBTITLE_LOAD_WAIT_MS) }),
   ]).finally(() => clearTimeout(timer))
 }

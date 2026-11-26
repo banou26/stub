@@ -112,4 +112,22 @@ describe('parseSauceNaoHtml', () => {
     expect(parseSauceNaoHtml('Error: Problem with remote file or invalid image')).toEqual({ error: 'failed' })
     expect(parseSauceNaoHtml('<html><body>No matches found</body></html>')).toEqual({ matches: [] })
   })
+
+  test('parses resulttable matches whose titles contain rate-limit phrases and does not read a 4-digit release year as an episode number', () => {
+    const html = `
+      <table class="resulttable"><tr><td class="resulttablecontent">
+        <div class="resultsimilarityinfo">89.5%</div>
+        <div class="resulttitle"><strong>Slow Down - 2019</strong></div>
+        <div class="resultcontentcolumn"><span class="subtext"><strong>Est Time: </strong>00:02:00 / 00:24:00</span></div>
+        <div class="resultmiscinfo"><a href="https://anilist.co/anime/9988">AniList</a></div>
+      </td></tr></table>
+    `
+    expect(parseSauceNaoHtml(html)).toEqual({
+      matches: [{
+        uri: 'anilist:9988',
+        anilist: 9988,
+        moments: [{ episode: null, from: 120 }],
+      }],
+    })
+  })
 })

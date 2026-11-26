@@ -174,7 +174,7 @@ describe('a follower', () => {
     expect(asks(fake).map(ask => ask?.t === 'ask' && ask.s.time)).toEqual([40])
   })
 
-  // A torrent player seeking into a range it has not buffered answers the follower's own correction
+  // A plugin player seeking into a range it has not buffered answers the follower's own correction
   // seconds later, by when the host has moved on: read as the person, the party jumps back to it.
   test('a correction seek that lands after the settle window is not the person seeking', async () => {
     const { fake, player } = await follow({ all: ['seek'] })

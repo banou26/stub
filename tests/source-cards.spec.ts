@@ -27,9 +27,9 @@ const PAGE = `<!doctype html>
 </style>
 <body><div id="sources" style="width: 30rem"></div><script type="module" src="/page.js"></script></body>`
 
-// the link's source, connected with Nyaa and YTS
+// the link's source, connected with StreamOne and CatalogTwo
 const NO_PLUGINS = `
-  const statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'ny', name: 'Nyaa' }, { origin: 'yts', name: 'YTS' }] }]
+  const statuses = [{ uri: 'https:stub.plugins.banou.dev', state: 'connected', sources: [{ origin: 'ny', name: 'StreamOne' }, { origin: 'yts', name: 'CatalogTwo' }] }]
   export const pluginStatuses = () => statuses
   export const onPluginsChange = () => () => {}
   export const enabledPluginUris = () => []
@@ -148,9 +148,9 @@ test('the release picker\'s Close is over the link\'s notice, and Close, Escape 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${ORIGIN}/?picker`)
   const notice = page.locator('[role="status"] .notice')
-  await expect(notice).toContainText('Source enabled: Nyaa, YTS')
+  await expect(notice).toContainText('Source enabled: StreamOne, CatalogTwo')
   const card = page.locator('#sources button[aria-haspopup="dialog"]')
-  const picker = page.getByRole('dialog', { name: 'Choose a source from Nyaa' })
+  const picker = page.getByRole('dialog', { name: 'Choose a source from StreamOne' })
   const close = picker.getByRole('button', { name: 'Close' })
   await card.click()
   await expect(close).toBeVisible()

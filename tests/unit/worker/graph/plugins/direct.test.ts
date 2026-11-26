@@ -284,6 +284,46 @@ test('a scoped pass over one new claim leaves the graph where a full pass leaves
   expect(await histogramOf()).toEqual(after)
 })
 
+test('scoped direct runs exclude still-refused cross-origin pairs and empty deltas return an empty scope', async () => {
+  await ingestAnswers([
+    await answer('media', media('anilist:9101', { titles: [title('en', 'Disagreeing')], handles: [sameAs(media('mal:9101'))] })),
+    await answer('media', media('kitsu:9101', { titles: [title('en', 'Disagreeing')], handles: [sameAs(media('anilist:9101')), sameAs(media('mal:9102'))] })),
+    await answer('media', media('mal:9101', { titles: [title('en', 'Disagreeing')] })),
+    await answer('media', media('mal:9102', { titles: [title('en', 'Disagreeing B')] })),
+  ])
+  await runPass()
+
+  const queries = {
+    query: <Row>(cypher: string, params?: Record<string, unknown>) => rowsOf(cypher, params) as Promise<Row[]>,
+  }
+  const baseCtx = {
+    ...queries,
+    id: 'plugin:direct' as const,
+    since: 0,
+    passStart: 0,
+    guards: {} as any,
+    previous: { nodes: {}, edges: {} },
+    titleSimilarity: async () => 0,
+    maxPossibleSimilarity: () => 0,
+    parseSeasonNumber: () => undefined,
+    isOnlySeasonLabel: () => false,
+    isGenericEpisodeTitle: () => false,
+    log: () => {},
+  }
+  const emptyRun = await directPlugin.run({
+    ...baseCtx,
+    delta: { full: false, media: [], episodes: [], claims: [], links: [], clusters: [] },
+  })
+  expect(emptyRun.scope).toEqual({ full: false, uris: [], clusters: [], pairs: [] })
+  expect(emptyRun.links).toEqual([])
+
+  const unrelatedRun = await directPlugin.run({
+    ...baseCtx,
+    delta: { full: false, media: ['simkl:70'], episodes: [], claims: [], links: [], clusters: [] },
+  })
+  expect(unrelatedRun.scope).toEqual({ full: false, uris: ['simkl:70'], clusters: [], pairs: [] })
+})
+
 // A REAL RECORDED PAGE, which is the only case here that meets shapes nobody chose. It reports the
 // histogram rather than asserting a threshold on it: a number pinned to one walk fails on the next
 // walk rather than on the next bug. What IS asserted is what must hold whatever the page contains:

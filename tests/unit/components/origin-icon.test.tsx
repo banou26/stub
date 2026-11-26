@@ -24,7 +24,7 @@ test('a source whose icon will not load shows its initial instead of a broken im
 // HOR-1183: stub-plugin hands its icons as data urls, so drawing one asks no host; one it could not fetch is left out
 test("a plugin's data url icon is drawn as it is, and a source with no icon shows its initial", () => {
   const icon = 'data:image/png;base64,iVBORw0KGgo='
-  const drawn = mount(<OriginIcon icon={icon} name="Nyaa"/>)
+  const drawn = mount(<OriginIcon icon={icon} name="ExtSource"/>)
   const none = mount(<OriginIcon icon={null} name="YTS"/>)
   hosts.push(drawn, none)
   expect(drawn.querySelector('img')?.getAttribute('src')).toBe(icon)

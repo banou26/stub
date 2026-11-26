@@ -90,7 +90,7 @@ test('a film has no run beside it', () => {
 
 const ways: Ways = {
   builtIn: origin => origin === 'cr',
-  selfPlaying: origin => origin === 'nyaa',
+  selfPlaying: origin => origin === 'extsrc',
   off: () => false,
   order: ['cr', 'amazon', 'nf'],
   possible: () => true,
@@ -98,12 +98,12 @@ const ways: Ways = {
 }
 const third = [
   { uri: 'cr:GX3', origin: 'cr', url: 'https://www.crunchyroll.com/watch/GX3' },
-  { uri: 'nyaa:b', origin: 'nyaa', url: 'magnet:?xt=urn:btih:b' },
-  { uri: 'nyaa:c', origin: 'nyaa', url: 'magnet:?xt=urn:btih:c' },
+  { uri: 'extsrc:b', origin: 'extsrc', url: 'plugin-stream://b' },
+  { uri: 'extsrc:c', origin: 'extsrc', url: 'plugin-stream://c' },
 ]
 
 test('the other episode opens on the origin playing now, a release on its first release', () => {
-  expect(sourceFor(third, 'nyaa', ways)).toBe('nyaa:b')
+  expect(sourceFor(third, 'extsrc', ways)).toBe('extsrc:b')
   expect(sourceFor(third, 'cr', ways)).toBe('cr:GX3')
 })
 
@@ -111,13 +111,13 @@ test('an origin the other episode lacks, or cannot play there, names no source',
   expect(sourceFor(third, 'amazon', ways)).toBeUndefined()
   expect(sourceFor([{ uri: 'amazon:us', origin: 'amazon', url: 'https://watch.amazon.com/watch?gti=us' }], 'amazon', ways)).toBeUndefined()
   expect(sourceFor(third, undefined, ways)).toBeUndefined()
-  expect(sourceFor(third, 'nyaa', { ...ways, off: origin => origin === 'nyaa' }), 'an origin turned off').toBeUndefined()
+  expect(sourceFor(third, 'extsrc', { ...ways, off: origin => origin === 'extsrc' }), 'an origin turned off').toBeUndefined()
 })
 
-test('the next file of the torrent playing comes first, by its url, over a better release elsewhere', () => {
-  const pack = [...third, { uri: 'nyaa:a-3', origin: 'nyaa', url: 'magnet:?xt=urn:btih:a' }]
-  expect(sourceFor(pack, 'nyaa', ways, 'magnet:?xt=urn:btih:a')).toBe('nyaa:a-3')
-  expect(sourceFor(pack, 'nyaa', ways), 'the control: with nothing playing, the first release').toBe('nyaa:b')
-  expect(sourceFor(pack, 'nyaa', ways, 'magnet:?xt=urn:btih:z'), 'a torrent the episode is not in').toBe('nyaa:b')
-  expect(sourceFor(pack, 'nyaa', { ...ways, selfPlaying: () => false, builtIn: () => false }, 'magnet:?xt=urn:btih:a'), 'one that cannot play').toBeUndefined()
+test('the next episode of the release playing comes first, by its url, over a better release elsewhere', () => {
+  const pack = [...third, { uri: 'extsrc:a-3', origin: 'extsrc', url: 'plugin-stream://a' }]
+  expect(sourceFor(pack, 'extsrc', ways, 'plugin-stream://a')).toBe('extsrc:a-3')
+  expect(sourceFor(pack, 'extsrc', ways), 'the control: with nothing playing, the first release').toBe('extsrc:b')
+  expect(sourceFor(pack, 'extsrc', ways, 'plugin-stream://z'), 'a release the episode is not in').toBe('extsrc:b')
+  expect(sourceFor(pack, 'extsrc', { ...ways, selfPlaying: () => false, builtIn: () => false }, 'plugin-stream://a'), 'one that cannot play').toBeUndefined()
 })

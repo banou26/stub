@@ -177,15 +177,15 @@ test('a claimer that never rebuilds from the address keeps its claims, whatever 
 // read. The fallback can only narrow origins whose extractor was read line by line, and the safe
 // direction is the one that keeps a claim.
 // Mutation: default the lookup to an empty set (`NATIVE_ID_SPACES[claimer] ?? new Set()`) and, with
-// `nyaa` in `ADDRESS_ECHOING_ORIGINS`, every claim an unread source makes reads `address`.
+// `extsrc` in `ADDRESS_ECHOING_ORIGINS`, every claim an unread source makes reads `address`.
 test('an origin nobody read is trusted', async () => {
   await ingestAnswers([
-    await answer('media', media('nyaa:9900704', {
+    await answer('media', media('extsrc:9900704', {
       titles: [title('en', 'Remote')], handles: [sameAs(media('anilist:9900704'))],
     })),
   ])
 
-  expect(await claimsFrom('nyaa:9900704')).toEqual(['anilist:9900704 SAME_AS source'])
+  expect(await claimsFrom('extsrc:9900704')).toEqual(['anilist:9900704 SAME_AS source'])
 })
 
 // THE SEED RULE IS READ FIRST and is unchanged: the offline source's identity handles are `seed`, and

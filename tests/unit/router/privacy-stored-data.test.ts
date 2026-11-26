@@ -5,6 +5,7 @@ import { join, relative } from 'node:path'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { COMPACT_PREFS_KEY } from '../../../src/tracking/compact-prefs'
+import { TRAKT_SESSION_GEN_KEY } from '../../../src/sources/trakt/session'
 import { CONNECTED_KEY } from '../../../src/tracking/connections'
 import { SITE_STATUS_KEY } from '../../../src/tracking/site-status'
 import { DISPLAY_MODE_KEY } from '../../../src/router/search/display'
@@ -41,7 +42,7 @@ describe('what stub keeps per viewer', () => {
       store: 'local',
       names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, OPEN_IN_NEW_TAB_KEY, WATCH_SOURCE_VIEW_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
     })
-    expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
+    expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY, TRAKT_SESSION_GEN_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
     expect(byId('player').keys).toEqual({ store: 'local', names: [PLAYER_VOLUME_KEY] })
     expect(byId('positions').keys).toEqual({ store: 'local', names: [WATCH_POSITIONS_KEY, ACCOUNT_POSITIONS_KEY] })

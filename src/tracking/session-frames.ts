@@ -23,7 +23,7 @@ export const SESSION_INSTALL = 'stub:session-install'
 export const READ_SESSION_INSTALL = 'function (name) { const install = globalThis[Symbol.for(name)]; return install && typeof install.key === "string" ? install.key : null }'
 
 /** The arg the page script is evaluated with: serve the session over the port a message with `key` brings. */
-export type ServeArg = { kind: 'serve', appOrigin: string, key: string, freshOnly?: boolean }
+export type ServeArg = { kind: 'serve', appOrigin: string, key: string, sessionGen?: string }
 
 /** A site stub keeps one page of open, hidden, for the viewer's session on it. */
 export type SessionSite = {
@@ -39,10 +39,8 @@ export type SessionSite = {
   reason: string
   /** The page script, a function expression `evaluate` calls with a `ServeArg`, keeping its install at `SESSION_INSTALL`. */
   pageScript: string
-  /** Extra fields merged into the `ServeArg` for this install (e.g. clearing stale in-page caches after sign-out). */
-  serveExtra?: () => Partial<Pick<ServeArg, 'freshOnly'>>
-  /** Called once `frame.evaluate(site.pageScript, serve)` completes for the still-current install. */
-  onInstalled?: (serve: ServeArg) => void
+  /** Optional session generation token passed into `ServeArg` on each install. */
+  sessionGen?: () => string | undefined
 }
 
 export type SessionFramesOptions<Api> = {
@@ -86,6 +84,8 @@ export type SessionFrames<Api> = {
    * time, rejects.
    */
   use: <T>(site: string, call: (api: Api) => Promise<T>, options?: UseOptions) => Promise<T>
+  /** Runs `call` against an already-attached frame for `site`, or returns `undefined` if none is currently open. */
+  ifAttached: <T>(site: string, call: (api: Api) => Promise<T>, timeoutMs?: number) => Promise<T | undefined>
   /** Drops the site's frame, so the next use loads the page afresh (after a sign in), and tells the watchers. */
   reload: (site: string) => void
   /** Called after every `reload` of the site. */
@@ -147,7 +147,8 @@ export const createSessionFrames = <Api>(
   // ONE page script per document, since what evaluate installed ends with its document
   const install = (entry: Entry<Api>, site: SessionSite, frame: Frame): Install<Api> => {
     entry.current?.retire()
-    const serve: ServeArg = { kind: 'serve', appOrigin, key: key(), ...site.serveExtra?.() }
+    const sessionGen = site.sessionGen?.()
+    const serve: ServeArg = { kind: 'serve', appOrigin, key: key(), ...(sessionGen !== undefined ? { sessionGen } : {}) }
     const { port1, port2 } = new MessageChannel()
     let retire!: () => void
     const gone = new Promise<never>((_resolve, reject) => {
@@ -157,17 +158,14 @@ export const createSessionFrames = <Api>(
       }
     })
     gone.catch(() => {})
-    const evaluated = (async () => {
-      await frame.evaluate(site.pageScript, serve)
-      if (entry.current?.key === serve.key) site.onInstalled?.(serve)
-    })()
+    const evaluated = frame.evaluate(site.pageScript, serve)
     const api = (async () => {
       await evaluated
       await frame.postMessage({ type: SESSION_PORT_MESSAGE, key: serve.key }, site.origin, [port2])
       return await deadline(connect(port1), connectTimeoutMs, `${site.origin} did not answer stub's page script`)
     })()
     api.catch(() => {})
-    const next = { key: serve.key, landed: evaluated.catch(() => {}), api, gone, retire }
+    const next = { key: serve.key, landed: evaluated.then(() => undefined, () => undefined), api, gone, retire }
     entry.current = next
     return next
   }
@@ -275,6 +273,18 @@ export const createSessionFrames = <Api>(
     }
   }
 
+  const ifAttached = async <T>(id: string, call: (api: Api) => Promise<T>, timeoutMs = 2_000): Promise<T | undefined> => {
+    const site = siteOf(id)
+    const current = entries.get(site.id)?.current
+    if (!current) return undefined
+    try {
+      const api = await Promise.race([current.api, current.gone])
+      return await Promise.race([deadline(call(api), timeoutMs, `${site.origin} did not answer within ${timeoutMs / 1000} s`), current.gone])
+    } catch {
+      return undefined
+    }
+  }
+
   const reload = (id: string) => {
     discard(id, entries.get(id))
     for (const listener of watchers.get(id) ?? []) listener()
@@ -287,5 +297,5 @@ export const createSessionFrames = <Api>(
     return () => { set.delete(listener) }
   }
 
-  return { use, reload, watch }
+  return { use, ifAttached, reload, watch }
 }

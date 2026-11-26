@@ -1,17 +1,16 @@
 // Playback sync through a source PLUGIN, across three real browser contexts and all three hops: stub's
-// page, the plugin's frame (a sandbox origin), and ripple's embed inside it. A host and two followers
-// open the same nyaa release through the plugin, the host's player is paused and moved from inside its
-// embed frame, and the followers' embeds are read back to see them follow. Then the host hands
-// Play/pause to all followers, follower A pauses, and the host and follower B have to pause with it,
-// with the line in all three chats; A's pause to B's pause is logged in ms. The control runs first:
-// without the grant, B never pauses and A is resumed. Then the same for Seek and Speed (A's seek to B's
-// seek in ms, and the host's rate EXACTLY the asked one 10 s later, never left nudged 5% off), and last
-// the party plays to the episode's end, where a follower that ends first must not pause the host just
-// short of it (the plugin's `ended`).
+// page, the plugin's frame (a sandbox origin), and a nested player embed inside it. A host and two
+// followers open the same source release through the plugin, the host's player is paused and moved
+// from inside its embed frame, and the followers' embeds are read back to see them follow. Then the
+// host hands Play/pause to all followers, follower A pauses, and the host and follower B have to pause
+// with it, with the line in all three chats; A's pause to B's pause is logged in ms. The control
+// runs first: without the grant, B never pauses and A is resumed. Then the same for Seek and Speed
+// (A's seek to B's seek in ms, and the host's rate EXACTLY the asked one 10 s later, never left nudged
+// 5% off), and last the party plays to the episode's end, where a follower that ends first must not
+// pause the host just short of it (the plugin's `ended`).
 //
-// HEADFUL. The players stream a torrent, and a headless Chromium never gets past "Loading metadata…"
-// (measured 2026-08-05), so this needs a compositor: `xvfb-run -s "-screen 0 1280x720x24"` when the
-// owner is at the machine. Muted, always.
+// HEADFUL when driving remote media players that need a real compositor: `xvfb-run -s "-screen 0 1280x720x24"`.
+// Muted, always.
 //
 //   STUB_ORIGIN=http://localhost:4560 env -u WAYLAND_DISPLAY -u NIXOS_OZONE_WL \
 //     xvfb-run -s "-screen 0 1280x720x24" node scripts/check-party-plugin-playback.mjs
@@ -24,9 +23,8 @@
 // invite, which carries the host's sources (HOR-845). A `?plugins=` url adds it at once and says so, and a
 // run that moves on before that has no plugin and no player.
 //
-// The plugin and ripple are the deployed ones (stub.plugins.banou.dev, torrent.fkn.app), because the
-// plugin hardcodes ripple's embed origin and the package loader fetches over HTTPS. So this runs after
-// those two ship, against whichever stub is named. Run it from INSIDE the repo.
+// Set STUB_WATCH_PATH, STUB_PLUGIN, and STUB_PLAYER_FRAME_RE to target the source plugin under test.
+// The package loader fetches over HTTPS. Run this from INSIDE the repo.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -34,8 +32,8 @@ import { chromium } from 'playwright'
 
 const ORIGIN = process.env.STUB_ORIGIN ?? 'http://localhost:4560'
 const PLUGIN = process.env.STUB_PLUGIN ?? 'https:stub.plugins.banou.dev'
-// the owner's example: a nyaa release of a fall 2026 episode, played through the plugin
-const WATCH = process.env.STUB_WATCH_PATH ?? '/watch/ag:(anilist:207141,anizip:19873,jw:518630-563252,kitsu:50551,mal:63403,nf:82760630-1,nyaa:19873,offline:mal-63403,tvmaze:92274-s1)/ag:(anizip:19873-5,jw:10560899,kitsu:394560,nf:82760636,nyaa:2139402,nyaa:2139482,tvmaze:3668029)/nyaa:2139402'
+const PLAYER_FRAME_RE = new RegExp(process.env.STUB_PLAYER_FRAME_RE ?? '/watch')
+const WATCH = process.env.STUB_WATCH_PATH ?? '/watch/ag:(anilist:207141,anizip:19873,jw:518630-563252,kitsu:50551,mal:63403,nf:82760630-1,offline:mal-63403,tvmaze:92274-s1)/ag:(anizip:19873-5,jw:10560899,kitsu:394560,nf:82760636,tvmaze:3668029)/source:1'
 
 const chromePath = () => {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH
@@ -72,8 +70,8 @@ const until = async (read, want, timeout = 60_000, every = 500) => {
   return undefined
 }
 
-/** The ripple player frame inside a page, once it exists. Ripple's player route is `/watch` since 2026-09-09. */
-const embedOf = page => page.frames().find(frame => /torrent\.fkn\.app\/watch/.test(frame.url()))
+/** The nested player frame inside a page, once it exists. */
+const embedOf = page => page.frames().find(frame => frame !== page.mainFrame() && PLAYER_FRAME_RE.test(frame.url()))
 
 /** What the video in a page's embed is doing, or undefined before there is one. */
 const videoOf = async page => {
@@ -141,12 +139,11 @@ const run = async () => {
     console.log('\nRIG BLIND: the host never got a player, so nothing can be synced')
     console.log(`  frames: ${JSON.stringify(host.frames().map(frame => frame.url().slice(0, 70)))}`)
     const embed = embedOf(host)
-    if (!embed) console.log('  no ripple embed frame at all: the source package never mounted, so look at the plugin, not at playback')
+    if (!embed) console.log('  no nested player embed frame at all: the source package never mounted, so look at the plugin, not at playback')
     else {
       const said = await embed.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').slice(0, 200)).catch(error => `unreadable: ${error}`)
       console.log(`  the embed says: ${said}`)
-      console.log('  "Downloading" with peers means the swarm is fine and this run simply did not wait long enough')
-      console.log('  no peers, or stuck at metadata, means the swarm and not the code')
+      console.log('  player frame mounted; check stream availability or timeout')
     }
     await browser.close()
     process.exit(2)

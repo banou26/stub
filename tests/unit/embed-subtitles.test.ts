@@ -134,4 +134,37 @@ describe('embed-subtitles postMessage bridge', () => {
     stopDisabled()
     stopWatch()
   })
+
+  test('delivers LOADED to the same iframe even after bundle update tears down the previous listener', async () => {
+    const { hostWindow, embedWindow, iframe } = makeWindowPair()
+    let finishLoad!: (text: string) => void
+    const load = vi.fn(() => new Promise<string>(resolve => { finishLoad = resolve }))
+    const bundle1: ExternalSubtitleBundle = {
+      tracks: [{ id: 't1', language: 'en', label: 'English', format: 'srt' }],
+      load,
+    }
+    const bundle2: ExternalSubtitleBundle = {
+      tracks: [
+        { id: 't1', language: 'en', label: 'English', format: 'srt' },
+        { id: 't2', language: 'ja', label: 'Japanese', format: 'srt' },
+      ],
+      load,
+    }
+
+    const stop1 = serveEmbedExternalSubtitles(iframe, bundle1, hostWindow)
+    let latest: ExternalSubtitleTrack[] | undefined
+    const stopWatch = watchHostExternalSubtitles(tracks => { latest = tracks as typeof latest }, embedWindow)
+
+    const loading = latest![0]!.load!()
+    expect(load).toHaveBeenCalledTimes(1)
+
+    // Bundle updates before `t1` finishes loading (e.g. plugin subtitles arrive).
+    stop1()
+    const stop2 = serveEmbedExternalSubtitles(iframe, bundle2, hostWindow)
+    finishLoad('1\n00:00:00,000 --> 00:00:02,000\nArrived\n')
+
+    await expect(loading).resolves.toContain('Arrived')
+    stop2()
+    stopWatch()
+  })
 })

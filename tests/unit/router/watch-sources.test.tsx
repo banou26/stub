@@ -12,7 +12,7 @@ import { viewerIn } from '../sources/justwatch/viewer'
 
 const fkn = vi.hoisted(() => ({ backend: 'cloud' as FknBackend }))
 vi.mock('urql', () => ({
-  useSubscription: () => [{ data: { originPage: { nodes: ['nyaa', 'amazon'].map(id => ({ id, name: id, icon: null, color: null })) } } }],
+  useSubscription: () => [{ data: { originPage: { nodes: ['extsrc', 'amazon'].map(id => ({ id, name: id, icon: null, color: null })) } } }],
 }))
 vi.mock('../../../src/worker', () => ({}))
 vi.mock('../../../src/utils/fkn-backend', () => ({ detectBackend: async () => fkn.backend }))
@@ -21,8 +21,8 @@ vi.mock('lucide-react', () => ({ ChevronLeft: () => null, ChevronRight: () => nu
 
 const { useWatchSources } = await import('../../../src/router/home/media-details')
 
-const release = (id: string) => ({ relation: 'SAME_AS', node: { uri: `nyaa:${id}`, origin: 'nyaa', url: `magnet:?xt=urn:btih:${id}` } })
-const episode = { uri: 'ag:(anilist:1-1,nyaa:b,nyaa:a)', handles: [release('b'), release('a')] } as unknown as DetailsEpisode
+const release = (id: string) => ({ relation: 'SAME_AS', node: { uri: `extsrc:${id}`, origin: 'extsrc', url: `plugin-stream://${id}` } })
+const episode = { uri: 'ag:(anilist:1-1,extsrc:b,extsrc:a)', handles: [release('b'), release('a')] } as unknown as DetailsEpisode
 
 const hosts: HTMLElement[] = []
 afterEach(() => { while (hosts.length) unmount(hosts.pop()!) })
@@ -34,7 +34,7 @@ test('an origin with several releases links to its first release', () => {
     return null
   }
   hosts.push(mount(<Probe/>))
-  expect(sources.map(({ id, href }) => ({ id, href }))).toEqual([{ id: 'nyaa', href: '/watch/ag:(anilist:1)/ag:(anilist:1-1)/nyaa:b' }])
+  expect(sources.map(({ id, href }) => ({ id, href }))).toEqual([{ id: 'extsrc', href: '/watch/ag:(anilist:1)/ag:(anilist:1-1)/extsrc:b' }])
 })
 
 test('a Prime Video episode outside Japan links to the watch page with the extension, and out to Prime Video on the cloud', async () => {

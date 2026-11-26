@@ -9,7 +9,7 @@ import { Route, Router } from 'wouter'
 import { intl } from '../src/i18n'
 import Watch from '../src/router/watch'
 import { getRouterRoutePath, Route as Routes } from '../src/router/path'
-import { TORRENT_ORIGIN } from './watch-stage-media'
+import { PLUGIN_SOURCE_ORIGIN } from './watch-stage-media'
 
 const MEDIA_URI = 'ag:(anilist:900101)'
 const EP1_URI = 'ag:(anilist:900101-1)'
@@ -35,8 +35,8 @@ const media = {
       thumbnails: [],
       handles: [
         { relation: 'SAME_AS', node: { uri: 'cr:GSWITCH1', origin: 'cr', id: 'GSWITCH1', url: 'https://www.crunchyroll.com/watch/GSWITCH1', shortDescriptions: [{ shortDescription: 'Crunchyroll Official' }] } },
-        { relation: 'SAME_AS', node: { uri: `${TORRENT_ORIGIN}:rel1`, origin: TORRENT_ORIGIN, id: 'rel1', url: 'magnet:?xt=urn:btih:rel1', shortDescriptions: [{ shortDescription: 'Release 1' }] } },
-        { relation: 'SAME_AS', node: { uri: `${TORRENT_ORIGIN}:rel2`, origin: TORRENT_ORIGIN, id: 'rel2', url: 'magnet:?xt=urn:btih:stage1', shortDescriptions: [{ shortDescription: 'Release 2' }] } },
+        { relation: 'SAME_AS', node: { uri: `${PLUGIN_SOURCE_ORIGIN}:rel1`, origin: PLUGIN_SOURCE_ORIGIN, id: 'rel1', url: 'plugin-stream://rel1', shortDescriptions: [{ shortDescription: 'Release 1' }] } },
+        { relation: 'SAME_AS', node: { uri: `${PLUGIN_SOURCE_ORIGIN}:rel2`, origin: PLUGIN_SOURCE_ORIGIN, id: 'rel2', url: 'plugin-stream://stage1', shortDescriptions: [{ shortDescription: 'Release 2' }] } },
         ...Array.from({ length: 24 }, (_, idx) => {
           const n = idx + 1
           return {
@@ -69,7 +69,7 @@ const origins = {
   originPage: {
     nodes: [
       { id: 'cr', url: 'https://www.crunchyroll.com', name: 'Crunchyroll', icon: null, color: null, isApiOnly: false },
-      { id: TORRENT_ORIGIN, url: 'https://torrents.spec.test', name: 'Spec Torrents', icon: null, color: null, isApiOnly: false },
+      { id: PLUGIN_SOURCE_ORIGIN, url: 'https://sources.spec.test', name: 'Spec Source', icon: null, color: null, isApiOnly: false },
       { id: 'spec-archive', url: 'https://archive.spec.test', name: 'Spec Archive', icon: null, color: null, isApiOnly: false },
     ],
   },

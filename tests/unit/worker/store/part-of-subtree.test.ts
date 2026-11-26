@@ -86,11 +86,11 @@ test('a media carrying both keeps the SAME_AS subtree and cuts the PART_OF one',
 // A handle that names no node is what a `stub-source@1` plugin sends: `handles: [Media!]!` was the
 // schema those plugins were written against, so a bare row arrives where an edge is read. The unwrap
 // dereferenced it and the shared insert batch rejected for every extractor in it, first-party sources
-// included (2026-09-05, the nyaa package on the deployed site). The boundary now converts the shape;
+// included (2026-09-05, a catalog plugin on the deployed site). The boundary now converts the shape;
 // this is the backstop for anything that still gets through.
 test('a handle naming no node is skipped, and never fails the whole row', () => {
   const unwrapped = recursivelyUnwrapMediaHandles(
-    node('nyaa:14758', [{ relation: 'SAME_AS' } as any, { uri: 'mal:39535', origin: 'mal', id: '39535' } as any, sameAs(node('anilist:108465'))])
+    node('extsrc:14758', [{ relation: 'SAME_AS' } as any, { uri: 'mal:39535', origin: 'mal', id: '39535' } as any, sameAs(node('anilist:108465'))])
   )
-  expect(urisOf(unwrapped)).toEqual(['anilist:108465', 'nyaa:14758'])
+  expect(urisOf(unwrapped)).toEqual(['anilist:108465', 'extsrc:14758'])
 })

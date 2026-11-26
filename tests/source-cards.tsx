@@ -21,12 +21,12 @@ const crunchyroll = {
   subtitleLanguages: ['en-US'],
 }
 // `?marks`: a source to open elsewhere, and one with its releases folded, for the marks they draw
-const nyaa = { id: 'ny', name: 'Nyaa', href: '/watch/m/e/ny:1', external: false, active: false, releases: [{ uri: 'ny:1', label: 'One', external: false, active: false }, { uri: 'ny:2', label: 'Two', external: false, active: false }] }
+const streamOne = { id: 'ny', name: 'StreamOne', href: '/watch/m/e/ny:1', external: false, active: false, releases: [{ uri: 'ny:1', label: 'One', external: false, active: false }, { uri: 'ny:2', label: 'Two', external: false, active: false }] }
 const prime = { id: 'pv', name: 'Prime Video', href: 'https://www.primevideo.com/', external: true, active: false }
 // `?picker`: that source with its own release picker, and the notice of the link that added it
 const PLUGIN = 'https:stub.plugins.banou.dev'
 const mode = new URLSearchParams(location.search)
-const sources = mode.has('marks') ? [nyaa, prime] : mode.has('picker') ? [{ ...nyaa, picker: { pluginUri: PLUGIN } }] : [crunchyroll]
+const sources = mode.has('marks') ? [streamOne, prime] : mode.has('picker') ? [{ ...streamOne, picker: { pluginUri: PLUGIN } }] : [crunchyroll]
 // in the language setting's language, which tests/source-cards.spec.ts's build offers
 void startLanguage().then(intl => {
   render(<RawIntlProvider value={intl}><Router hook={hook}>{mode.has('picker') && <PluginNotice/>}<SourceSelector sources={sources}/></Router></RawIntlProvider>, document.getElementById('sources')!)

@@ -51,7 +51,7 @@ test.beforeAll(async () => {
           main: join(ROOT, 'tests', 'subtitle-browser.tsx'),
           embed: join(ROOT, 'tests', 'watch-stage-player.tsx'),
           plugin: join(ROOT, 'tests', 'watch-stage-plugin.ts'),
-          player: join(ROOT, 'tests', 'watch-stage-ripple.ts'),
+          player: join(ROOT, 'tests', 'watch-stage-nested-player.ts'),
         },
         output: { entryFileNames: '[name].js' },
       },

@@ -50,7 +50,7 @@ test.beforeAll(async () => {
           main: join(ROOT, 'tests', 'quick-source-switcher.tsx'),
           embed: join(ROOT, 'tests', 'watch-stage-player.tsx'),
           plugin: join(ROOT, 'tests', 'watch-stage-plugin.ts'),
-          player: join(ROOT, 'tests', 'watch-stage-ripple.ts'),
+          player: join(ROOT, 'tests', 'watch-stage-nested-player.ts'),
         },
         output: { entryFileNames: '[name].js' },
       },
@@ -205,7 +205,7 @@ test('switches sources and subsources from inside the player without leaving ful
     await release2.click()
 
     await expect(dialog).toBeHidden()
-    await expect(page).toHaveURL(/spec-torrent:rel2/)
+    await expect(page).toHaveURL(/spec-plugin:rel2/)
     await expect(page.locator('.stage iframe')).toBeAttached()
     expect(await page.evaluate(() => document.fullscreenElement?.className ?? null)).toBe('stage')
 

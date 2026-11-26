@@ -4,6 +4,7 @@
 import type { SceneError, SceneMatch, SceneMoment } from './search'
 
 import { decodeEntities } from '../sources/entities'
+import { sameMoment } from './search'
 
 /** SauceNAO documentation and live probes place reliable frame matches at 60% similarity and above. */
 export const SAUCENAO_MIN_SIMILARITY = 0.6
@@ -45,26 +46,23 @@ const extractEpisodeInfo = (titleText: string, contentText: string): { season: n
     if (tv) return { season: Number(tv[1]), episode: Number(tv[2]) }
   }
   // Anime titles on SauceNAO end with ` - <ep>` before English subtitle or release info, or carry `Episode <n>`.
+  // Four-digit calendar years (1900-2099) can also appear after a dash in film/album titles, so skip those.
   const animeDash = /\s-\s*(\d{1,4})(?:\s|$)/.exec(titleText)
-  if (animeDash) return { season: null, episode: Number(animeDash[1]) }
+  if (animeDash) {
+    const ep = Number(animeDash[1])
+    if (!(animeDash[1]!.length === 4 && ep >= 1900 && ep <= 2099)) return { season: null, episode: ep }
+  }
   const episodeWord = /\bEpisode\s+(\d{1,4})\b/i.exec(`${titleText} ${contentText}`)
   if (episodeWord) return { season: null, episode: Number(episodeWord[1]) }
   return { season: null, episode: null }
 }
-
-const sameMoment = (a: SceneMoment, b: SceneMoment) =>
-  (a.season ?? null) === (b.season ?? null) && a.episode === b.episode
 
 /**
  * Parses a SauceNAO `/search.php` HTML document into ordered `SceneMatch` entries or a clean `SceneError`.
  */
 export const parseSauceNaoHtml = (html: string): SauceNaoAnswer => {
   if (/Daily Search Limit Exceeded/i.test(html)) return { error: 'limit' }
-  if (/Search Rate Too High|too many requests|slow down/i.test(html)) return { error: 'busy' }
   if (/cf-turnstile|challenge-platform|<title>\s*Just a moment/i.test(html)) return { error: 'busy' }
-  if (/Problem with remote|error processing|invalid image|cannot determine image|You need to specify an image/i.test(html)) {
-    return { error: 'failed' }
-  }
 
   const byUri = new Map<string, SceneMatch>()
   const blocks = html.match(/<table\b[^>]*class=["'][^"']*\bresulttable\b[^"']*["'][^>]*>[\s\S]*?<\/table>/gi) ?? []
@@ -105,5 +103,10 @@ export const parseSauceNaoHtml = (html: string): SauceNaoAnswer => {
     else if (moment.from < prior.from) prior.from = moment.from
   }
 
-  return { matches: [...byUri.values()] }
+  if (byUri.size > 0) return { matches: [...byUri.values()] }
+  if (/Search Rate Too High|too many requests|slow down/i.test(html)) return { error: 'busy' }
+  if (/Problem with remote|error processing|invalid image|cannot determine image|You need to specify an image/i.test(html)) {
+    return { error: 'failed' }
+  }
+  return { matches: [] }
 }

@@ -113,7 +113,7 @@ describe('settings on the FKN account', () => {
     await anime.set(OFF, '["simkl","anilist"]')
     await anime.set(ICONS, '["nf"]')
     await anime.set(AUTOPLAY, 'off')
-    await anime.set(PLAY, '["nyaa"]')
+    await anime.set(PLAY, '["extsrc"]')
     browser.account.signIn('alice')
     await anime.sync.check()
     expect(fileOf(world, 'alice')).toEqual({ [OFF]: '["trakt","simkl","anilist"]', [ICONS]: '["nf"]', [AUTOPLAY]: null, [PLAY]: '["nf","cr"]' })
@@ -420,7 +420,7 @@ describe('the page\'s settings', () => {
     const world = fknWorld()
     holds(world, 'alice', {
       [OFF]: '["simkl"]', [ICONS]: '["nf"]', [COUNTRY]: 'JP', [AUTOPLAY]: 'off', [WATCH_SOURCE_VIEW]: 'list',
-      [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}', [PLAY]: '["nyaa","cr"]',
+      [DISPLAY_MODE_KEY]: 'list', [COMPACT_PREFS_KEY]: '{"targets":{"anilist":false}}', [PLAY]: '["extsrc","cr"]',
       [AUDIO]: 'Japanese', [SUBTITLES]: 'off', [ALWAYS]: 'on',
     })
     const realm = world.browser({ account: 'alice' }).realm()
@@ -431,7 +431,7 @@ describe('the page\'s settings', () => {
       sources: readDisabledSources(), icons: readHiddenIcons(), country: readPickedCountry(), autoplay: readAutoplay(),
       sourceView: readWatchSourceView(), layout: readDisplayMode(), prefs: viewerPrefs.read(), order: readPlayOrder(), languages: readTrackLanguages(),
     }).toEqual({
-      sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, sourceView: 'list', layout: 'list', prefs: { targets: { anilist: false } }, order: ['nyaa', 'cr'],
+      sources: ['simkl'], icons: ['nf'], country: 'JP', autoplay: false, sourceView: 'list', layout: 'list', prefs: { targets: { anilist: false } }, order: ['extsrc', 'cr'],
       languages: { audio: 'Japanese', subtitles: null, alwaysSubtitles: true },
     })
   })

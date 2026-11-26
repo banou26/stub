@@ -132,8 +132,8 @@ test('a point kept on another source of the episode resumes this one; one past t
 })
 
 test('a player that never says its length resumes on its first report', async () => {
-  keep(['nyaa:a', 600, 0])
-  const link = page({ link: fakeLink(), uri: 'nyaa:a', uris: ['nyaa:a'] })
+  keep(['extsrc:a', 600, 0])
+  const link = page({ link: fakeLink(), uri: 'extsrc:a', uris: ['extsrc:a'] })
   await link.report({ paused: true, time: 0 })
   expect(seeks(link)).toEqual([600])
 })
@@ -147,11 +147,11 @@ test('every report keeps where the player is, and 86% marks the source finished'
 })
 
 test('a player that never says its length, paused at its end and then ended there, marks the source finished', async () => {
-  const link = page({ link: fakeLink(), uri: 'nyaa:a', uris: ['nyaa:a'] })
+  const link = page({ link: fakeLink(), uri: 'extsrc:a', uris: ['extsrc:a'] })
   await link.report({ time: 1390 }, { paused: true, time: 1400 })
-  expect(kept(), 'the control: kept as a point').toEqual([['nyaa:a', 1400, 0, expect.any(Number)]])
+  expect(kept(), 'the control: kept as a point').toEqual([['extsrc:a', 1400, 0, expect.any(Number)]])
   await link.report({ paused: true, time: 1400, ended: true })
-  expect(kept()).toEqual([['nyaa:a', expect.any(Number)]])
+  expect(kept()).toEqual([['extsrc:a', expect.any(Number)]])
 })
 
 test('a report under 30 s after the seek leaves the point kept, so a seek that lands late loses nothing', async () => {
@@ -165,56 +165,56 @@ test('a report under 30 s after the seek leaves the point kept, so a seek that l
 test('a source plugin\'s player that says its length resumes once it says it, and keeps its point with it', async () => {
   keep(['cr:1', 600, 1420])
   const { link, applied, report } = pluginLink()
-  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a', 'cr:1']} guest={false}/>))
+  hosts.push(mount(<Resume link={link} uri="extsrc:a" uris={['extsrc:a', 'cr:1']} guest={false}/>))
   await report({ paused: true, time: 0, duration: 0 })
   expect(applied, 'no length yet').toEqual([])
   await report({ time: 1, duration: 1420 })
   expect(applied).toEqual([600])
   await report({ time: 700, duration: 1420 })
-  expect(kept()).toEqual([['cr:1', 600, 1420, 0], ['nyaa:a', 700, 1420, expect.any(Number)]])
+  expect(kept()).toEqual([['cr:1', 600, 1420, 0], ['extsrc:a', 700, 1420, expect.any(Number)]])
   await report({ time: 1210, duration: 1420 })
-  expect(kept(), '85% marks it finished').toEqual([['cr:1', 600, 1420, 0], ['nyaa:a', expect.any(Number)]])
+  expect(kept(), '85% marks it finished').toEqual([['cr:1', 600, 1420, 0], ['extsrc:a', expect.any(Number)]])
 })
 
 test('a source plugin\'s live media, whose length is Infinity, resumes on its first report, and is kept with none', async () => {
-  keep(['nyaa:a', 600, 0])
+  keep(['extsrc:a', 600, 0])
   const { link, applied, report } = pluginLink()
-  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  hosts.push(mount(<Resume link={link} uri="extsrc:a" uris={['extsrc:a']} guest={false}/>))
   await report({ paused: true, time: 0, duration: Infinity })
   expect(applied).toEqual([600])
   await report({ time: 700, duration: Infinity })
-  expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
+  expect(kept()).toEqual([['extsrc:a', 700, 0, expect.any(Number)]])
 })
 
 test('a source plugin\'s player that never says its length resumes on its first report, and is kept with none', async () => {
-  keep(['nyaa:a', 600, 0])
+  keep(['extsrc:a', 600, 0])
   const { link, applied, report } = pluginLink()
-  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  hosts.push(mount(<Resume link={link} uri="extsrc:a" uris={['extsrc:a']} guest={false}/>))
   await report({ paused: true, time: 0 })
   expect(applied).toEqual([600])
   await report({ time: 700 })
-  expect(kept()).toEqual([['nyaa:a', 700, 0, expect.any(Number)]])
+  expect(kept()).toEqual([['extsrc:a', 700, 0, expect.any(Number)]])
 })
 
 // the report a player makes as it loads says paused, and can reach the page after the viewer's Play started it
 test('a source plugin\'s player started since the report that said it was paused plays on from the point kept', async () => {
-  keep(['nyaa:a', 600, 0])
+  keep(['extsrc:a', 600, 0])
   const { link, player, report } = pluginLink()
-  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  hosts.push(mount(<Resume link={link} uri="extsrc:a" uris={['extsrc:a']} guest={false}/>))
   player.paused = false
   await report({ paused: true, time: 0 })
   expect(player).toEqual({ paused: false, time: 600 })
 })
 
 test('a source plugin\'s paused player is put at the point kept and left paused, by a package from before exact too', async () => {
-  keep(['nyaa:a', 600, 0])
+  keep(['extsrc:a', 600, 0])
   const { link, player, report } = pluginLink()
-  hosts.push(mount(<Resume link={link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  hosts.push(mount(<Resume link={link} uri="extsrc:a" uris={['extsrc:a']} guest={false}/>))
   await report({ paused: true, time: 0 })
   expect(player).toEqual({ paused: true, time: 600 })
 
   const older = pluginLink({ exact: false })
-  hosts.push(mount(<Resume link={older.link} uri="nyaa:a" uris={['nyaa:a']} guest={false}/>))
+  hosts.push(mount(<Resume link={older.link} uri="extsrc:a" uris={['extsrc:a']} guest={false}/>))
   await older.report({ paused: true, time: 0 })
   expect(older.told, 'the state it was always told').toEqual([expect.objectContaining({ paused: true, time: 600, rate: 1 })])
   expect(older.player).toEqual({ paused: true, time: 600 })

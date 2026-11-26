@@ -1,11 +1,12 @@
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import {
+  capPluginSubtitles,
   extractAniId,
   extractImdbId,
   extractReleaseName,
   extractSeasonNumber,
-  fetchExternalSubtitles,
+  fetchBuiltInExternalSubtitles,
   loadSubtitleCandidate,
   searchExternalSubtitles,
 } from '../../../src/subtitles'
@@ -44,15 +45,15 @@ describe('subtitle metadata extractors', () => {
     expect(extractSeasonNumber({ uri: 'ag:(anilist:1)', seasons: [] })).toBe(1)
   })
 
-  test('extracts release name from handle shortDescription, magnet dn, or episode title', () => {
+  test('extracts release name from handle shortDescription, handle title, or episode title', () => {
     expect(extractReleaseName({ shortDescriptions: [{ shortDescription: 'Show.1080p.WEB' }] }, { titles: [{ title: 'Ep 1' }] })).toBe('Show.1080p.WEB')
-    expect(extractReleaseName({ url: 'magnet:?xt=urn:btih:abc&dn=Movie.2024.Remux' }, undefined)).toBe('Movie.2024.Remux')
+    expect(extractReleaseName({ titles: [{ title: 'Movie.2024.Remux' }] }, { titles: [{ title: 'Ep 1' }] })).toBe('Movie.2024.Remux')
+    expect(extractReleaseName(undefined, { titles: [{ title: 'Episode 1' }] })).toBe('Episode 1')
   })
 })
 
-describe('fetchExternalSubtitles', () => {
-  test('resolves anime imdbId via AniZip, fetches OpenSubtitles + Xunlei in parallel, and caches loaded decoded bytes', async () => {
-    let subtitleDownloads = 0
+describe('fetchBuiltInExternalSubtitles and loadSubtitleCandidate', () => {
+  test('resolves anime imdbId via AniZip, fetches OpenSubtitles + Xunlei in parallel, and decodes downloaded bytes', async () => {
     const mockFetch = async (url: string) => {
       if (url.startsWith('https://api.ani.zip/mappings?anilist_id=154587')) {
         return Response.json({ mappings: { imdb_id: 'tt21209876' }, episodes: {} })
@@ -72,7 +73,6 @@ describe('fetchExternalSubtitles', () => {
         })
       }
       if (url === 'https://subs5.strem.io/sub101.srt') {
-        subtitleDownloads++
         const body = new TextEncoder().encode('1\n00:00:01,000 --> 00:00:02,000\nFrieren\n')
         return new Response(new Uint8Array([0xef, 0xbb, 0xbf, ...body]))
       }
@@ -83,7 +83,7 @@ describe('fetchExternalSubtitles', () => {
       return new Response('', { status: 404 })
     }
 
-    const bundle = await fetchExternalSubtitles({
+    const builtIn = await fetchBuiltInExternalSubtitles({
       fetch: mockFetch,
       aniId: { providerId: 'anilist', id: '154587' },
       isAnime: true,
@@ -96,17 +96,14 @@ describe('fetchExternalSubtitles', () => {
       locale: 'en',
     })
 
-    expect(bundle.tracks.map(t => ({ id: t.id, language: t.language, format: t.format }))).toEqual([
+    expect(builtIn.imdbId).toBe('tt21209876')
+    expect(builtIn.candidates.map(t => ({ id: t.id, language: t.language, format: t.format }))).toEqual([
       { id: 'opensubtitles:en:101', language: 'en', format: 'srt' },
       { id: 'xunlei:xl1', language: 'zh-Hans', format: 'ass' },
     ])
 
-    expect(await bundle.load('opensubtitles:en:101')).toBe('1\n00:00:01,000 --> 00:00:02,000\nFrieren\n')
-    expect(await bundle.load('opensubtitles:en:101')).toBe('1\n00:00:01,000 --> 00:00:02,000\nFrieren\n')
-    expect(subtitleDownloads).toBe(1)
-
-    expect(await bundle.load('xunlei:xl1')).toBe('中文')
-    await expect(bundle.load('unknown')).rejects.toThrow()
+    expect(await loadSubtitleCandidate(builtIn.candidates[0]!, { fetch: mockFetch })).toBe('1\n00:00:01,000 --> 00:00:02,000\nFrieren\n')
+    expect(await loadSubtitleCandidate(builtIn.candidates[1]!, { fetch: mockFetch })).toBe('中文')
   })
 
   test('ranks combined OpenSubtitles and Xunlei candidates by viewer preferred languages', async () => {
@@ -124,7 +121,7 @@ describe('fetchExternalSubtitles', () => {
       return new Response('', { status: 404 })
     }
 
-    const bundle = await fetchExternalSubtitles({
+    const builtIn = await fetchBuiltInExternalSubtitles({
       fetch: mockFetch,
       imdbId: 'tt15239678',
       film: true,
@@ -133,7 +130,7 @@ describe('fetchExternalSubtitles', () => {
       locale: 'en',
     })
 
-    expect(bundle.tracks.map(t => t.id)).toEqual(['xunlei:z1', 'opensubtitles:en:1'])
+    expect(builtIn.candidates.map(t => t.id)).toEqual(['xunlei:z1', 'opensubtitles:en:1'])
   })
 
   test('auto-populates up to 2 tracks per language per plugin while searchExternalSubtitles returns uncapped results with custom query', async () => {
@@ -153,21 +150,7 @@ describe('fetchExternalSubtitles', () => {
       ctx.query ? pluginTracks.slice(0, 3) : pluginTracks,
     )
 
-    const bundle = await fetchExternalSubtitles({
-      fetch: async () => new Response('', { status: 404 }),
-      mediaUri: 'ag:(imdb:tt1)',
-      episodeUri: 'ag:(imdb:tt1)',
-      film: true,
-      title: 'Movie',
-      preferredLanguages: ['en'],
-      locale: 'en',
-      findPluginSubtitles,
-      loadPluginSubtitle,
-    })
-
-    expect(bundle.tracks.map(t => t.id)).toEqual(['plugin:p1:t0', 'plugin:p1:t1'])
-    expect(await bundle.load('plugin:p1:t0')).toBe('plugin-text:t0')
-    expect(loadPluginSubtitle).toHaveBeenCalledWith('p1', 't0')
+    expect(capPluginSubtitles(pluginTracks, ['en']).map(t => t.id)).toEqual(['plugin:p1:t0', 'plugin:p1:t1'])
 
     const searched = await searchExternalSubtitles({
       fetch: async () => new Response('', { status: 404 }),
@@ -184,6 +167,7 @@ describe('fetchExternalSubtitles', () => {
 
     expect(searched.candidates.map(c => c.id)).toEqual(['plugin:p1:t0', 'plugin:p1:t1', 'plugin:p1:t2'])
     expect(await searched.load(searched.candidates[2]!)).toBe('plugin-text:t2')
+    expect(loadPluginSubtitle).toHaveBeenCalledWith('p1', 't2')
   })
 
   test('filters OpenSubtitles candidates by search query tokens while keeping Xunlei and plugin matches', async () => {
@@ -241,19 +225,61 @@ describe('fetchExternalSubtitles', () => {
     expect(urlOnly).toBe('fetched:https://subs.example/en.srt')
     expect(loadPluginSubtitle).not.toHaveBeenCalled()
 
-    const withLoader = await loadSubtitleCandidate({
+    const withLoader = {
       id: 'plugin:loaderp:l1',
       language: 'en',
       label: 'English Loader',
-      format: 'srt',
-      url: 'https://subs.example/fallback.srt',
-      hasLoader: true,
-      source: 'plugin',
+      format: 'srt' as const,
+      url: 'https://subs.example/ignored.srt',
+      hasLoader: true as const,
+      source: 'plugin' as const,
       sourceName: 'LoaderPlugin',
       pluginOrigin: 'loaderp',
       remoteTrackId: 'l1',
-    }, { fetch: mockFetch, loadPluginSubtitle })
-    expect(withLoader).toBe('loader:l1')
+    }
+    expect(await loadSubtitleCandidate(withLoader, { fetch: mockFetch, loadPluginSubtitle })).toBe('loader:l1')
     expect(loadPluginSubtitle).toHaveBeenCalledExactlyOnceWith('loaderp', 'l1')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('rejects remote subtitle downloads exceeding 5 MiB by Content-Length or streamed body bytes', async () => {
+    const cancelByHeader = vi.fn(async () => {})
+    const oversizedHeaderResponse = {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': String(5 * 1024 * 1024 + 1) }),
+      body: { cancel: cancelByHeader },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as unknown as Response
+
+    await expect(loadSubtitleCandidate({
+      id: 'oversized:header',
+      language: 'en',
+      label: 'Huge Header',
+      format: 'srt',
+      url: 'https://subs.example/huge-header.srt',
+      source: 'plugin',
+      sourceName: 'Subs',
+    }, { fetch: async () => oversizedHeaderResponse })).rejects.toThrow(/5 MiB|size|limit|large/i)
+    expect(cancelByHeader).toHaveBeenCalledTimes(1)
+
+    let pulls = 0
+    const streamed = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls++
+        controller.enqueue(new Uint8Array(1024 * 1024))
+        if (pulls >= 10) controller.close()
+      },
+    })
+    await expect(loadSubtitleCandidate({
+      id: 'oversized:stream',
+      language: 'en',
+      label: 'Huge Stream',
+      format: 'srt',
+      url: 'https://subs.example/huge-stream.srt',
+      source: 'plugin',
+      sourceName: 'Subs',
+    }, { fetch: async () => new Response(streamed, { status: 200 }) })).rejects.toThrow(/5 MiB|size|limit|large/i)
+    expect(pulls).toBeLessThan(10)
   })
 })

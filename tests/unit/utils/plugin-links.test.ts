@@ -5,35 +5,35 @@ import { comparablePluginUri, readPluginUris, withoutPluginUris, writePluginUris
 // These run on every navigation, so a throw or a non-idempotent write breaks routing, not just the query.
 
 const BASE = 'https://stub.moe/media/anilist:108465'
-const NYAA = 'npm:@banou/stub-plugin'
+const SRC_PLUGIN = 'npm:@banou/stub-plugin'
 const DEV = 'localhost:4599'
 
 describe('writePluginUris', () => {
   test('a bare path picks up the registered plugins, which is what every <Link> hands over', () => {
-    expect(writePluginUris('/search/mushoku', [NYAA], BASE))
+    expect(writePluginUris('/search/mushoku', [SRC_PLUGIN], BASE))
       .toBe('https://stub.moe/search/mushoku?plugins=npm:@banou/stub-plugin')
   })
 
   test('the address is left readable rather than form-encoded', () => {
-    const written = writePluginUris('/', [NYAA], BASE)
+    const written = writePluginUris('/', [SRC_PLUGIN], BASE)
     expect(written).toContain('plugins=npm:@banou/stub-plugin')
     expect(written).not.toContain('%3A')
   })
 
   test('and still round-trips, which is the only thing the encoding has to guarantee', () => {
-    for (const uri of [NYAA, DEV, 'https://stub.plugins.banou.dev', 'npm:a+b', 'npm:a&b=c', 'npm:a b']) {
+    for (const uri of [SRC_PLUGIN, DEV, 'https://stub.plugins.banou.dev', 'npm:a+b', 'npm:a&b=c', 'npm:a b']) {
       expect(readPluginUris(writePluginUris('/', [uri], BASE))).toEqual([uri])
     }
   })
 
   test('existing params and the hash survive, so this composes with any other route state', () => {
-    expect(writePluginUris('/watch/a/b?t=42#frag', [NYAA], BASE))
+    expect(writePluginUris('/watch/a/b?t=42#frag', [SRC_PLUGIN], BASE))
       .toBe('https://stub.moe/watch/a/b?t=42&plugins=npm:@banou/stub-plugin#frag')
   })
 
   test('plugins already on the url are replaced, never appended', () => {
-    const once = writePluginUris('/', [NYAA, DEV], BASE)
-    expect(writePluginUris(once, [NYAA, DEV], BASE)).toBe(once)
+    const once = writePluginUris('/', [SRC_PLUGIN, DEV], BASE)
+    expect(writePluginUris(once, [SRC_PLUGIN, DEV], BASE)).toBe(once)
     expect(readPluginUris(writePluginUris(once, [DEV], BASE))).toEqual([DEV])
   })
 
@@ -43,32 +43,32 @@ describe('writePluginUris', () => {
   })
 
   test('the query is sorted, so a reordered enabled list does not rewrite the address bar', () => {
-    expect(writePluginUris('/', [DEV, NYAA], BASE)).toBe(writePluginUris('/', [NYAA, DEV], BASE))
+    expect(writePluginUris('/', [DEV, SRC_PLUGIN], BASE)).toBe(writePluginUris('/', [SRC_PLUGIN, DEV], BASE))
   })
 
   test('the same url in gives the same url out, which is what stops the sync looping', () => {
-    const settled = writePluginUris(BASE, [NYAA], BASE)
-    expect(writePluginUris(settled, [NYAA], settled)).toBe(settled)
+    const settled = writePluginUris(BASE, [SRC_PLUGIN], BASE)
+    expect(writePluginUris(settled, [SRC_PLUGIN], settled)).toBe(settled)
   })
 
   test('a cross-origin url is untouched: an outbound link carries no source list', () => {
-    expect(writePluginUris('https://anilist.co/anime/108465', [NYAA], BASE))
+    expect(writePluginUris('https://anilist.co/anime/108465', [SRC_PLUGIN], BASE))
       .toBe('https://anilist.co/anime/108465')
   })
 
   test('an unparseable target is passed through rather than throwing mid-navigation', () => {
-    expect(writePluginUris('http://[', [NYAA], BASE)).toBe('http://[')
-    expect(writePluginUris('/media/x', [NYAA], 'not-a-url')).toBe('/media/x')
+    expect(writePluginUris('http://[', [SRC_PLUGIN], BASE)).toBe('http://[')
+    expect(writePluginUris('/media/x', [SRC_PLUGIN], 'not-a-url')).toBe('/media/x')
   })
 
   test('a duplicate is written once', () => {
-    expect(readPluginUris(writePluginUris('/', [NYAA, NYAA], BASE))).toEqual([NYAA])
+    expect(readPluginUris(writePluginUris('/', [SRC_PLUGIN, SRC_PLUGIN], BASE))).toEqual([SRC_PLUGIN])
   })
 })
 
 describe('readPluginUris', () => {
   test('every plugin param is read, in order', () => {
-    expect(readPluginUris(`https://stub.moe/?plugins=${DEV}&plugins=${NYAA}`)).toEqual([DEV, NYAA])
+    expect(readPluginUris(`https://stub.moe/?plugins=${DEV}&plugins=${SRC_PLUGIN}`)).toEqual([DEV, SRC_PLUGIN])
   })
 
   test('no param is no invite, not an empty-string one', () => {
@@ -77,7 +77,7 @@ describe('readPluginUris', () => {
   })
 
   test('a relative url reads against the base it was given', () => {
-    expect(readPluginUris(`/search/x?plugins=${NYAA}`, BASE)).toEqual([NYAA])
+    expect(readPluginUris(`/search/x?plugins=${SRC_PLUGIN}`, BASE)).toEqual([SRC_PLUGIN])
   })
 
   test('a malformed url reads as no invites rather than throwing on load', () => {
@@ -85,20 +85,20 @@ describe('readPluginUris', () => {
   })
 
   test('a repeated address is offered once', () => {
-    expect(readPluginUris(`https://stub.moe/?plugins=${NYAA}&plugins=${NYAA}`)).toEqual([NYAA])
+    expect(readPluginUris(`https://stub.moe/?plugins=${SRC_PLUGIN}&plugins=${SRC_PLUGIN}`)).toEqual([SRC_PLUGIN])
   })
 })
 
 // HOR-1106: a party compares the host's page with each follower's, and each address carries its own viewer's sources
 describe('withoutPluginUris', () => {
   test('both names go, every other parameter and the fragment stay as written', () => {
-    expect(withoutPluginUris(`/search?season=FALL&plugins=${NYAA}&year=2026&plugin=${DEV}#top`)).toBe('/search?season=FALL&year=2026#top')
+    expect(withoutPluginUris(`/search?season=FALL&plugins=${SRC_PLUGIN}&year=2026&plugin=${DEV}#top`)).toBe('/search?season=FALL&year=2026#top')
     expect(withoutPluginUris('/search?q=a%20b+c&plugins_x=1')).toBe('/search?q=a%20b+c&plugins_x=1')
   })
 
   test('a query of sources only leaves no question mark', () => {
-    expect(withoutPluginUris(`/watch/a/b?plugins=${NYAA}&plugins=${DEV}`)).toBe('/watch/a/b')
-    expect(withoutPluginUris(`/watch/a/b?plugins=${NYAA}#t`)).toBe('/watch/a/b#t')
+    expect(withoutPluginUris(`/watch/a/b?plugins=${SRC_PLUGIN}&plugins=${DEV}`)).toBe('/watch/a/b')
+    expect(withoutPluginUris(`/watch/a/b?plugins=${SRC_PLUGIN}#t`)).toBe('/watch/a/b#t')
   })
 
   test('a path with no query, or a question mark only in the fragment, is untouched', () => {
@@ -136,28 +136,28 @@ describe('comparablePluginUri', () => {
  */
 describe('the parameter rename', () => {
   const BASE = 'https://stub.moe/'
-  const NYAA = 'https:stub.plugins.banou.dev'
+  const SRC_PLUGIN = 'https:stub.plugins.banou.dev'
   const DEV = 'localhost:4599'
 
   test('a link shared under the old name still offers its sources', () => {
-    expect(readPluginUris(`https://stub.moe/?plugin=${NYAA}`)).toEqual([NYAA])
-    expect(readPluginUris(`https://stub.moe/?plugin=${DEV}&plugin=${NYAA}`)).toEqual([DEV, NYAA])
+    expect(readPluginUris(`https://stub.moe/?plugin=${SRC_PLUGIN}`)).toEqual([SRC_PLUGIN])
+    expect(readPluginUris(`https://stub.moe/?plugin=${DEV}&plugin=${SRC_PLUGIN}`)).toEqual([DEV, SRC_PLUGIN])
   })
 
   test('and one under either name is the same offer, counted once', () => {
-    expect(readPluginUris(`https://stub.moe/?plugins=${NYAA}&plugin=${NYAA}`)).toEqual([NYAA])
-    expect(readPluginUris(`https://stub.moe/?plugin=${DEV}&plugins=${NYAA}`)).toEqual([DEV, NYAA])
+    expect(readPluginUris(`https://stub.moe/?plugins=${SRC_PLUGIN}&plugin=${SRC_PLUGIN}`)).toEqual([SRC_PLUGIN])
+    expect(readPluginUris(`https://stub.moe/?plugin=${DEV}&plugins=${SRC_PLUGIN}`)).toEqual([DEV, SRC_PLUGIN])
   })
 
   test('what is written is the new name, and only the new name', () => {
-    const written = writePluginUris('https://stub.moe/', [NYAA], BASE)
-    expect(written).toContain(`plugins=${NYAA}`)
+    const written = writePluginUris('https://stub.moe/', [SRC_PLUGIN], BASE)
+    expect(written).toContain(`plugins=${SRC_PLUGIN}`)
     expect(written).not.toMatch(/[?&]plugin=/)
   })
 
   test('an old name on the way in is replaced rather than kept alongside', () => {
-    const written = writePluginUris(`https://stub.moe/?plugin=${DEV}`, [NYAA], BASE)
-    expect(written).toBe(`https://stub.moe/?plugins=${NYAA}`)
+    const written = writePluginUris(`https://stub.moe/?plugin=${DEV}`, [SRC_PLUGIN], BASE)
+    expect(written).toBe(`https://stub.moe/?plugins=${SRC_PLUGIN}`)
     expect(written).not.toContain(DEV)
   })
 

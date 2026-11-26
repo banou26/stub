@@ -9,10 +9,10 @@ import { type AggregatedUri, fromAggregatedUri, isAggregatedUri, matchAggregated
 const mediaUri = 'ag:(anilist:178789,kitsu:49002,mal:59193)'
 const own = ['anizip:18104-1', 'cr:GX1', 'kitsu:1036601', 'nf:81']
 // the shape of the link the owner shared: 29 of an indexer's releases of one episode, a file of a batch among them
-const releases = [...Array.from({ length: 28 }, (_, at) => `nyaa:${2070689 + at}`), 'nyaa:2115493-2']
+const releases = [...Array.from({ length: 28 }, (_, at) => `extsrc:${2070689 + at}`), 'extsrc:2115493-2']
 const everyId = `ag:(${[...own, ...releases].join(',')})`
 const short = `ag:(${own.join(',')})`
-const playing = 'nyaa:2070695'
+const playing = 'extsrc:2070695'
 
 describe('the episode part of a watch address', () => {
   test('names the episode by stub\'s own sources, not by the 29 releases an added source lists', () => {
@@ -26,11 +26,11 @@ describe('the episode part of a watch address', () => {
   })
 
   test('keeps exactly one id of an episode only added sources know, and the same one every time', () => {
-    const one = watchEpisodeUri('ag:(animetosho:7,nyaa:1,nyaa:2)')
+    const one = watchEpisodeUri('ag:(animetosho:7,extsrc:1,extsrc:2)')
     expect(fromAggregatedUri(one as AggregatedUri)?.handleUris).toHaveLength(1)
     expect(isAggregatedUri(one)).toBe(true)
     expect(watchEpisodeUri(one)).toBe(one)
-    expect(matchAggregatedUris(one as AggregatedUri, 'ag:(animetosho:7,nyaa:1,nyaa:2)')).toBe(true)
+    expect(matchAggregatedUris(one as AggregatedUri, 'ag:(animetosho:7,extsrc:1,extsrc:2)')).toBe(true)
   })
 
   test('is what it was for every source stub ships, byte for byte', () => {
@@ -49,7 +49,7 @@ describe('the episode part of a watch address', () => {
 
   test('stays the same as the release playing changes, and as an address already short is written again', () => {
     const on = (sourceUri: string, episodeUri = everyId) => getRoutePath(Route.WATCH, { mediaUri, episodeUri, sourceUri }).split('/')[3]
-    expect(new Set([on('nyaa:2070689'), on(playing), on('cr:GX1'), on(playing, short)])).toEqual(new Set([short]))
+    expect(new Set([on('extsrc:2070689'), on(playing), on('cr:GX1'), on(playing, short)])).toEqual(new Set([short]))
   })
 
   // a party compares addresses as written: a follower reads as away, or as still on its way, on any other spelling
@@ -74,7 +74,7 @@ describe('a share link to a watch address', () => {
 
   test('of an episode only an added source knows round-trips', () => {
     const only = address(`ag:(${releases.join(',')})`)
-    expect(only).toBe(`/watch/${mediaUri}/ag:(nyaa:2070689)/${playing}`)
+    expect(only).toBe(`/watch/${mediaUri}/ag:(extsrc:2070689)/${playing}`)
     expect(expandPath(shortenPath(only)!)).toBe(only)
   })
 

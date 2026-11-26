@@ -6,7 +6,7 @@ same change, using the terms below, and runs `npm run i18n:check`.
 
 ## Every language
 
-- **Never translated:** Stub, FKN, FKN Social, AniList, MyAnimeList, Crunchyroll, Nyaa, Netflix, Prime Video, JustWatch,
+- **Never translated:** Stub, FKN, FKN Social, AniList, MyAnimeList, Crunchyroll, Netflix, Prime Video, JustWatch,
   IMDb, TMDB, Rotten Tomatoes, AnimeThemes, trace.moe, and the format codes TV, OVA, ONA.
 - **No em or en dash** (U+2014, U+2013), even where the language's typography uses one: restructure, or use a comma,
   a colon, a plain hyphen or the language's own range mark (`～` in Japanese, `~` in Korean, `至` in Chinese).
@@ -150,7 +150,7 @@ stub only connects to the browser's own session, so its words differ from signin
 
 ## Watch page and players
 
-A release is one of a source's files for an episode (a torrent, a listing). The sign-in window is the one FKN opens,
+A release is one of a source's files for an episode (a stream, a listing). The sign-in window is the one FKN opens,
 the pop-up the browser's own. A source is named as in Settings: Browse sources is the same button. An episode's short
 label, `E{number} - {title}`, keeps the mark streaming services write in the language (É, E), else the word. A
 source card's languages are named by Intl, except Multiple languages (the tag `mul`), which Chrome leaves unnamed: a

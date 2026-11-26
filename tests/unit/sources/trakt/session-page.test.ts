@@ -1,10 +1,10 @@
 // The page script's half, as it runs inside an app.trakt.tv page: what it asks app.trakt.tv and Trakt's
 // API, against a fake fetch.
 import { readFileSync } from 'node:fs'
-import { describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { TRAKT_CLIENT_ID } from '../../../../src/sources/trakt/api'
-import { createTraktPage, hasViewer, tokenOf } from '../../../../src/sources/trakt/session-page'
+import { createTraktPage, hasViewer, run, tokenOf } from '../../../../src/sources/trakt/session-page'
 
 const SIGNED_OUT_DATA = readFileSync(`${__dirname}/__fixtures__/tracker/data-signed-out.json`, 'utf8')
 
@@ -258,28 +258,26 @@ describe('Cloudflare challenge 403 and session cache fallback', () => {
     expect(calls).toHaveLength(3)
   })
 
-  test('clearOnStart skips OIDC fallback and deletes cached session until a fresh 200 /__data.json succeeds', async () => {
-    const storage1 = memoryStorage({
+  test('clearSession clears held token and cached session while keeping valid OIDC fallback available on challenge', async () => {
+    const storage = memoryStorage({
       'stub.trakt-session': JSON.stringify({ token: 'tok-old', expiresAt: NOW + 600_000, savedAt: NOW }),
-      [`oidc.user:https://auth.trakt.tv:${TRAKT_CLIENT_ID}`]: JSON.stringify({ access_token: 'tok-old-oidc', expires_at: Math.floor((NOW + 600_000) / 1000) }),
+      [`oidc.user:https://auth.trakt.tv:${TRAKT_CLIENT_ID}`]: JSON.stringify({ access_token: 'tok-oidc', expires_at: Math.floor((NOW + 600_000) / 1000) }),
     })
     const f1 = fakeFetch([
+      respond(signedInData('tok-cached', NOW + 600_000)),
+      respond('{"initial":true}'),
       respond(challengeHtml, { status: 403 }),
-      respond(signedInData('tok-fresh', NOW + 600_000)),
-      respond('{"fresh":true}'),
-      respond(challengeHtml, { status: 403 }),
-      respond('{"reusedFresh":true}'),
+      respond('{"fallback":true}'),
     ])
-    const page = createTraktPage({ fetch: f1.fetch, nonce: counter(), storage: storage1, now: () => NOW, persist: true, clearOnStart: true })
-    expect(await page.get({ path: '/sync/last_activities' })).toEqual({ kind: 'challenge', status: 403 })
-    expect(storage1.getItem('stub.trakt-session')).toBeNull()
-    expect(f1.calls).toHaveLength(1)
+    const page = createTraktPage({ fetch: f1.fetch, nonce: counter(), storage, now: () => NOW, persist: true })
+    expect(await page.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200, body: { initial: true } })
+    expect(JSON.parse(storage.getItem('stub.trakt-session')!)).toMatchObject({ token: 'tok-cached' })
 
-    // Once /__data.json succeeds 200 with a live token, fallback caching resumes normally
-    expect(await page.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200, body: { fresh: true } })
-    expect(JSON.parse(storage1.getItem('stub.trakt-session')!)).toMatchObject({ token: 'tok-fresh' })
-    const pageAfter = createTraktPage({ fetch: f1.fetch, nonce: counter(), storage: storage1, now: () => NOW, persist: true })
-    expect(await pageAfter.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200, body: { reusedFresh: true } })
+    await page.clearSession()
+    expect(storage.getItem('stub.trakt-session')).toBeNull()
+
+    expect(await page.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200, body: { fallback: true } })
+    expect(headersOf(f1.calls[3]!)).toMatchObject({ authorization: 'Bearer tok-oidc' })
 
     const storage2 = memoryStorage({
       'stub.trakt-session': JSON.stringify({ token: 'tok-old', expiresAt: NOW + 600_000, savedAt: NOW }),
@@ -288,5 +286,53 @@ describe('Cloudflare challenge 403 and session cache fallback', () => {
     expect(await createTraktPage({ fetch: f2.fetch, nonce: counter(), storage: storage2, now: () => NOW, persist: true }).get({ path: '/sync/last_activities' }))
       .toEqual({ kind: 'signed-out' })
     expect(storage2.getItem('stub.trakt-session')).toBeNull()
+  })
+
+  test('prunes expired or malformed stub.trakt-session entries immediately instead of leaving stale tokens in storage', async () => {
+    const expired = memoryStorage({
+      'stub.trakt-session': JSON.stringify({ token: 'tok-expired', expiresAt: NOW - 1_000, savedAt: NOW - 10_000 }),
+    })
+    createTraktPage({ fetch: fakeFetch([]).fetch, nonce: counter(), storage: expired, now: () => NOW, persist: true })
+    expect(expired.getItem('stub.trakt-session')).toBeNull()
+
+    const malformed = memoryStorage({ 'stub.trakt-session': '{bad-json' })
+    const challenge = fakeFetch([respond(challengeHtml, { status: 403 })])
+    const page = createTraktPage({ fetch: challenge.fetch, nonce: counter(), storage: malformed, now: () => NOW, persist: true })
+    expect(await page.get({ path: '/sync/last_activities' })).toEqual({ kind: 'challenge', status: 403 })
+    expect(malformed.getItem('stub.trakt-session')).toBeNull()
+  })
+
+  test('viewer mode uses null storage and refuses cached tokens on challenge', async () => {
+    const storage = memoryStorage({
+      'stub.trakt-session': JSON.stringify({ token: 'tok-stale', expiresAt: NOW + 600_000, savedAt: NOW, gen: 'g1' }),
+    })
+    const { fetch, calls } = fakeFetch([respond(challengeHtml, { status: 403 })])
+    vi.stubGlobal('fetch', fetch)
+    vi.stubGlobal('localStorage', storage)
+    try {
+      expect(await run({ kind: 'viewer' })).toBe(false)
+      expect(calls).toHaveLength(1)
+      expect(storage.getItem('stub.trakt-session')).not.toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('stamps sessionGen on persisted tokens and invalidates cached entries on mismatch', async () => {
+    const storage = memoryStorage()
+    const first = fakeFetch([respond(signedInData('tok-g1', Math.floor((NOW + 600_000) / 1000))), respond('{}')])
+    const page1 = createTraktPage({ fetch: first.fetch, nonce: counter(), storage, now: () => NOW, persist: true, sessionGen: 'gen-1' })
+    expect(await page1.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200 })
+    expect(JSON.parse(storage.getItem('stub.trakt-session')!)).toMatchObject({ token: 'tok-g1', gen: 'gen-1' })
+
+    const sameGenFetch = fakeFetch([respond(challengeHtml, { status: 403 }), respond('{"same":true}')])
+    const sameGenPage = createTraktPage({ fetch: sameGenFetch.fetch, nonce: counter(), storage, now: () => NOW + 1_000, persist: true, sessionGen: 'gen-1' })
+    expect(await sameGenPage.get({ path: '/sync/last_activities' })).toMatchObject({ kind: 'answer', status: 200, body: { same: true } })
+
+    const nextGenFetch = fakeFetch([respond(challengeHtml, { status: 403 })])
+    const nextGenPage = createTraktPage({ fetch: nextGenFetch.fetch, nonce: counter(), storage, now: () => NOW + 2_000, persist: true, sessionGen: 'gen-2' })
+    expect(await nextGenPage.get({ path: '/sync/last_activities' })).toEqual({ kind: 'challenge', status: 403 })
+    expect(storage.getItem('stub.trakt-session')).toBeNull()
+    expect(nextGenFetch.calls).toHaveLength(1)
   })
 })

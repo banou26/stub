@@ -29,9 +29,9 @@ describe("the plugin player's frame", () => {
 
   /**
    * Sandbox flags are INHERITED by a nested frame and can only be added to, so this attribute decides
-   * what ripple can do two frames down, and ripple cannot ask for any of it back.
+   * what a nested player can do two frames down, and the player cannot ask for any of it back.
    *
-   * Without `allow-popups` its player's links ("Open this torrent in Ripple", "Download") did nothing
+   * Without `allow-popups` its player's links ("Open in external player", "Download") did nothing
    * at all: the browser blocks the tab and says so only in the console, which no one is reading.
    * Without `allow-popups-to-escape-sandbox` the tab opens still sandboxed, where a download is
    * blocked and a form submit does nothing. Measured over that frame chain on Chrome 149, 2026-09-09.

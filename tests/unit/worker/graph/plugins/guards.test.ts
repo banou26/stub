@@ -21,7 +21,7 @@ import { ingestAnswers } from '../../../../../src/worker/graph/ingest'
 import { graphReady } from '../../../../../src/worker/graph/schema'
 import { resetPassState, runPlugins } from '../../../../../src/worker/graph/plugins/runner'
 import { profilePlugin } from '../../../../../src/worker/graph/plugins/profile'
-import { prepareGuards, readComponents, readLedger, settleLedger } from '../../../../../src/worker/graph/plugins/guards'
+import { filterFlippedRefusals, prepareGuards, readComponents, readLedger, settleLedger } from '../../../../../src/worker/graph/plugins/guards'
 import { orderLinkProposals, precedenceClassOf } from '../../../../../src/worker/graph/plugins/sameness'
 import { applyPluginOutput } from '../../../../../src/worker/graph/plugins/writer'
 import { answer, episode, media, rowsOf, title } from './fixtures'
@@ -907,4 +907,45 @@ test('one batch of verdicts reads one snapshot of the graph', async () => {
   const after = pass.sameAs({ fromUri: 'anilist:401', toUri: 'mal:400', supports: [] })
   expect(before).toEqual(after)
   expect(pass.profileOf('anilist:401').scope, 'and the facts it read are the profile\'s own').toBe('RUN')
+})
+
+test('writer LINK writes keep the ledger cache warm instead of re-reading CLAIMS and MediaProfile', async () => {
+  const { query } = await graphReady()
+  await readLedger(query)
+
+  const db = await graphReady()
+  let ledgerReads = 0
+  const spyQuery: typeof db.query = async (cypher, params) => {
+    if (/\bFROM\b|\bCLAIMS\b|\bMediaProfile\b/.test(cypher) && /MATCH\s*\([^)]*:Media\b[^)]*\)-\[c:CLAIMS/.test(cypher)) ledgerReads++
+    if (/MATCH\s*\(p:MediaProfile\)/.test(cypher)) ledgerReads++
+    return db.query(cypher, params)
+  }
+
+  // Trigger a LINK UPDATE (matching SET e.status = r.status) via applyPluginOutput.
+  await propose([sameAs('anilist:1000', 'kitsu:1000')])
+  await propose([sameAs('anilist:1000', 'kitsu:1000', { reason: 'updated-status-test', confidence: 0.99 })])
+  await readLedger(spyQuery)
+  expect(ledgerReads).toBe(0)
+
+  // A write to a LEDGER_TABLES table (CLAIMS / Media via ingestAnswers) must invalidate the ledger cache.
+  await ingestAnswers([
+    await answer('media', media('anilist:940', { titles: [title('en', 'Ledger Invalidation Test')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+    await answer('media', media('anilist:941', { titles: [title('en', 'Ledger Invalidation Test')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+    await answer('media', media('mal:940', { titles: [title('en', 'Ledger Invalidation Test')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+    await answer('media', media('kitsu:940', { titles: [title('en', 'Ledger Invalidation Test')], type: 'TV', categories: ['ANIME', 'SERIES'] })),
+  ])
+  await readLedger(spyQuery)
+  expect(ledgerReads).toBeGreaterThan(0)
+})
+
+test('filterFlippedRefusals keeps pairs cleared by the warm ledger and excludes pairs still refused', async () => {
+  const { query } = await graphReady()
+  await runProfile()
+  await propose([sameAs('anilist:941', 'mal:940')])
+  expect((await linksOf()).find(row => row.pair === 'anilist:941 mal:940')?.status).toBe('active')
+  const flipped = await filterFlippedRefusals(query, [
+    { fromUri: 'kitsu:940', toUri: 'mal:940' },
+    { fromUri: 'anilist:940', toUri: 'mal:940' },
+  ])
+  expect(flipped).toEqual(['kitsu:940', 'mal:940'])
 })

@@ -11,7 +11,7 @@ import { NUDGE_RATE } from '../../../src/party/playback'
 // STUB-363 (watch-together sync changes the playback speed too often): a party of two through the real follower,
 // with the delays and the stale readings a party meets in stub (see ./party-playback-simulation.tsx). Measured
 // 2026-11-05 before the change, the same runs moved the follower's speed 25 to 34 times a minute, between 0.952,
-// 1 and 1.05, and seeked it every minute or two with nothing to follow. STUB-366 (the torrent player follows a watch
+// 1 and 1.05, and seeked it every minute or two with nothing to follow. STUB-366 (the plugin player follows a watch
 // party without constant speed changes): the same through a source package's player, measured 2026-11-06 before the
 // change at 19 to 28 speed changes a minute with nothing to follow, 925 seeks in five minutes at 2x, and 140 in three
 // with seeks that take 6 s.

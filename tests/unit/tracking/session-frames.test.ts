@@ -512,3 +512,17 @@ describe('a call that must not run twice', () => {
     expect(reached.filter(question => question === 'write')).toHaveLength(1)
   })
 })
+
+describe('ifAttached', () => {
+  test('returns undefined without attaching an idle frame and invokes the callback when already attached', async () => {
+    const { frames, attach, ask } = setup()
+    const onIdle = vi.fn(async (api: { ask: (q: string) => Promise<string> }) => api.ask('ping'))
+    expect(await frames.ifAttached('anilist', onIdle)).toBeUndefined()
+    expect(onIdle).not.toHaveBeenCalled()
+    expect(attach).not.toHaveBeenCalled()
+
+    await ask('warm')
+    expect(await frames.ifAttached('anilist', api => api.ask('ping'))).toBe('ping from document 0')
+    expect(attach).toHaveBeenCalledTimes(1)
+  })
+})

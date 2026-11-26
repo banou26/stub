@@ -51,7 +51,7 @@ test('the default order merges byte for byte as before the order existed', async
 
 test('an order the default one follows merges as no order does', () => {
   const unset = digests(options => aggregateFields(options))
-  for (const order of [[], DEFAULT_MERGE_ORDER, DEFAULT_MERGE_ORDER.slice(0, 3), ['nyaa', ...DEFAULT_MERGE_ORDER, 'other']]) {
+  for (const order of [[], DEFAULT_MERGE_ORDER, DEFAULT_MERGE_ORDER.slice(0, 3), ['extsrc', ...DEFAULT_MERGE_ORDER, 'other']]) {
     expect(digests(options => aggregateFields({ ...options, order })), order.join()).toBe(unset)
   }
 })
@@ -82,7 +82,7 @@ const SHOW = [
   }),
   member('kitsu:1', 0.3, { titles: [text('title', 'Kitsu English', 0.3)], banners: [image('https://kitsu.test/banner.jpg', 0.3)] }),
   member('anizip:1', null, { titles: [text('title', 'AniZip English', 0.9)], banners: [image('https://anizip.test/fanart.jpg', 0.9)], status: 'CANCELLED' }),
-  member('nyaa:1', 0.85, { titles: [text('title', 'Nyaa English', 0.85)] }),
+  member('extsrc:1', 0.85, { titles: [text('title', 'ExtSource English', 0.85)] }),
 ]
 
 const merged = (members: MemberRow[], order?: readonly string[], off?: readonly string[]) => aggregateFields({
@@ -101,11 +101,11 @@ const pick = (media: ReturnType<typeof merged>, field: string, key: string) => (
 // be useful."
 test('AniList moved above MyAnimeList wins the titles, the description, the cover and the status, and keeps its strip banner last', () => {
   const tuned = merged(SHOW)
-  expect(pick(tuned, 'titles', 'title')).toEqual(['MyAnimeList English', 'AniZip English', 'Nyaa English', 'AniList English', 'AniList Romaji', 'MyAnimeList Romaji', 'Kitsu English'])
+  expect(pick(tuned, 'titles', 'title')).toEqual(['MyAnimeList English', 'AniZip English', 'ExtSource English', 'AniList English', 'AniList Romaji', 'MyAnimeList Romaji', 'Kitsu English'])
   expect([pick(tuned, 'descriptions', 'description')[0], pick(tuned, 'covers', 'url')[0], tuned.status, tuned.startDate]).toEqual(['MyAnimeList synopsis', 'https://mal.test/cover.jpg', 'FINISHED', '2020-01-05'])
 
   const moved = merged(SHOW, ['anilist', 'mal'])
-  expect(pick(moved, 'titles', 'title')).toEqual(['AniList English', 'AniList Romaji', 'MyAnimeList English', 'Nyaa English', 'AniZip English', 'MyAnimeList Romaji', 'Kitsu English'])
+  expect(pick(moved, 'titles', 'title')).toEqual(['AniList English', 'AniList Romaji', 'MyAnimeList English', 'ExtSource English', 'AniZip English', 'MyAnimeList Romaji', 'Kitsu English'])
   expect(pick(moved, 'descriptions', 'description')).toEqual(['AniList description', 'MyAnimeList synopsis'])
   expect(pick(moved, 'covers', 'url')).toEqual(['https://anilist.test/cover.jpg', 'https://mal.test/cover.jpg'])
   expect([moved.status, moved.startDate], 'the scalars follow, and AniZip\'s unscored row still supplies none').toEqual(['RELEASING', '2020-01-04'])
@@ -136,11 +136,11 @@ test('AniZip moved above MyAnimeList leads the titles, though its row carries no
 test('an added source tied with a ranked one comes after it', () => {
   const trio = [
     member('mal:4', 0.9, { titles: [text('title', 'MyAnimeList Title', 0.9)], status: 'FINISHED' }),
-    member('nyaa:4', 0.9, { titles: [text('title', 'Nyaa Title', 0.9)], status: 'CANCELLED' }),
+    member('extsrc:4', 0.9, { titles: [text('title', 'ExtSource Title', 0.9)], status: 'CANCELLED' }),
     member('anilist:4', 0.8, { titles: [text('title', 'AniList Title', 0.8)] }),
   ]
   const moved = merged(trio, ['anilist'])
-  expect([pick(moved, 'titles', 'title'), moved.status]).toEqual([['AniList Title', 'MyAnimeList Title', 'Nyaa Title'], 'FINISHED'])
+  expect([pick(moved, 'titles', 'title'), moved.status]).toEqual([['AniList Title', 'MyAnimeList Title', 'ExtSource Title'], 'FINISHED'])
 })
 
 test('a source moved down leads the characters only after the sources above it', () => {

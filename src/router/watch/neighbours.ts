@@ -67,7 +67,7 @@ export const neighbours = <T extends Dated['episodes'][number]>(
 /**
  * The source another episode opens on: its best handle `origin` plays, so a viewer stays on the
  * site or the release they chose, and one at `playing`, the url of the release playing, first: the
- * next file of the torrent playing, which its player holds the peers and the file list of already.
+ * next episode of the release bundle playing, which its player already holds the index of.
  * Undefined when that origin has none, and the address then names no source, so the Play pick
  * decides there.
  */

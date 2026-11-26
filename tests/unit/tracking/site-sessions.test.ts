@@ -213,21 +213,31 @@ describe("Trakt's session on this device", () => {
     expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: ['app.trakt.tv', 'auth.trakt.tv'], cookies: 'persistent' })
   })
 
-  test('marks the next Trakt install freshOnly after sign-out or sign-in, then clears it once landed while signed in', async () => {
+  test('signOutOfSite clears an attached Trakt frame session before reloading and never attaches an idle frame or passes freshOnly', async () => {
     const { sessionResolvers, signInToTrakt, signOutOfSite } = await load()
     stored.set('stub.sessions', JSON.stringify(['trakt']))
 
-    // 1. After cloud sign-out (signed-out status), every install is freshOnly until a new sign-in lands
-    attach.mockResolvedValueOnce({ clearCookies: async () => {} })
-    await signOutOfSite('trakt', 'cloud')
-    stored.set('stub.sessions', JSON.stringify(['trakt']))
-
-    const page1 = hiddenFrame()
+    // 1. With an already-attached frame, cloud sign-out invokes clearSession before clearing cookies.
+    const clearSession = vi.fn(async () => {})
+    const page1 = hiddenFrame({ whoami: async () => 'the page answered', clearSession })
     attach.mockResolvedValueOnce(page1.frame)
     await sessionResolvers.call('trakt', 'whoami', {})
-    expect(page1.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.objectContaining({ kind: 'serve', freshOnly: true }))
 
-    // 2. After an authed sign-in, the first install is freshOnly and the subsequent document reinstall omits freshOnly
+    const clearCookies = vi.fn(async () => {})
+    attach.mockResolvedValueOnce({ clearCookies })
+    await signOutOfSite('trakt', 'cloud')
+    expect(clearSession).toHaveBeenCalledTimes(1)
+    expect(clearCookies).toHaveBeenCalledTimes(1)
+    expect(attach).toHaveBeenLastCalledWith({ iframe: expect.anything(), domains: ['app.trakt.tv', 'auth.trakt.tv'], cookies: 'persistent' })
+
+    // 2. When no frame is attached, signOutOfSite never attaches a hidden frame or opens an evaluation prompt.
+    attach.mockClear()
+    attach.mockResolvedValueOnce({ clearCookies })
+    await signOutOfSite('trakt', 'cloud')
+    expect(attach).toHaveBeenCalledTimes(1)
+    expect(attach).toHaveBeenCalledWith({ iframe: expect.anything(), domains: ['app.trakt.tv', 'auth.trakt.tv'], cookies: 'persistent' })
+
+    // 3. After re-signing in, installs send standard { kind: 'serve' } without freshOnly.
     attach.mockResolvedValueOnce({
       goto: async () => {},
       closed: new Promise(() => {}),
@@ -240,12 +250,40 @@ describe("Trakt's session on this device", () => {
     const page2 = hiddenFrame()
     attach.mockResolvedValueOnce(page2.frame)
     await sessionResolvers.call('trakt', 'whoami', {})
-    expect(page2.evaluate).toHaveBeenNthCalledWith(1, 'function () { return "the Trakt page script" }', expect.objectContaining({ kind: 'serve', freshOnly: true }))
+    expect(page2.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.not.objectContaining({ freshOnly: true }))
+  })
 
-    // Simulate document navigation where READ_SESSION_INSTALL answers null -> triggers second install without freshOnly
-    page2.evaluate.mockImplementation(async (source: string) => source.includes('function (name)') ? null : 'installed')
-    for (const cb of page2.docListeners) cb()
-    await vi.waitFor(() => expect(page2.evaluate).toHaveBeenCalledWith('function () { return "the Trakt page script" }', expect.not.objectContaining({ freshOnly: true })))
+  test('signOutOfSite and signInToTrakt rotate stub.trakt.session-gen even without an attached frame and forward it to serve', async () => {
+    const { sessionResolvers, signInToTrakt, signOutOfSite } = await load()
+    stored.set('stub.sessions', JSON.stringify(['trakt']))
+    expect(stored.get('stub.trakt.session-gen')).toBeUndefined()
+
+    const clearCookies = vi.fn(async () => {})
+    attach.mockResolvedValueOnce({ clearCookies })
+    await signOutOfSite('trakt', 'cloud')
+    const genAfterSignOut = stored.get('stub.trakt.session-gen')
+    expect(typeof genAfterSignOut).toBe('string')
+    expect(genAfterSignOut!.length).toBeGreaterThan(0)
+
+    attach.mockResolvedValueOnce({
+      goto: async () => {},
+      closed: new Promise(() => {}),
+      close: async () => {},
+      locator: () => ({ exists: async () => false }),
+      evaluate: async () => true,
+    })
+    expect(await signInToTrakt()).toBe('authed')
+    const genAfterSignIn = stored.get('stub.trakt.session-gen')
+    expect(typeof genAfterSignIn).toBe('string')
+    expect(genAfterSignIn).not.toBe(genAfterSignOut)
+
+    const page = hiddenFrame()
+    attach.mockResolvedValueOnce(page.frame)
+    await sessionResolvers.call('trakt', 'whoami', {})
+    expect(page.evaluate).toHaveBeenCalledWith(
+      'function () { return "the Trakt page script" }',
+      expect.objectContaining({ kind: 'serve', sessionGen: genAfterSignIn }),
+    )
   })
 })
 

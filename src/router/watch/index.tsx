@@ -20,6 +20,7 @@ import { readDisabledSources, watchDisabledSources } from '../../sources/disable
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
 import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-order'
 import { useSetting } from '../../utils/use-setting'
+import { safeHttpUrl } from '../../utils/url'
 import { readWatchSourceView, setWatchSourceView, watchWatchSourceView } from '../../utils/watch-source-view'
 import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceBrowser from '../../components/source-browser'
@@ -926,7 +927,7 @@ const Watch = () => {
             handle.shortDescriptions?.at(0)?.shortDescription
             ?? handle.titles?.at(0)?.title
             ?? fromUri(handle.uri as `${string}:${string}`).id,
-          href: playableHandle(handle) ? pathFor(handle.uri) : (handle.url ?? undefined),
+          href: playableHandle(handle) ? pathFor(handle.uri) : safeHttpUrl(handle.url),
           external: !playableHandle(handle),
           active: selectedSourceUri === handle.uri,
           videoQualities: handle.videoQualities,

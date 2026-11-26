@@ -1267,6 +1267,41 @@ describe('Trakt progress lowering confirmation', () => {
     expect(host.querySelector('[data-confirm="trakt-lower"]')).toBeNull()
     expect(onRemove).toHaveBeenCalledWith(['trakt'])
   })
+
+  test('prompts for Trakt progress lowering from Trakt card even when Trakt is unchecked, and shows movie-specific confirmation when unchecking Watched', async () => {
+    vi.useFakeTimers()
+    const uncheckedStore = expandedStore()
+    uncheckedStore.write({ targets: { trakt: false }, expanded: true })
+    const { host, onSaveFields } = render({ tracking: both }, uncheckedStore)
+    const card = await hover(host, 'trakt')
+    const cardInput = q<HTMLInputElement>(card, 'input[type="number"]')
+    cardInput.value = '3'
+    await fire(cardInput, 'input')
+    await fire(cardInput, 'keydown', { key: 'Enter' })
+    await settle(1500)
+    const cardConfirm = host.querySelector<HTMLElement>('[data-confirm="trakt-lower"]')!
+    expect(cardConfirm).not.toBeNull()
+    expect(cardConfirm.textContent).toContain('Lowering progress on Trakt to 3 deletes every recorded play above it, including rewatches.')
+    await click(button(cardConfirm, 'Remove Trakt plays')!)
+    expect(onSaveFields).toHaveBeenCalledWith(['trakt'], { progress: 3 })
+
+    const movieTrakt: CompactAnswer = {
+      state: 'LISTED',
+      candidates: [],
+      tracker: { id: 'trakt', name: 'Trakt', canWrite: true, scoreScale: 'POINT_10' },
+      entry: { status: 'COMPLETED', progress: 1, score: 80, episodeCount: 1 },
+    }
+    const { host: movieHost, onSaveFields: onSaveMovie } = render({
+      movie: true,
+      episodeCount: 1,
+      tracking: { summary: { status: 'COMPLETED', progress: 1, score: 80, episodeCount: 1 }, disagreements: [], answers: [movieTrakt] },
+    })
+    await click(q(movieHost, 'button.watched'))
+    const movieConfirm = movieHost.querySelector<HTMLElement>('[data-confirm="trakt-lower"]')!
+    expect(movieConfirm.textContent).toContain('Marking this movie unwatched on Trakt deletes every recorded play, including rewatches.')
+    await click(button(movieConfirm, 'Remove Trakt plays')!)
+    expect(onSaveMovie).toHaveBeenCalledWith(['trakt'], { status: 'PLANNING', progress: 0 })
+  })
 })
 
 describe('Reconnect recovery button when a tracker answers ERROR', () => {

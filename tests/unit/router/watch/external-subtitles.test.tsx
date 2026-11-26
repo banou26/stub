@@ -109,7 +109,7 @@ describe('useExternalSubtitles', () => {
 
     const prevRelayCalls = mocks.relayFetch.mock.calls.length
     const { render } = await import('preact')
-    act(() => { render(<Harness sourceUri="nyaa:a" />, host) })
+    act(() => { render(<Harness sourceUri="extsrc:a" />, host) })
     await act(async () => { await Promise.resolve() })
     expect(mocks.directFetch).toHaveBeenCalledTimes(1)
     expect(mocks.relayFetch).toHaveBeenCalledTimes(prevRelayCalls)
@@ -150,5 +150,150 @@ describe('useExternalSubtitles', () => {
     expect(firstSearch.some(c => c.id === 'opensubtitles:fr:os-2')).toBe(false)
     expect(secondSearch.some(c => c.id === 'opensubtitles:fr:os-2')).toBe(true)
     expect(secondSearch.some(c => c.id === 'opensubtitles:en:os-1')).toBe(false)
+  })
+
+  test('defers anime plugin auto-search until AniZip resolves imdbId so plugins are queried once, not twice', async () => {
+    let finishAnizip!: (res: Response) => void
+    mocks.relayFetch.mockImplementation(url => {
+      if (url.startsWith('https://api.ani.zip/mappings?anilist_id=154587')) {
+        return new Promise<Response>(resolve => { finishAnizip = resolve })
+      }
+      return Promise.resolve(new Response('', { status: 404 }))
+    })
+    mocks.statuses = [{
+      uri: 'npm:@spec/subsonly',
+      state: 'connected',
+      sources: [{ origin: 'subsonly', name: 'SubsOnly', subtitlesOnly: true, hasSubtitles: true }],
+    }]
+
+    let current!: WatchExternalSubtitles
+    const AnimeHarness = () => {
+      current = useExternalSubtitles({
+        enabled: true,
+        mediaUri: 'ag:(anilist:154587)',
+        episodeUri: 'ag:(anilist:154587-1)',
+        media: { uri: 'ag:(anilist:154587)', categories: ['ANIME'], titles: [{ title: 'Frieren' }] },
+        episode: { episodeNumber: 1, titles: [{ title: 'Ep 1' }] },
+        selected: { uri: 'cr:GX1', origin: 'cr', shortDescriptions: [{ shortDescription: 'Frieren.S01E01' }] },
+        film: false,
+        locale: 'en',
+      })
+      return null
+    }
+    const host = mount(<AnimeHarness />)
+    hosts.push(host)
+
+    await act(async () => { await Promise.resolve() })
+    expect(mocks.findRemoteSubtitles).toHaveBeenCalledTimes(0)
+
+    finishAnizip(Response.json({ mappings: { imdb_id: 'tt21209876' }, episodes: {} }))
+    await vi.waitFor(() => expect(mocks.findRemoteSubtitles).toHaveBeenCalledTimes(1))
+    expect(mocks.findRemoteSubtitles.mock.calls[0]![0]).toMatchObject({ imdbId: 'tt21209876' })
+    expect(current.context.imdbId).toBe('tt21209876')
+  })
+
+  test('starts plugin auto-search once AniZip settles before slow OpenSubtitles/Xunlei finish, and keeps search IMDb across pickSubtitle on the same episode', async () => {
+    let finishAnizip!: (res: Response) => void
+    const searchAnizipResolvers: Array<(res: Response) => void> = []
+    let finishOpenSubtitles!: (res: Response) => void
+    let holdOpenSubtitles = true
+    let holdSearch = false
+    let builtIn222222Calls = 0
+    let heldInitial154587 = false
+    mocks.relayFetch.mockImplementation(url => {
+      if (url.startsWith('https://api.ani.zip/mappings?anilist_id=154587')) {
+        if (!heldInitial154587) {
+          heldInitial154587 = true
+          return new Promise<Response>(resolve => { finishAnizip = resolve })
+        }
+        return Promise.resolve(new Response('', { status: 404 }))
+      }
+      if (url.startsWith('https://api.ani.zip/mappings?anilist_id=222222')) {
+        if (holdSearch) {
+          return new Promise<Response>(resolve => { searchAnizipResolvers.push(resolve) })
+        }
+        builtIn222222Calls += 1
+        return Promise.resolve(new Response('', { status: 404 }))
+      }
+      return Promise.resolve(new Response('', { status: 404 }))
+    })
+    // Keep OpenSubtitles pending while verifying plugin search begins immediately when AniZip resolves.
+    mocks.directFetch.mockImplementation(() => holdOpenSubtitles
+      ? new Promise<Response>(resolve => { finishOpenSubtitles = resolve })
+      : Promise.resolve(Response.json({ subtitles: [] })))
+    mocks.statuses = [{
+      uri: 'npm:@spec/subsonly',
+      state: 'connected',
+      sources: [{ origin: 'subsonly', name: 'SubsOnly', subtitlesOnly: true, hasSubtitles: true }],
+    }]
+
+    let current!: WatchExternalSubtitles
+    const AnimeHarness = ({ mediaId, epUri }: { mediaId: string, epUri: string }) => {
+      current = useExternalSubtitles({
+        enabled: true,
+        mediaUri: `ag:(anilist:${mediaId})`,
+        episodeUri: epUri,
+        media: { uri: `ag:(anilist:${mediaId})`, categories: ['ANIME'], titles: [{ title: 'Show' }] },
+        episode: { episodeNumber: 1, titles: [{ title: 'Ep 1' }] },
+        selected: { uri: 'cr:GX1', origin: 'cr', shortDescriptions: [{ shortDescription: 'Show.S01E01' }] },
+        film: false,
+        locale: 'en',
+      })
+      return null
+    }
+    const host = mount(<AnimeHarness mediaId="154587" epUri="ag:(anilist:154587-1)" />)
+    hosts.push(host)
+
+    await act(async () => { await Promise.resolve() })
+    expect(mocks.findRemoteSubtitles).toHaveBeenCalledTimes(0)
+
+    finishAnizip(Response.json({ mappings: { imdb_id: 'tt21209876' }, episodes: {} }))
+    await vi.waitFor(() => expect(mocks.findRemoteSubtitles).toHaveBeenCalledTimes(1))
+    expect(current.context.imdbId).toBe('tt21209876')
+    holdOpenSubtitles = false
+    finishOpenSubtitles?.(Response.json({ subtitles: [] }))
+
+    // Switch to a second episode whose AniZip failed during built-in resolve, then trigger search() which resolves IMDb while pickSubtitle increments seqRef.
+    const { render } = await import('preact')
+    act(() => { render(<AnimeHarness mediaId="222222" epUri="ag:(anilist:222222-1)" />, host) })
+    await vi.waitFor(() => expect(builtIn222222Calls).toBe(1))
+
+    holdSearch = true
+    let searching!: Promise<unknown>
+    act(() => { searching = current.search('') })
+    act(() => {
+      current.pickSubtitle({
+        id: 'picked:same-ep',
+        language: 'en',
+        label: 'Picked',
+        format: 'srt',
+        content: '1',
+        source: 'plugin',
+        sourceName: 'Picked',
+      })
+    })
+    await vi.waitFor(() => expect(searchAnizipResolvers.length).toBeGreaterThan(0))
+    searchAnizipResolvers.shift()!(Response.json({ mappings: { imdb_id: 'tt9998887' }, episodes: {} }))
+    await vi.waitFor(() => expect(searchAnizipResolvers.length).toBeGreaterThan(0))
+    holdSearch = false
+    searchAnizipResolvers.shift()!(Response.json({ mappings: { imdb_id: 'tt9998887' }, episodes: {} }))
+    await searching
+    await vi.waitFor(() => expect(current.context.imdbId).toBe('tt9998887'))
+
+    // Switching episodeUri while an earlier search() IMDb lookup is in flight must drop the stale resolution.
+    let staleSearch!: Promise<unknown>
+    act(() => { render(<AnimeHarness mediaId="222222" epUri="ag:(anilist:222222-2)" />, host) })
+    await vi.waitFor(() => expect(builtIn222222Calls).toBe(2))
+    holdSearch = true
+    act(() => { staleSearch = current.search('again') })
+    await vi.waitFor(() => expect(searchAnizipResolvers.length).toBeGreaterThan(0))
+    searchAnizipResolvers.shift()!(Response.json({ mappings: { imdb_id: 'tt0000111' }, episodes: {} }))
+    await vi.waitFor(() => expect(searchAnizipResolvers.length).toBeGreaterThan(0))
+    holdSearch = false
+    act(() => { render(<AnimeHarness mediaId="222222" epUri="ag:(anilist:222222-3)" />, host) })
+    await vi.waitFor(() => expect(builtIn222222Calls).toBe(3))
+    searchAnizipResolvers.shift()!(Response.json({ mappings: { imdb_id: 'tt0000111' }, episodes: {} }))
+    await staleSearch
+    expect(current.context.imdbId).toBeUndefined()
   })
 })

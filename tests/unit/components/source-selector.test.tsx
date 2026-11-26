@@ -21,7 +21,7 @@ const release = (uri: string) => ({ uri, label: uri, href: `/watch/m/e/${uri}`, 
 const sources = [
   { id: 'nf', name: 'Netflix', href: '/watch/m/e/nf:81', external: false, active: false },
   { id: 'hulu', name: 'Hulu', href: 'https://www.hulu.com/watch/1', external: true, active: false },
-  { id: 'nyaa', name: 'Nyaa', href: '/watch/m/e/nyaa:a', external: false, active: false, releases: [release('nyaa:a'), release('nyaa:b')] },
+  { id: 'extsrc', name: 'ExtSource', href: '/watch/m/e/extsrc:a', external: false, active: false, releases: [release('extsrc:a'), release('extsrc:b')] },
 ]
 
 const selector = (props: Partial<Parameters<typeof SourceSelector>[0]> = {}) => {
@@ -46,9 +46,9 @@ test('picking a source in stub is a client side navigation', () => {
 
 test('picking one of a source\'s releases is a client side navigation', () => {
   const { location, click } = selector()
-  click('button[title="2 releases on Nyaa"]')
-  expect(click('a[title="nyaa:b"]')).toBe(true)
-  expect(location.history.at(-1)).toBe('/watch/m/e/nyaa:b')
+  click('button[title="2 releases on ExtSource"]')
+  expect(click('a[title="extsrc:b"]')).toBe(true)
+  expect(location.history.at(-1)).toBe('/watch/m/e/extsrc:b')
 })
 
 test('picking a compact source icon is a client side navigation', () => {
@@ -79,13 +79,13 @@ test('a film\'s buttons name every source, where the compact row stops at five',
 
 test('a film\'s source with several releases shows how many and opens the watch page, where the watch page offers the pick', () => {
   const { host, location, click } = selector({ film: true })
-  const nyaa = host.querySelector('a.source[href="/watch/m/e/nyaa:a"]')
-  expect(nyaa?.querySelector('.count')?.textContent).toBe('2')
-  expect(nyaa?.getAttribute('target')).toBeNull()
+  const extSrc = host.querySelector('a.source[href="/watch/m/e/extsrc:a"]')
+  expect(extSrc?.querySelector('.count')?.textContent).toBe('2')
+  expect(extSrc?.getAttribute('target')).toBeNull()
   expect(host.querySelector('button'), 'no pick here').toBeNull()
-  expect(selector().host.querySelector('button[title="2 releases on Nyaa"] .count')?.textContent, 'the control: the watch page\'s pick').toBe('2')
-  expect(click('a.source[href="/watch/m/e/nyaa:a"]')).toBe(true)
-  expect(location.history.at(-1)).toBe('/watch/m/e/nyaa:a')
+  expect(selector().host.querySelector('button[title="2 releases on ExtSource"] .count')?.textContent, 'the control: the watch page\'s pick').toBe('2')
+  expect(click('a.source[href="/watch/m/e/extsrc:a"]')).toBe(true)
+  expect(location.history.at(-1)).toBe('/watch/m/e/extsrc:a')
 })
 
 test('a film\'s button for a source in stub is a client side navigation, and one for a site opens it in a new tab', () => {
@@ -148,7 +148,7 @@ test('a card names each language in English by its language subtag, a code Intl 
   expect([subtitles?.textContent, subtitles?.getAttribute('title')]).toEqual(['SubtitlesJapanese, English, French', 'Subtitles: Japanese, English, French'])
 })
 
-// a Nyaa release saying Multi-Subs or MULTi carries `mul`, which Chrome 156 names 'mul' where Node names it
+// a ExtSource release saying Multi-Subs or MULTi carries `mul`, which Chrome 156 names 'mul' where Node names it
 test('a card names several unlisted languages in the viewer\'s language where the browser has no name for them', async () => {
   const of: (this: Intl.DisplayNames, code: string) => string | undefined = Reflect.get(Intl.DisplayNames.prototype, 'of')
   const chrome = vi.spyOn(Intl.DisplayNames.prototype, 'of').mockImplementation(function (this: Intl.DisplayNames, code: string) {
@@ -176,7 +176,7 @@ test('in German, a card names its languages in German, joined as German joins th
       .toEqual(['Japanisch, Englisch, Französisch, Deutsch und Italienisch', ', Deutsch und Italienisch', '+2'])
     expect([subtitles?.textContent, subtitles?.querySelector('.rest')]).toEqual(['UntertitelJapanisch und Englisch', null])
     expect(host.querySelector('.label')?.textContent).toBe('Ansehen auf')
-    expect(host.querySelector('button.source')?.getAttribute('title')).toBe('2 Releases auf Nyaa')
+    expect(host.querySelector('button.source')?.getAttribute('title')).toBe('2 Releases auf ExtSource')
   } finally {
     await startLanguage({ language: 'en', languages: ['en-US'] })
   }
@@ -201,8 +201,8 @@ test('a card\'s picture that fails to load gives way to the next, and to none on
 })
 
 test('a source with several releases shows the facts it was given beside its count', () => {
-  const nyaa = { ...sources[2]!, videoQualities: ['1080p', 'HEVC'], thumbnails: [{ url: 'https://img.example/episode.jpg' }] }
-  const button = card(selector({ sources: [nyaa] }).host, '2 releases on Nyaa')
+  const extSrc = { ...sources[2]!, videoQualities: ['1080p', 'HEVC'], thumbnails: [{ url: 'https://img.example/episode.jpg' }] }
+  const button = card(selector({ sources: [extSrc] }).host, '2 releases on ExtSource')
   expect(button.classList.contains('detailed')).toBe(true)
   expect([...button.querySelectorAll('.head .count, .qualities > *')].map(chip => chip.textContent)).toEqual(['2', '1080p', 'HEVC'])
 })
@@ -247,9 +247,9 @@ describe('a hidden source icon', () => {
 
   test('draws no button for a film', () => {
     const { host } = selector({ film: true })
-    expect(names(host), 'the control: drawn while shown').toEqual(['Netflix', 'Hulu', 'Nyaa'])
+    expect(names(host), 'the control: drawn while shown').toEqual(['Netflix', 'Hulu', 'ExtSource'])
     act(() => setIconShown('nf', false))
-    expect(names(host)).toEqual(['Hulu', 'Nyaa'])
+    expect(names(host)).toEqual(['Hulu', 'ExtSource'])
   })
 })
 
@@ -266,9 +266,9 @@ describe('a source\'s own picker', () => {
   })
 
   const open = async (playing?: string) => {
-    const uris = ['nyaa:a', 'nyaa:b', 'nyaa:c']
-    const nyaa = { ...sources[2]!, picker: { pluginUri: 'https:plugin.spec.test' }, releases: uris.map(uri => ({ ...release(uri), active: uri === playing })) }
-    selector({ sources: [nyaa] }).click('button[title="3 releases on Nyaa"]')
+    const uris = ['extsrc:a', 'extsrc:b', 'extsrc:c']
+    const extSrc = { ...sources[2]!, picker: { pluginUri: 'https:plugin.spec.test' }, releases: uris.map(uri => ({ ...release(uri), active: uri === playing })) }
+    selector({ sources: [extSrc] }).click('button[title="3 releases on ExtSource"]')
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
     expect(selectRemoteRelease).toHaveBeenCalledTimes(1)
     return vi.mocked(selectRemoteRelease).mock.calls[0]
@@ -276,21 +276,21 @@ describe('a source\'s own picker', () => {
   beforeEach(() => { vi.mocked(selectRemoteRelease).mockClear() })
 
   test('is handed the release playing', async () => {
-    expect(await open('nyaa:b')).toEqual(['nyaa', ['nyaa:a', 'nyaa:b', 'nyaa:c'], 'nyaa:b'])
+    expect(await open('extsrc:b')).toEqual(['extsrc', ['extsrc:a', 'extsrc:b', 'extsrc:c'], 'extsrc:b'])
   })
 
   test('is handed none with none of the source\'s releases playing', async () => {
-    expect(await open()).toEqual(['nyaa', ['nyaa:a', 'nyaa:b', 'nyaa:c'], undefined])
+    expect(await open()).toEqual(['extsrc', ['extsrc:a', 'extsrc:b', 'extsrc:c'], undefined])
   })
 })
 
 test('stub\'s own list of a source\'s releases marks the one playing as current, and none when none plays', () => {
   const current = (host: HTMLElement) => [...host.querySelectorAll('[aria-current]')].map(node => [node.getAttribute('title'), node.getAttribute('aria-current')])
-  const playing = [{ ...sources[0]!, active: true }, { ...sources[2]!, active: true, releases: [release('nyaa:a'), { ...release('nyaa:b'), active: true }] }]
-  expect(current(selector({ sources: playing }).host)).toEqual([['Netflix', 'true'], ['2 releases on Nyaa', 'true'], ['nyaa:b', 'true']])
+  const playing = [{ ...sources[0]!, active: true }, { ...sources[2]!, active: true, releases: [release('extsrc:a'), { ...release('extsrc:b'), active: true }] }]
+  expect(current(selector({ sources: playing }).host)).toEqual([['Netflix', 'true'], ['2 releases on ExtSource', 'true'], ['extsrc:b', 'true']])
 
   const { host, click } = selector()
-  click('button[title="2 releases on Nyaa"]')
+  click('button[title="2 releases on ExtSource"]')
   expect(host.querySelectorAll('.release')).toHaveLength(2)
   expect(current(host)).toEqual([])
 })

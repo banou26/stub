@@ -18,8 +18,8 @@ afterEach(() => { vi.unstubAllGlobals() })
 
 test('sources the viewer never moved go after the ones they did, stub\'s players before added sources', () => {
   expect(DEFAULT_PLAY_ORDER).toEqual(['cr', 'amazon', 'nf'])
-  expect(playOrder([], ['nyaa'])).toEqual(['cr', 'amazon', 'nf', 'nyaa'])
-  expect(playOrder(['nyaa', 'nf'], ['nyaa', 'other'])).toEqual(['nyaa', 'nf', 'cr', 'amazon', 'other'])
+  expect(playOrder([], ['extsrc'])).toEqual(['cr', 'amazon', 'nf', 'extsrc'])
+  expect(playOrder(['extsrc', 'nf'], ['extsrc', 'other'])).toEqual(['extsrc', 'nf', 'cr', 'amazon', 'other'])
 })
 
 test('a move swaps a source with its neighbour, and does nothing past either end', () => {
@@ -31,10 +31,10 @@ test('a move swaps a source with its neighbour, and does nothing past either end
 
 // a source turned off, or a package still connecting, keeps its place for when it is back
 test('a move past a source the list does not show keeps how every other source ranks against it', () => {
-  expect(moved(['nyaa', 'cr', 'amazon', 'nf'], 'amazon', -1, ['cr', 'amazon', 'nf'])).toEqual(['nyaa', 'amazon', 'cr', 'nf'])
+  expect(moved(['extsrc', 'cr', 'amazon', 'nf'], 'amazon', -1, ['cr', 'amazon', 'nf'])).toEqual(['extsrc', 'amazon', 'cr', 'nf'])
   expect(moved(['cr', 'amazon', 'nf'], 'nf', -1, ['cr', 'nf'])).toEqual(['nf', 'cr', 'amazon'])
   expect(moved(['cr', 'amazon', 'nf'], 'cr', 1, ['cr', 'nf'])).toEqual(['amazon', 'nf', 'cr'])
-  expect(moved(['nyaa', 'cr', 'amazon'], 'cr', -1, ['cr', 'amazon'])).toEqual(['nyaa', 'cr', 'amazon'])
+  expect(moved(['extsrc', 'cr', 'amazon'], 'cr', -1, ['cr', 'amazon'])).toEqual(['extsrc', 'cr', 'amazon'])
 })
 
 // a card dropped onto another card's place
@@ -51,9 +51,9 @@ test('a move of several places lands just past that source, keeps a source the l
 
 test('an order written is read back, and a kept value stub cannot read keeps nothing', () => {
   expect(readPlayOrder()).toEqual([])
-  writePlayOrder(['nyaa', 'cr'])
-  expect(stored.get(PLAY_ORDER_KEY)).toBe('["nyaa","cr"]')
-  expect(readPlayOrder()).toEqual(['nyaa', 'cr'])
+  writePlayOrder(['extsrc', 'cr'])
+  expect(stored.get(PLAY_ORDER_KEY)).toBe('["extsrc","cr"]')
+  expect(readPlayOrder()).toEqual(['extsrc', 'cr'])
   for (const kept of ['not json', '{"cr":0}', 'null', '[1,"cr"]']) {
     stored.set(PLAY_ORDER_KEY, kept)
     expect(readPlayOrder(), kept).toEqual(kept === '[1,"cr"]' ? ['cr'] : [])

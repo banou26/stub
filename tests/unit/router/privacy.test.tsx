@@ -45,9 +45,10 @@ test('names everything stub keeps, from the list the completeness test pins', ()
 })
 
 // STUB-58 (publish what you watch to your FKN Social profile)
-test('says what Post to FKN Social sends, to whom, and where it is turned off', () => {
+test('says what Post to FKN Social and watch party connections share', () => {
   const { host, text: page } = text()
   expect(page).toContain('stub posts to your FKN Social page each time a save in a title\'s tracking row starts it, raises its episode count or completes it: the title, its cover, the episode and a link to its page on stub.')
+  expect(page).toContain('silently connects to FKN Social in the background and shares your verified FKN Social profile, display name and avatar with other signed-in party participants.')
   expect([...host.querySelectorAll('a')].map(link => link.getAttribute('href'))).toContain('/settings#tracking')
 })
 
@@ -132,11 +133,10 @@ test('names the hosts of the theme videos, the trailer embeds and the fonts, plu
   expect(page).toContain('opens SauceNAO (saucenao.com) in an attached frame and sends that picture there')
 })
 
-// Framed Ripple defaults peer traffic to the FKN VPN, and switching it off exposes the viewer's address directly
-test("says what sees the viewer's address when the player's VPN is switched off", () => {
+test('discloses added source player frames and omits external player host lists', () => {
   const { text: page } = text()
-  expect(page).toContain('through the FKN VPN by default')
-  expect(page).toContain('connects directly from your browser instead')
-  for (const host of ['tracker.openwebtorrent.com', 'tracker.webtorrent.dev', 'stun.l.google.com']) expect(page, host).toContain(host)
-  expect(page).toContain("does not change Ripple's own site")
+  expect(page).toContain('Sources you add in Settings run their own code in an isolated frame.')
+  expect(page).toContain('that player or host sees your IP address and handles connections under its own privacy policy.')
+  expect(page).not.toContain('VPN by default')
+  expect(page).not.toContain('direct from your browser')
 })

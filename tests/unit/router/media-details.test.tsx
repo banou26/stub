@@ -253,10 +253,10 @@ describe('the bar on an episode\'s thumbnail', () => {
       ...media,
       episodes: media.episodes.map(episode => ({
         ...episode,
-        handles: [...episode.handles!, { relation, node: { uri: 'nyaa:season', origin: 'nyaa', url: 'magnet:?xt=urn:btih:season' } }],
+        handles: [...episode.handles!, { relation, node: { uri: 'extsrc:season', origin: 'extsrc', url: 'plugin-stream://season' } }],
       })),
     }) as DetailsMedia
-    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['nyaa:season', 700, 1400]]))
+    stored.set(WATCH_POSITIONS_KEY, JSON.stringify([['extsrc:season', 700, 1400]]))
     expect(bars(render(withRelease('SAME_AS'))), 'the control: a source of every row').toEqual(Array.from({ length: 12 }, () => '50%'))
     expect(bars(render(withRelease('PART_OF')))).toEqual(none(12))
   })
@@ -613,22 +613,22 @@ test('a Prime Video row outside Japan plays in stub with the extension, and link
   expect(await hrefOn('cloud')).toBe(url)
 })
 
-// a browser opens no magnet, so a torrent plugin's lone release plays on the watch page, as a film's does
+// a browser opens no custom non-web scheme, so an external source plugin's lone release plays on the watch page, as a film's does
 test('an episode row\'s lone release a browser cannot open goes to the watch page, and one on the web links out', async () => {
-  const torrents = {
+  const pluginMedia = {
     uri: 'ag:(anilist:1)',
-    episodes: [['a', 'magnet:?xt=urn:btih:a'], ['b', 'https://nyaa.si/view/b']].map(([id, url], index) => ({
-      uri: `ag:(nyaa:${id})`, episodeNumber: index + 1, releaseDate: '2023-09-29', titles: [{ title: `Episode ${index + 1}` }],
-      handles: [{ relation: 'SAME_AS', node: { uri: `nyaa:${id}`, origin: 'nyaa', url } }],
+    episodes: [['a', 'plugin-stream://a'], ['b', 'https://source-a.test/view/b']].map(([id, url], index) => ({
+      uri: `ag:(extsrc:${id})`, episodeNumber: index + 1, releaseDate: '2023-09-29', titles: [{ title: `Episode ${index + 1}` }],
+      handles: [{ relation: 'SAME_AS', node: { uri: `extsrc:${id}`, origin: 'extsrc', url } }],
     })),
   } as unknown as DetailsMedia
   const { hook } = memoryLocation({ path: '/' })
-  const host = mount(withIntl(<Provider value={client([{ id: 'nyaa', name: 'Nyaa' }])}><Router hook={hook}><Episodes media={torrents}/></Router></Provider>))
+  const host = mount(withIntl(<Provider value={client([{ id: 'extsrc', name: 'ExtSource' }])}><Router hook={hook}><Episodes media={pluginMedia}/></Router></Provider>))
   hosts.push(host)
   await act(() => new Promise(resolve => setTimeout(resolve, 10)))
   expect([...host.querySelectorAll('.episode .src')].map(link => ({ href: link.getAttribute('href'), target: link.getAttribute('target') }))).toEqual([
-    { href: '/watch/ag:(anilist:1)/ag:(nyaa:a)/nyaa:a', target: null },
-    { href: 'https://nyaa.si/view/b', target: '_blank' },
+    { href: '/watch/ag:(anilist:1)/ag:(extsrc:a)/extsrc:a', target: null },
+    { href: 'https://source-a.test/view/b', target: '_blank' },
   ])
 })
 

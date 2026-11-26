@@ -7,14 +7,14 @@ import { dirname, join, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
 import { addMontserrat } from './montserrat'
-import { PLAYER_ORIGIN, PLUGIN_ORIGIN, STAGE_PLUGIN, TORRENT_ORIGIN, stageWatchPath, torrentWatchPath } from './watch-stage-media'
+import { PLAYER_ORIGIN, PLUGIN_ORIGIN, STAGE_PLUGIN, PLUGIN_SOURCE_ORIGIN, stageWatchPath, pluginWatchPath } from './watch-stage-media'
 
 // HOR-1014: fullscreen kept across episodes. The real watch page (./watch-stage.tsx, built with the app's own
 // config) frames stub's own Crunchyroll player over a fake video (./watch-stage-player.tsx), which hands its
 // fullscreen to the page. A click on the player's fullscreen button fullscreens the page's stage; the episode then
 // ends, Next opens the next one, whose frame replaces the first, and the stage is still what is fullscreen, with the
-// next player taking the keys. A torrent plays two frames down, as stub-plugin plays one in ripple: the page mounts a
-// source package (./watch-stage-plugin.ts) that frames its player (./watch-stage-ripple.ts), and the same holds, with
+// next player taking the keys. A plugin release plays two frames down, as a nested player does: the page mounts a
+// source package (./watch-stage-plugin.ts) that frames its player (./watch-stage-nested-player.ts), and the same holds, with
 // Next offered from the file's own chapters, or for a file that marks no ending from Crunchyroll's credits of the same
 // length, and the keys reaching the player after Next and after a countdown alike.
 // In Chromium, Firefox and WebKit, headless and muted: WebKit through Playwright's own run-server (PW_WEBKIT_WS, as
@@ -61,7 +61,7 @@ test.beforeAll(async () => {
           main: join(ROOT, 'tests', 'watch-stage.tsx'),
           embed: join(ROOT, 'tests', 'watch-stage-player.tsx'),
           plugin: join(ROOT, 'tests', 'watch-stage-plugin.ts'),
-          player: join(ROOT, 'tests', 'watch-stage-ripple.ts'),
+          player: join(ROOT, 'tests', 'watch-stage-nested-player.ts'),
         },
         output: { entryFileNames: '[name].js' },
       },
@@ -94,7 +94,7 @@ const serve = async (page: Page) => {
         : route.fulfill({ path: join(dir, pathname) })
     })
   }
-  // the torrents' package added on this device
+  // the plugin's package added on this device
   await page.addInitScript(([origin, uri]) => {
     if (location.origin === origin) localStorage.setItem('stub-enabled-plugins', JSON.stringify([uri]))
   }, [ORIGIN, STAGE_PLUGIN])
@@ -149,15 +149,15 @@ const fullscreenAcrossEpisodes = async (page: Page) => {
   expect(await fullscreenElement(page), 'the stage is still fullscreen with no player in it').toBe('stage')
 }
 
-// the torrent's player, two frames down, once its document is up
-const torrentPlayer = (page: Page) => page.frames().find(frame => frame.url() === `${PLAYER_ORIGIN}/player.html` && !frame.isDetached())
+// the plugin player, two frames down, once its document is up
+const pluginPlayer = (page: Page) => page.frames().find(frame => frame.url() === `${PLAYER_ORIGIN}/player.html` && !frame.isDetached())
 const heard = async (frame: Frame | undefined) => frame && !frame.isDetached()
   ? await frame.evaluate(() => (window as unknown as { keys: string[] }).keys).catch(() => [])
   : []
 const nextPlayer = async (page: Page, previous: Frame) => {
   await expect.poll(() => previous.isDetached(), { timeout: 15_000, message: 'the next episode replaces the player' }).toBe(true)
-  await expect.poll(async () => await torrentPlayer(page)?.evaluate(() => document.readyState).catch(() => null) ?? null).toBe('complete')
-  return torrentPlayer(page)!
+  await expect.poll(async () => await pluginPlayer(page)?.evaluate(() => document.readyState).catch(() => null) ?? null).toBe('complete')
+  return pluginPlayer(page)!
 }
 // pressed until it is heard: the keys reach the next player once it is up, not at a moment the page can see
 const reachesPlayer = (page: Page, frame: Frame, message: string) =>
@@ -166,9 +166,9 @@ const reachesPlayer = (page: Page, frame: Frame, message: string) =>
     return heard(frame)
   }, { message }).toContain('k')
 
-const torrentAcrossEpisodes = async (page: Page) => {
+const pluginAcrossEpisodes = async (page: Page) => {
   await serve(page)
-  await page.goto(`${ORIGIN}${torrentWatchPath(1)}`)
+  await page.goto(`${ORIGIN}${pluginWatchPath(1)}`)
   const button = page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.full-screen')
   // in Chromium an early click can reach the page instead, on the package's frame, and never the player (Chrome 155,
   // 2026-10-26), so it is clicked until the player hears it
@@ -184,7 +184,7 @@ const torrentAcrossEpisodes = async (page: Page) => {
   const offered = page.locator('.stage .up-next.offered')
   await expect(offered).toBeVisible()
   // Next pressed, a click on the page
-  const first = torrentPlayer(page)!
+  const first = pluginPlayer(page)!
   await offered.click()
   const second = await nextPlayer(page, first)
   await expect(offered, 'nothing offered before the next episode plays').toBeHidden()
@@ -219,7 +219,7 @@ test('Next episode comes after the player\'s Skip Ending has gone, for a file it
   try {
     await serve(page)
     await page.addInitScript(() => { Object.assign(window, { stageEndingCloses: true }) })
-    await page.goto(`${ORIGIN}${torrentWatchPath(1)}`)
+    await page.goto(`${ORIGIN}${pluginWatchPath(1)}`)
     await expect(page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.skip-chapter')).toBeVisible({ timeout: 30_000 })
     const nextAt = page.evaluate(() => new Promise<number>(resolve => {
       new MutationObserver((_, observer) => {
@@ -228,9 +228,9 @@ test('Next episode comes after the player\'s Skip Ending has gone, for a file it
         resolve(Date.now())
       }).observe(document.body, { childList: true, subtree: true })
     }))
-    await torrentPlayer(page)!.evaluate(() => { dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })) })
+    await pluginPlayer(page)!.evaluate(() => { dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })) })
     await expect(page.locator('.stage .up-next.offered')).toBeVisible()
-    const goneAt = await torrentPlayer(page)!.evaluate(() => (window as unknown as { skipGoneAt?: number }).skipGoneAt)
+    const goneAt = await pluginPlayer(page)!.evaluate(() => (window as unknown as { skipGoneAt?: number }).skipGoneAt)
     expect(goneAt, 'Skip Ending went').toBeDefined()
     expect(await nextAt).toBeGreaterThanOrEqual(goneAt!)
   } finally {
@@ -354,7 +354,7 @@ const box = (page: Page) => page.evaluate(() => {
 
 for (const [kind, path, player] of [
   ['stub\'s Crunchyroll player', stageWatchPath(1), '.stage .player-container > iframe'],
-  ['a source package\'s player', torrentWatchPath(1), '.stage .player-container iframe'],
+  ['a source package\'s player', pluginWatchPath(1), '.stage .player-container iframe'],
 ] as const) {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     test(`the player's box is there before ${kind}, and the row under it stays put as it comes, at ${viewport.width} px, in Chromium`, async ({ browser }) => {
@@ -463,7 +463,7 @@ const fOnThePage = async (page: Page, path: string, gone: string, button: Locato
 
 for (const [journey, path, gone, button, player] of [
   ['', stageWatchPath(1), stageWatchPath(1).replace('cr:GSTAGE1', 'cr:GSTAGE9'), (page: Page) => page.frameLocator('.stage iframe').locator('button.full-screen'), (page: Page) => page.frames().find(frame => frame.url().startsWith(`${ORIGIN}/embed.html?`))],
-  [' for a torrent two frames down', torrentWatchPath(1), torrentWatchPath(1).replace(`${TORRENT_ORIGIN}:1`, `${TORRENT_ORIGIN}:9`), (page: Page) => page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.full-screen'), torrentPlayer],
+  [' for a plugin two frames down', pluginWatchPath(1), pluginWatchPath(1).replace(`${PLUGIN_SOURCE_ORIGIN}:1`, `${PLUGIN_SOURCE_ORIGIN}:9`), (page: Page) => page.frameLocator('.stage iframe').frameLocator('iframe').locator('button.full-screen'), pluginPlayer],
 ] as const) {
   const name = `f on the page fullscreens the stage and gives the player the keys, but not typed, with Ctrl or Cmd, or with no player${journey}`
   const run = (page: Page) => fOnThePage(page, path, gone, button(page), () => player(page))
@@ -489,7 +489,7 @@ for (const [journey, path, gone, button, player] of [
   }
 }
 
-for (const [journey, run] of [['', fullscreenAcrossEpisodes], [' for a torrent two frames down', torrentAcrossEpisodes]] as const) {
+for (const [journey, run] of [['', fullscreenAcrossEpisodes], [' for a plugin two frames down', pluginAcrossEpisodes]] as const) {
   test(`the stage stays fullscreen across a next episode, and its player takes the keys${journey}, in Chromium`, async ({ browser }) => {
     test.setTimeout(90_000)
     const page = await browser.newPage({ viewport: VIEWPORT })

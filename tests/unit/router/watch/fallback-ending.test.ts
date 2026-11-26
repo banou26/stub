@@ -11,12 +11,12 @@ import { h, render } from 'preact'
 import { act } from 'preact/test-utils'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 
-// HOR-1014: where a torrent whose file marks no ending takes one from, in order: Crunchyroll's skip events when
-// Crunchyroll's length of the episode is the same cut, then aniskip's ending. The lengths, events and answers are the
-// ones measured on 2026-10-26 (next-episode-step5-measure.md): Crunchyroll's through the relay, files' from their
-// listings, aniskip's as recorded in tests/fixtures/aniskip.
+// HOR-1014: where a source release whose stream marks no ending takes one from, in order: Crunchyroll's skip
+// events when Crunchyroll's length of the episode is the same cut, then aniskip's ending. The lengths, events
+// and answers are the ones measured on 2026-10-26 (next-episode-step5-measure.md): Crunchyroll's through the
+// relay, releases' from their listings, aniskip's as recorded in tests/fixtures/aniskip.
 
-// Crunchyroll's length by watch url, as relay-check.ts reads it when the torrent plays
+// Crunchyroll's length by watch url, as relay-check.ts reads it when the release plays
 const crunchyroll = vi.hoisted(() => ({ lengths: {} as Record<string, number | undefined | Error>, asked: [] as string[] }))
 vi.mock('../../../../src/sources/crunchyroll/relay-check', () => ({
   crunchyrollLength: async (url: string) => {
@@ -122,7 +122,7 @@ const FRIEREN = { id: '59978', episode: 3 }
 const SENTENCED = { id: '56009', episode: 3 }
 
 test('with no Crunchyroll handle, aniskip\'s ending recorded on the same cut and late in it is kept', async () => {
-  // SubsPlease's Frieren S2 e3, as ripple read it
+  // SubsPlease's Frieren S2 e3, as reported by the player
   browser.answers[aniskipUrl(FRIEREN.id, FRIEREN.episode, 1440.11)] = recorded('frieren-s2-e3')
   const chapters = await fallbackEnding(1440.11, { mal: FRIEREN })
   expect(ending(chapters)).toEqual({ start: 1340, end: 1440, title: 'Ending' })

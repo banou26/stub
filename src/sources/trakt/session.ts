@@ -6,6 +6,13 @@ import type { Frame } from '@fkn/lib'
 export const TRAKT_ORIGIN = 'https://app.trakt.tv'
 
 /**
+ * LocalStorage key in stub holding the current Trakt session generation token. Rotated on Trakt
+ * sign-out and sign-in so any fallback token left in app.trakt.tv storage when no frame was attached
+ * (or signed out from another tab) is invalidated immediately and pruned on the next Trakt connect.
+ */
+export const TRAKT_SESSION_GEN_KEY = 'stub.trakt.session-gen'
+
+/**
  * `attachFrame`'s domains, the one host stub reads. The sign-in itself crosses auth.trakt.tv and
  * whichever account provider the viewer picks, where a read is refused, which the sign-in poll counts
  * as not signed in yet.

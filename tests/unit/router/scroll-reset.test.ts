@@ -57,7 +57,7 @@ describe('resetsScroll', () => {
   })
 
   test('the same page pushed again: the next episode, or another source, from the watch page', () => {
-    expect(resetsScroll(go(WATCH, `${WATCH}/nyaa:2136446`, 'push'))).toBe(true)
+    expect(resetsScroll(go(WATCH, `${WATCH}/extsrc:2136446`, 'push'))).toBe(true)
   })
 
   const family: [string, string, string, NavigationKind][] = [

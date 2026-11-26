@@ -359,8 +359,8 @@ test('a report that is not a playback state is dropped at the link', () => {
   expect(heard).toHaveBeenCalledWith(STATE)
 })
 
-// What a follower tells the host about its player comes from here for a torrent: the package reads
-// ripple's player when asked, and the page vets the answer like any other the package gives.
+// What a follower tells the host about its player comes from here for an added source: the package
+// reads its nested player when asked, and the page vets the answer like any other the package gives.
 describe('a package\'s buffer', () => {
   const BUFFER = { time: 600, readyState: 4, ranges: [[0, 31.5], [598, 640]] }
   const withBuffer = (buffer: () => Promise<unknown>) => pluginPlaybackLink({ ...fakeSource().source, buffer })!
@@ -402,7 +402,7 @@ describe('a package\'s buffer', () => {
   })
 })
 
-// What the watch page reads to offer Next episode as a torrent's ending starts: the file's own chapters, vetted
+// What the watch page reads to offer Next episode as an episode's ending starts: the stream's own chapters, vetted
 // like the rest of the report, and kept off what goes on to the party.
 describe('a package\'s chapters', () => {
   const CHAPTERS = [{ start: 0, end: 1300, title: 'Part A' }, { start: 1300, end: 1390, title: 'ED' }]
@@ -545,7 +545,7 @@ describe('a package\'s prepare', () => {
     const asked: object[] = []
     const prepare = async (release: object) => { asked.push(release); throw new Error('gone') }
     const link = pluginPlaybackLink({ ...fakeSource().source, prepare })!
-    const release = { uri: 'nyaa:b', url: 'magnet:?xt=urn:btih:b' }
+    const release = { uri: 'extsrc:b', url: 'plugin-stream://b' }
     await expect(link.prepare!(release)).resolves.toBe(false)
     link.dispose()
     await expect(link.prepare!(release)).resolves.toBe(false)
@@ -553,7 +553,7 @@ describe('a package\'s prepare', () => {
   })
 })
 
-// HOR-1014: a torrent's player two frames down asks the watch page for fullscreen through the package, and the page
+// HOR-1014: a release player two frames down asks the watch page for fullscreen through the package, and the page
 // fullscreens its stage, so the fullscreen outlasts the package's frame when the next episode's replaces it
 describe('a package\'s fullscreen, kept on the stage', () => {
   const page = (enabled = true) => {

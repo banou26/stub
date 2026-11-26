@@ -386,8 +386,8 @@ test('an uncorroborated declared count with no episodes yields to a larger episo
     member('mal', 0.9, null, null),
     member('anilist', 0.8, 1, null),
     member('anizip', null, 12, 12),
-    member('nyaa', null, 12, 12, 'listLength'),
-  ])).toMatchObject({ length: 12, witnesses: 2, from: ['anizip:1', 'nyaa:1'] })
+    member('extsrc', null, 12, 12, 'listLength'),
+  ])).toMatchObject({ length: 12, witnesses: 2, from: ['anizip:1', 'extsrc:1'] })
 
   // Controls: episode-backed top tier stays put, and a smaller episode-backed count never undercuts.
   expect(runLengthOf([member('mal', 0.9, 12, 12), member('anizip', null, 13, 13)])).toMatchObject({ length: 12, witnesses: 1 })

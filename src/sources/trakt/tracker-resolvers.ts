@@ -21,7 +21,7 @@ import { traktApi } from './api'
 import { keyId, targetOfKey, traktKeyOf } from './identity'
 import {
   TRAKT_TRACKER_ID, activitiesOf, buildLists, droppedOf, listEntryOf, listEntryOfMovie, listItemsOf,
-  planMovieRemove, planMovieWrite, planShowRemove, planShowWrite, readAnswer, readList, traktTracker,
+  planMovieRemove, planMovieWrite, planShowRemove, planShowWrite, readAnswer, readList, seasonKey, traktTracker,
   type TraktLists, type TraktRead, type TraktWritePlan, type TraktWriteStep,
 } from './list-api'
 
@@ -81,6 +81,7 @@ export const traktTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: 
   let watching = false
   const written = new Set<() => void>()
   const targets = new Map<string, Promise<TraktTargetResult>>()
+  const showSeasonCounts = new Map<number, Promise<Map<number, number>>>()
 
   const session = (ctx: TraktTrackerContext) => ctx.session<TraktPageApi>(TRAKT_TRACKER_ID)
 
@@ -305,6 +306,74 @@ export const traktTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: 
       : answer(uri, 'NOT_LISTED', { episodeCount }, found.user)
   }
 
+  const seasonCountsFor = (ctx: TraktTrackerContext, showId: number): Promise<Map<number, number>> => {
+    let pending = showSeasonCounts.get(showId)
+    if (!pending) {
+      pending = traktApi<{ number?: unknown, aired_episodes?: unknown, episode_count?: unknown }[]>(
+        `/shows/${showId}/seasons?extended=full`,
+        ctx,
+      ).then(seasons => {
+        if (!Array.isArray(seasons)) {
+          if (showSeasonCounts.get(showId) === pending) showSeasonCounts.delete(showId)
+          return new Map<number, number>()
+        }
+        const counts = new Map<number, number>()
+        for (const season of seasons) {
+          const num = typeof season?.number === 'number' && Number.isInteger(season.number) ? season.number : undefined
+          if (num === undefined || num <= 0) continue
+          const count = typeof season.aired_episodes === 'number' && Number.isInteger(season.aired_episodes) && season.aired_episodes > 0
+            ? season.aired_episodes
+            : typeof season.episode_count === 'number' && Number.isInteger(season.episode_count) && season.episode_count > 0
+              ? season.episode_count
+              : undefined
+          if (count !== undefined) counts.set(num, count)
+        }
+        return counts
+      })
+      showSeasonCounts.set(showId, pending)
+      pending.catch(() => { if (showSeasonCounts.get(showId) === pending) showSeasonCounts.delete(showId) })
+    }
+    return pending
+  }
+
+  const resolveWatchedSeasonCounts = async (ctx: TraktTrackerContext, watchedShows: unknown[]): Promise<Map<string, number>> => {
+    const combined = new Map<string, number>()
+    const missingShows = new Set<number>()
+    for (const raw of watchedShows) {
+      if (!raw || typeof raw !== 'object') continue
+      const item = raw as {
+        show?: { aired_episodes?: unknown, ids?: { trakt?: unknown } }
+        seasons?: { number?: unknown, aired_episodes?: unknown, aired?: unknown, episode_count?: unknown, episodes?: { plays?: unknown }[] }[]
+      }
+      const showId = typeof item.show?.ids?.trakt === 'number' && Number.isInteger(item.show.ids.trakt) ? item.show.ids.trakt : undefined
+      if (showId === undefined) continue
+      const seasons = Array.isArray(item.seasons) ? item.seasons : []
+      for (const season of seasons) {
+        const num = typeof season?.number === 'number' && Number.isInteger(season.number) ? season.number : undefined
+        if (num === undefined || num <= 0) continue
+        const watched = Array.isArray(season.episodes)
+          ? season.episodes.filter(ep => typeof ep?.plays === 'number' && ep.plays > 0).length
+          : 0
+        if (watched === 0) continue
+        const inlineCount = [season.aired_episodes, season.aired, season.episode_count]
+          .find(v => typeof v === 'number' && Number.isInteger(v) && v > 0) as number | undefined
+        if (inlineCount === undefined) missingShows.add(showId)
+      }
+    }
+    if (missingShows.size > 0) {
+      const queue = [...missingShows]
+      const concurrency = Math.min(4, queue.length)
+      await Promise.all(Array.from({ length: concurrency }, async () => {
+        while (queue.length > 0) {
+          const showId = queue.shift()!
+          const counts = await seasonCountsFor(ctx, showId)
+          for (const [season, count] of counts) combined.set(seasonKey(showId, season), count)
+        }
+      }))
+    }
+    return combined
+  }
+
   const readListPage = async (ctx: TraktTrackerContext) => {
     try {
       const idx = await indexOf(ctx)
@@ -314,7 +383,7 @@ export const traktTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: 
       const found = idx.data
       let watchedShows = found.watchedShows
       if (!watchedShows) {
-        const res = await getList(ctx, '/sync/watched/shows')
+        const res = await getList(ctx, '/sync/watched/shows?extended=full')
         if (res.kind === 'signed-out') {
           forget()
           return ownList(traktTracker(undefined), 'SIGNED_OUT')
@@ -324,7 +393,8 @@ export const traktTrackerResolvers = ({ now = Date.now, wait = sleep }: { now?: 
         watchedShows = res.data
         if (index?.kind === 'lists' && index.user === found.user) index.watchedShows = watchedShows
       }
-      return ownList(traktTracker(found.user), 'LISTED', listItemsOf(found.user, found.lists, watchedShows))
+      const seasonCounts = await resolveWatchedSeasonCounts(ctx, watchedShows)
+      return ownList(traktTracker(found.user), 'LISTED', listItemsOf(found.user, found.lists, watchedShows, seasonCounts))
     } catch {
       return ownList(traktTracker(userOf()), 'ERROR')
     }

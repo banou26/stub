@@ -620,13 +620,19 @@ const TrackingCompact = (
   const traktChecked = tracking?.answers.find(answer => answer.tracker.id === 'trakt' && answer.state !== 'NO_ID')
   const traktTarget = traktChecked ? targetOf(traktChecked, prefs.targets.trakt) : undefined
   const traktActive = Boolean(traktTarget && traktTarget.kind === 'check' && traktTarget.sendable)
+  const traktWritable = Boolean(traktChecked && writable(traktChecked))
   const traktSavedProgress = traktChecked?.entry?.progress ?? 0
+  const canConfirmTraktLower = Boolean(
+    pendingTraktLower
+    && pendingTraktLower.targetProgress < traktSavedProgress
+    && (pendingTraktLower.fromCard ? traktWritable : traktActive),
+  )
 
   useEffect(() => {
-    if (pendingTraktLower && (!traktActive || pendingTraktLower.targetProgress >= traktSavedProgress)) {
+    if (pendingTraktLower && !canConfirmTraktLower) {
       setPendingTraktLower(undefined)
     }
-  }, [pendingTraktLower, traktActive, traktSavedProgress])
+  }, [pendingTraktLower, canConfirmTraktLower])
 
   const stageNow = (patches: Record<string, Fields>, immediate: boolean, fromCard?: boolean) => {
     for (const [id, { progress }] of Object.entries(patches)) if (progress !== undefined) staged.current.set(id, progress)
@@ -1033,14 +1039,19 @@ const TrackingCompact = (
               : undefined,
           ].filter(Boolean)
         })}
-        {pendingTraktLower && traktActive && pendingTraktLower.targetProgress < traktSavedProgress
+        {canConfirmTraktLower && pendingTraktLower
           ? (
             <div key="trakt-confirm-lower" className="note" data-note="trakt" data-confirm="trakt-lower">
               <span>
-                {intl.formatMessage(
-                  { id: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.', defaultMessage: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.' },
-                  { target: pendingTraktLower.targetProgress },
-                )}
+                {movie && pendingTraktLower.targetProgress === 0
+                  ? intl.formatMessage({
+                      id: 'Marking this movie unwatched on Trakt deletes every recorded play, including rewatches.',
+                      defaultMessage: 'Marking this movie unwatched on Trakt deletes every recorded play, including rewatches.',
+                    })
+                  : intl.formatMessage(
+                      { id: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.', defaultMessage: 'Lowering progress on Trakt to {target} deletes every recorded play above it, including rewatches.' },
+                      { target: pendingTraktLower.targetProgress },
+                    )}
               </span>
               <button type="button" onClick={confirmTraktLower}>
                 {intl.formatMessage({ id: 'Remove Trakt plays', defaultMessage: 'Remove Trakt plays' })}

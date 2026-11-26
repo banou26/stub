@@ -2,8 +2,6 @@
 // (anilist.co, myanimelist.net, app.trakt.tv and www.crunchyroll.com), the sign in that connects a
 // site on this device and the sign out that disconnects it. src/worker.ts exposes `sessionResolvers`
 // to the worker on the `sessions` osra key.
-// and the sign out that disconnects it. src/worker.ts exposes `sessionResolvers` to the worker on the
-// `sessions` osra key.
 
 import type { WindowSignIn } from '../sources/login-window'
 import type { PageApi } from './site-session'
@@ -22,7 +20,15 @@ import { signInThroughWindow } from '../sources/login-window'
 import malPageScript from '../sources/mal/session-page.ts?page-script'
 import { MAL_DOMAINS, MAL_LOGIN_URL, MAL_ORIGIN, MAL_SESSION_URL, MAL_WINDOW_WIDTH, malSignedIn } from '../sources/mal/session'
 import traktPageScript from '../sources/trakt/session-page.ts?page-script'
-import { TRAKT_DOMAINS, TRAKT_LOGIN_URL, TRAKT_ORIGIN, TRAKT_SESSION_URL, TRAKT_SIGN_OUT_DOMAINS, traktSignedIn } from '../sources/trakt/session'
+import {
+  TRAKT_DOMAINS,
+  TRAKT_LOGIN_URL,
+  TRAKT_ORIGIN,
+  TRAKT_SESSION_GEN_KEY,
+  TRAKT_SESSION_URL,
+  TRAKT_SIGN_OUT_DOMAINS,
+  traktSignedIn,
+} from '../sources/trakt/session'
 import { attachCookies, detectBackend, type FknBackend } from '../utils/fkn-backend'
 import { mountHiddenFrame } from '../utils/hidden-frame'
 import { CONNECTED_CHANNEL, CONNECTED_KEY, connectedSites, createConnections, disconnectAndReload, signInAndConnect, siteSessionResolvers } from './connections'
@@ -37,10 +43,16 @@ const CRUNCHYROLL_REASON = 'Read and update your Crunchyroll history, ratings an
 
 const SESSION_SITE_IDS = ['anilist', 'mal', 'trakt', CRUNCHYROLL_TRACKER_ID] as const
 
+const readTraktSessionGen = (): string | undefined => {
+  try { return localStorage.getItem(TRAKT_SESSION_GEN_KEY) ?? undefined } catch { return undefined }
+}
+
+const rotateTraktSessionGen = (): void => {
+  try { localStorage.setItem(TRAKT_SESSION_GEN_KEY, crypto.randomUUID()) } catch {}
+}
+
 const channel = new BroadcastChannel(CONNECTED_CHANNEL)
 const connections = createConnections(() => localStorage, channel)
-
-let traktFreshOnly = false
 
 const frames = createSessionFrames<PageApi>(
   [{
@@ -65,10 +77,7 @@ const frames = createSessionFrames<PageApi>(
     domains: TRAKT_DOMAINS,
     reason: TRAKT_REASON,
     pageScript: traktPageScript,
-    serveExtra: () => (traktFreshOnly || siteStatuses.read('trakt')?.state === 'signed-out') ? { freshOnly: true } : {},
-    onInstalled: serve => {
-      if (serve.freshOnly && siteStatuses.read('trakt')?.state !== 'signed-out') traktFreshOnly = false
-    },
+    sessionGen: readTraktSessionGen,
   }, {
     id: CRUNCHYROLL_TRACKER_ID,
     url: CRUNCHYROLL_SESSION_URL,
@@ -110,13 +119,11 @@ globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => {
   const after = connectedSites(newValue)
   for (const site of [...before, ...after]) {
     if (before.includes(site) !== after.includes(site)) {
-      if (site === 'trakt' && before.includes(site) && !after.includes(site)) traktFreshOnly = true
       frames.reload(site)
     }
   }
 })
 channel.onmessage = ({ data }: MessageEvent<string>) => {
-  if (data === 'trakt') traktFreshOnly = true
   frames.reload(data)
 }
 
@@ -161,8 +168,9 @@ export const signInToCrunchyroll = (): Promise<WindowSignIn> =>
   ).then(rememberSignIn(siteStatuses, 'crunchyroll'))
 
 /** Opens app.trakt.tv in an FKN window, whose Sign in starts Trakt's own. Call it directly in the click handler. */
-export const signInToTrakt = (): Promise<WindowSignIn> =>
-  signInAndConnect(
+export const signInToTrakt = (): Promise<WindowSignIn> => {
+  rotateTraktSessionGen()
+  return signInAndConnect(
     'trakt',
     () => signInThroughWindow({
       url: TRAKT_LOGIN_URL,
@@ -171,12 +179,10 @@ export const signInToTrakt = (): Promise<WindowSignIn> =>
       isSignedIn: login => traktSignedIn(login, traktPageScript),
       // above the extension's 5 s evaluate bridge-ready timeout so a CSP refusal reaches traktSignedIn's fallback
       readTimeoutMs: 8_000,
-    }).then(outcome => {
-      if (outcome !== 'blocked') traktFreshOnly = true
-      return outcome
     }),
     { frames, connections },
   ).then(rememberSignIn(siteStatuses, 'trakt'))
+}
 
 /** The sign in each tracker offers, by tracker id, for a tracker that answers SIGNED_OUT. */
 export const trackerSignIns: Record<string, () => Promise<WindowSignIn>> = {
@@ -204,7 +210,10 @@ export const watchSite = (site: TrackerSite, listener: () => void): (() => void)
  * session is the browser's own and stays.
  */
 export const signOutOfSite = async (site: TrackerSite, backend: FknBackend): Promise<void> => {
-  if (site === 'trakt') traktFreshOnly = true
+  if (site === 'trakt') rotateTraktSessionGen()
+  await frames.ifAttached(site, async api => {
+    await (api as { clearSession?: () => Promise<void> }).clearSession?.()
+  })
   disconnectAndReload(site, { frames, connections })
   if (backend !== 'cloud') return
   await clearCloudCookies(SITE_DOMAINS[site])

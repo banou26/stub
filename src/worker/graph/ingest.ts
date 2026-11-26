@@ -597,7 +597,7 @@ const visitMedia = (
   for (const handle of Array.isArray(value.handles) ? value.handles : []) {
     if (!isRecord(handle) || !isRecord(handle.node)) {
       // a handle naming no node claims nothing, and one of them must not fail the batch every
-      // extractor's rows share (2026-09-05, the nyaa package on the deployed site)
+      // extractor's rows share (2026-09-05, malformed plugin payload on the deployed site)
       batch.handlesWithNoNode += 1
       continue
     }

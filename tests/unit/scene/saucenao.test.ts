@@ -69,10 +69,19 @@ describe('createSauceNaoClient', () => {
     })
   })
 
-  test('returns busy when frame attachment or RPC rejects', async () => {
+  test('returns failed when frame permission is denied, and busy for transient RPC failures', async () => {
+    const deniedError = Object.assign(new Error('frame.evaluate: the user did not grant evaluation here'), { name: 'LocatorDeniedError' })
+    const denied = createSauceNaoClient({
+      frames: {
+        use: vi.fn().mockRejectedValue(deniedError),
+      },
+      prepare: async () => ({ bytes: new Uint8Array([1]), mimeType: 'image/jpeg' }),
+    })
+    await expect(denied(new Blob(['x']), 'series')).resolves.toEqual({ error: 'failed' })
+
     const search = createSauceNaoClient({
       frames: {
-        use: vi.fn().mockRejectedValue(new Error('permission denied')),
+        use: vi.fn().mockRejectedValue(new Error('transient timeout')),
       },
       prepare: async () => ({ bytes: new Uint8Array([1]), mimeType: 'image/jpeg' }),
     })

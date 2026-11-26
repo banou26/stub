@@ -57,7 +57,9 @@ export type CypherStore = {
  */
 const CACHE_LIMIT = 500
 
-export const createCypherStore = (): CypherStore => {
+export const createCypherStore = (options?: {
+  onWrite?: (tables: ReadonlySet<string>, cypher: string) => void
+}): CypherStore => {
   const store = new Store()
   const cache = new Map<string, ReturnType<typeof parse>>()
 
@@ -73,24 +75,37 @@ export const createCypherStore = (): CypherStore => {
     return statement
   }
 
-  const run = (cypher: string, params: Record<string, unknown>): Row[] => {
+  const run = (cypher: string, params: Record<string, unknown>): { result: Row[], written?: ReadonlySet<string> } => {
     const statement = compiled(cypher)
     switch (statement.kind) {
-      case 'createNodeTable': return applyNodeTable(store, statement, cypher)
-      case 'createRelTable': return applyRelTable(store, statement, cypher)
-      case 'showTables': return showTables(store)
-      case 'query':
+      case 'createNodeTable': {
+        const existed = Boolean(store.table(statement.name))
+        const result = applyNodeTable(store, statement, cypher)
+        return existed ? { result } : { result, written: new Set([statement.name]) }
+      }
+      case 'createRelTable': {
+        const existed = Boolean(store.table(statement.name))
+        const result = applyRelTable(store, statement, cypher)
+        return existed ? { result } : { result, written: new Set([statement.name]) }
+      }
+      case 'showTables': return { result: showTables(store) }
+      case 'query': {
         // EVERY statement goes through the undo log, reads included. A read cannot fail half way in a
         // way that matters, but a statement that both reads and writes can, and telling them apart
         // here would be a rule to get wrong for no gain: an unused log costs one array.
-        return store.transact(() => execute({ store, params: params as Record<string, Value>, cypher }, statement))
+        const { result, written } = store.transactWithTables(() =>
+          execute({ store, params: params as Record<string, Value>, cypher }, statement),
+        )
+        return written.size > 0 ? { result, written } : { result }
+      }
     }
   }
 
   return {
     query: async (cypher, params = {}) => {
+      let outcome: { result: Row[], written?: ReadonlySet<string> }
       try {
-        return run(cypher, params)
+        outcome = run(cypher, params)
       } catch (error) {
         // THE STATEMENT IS ADDED HERE, at the boundary, and nowhere inside. A refusal names a column
         // or a construct, not the statement it came from, and every caller reads `error.message`
@@ -101,6 +116,8 @@ export const createCypherStore = (): CypherStore => {
         const phase = error instanceof CypherError ? error.phase : 'run'
         throw new CypherError(phase, `${reason} (statement: ${cypher.slice(0, 120)})`, cypher)
       }
+      if (outcome.written) options?.onWrite?.(outcome.written, cypher)
+      return outcome.result
     },
     tables: () => store.all().map(table => ({ name: table.name, kind: table.kind })),
     close: () => { cache.clear() },
