@@ -10,7 +10,7 @@ const shown = (...answers: Orderable[][]) => {
   let ordered: Orderable[] = []
   for (const answer of answers) {
     ordered = settledOrder(answer, placed)
-    placed = orderKeys(ordered)
+    placed = orderKeys(ordered, placed)
   }
   return ordered.map(node => node._id)
 }
@@ -61,6 +61,21 @@ test('placement falls back to the uri when a node carries no cluster id', () => 
 
   expect(settledOrder([{ uri: 'mal:2', popularity: 9 }, { uri: 'mal:1', popularity: 2 }], placed).map(node => node.uri))
     .toEqual(['mal:1', 'mal:2'])
+})
+
+test('a minority of cached cards carrying counts does not pin ahead of an uncounted first draw', () => {
+  const partial = [media('cached', 50), media('first'), media('second'), media('third')]
+  const counted = [media('first', 900), media('second', 700), media('third', 500), media('cached', 50)]
+
+  expect(shown(partial, counted)).toEqual(['first', 'second', 'third', 'cached'])
+})
+
+test('an established hold survives a flood of uncounted rows arriving beside it', () => {
+  const held = [media('a', 100), media('b', 90)]
+  const flooded = [media('a', 100), media('b', 90), ...Array.from({ length: 10 }, (_, i) => media(`u${i}`))]
+  const reordered = [media('b', 300), media('a', 100), ...Array.from({ length: 10 }, (_, i) => media(`u${i}`))]
+
+  expect(shown(held, flooded, reordered).slice(0, 2)).toEqual(['a', 'b'])
 })
 
 // measured 2026-10-17: a home page reload gave Steel Ball Run a new cluster id after its first draw, and it went

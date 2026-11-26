@@ -7,14 +7,14 @@ import { expect, onTestFinished, test, vi } from 'vite-plus/test'
 // see tests/unit/worker/graph/read.test.ts: urql's CommonJS build cannot load here, and nothing below calls it
 vi.mock('urql', () => ({ Client: class {}, fetchExchange: {}, mapExchange: () => ({}), getOperationName: () => undefined }))
 
-const fanout = vi.hoisted(() => ({ answer: (_uris: string[]) => {}, settle: () => {} }))
+const fanout = vi.hoisted(() => ({ empty: false, answer: (_uris: string[]) => {}, settle: () => {} }))
 
 vi.mock('../../../src/worker/extractor', () => ({
   implementsSimilarMedia: () => true,
   similarOutcomeFrom: () => () => undefined,
   proxyRequestToExtractors: (_ctx: unknown, _operation: unknown, extractUris: (result: unknown) => string[], settling?: { ask: () => () => void }) => {
     const insertedUris = new Set<string>()
-    const pending = settling?.ask()
+    const pending = fanout.empty ? undefined : settling?.ask()
     fanout.answer = uris => {
       for (const uri of extractUris({ data: { mediaPage: { nodes: uris.map(uri => ({ uri })) } } })) insertedUris.add(uri)
     }
@@ -23,7 +23,17 @@ vi.mock('../../../src/worker/extractor', () => ({
   },
 }))
 const STORE = vi.hoisted(() => ['tvmaze:83119', 'tmdb:93405', 'imdb:tt7203552'])
-const row = (uri: string) => ({ uri, titles: [{ language: 'en', title: 'The Morning Show', score: 1 }], covers: [], banners: [], handles: [], categories: ['SERIES'] })
+const row = (uri: string) => ({
+  uri,
+  titles: [{ language: 'en', title: 'The Morning Show', score: 1 }],
+  covers: [],
+  banners: [],
+  handles: [],
+  categories: ['SERIES'],
+  season: 'FALL',
+  seasonYear: 2026,
+  genres: ['Drama'],
+})
 vi.mock('../../../src/worker/store/db', async original => ({
   ...await original<object>(),
   findAllAggregatedMedia: async (uris: string[] = STORE) => uris.map(uri => [row(uri)]),
@@ -102,4 +112,45 @@ test('a repeated warm-store search stays whole on partial answers, narrows once 
   expect(await drawn(failed)).toEqual(['imdb:tt7203552', 'tmdb:93405', 'tvmaze:83119'])
   fanout.settle()
   expect(await drawn(failed), 'empty settle keeps the warm store instead of wiping to empty').toBeUndefined()
+})
+
+test('a browse page waits for its sources rather than leaking the warm store, wakes on known answers, and falls back only on empty settle', async () => {
+  const seasonPage = open({ season: 'FALL', seasonYear: 2026, sorts: ['POPULARITY_DESC'] })
+  expect(await drawn(seasonPage)).toEqual([])
+
+  fanout.answer(['tvmaze:83119'])
+  expect(await drawn(seasonPage), 'wakes on an answer the store already holds').toEqual(['tvmaze:83119'])
+
+  fanout.answer(['tmdb:93405'])
+  expect(await drawn(seasonPage), 'accumulates later source answers').toEqual(['tvmaze:83119', 'tmdb:93405'])
+
+  const sameTick = open({ season: 'FALL', seasonYear: 2026, sorts: ['POPULARITY_DESC'] })
+  expect(await drawn(sameTick)).toEqual([])
+  fanout.answer(['tvmaze:83119'])
+  fanout.settle()
+  expect(await drawn(sameTick), 'same-tick answer beats empty fallback').toEqual(['tvmaze:83119'])
+
+  const emptyBrowse = open({ genres: ['Drama'] })
+  expect(await drawn(emptyBrowse)).toEqual([])
+  fanout.settle()
+  expect(await drawn(emptyBrowse), 'falls back to the filtered warm store when every source settles empty')
+    .toEqual(['tvmaze:83119', 'tmdb:93405', 'imdb:tt7203552'])
+
+  fanout.answer(['tvmaze:83119'])
+  expect(await drawn(emptyBrowse), 'a late source answer after fallback still narrows the browse page')
+    .toEqual(['tvmaze:83119'])
+
+  fanout.empty = true
+  try {
+    const noSources = open({ genres: ['Drama'] })
+    expect(await drawn(noSources), 'zero askable sources immediately falls back to the filtered store')
+      .toEqual(['tvmaze:83119', 'tmdb:93405', 'imdb:tt7203552'])
+  } finally {
+    fanout.empty = false
+  }
+
+  const emptyListing = open({ categories: ['SERIES'] })
+  expect(await drawn(emptyListing)).toEqual([])
+  fanout.settle()
+  expect(await drawn(emptyListing), 'listings never fall back to the warm store').toBeUndefined()
 })

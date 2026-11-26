@@ -44,6 +44,15 @@ export const settledOrder = <T extends Orderable>(nodes: readonly T[], placed: r
  * held: one without was placed by arrival order rather than by a count, so it stays free to move into
  * place when its count lands. Measured 2026-10-13 on anime.fkn.app: the bundle carried no count for
  * the new season, all 158 cards of the first draw had none, and holding them kept that order for good.
+ *
+ * Require at least half the list to carry popularity before locking initial placement, so a
+ * minority of already-cached cards arriving alongside uncounted rows never pin themselves ahead of
+ * the real top titles before full counts land, while preserving an existing held order if uncounted
+ * rows arrive later.
  */
-export const orderKeys = (nodes: readonly Orderable[]): string[][] =>
-  nodes.filter(node => node.popularity != null).map(namesOf).filter(names => names.length)
+export const orderKeys = (nodes: readonly Orderable[], held: readonly (readonly string[])[] = []): string[][] => {
+  const counted = nodes.filter(node => node.popularity != null)
+  if (!counted.length) return []
+  if (!held.length && counted.length * 2 < nodes.length) return []
+  return counted.map(namesOf).filter(names => names.length)
+}

@@ -116,14 +116,27 @@ const useRow = (input: MediaPageInput, row: Row) => {
   // source restates its count. Measured 2026-09-06: the top ten reordered at 9.0 s, well after it
   // looked settled at 2.0 s. The Popular rows keep the order JustWatch answered, which never moves, and
   // holding a partial first draw still would put the cards that arrive later at the end.
-  const resolved = data?.mediaPage?.nodes
+  // Reset placement and ignore stale urql data across variable changes (e.g. CategoryTabs switches).
+  const key = `${input.season ?? ''}:${input.seasonYear ?? ''}:${input.categories?.join(',') ?? ''}`
+  const shownData = useRef(data)
+  const shownKey = useRef(key)
   const placed = useRef<string[][]>([])
+  if (key !== shownKey.current) {
+    placed.current = []
+    if (data !== shownData.current) {
+      shownData.current = data
+      shownKey.current = key
+    }
+  } else if (data !== shownData.current) {
+    shownData.current = data
+  }
+  const resolved = shownKey.current === key ? data?.mediaPage?.nodes : undefined
   return useMemo(() => {
     if (!resolved?.length || row !== 'season') return resolved || []
     const ordered = settledOrder(resolved, placed.current)
-    placed.current = orderKeys(ordered)
+    placed.current = orderKeys(ordered, placed.current)
     return ordered
-  }, [resolved])
+  }, [resolved, row])
 }
 
 const Index = () => {

@@ -8,7 +8,10 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { build } from 'vite-plus'
 
+import SEASONS from '../src/generated/anime-seasons'
 import { builtInSources } from '../src/sources/built-in'
+import { seasonKey } from '../src/sources/offline/normalize'
+import { mediaSeasonNow } from '../src/sources/season'
 import { DESKTOP, firstRowTitles } from '../scripts/capture-store'
 import { catalogues, english, englishIn, LANGUAGE_KEY, offerEveryLanguage, PSEUDO } from './languages'
 import { drawMontserrat } from './montserrat'
@@ -330,6 +333,21 @@ test('a Popular row is JustWatch\'s answer in its order, also on the way back Ho
   await expect(cards(page, 'Popular movies').first()).toBeVisible()
   await page.waitForTimeout(8_000)
   expect(await titles(page, 'Popular movies')).toEqual(films)
+})
+
+test('visiting a lower-ranked season title then clicking the Stub logo still puts the top season title first', async ({ page }) => {
+  const counted = (SEASONS.seasons[seasonKey(mediaSeasonNow())] ?? [])
+    .filter((record): record is typeof record & { al: number, pp: number } => 'al' in record && Boolean(record.al) && 'pp' in record && typeof record.pp === 'number')
+    .sort((a, b) => b.pp - a.pp)
+  const top = counted[0]
+  const lower = counted[4] ?? counted.at(-1)
+  expect(top && lower && lower.pp < top.pp, 'the current bundled season has a top work and a lower-ranked one').toBeTruthy()
+  await page.goto(at('anime.localhost', `/title/anilist:${lower!.al}`))
+  await expect(page.getByRole('heading', { level: 1, name: lower!.t })).toBeVisible()
+  await page.locator('header a.logo').click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(cards(page, 'Current season').first()).toBeVisible()
+  await expect.poll(() => titles(page, 'Current season').then(list => list[0])).toBe(top!.t)
 })
 
 test('a title\'s address answers only on a site that keeps it', async ({ page }) => {

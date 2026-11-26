@@ -233,12 +233,12 @@ export const resolvers = {
         const iterator = debouncedListenIterator([page ? 'view:changed' : 'media:changed'], 100, { abortSignal: ctx.request.signal })
         const listing = isListing(args.input)
         const searching = Boolean(args.input?.search?.trim())
-        // Whether the page draws what was answered, rather than the whole store. An answer the store
-        // already holds changes nothing and so fires no event, and such a page would never draw it, so
-        // the answer wakes it. It must not wake one on the whole store, which holds that answer already:
-        // the read would swap its cards for the answers so far, so a repeated search shrinks and regrows,
-        // and stays short of any source that fails this time.
-        let narrowed = listing
+        const browsing = !listing && !searching
+        // Search starts against the warm store and narrows once sources settle. Browse and listing
+        // pages start narrowed so cached rows cannot appear ahead of source answers; only browse pages
+        // fall back to the filtered store if every source settles empty.
+        let narrowed = !searching
+        let fallback = false
         let closed = false
         let settling: ReturnType<typeof createSettling> | undefined
         const { subscriptions, insertedUris, close } =
@@ -250,16 +250,23 @@ export const resolvers = {
               if (narrowed && uris?.length) iterator.wake()
               return uris
             },
-            searching
+            searching || browsing
               ? (settling = createSettling(() => {
                 queueMicrotask(() => {
-                  if (closed || narrowed || !insertedUris.size) return
-                  narrowed = true
-                  iterator.wake()
+                  if (closed) return
+                  if (searching) {
+                    if (narrowed || !insertedUris.size) return
+                    narrowed = true
+                    iterator.wake()
+                  } else if (!insertedUris.size && !fallback) {
+                    fallback = true
+                    iterator.wake()
+                  }
                 })
               }))
               : undefined
           )
+        if (browsing && settling?.settled() && !insertedUris.size) fallback = true
 
         // How many uris the last SEED read. The seed of 6.1 is a function of `insertedUris`, so a
         // grown fan-out is a new seed rather than an increment: an incremental re-read only ever
@@ -269,7 +276,7 @@ export const resolvers = {
         const getPage = async () => {
           const uris = [...insertedUris]
           narrowed ||= uris.length > 0
-          if (listing && !uris.length) {
+          if ((listing || (browsing && !fallback)) && !uris.length) {
             named.clear()
             return []
           }
@@ -280,21 +287,8 @@ export const resolvers = {
             seeded = uris.length
             return sortPage(cards as unknown as Media[], args.input, uris)
           }
-          // THE WHOLE-STORE FALLBACK IS LOAD BEARING, and it does not look it.
-          //
-          // `insertedUris` is empty until a source answers, so this is the first yield's only content.
-          // Refusing it and answering [] instead is the obvious way to keep a filtered page from
-          // opening on the previous page's results, and it BREAKS the page outright: until `narrowed`
-          // this generator only re-runs on `media:changed`, and a second subscription over a warm store
-          // changes nothing, because `graph.set` is idempotent (tests/unit/worker/store/edge-idempotence.test.ts).
-          // So no event ever fires and the page stays empty. Measured 2026-09-06 on the search page:
-          // picking a format on a loaded season sat at 0 cards for 60 seconds, where the same url
-          // opened cold answered 24.
-          //
-          // What keeps the fallback honest is `applyMediaFilters` below, which runs on it like any
-          // other page: a stale row from an earlier query only survives if it genuinely matches the
-          // season, format, genres and tags now being asked for. A listing is the one page that answers
-          // [] instead, since no filter can tell its rows from the store's, so it starts `narrowed`.
+          // Search and empty-settled browse pages still read the filtered store (`applyMediaFilters`)
+          // while `uris` is empty, whereas listings never fall back.
           let clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)
           if (await fuzzyMergeMediaClusters(clusters)) {
             clusters = await findAllAggregatedMedia(uris.length ? uris : undefined)

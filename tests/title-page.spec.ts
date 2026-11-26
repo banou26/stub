@@ -94,7 +94,7 @@ const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 /** Opens the modal of the first work the home page lists, and returns its title once drawn. */
 const openModal = async (page: Page) => {
   await page.goto(`${origin}/`)
-  const card = page.locator('a[href^="/media/"]').first()
+  const card = page.locator('.home-row').first().locator('a[href^="/media/"]').first()
   await expect(card).toBeVisible({ timeout: 30_000 })
   await page.goto(`${origin}${await card.getAttribute('href')}`)
   const title = modal(page).locator('h2.title')
