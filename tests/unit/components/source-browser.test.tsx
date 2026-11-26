@@ -313,4 +313,44 @@ describe('SourceBrowser', () => {
     act(() => { window.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Tab', shiftKey: true })) })
     expect(document.activeElement).toBe(focusables[focusables.length - 1])
   })
+
+  test('supports controlled view prop and clears open folder when externally switched to list', () => {
+    const location = memoryLocation({ path: '/watch/m/e/archive:1', record: true })
+    const onViewChange = vi.fn()
+    const sources = makeSources()
+    const catalog = makeCatalog()
+    const tree = (view: 'cards' | 'list') => withIntl(
+      <Router hook={location.hook}>
+        <SourceBrowser
+          sources={sources}
+          catalogItems={catalog}
+          variant="inline"
+          view={view}
+          onViewChange={onViewChange}
+        />
+      </Router>,
+    )
+
+    const host = mount(tree('cards'))
+    hosts.push(host)
+    const click = (el: Element) => act(() => { el.dispatchEvent(new Event('click', { bubbles: true })) })
+
+    click(host.querySelector('button[title="2 releases on Archive Hub"]')!)
+    expect(host.querySelector('button.back-btn')).toBeTruthy()
+
+    const listBtn = [...host.querySelectorAll<HTMLButtonElement>('.view-btn')].find(b => b.textContent?.includes('List'))!
+    click(listBtn)
+    expect(onViewChange).toHaveBeenCalledWith('list')
+    // Stays in Cards until parent updates controlled view prop
+    expect(host.querySelector('button.back-btn')).toBeTruthy()
+
+    act(() => { render(tree('list'), host) })
+    expect(host.querySelector('.entries')).toBeTruthy()
+    expect(host.querySelector('button.back-btn')).toBeNull()
+
+    // Returning to Cards keeps activeFolder cleared
+    act(() => { render(tree('cards'), host) })
+    expect(host.querySelector('.entries')).toBeNull()
+    expect(host.querySelector('button.back-btn')).toBeNull()
+  })
 })

@@ -11,6 +11,7 @@ import { settings } from '../../settings-store'
 import { readAutoplay, setAutoplay, watchAutoplay } from '../../utils/autoplay'
 import { readOpenInNewTab, setOpenInNewTab, watchOpenInNewTab } from '../../utils/open-in-new-tab'
 import { useSetting } from '../../utils/use-setting'
+import { readWatchSourceView, setWatchSourceView, watchWatchSourceView, type WatchSourceView } from '../../utils/watch-source-view'
 import {
   ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAlwaysSubtitles, keepAudioLanguage, keepSubtitleLanguage, OFF, ON, ORIGINAL,
   SUBTITLE_LANGUAGE_KEY, watchTrackLanguages,
@@ -94,14 +95,36 @@ const LanguageRow = ({ title, setting, value, first, pick }: {
   )
 }
 
+/** How watch sources appear on the watch page: Cards (one card per source) or List (unified list). */
+const SourceViewRow = ({ value, pick }: {
+  value: WatchSourceView
+  pick: (view: WatchSourceView) => void
+}) => {
+  const intl = useIntl()
+  const id = useId()
+  return (
+    <div className="row" data-setting="watch-source-view">
+      <div className="head">
+        <h3 id={id}>{intl.formatMessage({ id: 'Watch sources view', defaultMessage: 'Watch sources view' })}</h3>
+      </div>
+      <select aria-labelledby={id} value={value} onChange={event => pick(event.currentTarget.value === 'list' ? 'list' : 'cards')}>
+        <option value="cards">{intl.formatMessage({ id: 'Cards', defaultMessage: 'Cards' })}</option>
+        <option value="list">{intl.formatMessage({ id: 'List', defaultMessage: 'List' })}</option>
+      </select>
+    </div>
+  )
+}
+
 /**
- * The player's settings: whether an episode's end opens the next one by itself, and the audio and subtitles a player
- * starts in, which a pick in a player also sets. The play order is on the source cards.
+ * The player's settings: whether an episode's end opens the next one by itself, whether episodes open in a new tab,
+ * how watch sources are shown, and the audio and subtitles a player starts in, which a pick in a player also sets.
+ * The play order is on the source cards.
  */
 export const PlaybackSection = () => {
   const intl = useIntl()
   const autoplay = useSetting(readAutoplay, watchAutoplay)
   const openInNewTab = useSetting(readOpenInNewTab, watchOpenInNewTab)
+  const sourceView = useSetting(readWatchSourceView, watchWatchSourceView)
   const audio = useSetting(() => settings.getItem(AUDIO_LANGUAGE_KEY), watchTrackLanguages)
   const subtitles = useSetting(() => settings.getItem(SUBTITLE_LANGUAGE_KEY), watchTrackLanguages)
   const always = useSetting(() => settings.getItem(ALWAYS_SUBTITLES_KEY) === ON, watchTrackLanguages)
@@ -113,6 +136,7 @@ export const PlaybackSection = () => {
       <Switch on={openInNewTab} set={setOpenInNewTab}>
         {intl.formatMessage({ id: 'Open episodes in a new tab', defaultMessage: 'Open episodes in a new tab' })}
       </Switch>
+      <SourceViewRow value={sourceView} pick={setWatchSourceView} />
       <LanguageRow
         title={intl.formatMessage({ id: 'Audio language', defaultMessage: 'Audio language' })}
         setting="audio-language"

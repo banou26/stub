@@ -9,6 +9,7 @@ import { OFFERED } from '../../../src/i18n/languages'
 import { ACCOUNT_SETTINGS_KEY } from '../../../src/settings-store'
 import { OPEN_IN_NEW_TAB_KEY, readOpenInNewTab } from '../../../src/utils/open-in-new-tab'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, keepAudioLanguage, readTrackLanguages, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
+import { readWatchSourceView, WATCH_SOURCE_VIEW_KEY } from '../../../src/utils/watch-source-view'
 
 const { PlaybackSection } = await import('../../../src/router/settings/playback')
 
@@ -117,6 +118,27 @@ test('Open episodes in a new tab is off until turned on, writes nothing when off
   expect(openInNewTab().checked).toBe(true)
 })
 
+test('Watch sources view starts on Cards, writes list when picked, removes the key on Cards, and follows account updates', async () => {
+  const { host, select, pick, options } = render()
+  const label = document.getElementById(select('watch-source-view').getAttribute('aria-labelledby')!)?.textContent
+  expect(label).toBe('Watch sources view')
+  expect(options('watch-source-view')).toEqual([['cards', 'Cards'], ['list', 'List']])
+  expect(readWatchSourceView()).toBe('cards')
+
+  await pick('watch-source-view', 'list')
+  expect(stored.get(WATCH_SOURCE_VIEW_KEY)).toBe('list')
+  expect(readWatchSourceView()).toBe('list')
+
+  await pick('watch-source-view', 'cards')
+  expect(stored.has(WATCH_SOURCE_VIEW_KEY)).toBe(false)
+  expect(readWatchSourceView()).toBe('cards')
+
+  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [WATCH_SOURCE_VIEW_KEY]: 'list' }))
+  await act(() => { for (const listener of listeners) listener({ key: ACCOUNT_SETTINGS_KEY }) })
+  expect(readWatchSourceView()).toBe('list')
+  expect(host.querySelector('p'), 'labels only').toBeNull()
+})
+
 test('a language a player reported that no row is, is listed by its name, or as reported when it names none', () => {
   stored.set(AUDIO_LANGUAGE_KEY, 'English (US)')
   stored.set(SUBTITLE_LANGUAGE_KEY, 'Signs & Songs')
@@ -151,8 +173,9 @@ describe('in French', () => {
   test('the rows read in French, each language named as a menu row writes it, with a capital', () => {
     const { host, options } = render()
     expect([...host.querySelectorAll('h3, label')].map(element => element.textContent)).toEqual([
-      'Lecture automatique de l’épisode suivant', 'Ouvrir les épisodes dans un nouvel onglet', 'Langue audio', 'Langue des sous-titres', 'Toujours afficher les sous-titres',
+      'Lecture automatique de l’épisode suivant', 'Ouvrir les épisodes dans un nouvel onglet', 'Affichage des sources de lecture', 'Langue audio', 'Langue des sous-titres', 'Toujours afficher les sous-titres',
     ])
+    expect(options('watch-source-view')).toEqual([['cards', 'Cartes'], ['list', 'Liste']])
     expect(options('audio-language').slice(0, 4)).toEqual([['', 'Automatique (Français)'], ['original', 'Version originale'], ['de', 'Allemand'], ['en', 'Anglais']])
     expect(options('subtitle-language')[1]).toEqual(['off', 'Désactivés'])
   })

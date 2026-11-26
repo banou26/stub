@@ -243,6 +243,16 @@ test('Playback has three switches, autoplay on by default, open episodes in a ne
   await expect(openInNewTab).not.toBeChecked()
   expect(await page.evaluate(() => localStorage.getItem('stub.player.autoplay'))).toBeNull()
   expect(await page.evaluate(() => localStorage.getItem('stub.episodes.open-in-new-tab'))).toBeNull()
+
+  const sourceView = page.getByRole('combobox', { name: 'Watch sources view', exact: true })
+  await expect(sourceView.locator('option:checked')).toHaveText('Cards')
+  await sourceView.selectOption({ label: 'List' })
+  expect(await page.evaluate(() => localStorage.getItem('stub.watch.source-view'))).toBe('list')
+  await page.reload()
+  await expect(sourceView.locator('option:checked'), 'kept in this browser').toHaveText('List')
+  await sourceView.selectOption({ label: 'Cards' })
+  await expect(sourceView.locator('option:checked')).toHaveText('Cards')
+  expect(await page.evaluate(() => localStorage.getItem('stub.watch.source-view'))).toBeNull()
 })
 
 // STUB-352 (players start in the viewer's language): the settings a pick in a player also writes

@@ -146,7 +146,16 @@ test('switches sources and subsources from inside the player without leaving ful
     await expect(inlineListBtn).toHaveAttribute('aria-pressed', 'true')
     await expect(page.locator('.watch-info.sources a.release[title="Release 2"]')).toBeVisible()
     await expectScrollableEntries()
+    expect(await page.evaluate(() => localStorage.getItem('stub.watch.source-view'))).toBe('list')
+
+    await page.reload()
+    await expect(switchBtn).toBeVisible({ timeout: 30_000 })
+    await expect(inlineListBtn).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.watch-info.sources a.release[title="Release 2"]')).toBeVisible()
+
     await inlineCardsBtn.click()
+    await expect(inlineCardsBtn).toHaveAttribute('aria-pressed', 'true')
+    expect(await page.evaluate(() => localStorage.getItem('stub.watch.source-view'))).toBeNull()
 
     // Verify source switch sits before settings in the right control group
     const order = await page.frames().find(f => f.url().startsWith(`${ORIGIN}/embed.html?`))!.evaluate(() => {

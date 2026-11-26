@@ -20,6 +20,7 @@ import { readDisabledSources, watchDisabledSources } from '../../sources/disable
 import { canPlay, EXTENSION_ONLY_ORIGINS, PLAYABLE_ORIGINS } from '../../sources/playable'
 import { playOrder, readPlayOrder, watchPlayOrder } from '../../sources/play-order'
 import { useSetting } from '../../utils/use-setting'
+import { readWatchSourceView, setWatchSourceView, watchWatchSourceView } from '../../utils/watch-source-view'
 import { addExtension, canAddExtension, detectBackend, type FknBackend } from '../../utils/fkn-backend'
 import SourceBrowser from '../../components/source-browser'
 import SourcePopup from '../../components/source-popup'
@@ -724,6 +725,7 @@ const Watch = () => {
   // the plugin connection, so it is resolved here and folded into the source list
   const lookupOrigins = added.join(',')
   const keptPlayOrder = useSetting(readPlayOrder, watchPlayOrder)
+  const sourceView = useSetting(readWatchSourceView, watchWatchSourceView)
   const orderedOrigins = useMemo(() => playOrder(keptPlayOrder, added), [keptPlayOrder, lookupOrigins])
   const [pickers, setPickers] = useState<Record<string, string>>({})
   // and separately, which origins play their own releases: stub mounts the package in the player box
@@ -1501,6 +1503,8 @@ const Watch = () => {
             sources={sources}
             catalogItems={catalogItems}
             variant="inline"
+            view={sourceView}
+            onViewChange={setWatchSourceView}
             onOpenPicker={setStagePicker}
             onRunAction={runCatalogActionHandler}
             onRefreshCatalog={() => setCatalogRefresh(count => count + 1)}

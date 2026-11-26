@@ -22,6 +22,7 @@ import { PLAYER_VOLUME_KEY } from '../../../src/utils/player-volume'
 import { ALWAYS_SUBTITLES_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY } from '../../../src/utils/track-languages'
 import { AUTOPLAY_KEY } from '../../../src/utils/autoplay'
 import { OPEN_IN_NEW_TAB_KEY } from '../../../src/utils/open-in-new-tab'
+import { WATCH_SOURCE_VIEW_KEY } from '../../../src/utils/watch-source-view'
 import { ACCOUNT_POSITIONS_KEY, WATCH_POSITIONS_KEY } from '../../../src/utils/watch-positions'
 import { STORED } from '../../../src/router/privacy/stored-data'
 
@@ -38,7 +39,7 @@ describe('what stub keeps per viewer', () => {
     expect(byId('tab-source-settings').keys).toEqual({ store: 'session', names: [TAB_VALUES_KEY] })
     expect(byId('settings').keys).toEqual({
       store: 'local',
-      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, OPEN_IN_NEW_TAB_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
+      names: [DISABLED_SOURCES_KEY, HIDDEN_ICONS_KEY, COUNTRY_KEY, LANGUAGE_KEY, AUTOPLAY_KEY, OPEN_IN_NEW_TAB_KEY, WATCH_SOURCE_VIEW_KEY, DISPLAY_MODE_KEY, COMPACT_PREFS_KEY, PLAY_ORDER_KEY, MERGE_ORDER_KEY, AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, ALWAYS_SUBTITLES_KEY, ACCOUNT_SETTINGS_KEY],
     })
     expect(byId('connected-sites').keys).toEqual({ store: 'local', names: [CONNECTED_KEY] })
     expect(byId('site-status').keys).toEqual({ store: 'local', names: [SITE_STATUS_KEY] })
@@ -146,6 +147,7 @@ describe('what stub keeps per viewer', () => {
     expect(kept.lasts).toContain("The account's copy is deleted with your FKN account")
     expect(kept.lasts).toContain("this browser's copy of it when you sign out")
     expect(kept.what).toContain('What you set while signed out joins the next FKN account signed in on this browser, unless that account already set it.')
+    expect(kept.what).toContain('how watch sources are shown')
     expect(kept.what).toContain('the play order, the merge order, the audio and subtitle languages')
   })
 

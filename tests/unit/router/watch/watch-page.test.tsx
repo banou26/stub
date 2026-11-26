@@ -349,6 +349,7 @@ const { PLAY_ORDER_KEY, writePlayOrder } = await import('../../../../src/sources
 const { ACCOUNT_WAIT_MS } = await import('../../../../src/worker/plugin-sources')
 const { WATCH_POSITIONS_KEY } = await import('../../../../src/utils/watch-positions')
 const { AUDIO_LANGUAGE_KEY, SUBTITLE_LANGUAGE_KEY, keepSubtitleLanguage } = await import('../../../../src/utils/track-languages')
+const { WATCH_SOURCE_VIEW_KEY, readWatchSourceView, setWatchSourceView } = await import('../../../../src/utils/watch-source-view')
 const { ACCOUNT_SETTINGS_KEY } = await import('../../../../src/settings-store')
 const { Router } = await import('wouter')
 const page = () => mount(withIntl(<Router hook={memoryLocation().hook}><Watch/></Router>))
@@ -4573,4 +4574,52 @@ test('never lists non-streaming built-in metadata sites such as AniList in watch
 
   expect(host.querySelector('.watch-info.sources [title="cr"]')).not.toBeNull()
   expect(host.querySelector('.watch-info.sources [title="anilist"]')).toBeNull()
+})
+
+test('persists inline watch source view across remounts and follows setting and account updates', async () => {
+  vi.useFakeTimers()
+  origins = ['cr', 'nf']
+  params = { ...params, sourceUri: 'cr:GX1' }
+  const host = page()
+  hosts.push(host)
+  await settle()
+
+  const viewBtn = (container: HTMLElement, label: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>('.watch-info.sources .view-btn')]
+      .find(btn => btn.textContent?.includes(label))!
+
+  expect(viewBtn(host, 'Cards').getAttribute('aria-pressed')).toBe('true')
+  expect(host.querySelector('.watch-info.sources .entries')).toBeNull()
+
+  act(() => { viewBtn(host, 'List').click() })
+  expect(viewBtn(host, 'List').getAttribute('aria-pressed')).toBe('true')
+  expect(host.querySelector('.watch-info.sources .entries')).not.toBeNull()
+  expect(stored.get(WATCH_SOURCE_VIEW_KEY)).toBe('list')
+  expect(readWatchSourceView()).toBe('list')
+
+  unmount(hosts.pop()!)
+  const remounted = page()
+  hosts.push(remounted)
+  await settle()
+  expect(viewBtn(remounted, 'List').getAttribute('aria-pressed')).toBe('true')
+  expect(remounted.querySelector('.watch-info.sources .entries')).not.toBeNull()
+
+  act(() => { viewBtn(remounted, 'Cards').click() })
+  expect(viewBtn(remounted, 'Cards').getAttribute('aria-pressed')).toBe('true')
+  expect(remounted.querySelector('.watch-info.sources .entries')).toBeNull()
+  expect(stored.has(WATCH_SOURCE_VIEW_KEY)).toBe(false)
+  expect(readWatchSourceView()).toBe('cards')
+
+  await act(async () => { setWatchSourceView('list') })
+  expect(viewBtn(remounted, 'List').getAttribute('aria-pressed')).toBe('true')
+  expect(remounted.querySelector('.watch-info.sources .entries')).not.toBeNull()
+
+  unmount(hosts.pop()!)
+  stored.clear()
+  stored.set(ACCOUNT_SETTINGS_KEY, JSON.stringify({ [WATCH_SOURCE_VIEW_KEY]: 'list' }))
+  const fromAccount = page()
+  hosts.push(fromAccount)
+  await settle()
+  expect(viewBtn(fromAccount, 'List').getAttribute('aria-pressed')).toBe('true')
+  expect(fromAccount.querySelector('.watch-info.sources .entries')).not.toBeNull()
 })

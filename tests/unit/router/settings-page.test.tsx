@@ -109,7 +109,7 @@ test('#playback shows Playback, autoplay on until turned off, and the audio and 
   const autoplay = () => host.querySelector<HTMLInputElement>('input[role="switch"]')!
   expect([...host.querySelectorAll('input[role="switch"]')].map(input => input.closest('label')?.textContent)).toEqual(['Autoplay next episode', 'Open episodes in a new tab', 'Always show subtitles'])
   const selects = [...host.querySelectorAll('[data-section] select')]
-  expect(selects.map(select => document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Audio language', 'Subtitle language'])
+  expect(selects.map(select => document.getElementById(select.getAttribute('aria-labelledby')!)?.textContent)).toEqual(['Watch sources view', 'Audio language', 'Subtitle language'])
   expect(host.querySelector('[data-section] p'), 'labels only').toBeNull()
   expect(host.querySelector('ol'), 'the play order is on the source cards').toBeNull()
   expect(isOn(autoplay())).toBe(true)

@@ -1,4 +1,5 @@
 import type { CatalogAction, CatalogActionIcon, CatalogActionResult, CatalogItem, CatalogTone } from '../plugin-sdk'
+import type { WatchSourceView } from '../utils/watch-source-view'
 import type { WatchSource } from './source-selector'
 
 import { css } from '@emotion/react'
@@ -32,7 +33,9 @@ export type SourceBrowserProps = {
   sources: WatchSource[]
   catalogItems?: ReadonlyMap<string, CatalogItem>
   variant: 'inline' | 'dialog'
-  defaultView?: 'cards' | 'list'
+  defaultView?: WatchSourceView
+  view?: WatchSourceView
+  onViewChange?: (view: WatchSourceView) => void
   onSelectHref?: (href: string) => void
   onOpenPicker?: (source: WatchSource) => void
   onRunAction?: (origin: string, uri: string, actionId: string) => Promise<CatalogActionResult | null>
@@ -526,6 +529,8 @@ export const SourceBrowser = ({
   catalogItems,
   variant,
   defaultView,
+  view: controlledView,
+  onViewChange,
   onSelectHref,
   onOpenPicker,
   onRunAction,
@@ -533,7 +538,8 @@ export const SourceBrowser = ({
   onClose,
 }: SourceBrowserProps) => {
   const intl = useIntl()
-  const [view, setView] = useState<'cards' | 'list'>(() => defaultView ?? (variant === 'dialog' ? 'list' : 'cards'))
+  const [internalView, setInternalView] = useState<WatchSourceView>(() => defaultView ?? (variant === 'dialog' ? 'list' : 'cards'))
+  const view = controlledView ?? internalView
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [filters, setFilters] = useState<CatalogFilterState>(DEFAULT_CATALOG_FILTERS)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -561,6 +567,10 @@ export const SourceBrowser = ({
   useEffect(() => {
     if (activeFolder && !folderSource) setActiveFolder(null)
   }, [activeFolder, folderSource])
+
+  useEffect(() => {
+    if (view === 'list') setActiveFolder(null)
+  }, [view])
 
   const inFolder = view === 'cards' && folderSource !== null
   const showCatalog = view === 'list' || inFolder
@@ -707,9 +717,9 @@ export const SourceBrowser = ({
     }
   }
 
-  const switchView = (next: 'cards' | 'list') => {
-    setView(next)
-    if (next === 'list') setActiveFolder(null)
+  const switchView = (next: WatchSourceView) => {
+    if (controlledView === undefined) setInternalView(next)
+    onViewChange?.(next)
   }
 
   const toggleBadge = (id: string) => {
