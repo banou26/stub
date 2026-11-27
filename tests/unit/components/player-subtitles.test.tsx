@@ -3,7 +3,19 @@ import { mount, unmount, withIntl } from './dom'
 
 import type { Frame } from '@fkn/lib'
 import type { PlayerCapabilities } from '../../../src/components/player'
-import {
+
+import { act } from 'preact/test-utils'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+
+import { makeRemoteVideo } from './remote-video'
+
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Captions', 'CaptionsOff', 'Check', 'ChevronLeft', 'ChevronRight', 'Copy', 'Layers', 'Maximize', 'Minimize', 'Pause', 'Play', 'RotateCcw', 'Search', 'Settings', 'SkipBack', 'SkipForward', 'SlidersHorizontal', 'TriangleAlert', 'Volume1', 'Volume2', 'VolumeX']
+    .map(name => [name, () => null]),
+))
+vi.mock('react-tooltip', () => ({ Tooltip: () => null }))
+
+const {
   clampSubtitleBackgroundOpacity,
   clampSubtitleFontScale,
   clampSubtitleOffset,
@@ -12,13 +24,7 @@ import {
   isSubtitleFile,
   readDroppedSubtitleFiles,
   subtitleLabelFromFilename,
-} from '../../../src/components/player/subtitle-utils'
-
-import { act } from 'preact/test-utils'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
-
-import { makeRemoteVideo } from './remote-video'
-
+} = await import('@banou/media-player')
 const { default: NetflixVideoJSPlayer } = await import('../../../src/sources/unogs/nf-videojs-player')
 
 const frame = { locator: () => ({ fill: async () => {} }) } as unknown as Frame
@@ -73,6 +79,7 @@ beforeEach(() => {
 
 afterEach(() => {
   while (hosts.length) unmount(hosts.pop()!)
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   for (const name of ['location', 'postMessage']) Reflect.deleteProperty(window, name)
 })
@@ -270,7 +277,7 @@ const dispatchPointer = (
   return event
 }
 
-describe('subtitle-utils helpers', () => {
+describe('media-player subtitle helpers', () => {
   test('clamps offset, scale, opacity, and normalized coordinates safely', () => {
     expect(clampSubtitleOffset(12.345)).toBe(12.35)
     expect(clampSubtitleOffset(999)).toBe(300)
@@ -321,6 +328,32 @@ describe('subtitle-utils helpers', () => {
       format: 'srt',
     })
     expect(added[0]!.id.startsWith('test-drop:')).toBe(true)
+  })
+
+  test('caps dropped subtitle count at 32 and size at 5 MiB, and resolves filename languages with Intl', async () => {
+    expect(subtitleLabelFromFilename('Show.fi.srt')).toEqual({
+      label: 'Show.fi',
+      language: 'fi',
+    })
+    expect(subtitleLabelFromFilename('Show.chs.ass')).toEqual({
+      label: 'Show.chs',
+      language: 'zh-Hans',
+    })
+    expect(subtitleLabelFromFilename('Show.sdh.srt')).toEqual({
+      label: 'Show.sdh',
+      language: 'und',
+    })
+
+    const many = Array.from({ length: 35 }, (_, i) =>
+      makeDropFile(`ep-${String(i + 1).padStart(2, '0')}.srt`, '1\n00:00:00,000 --> 00:00:01,000\nLine\n'),
+    )
+    expect(await readDroppedSubtitleFiles(many, 'cap-drop')).toHaveLength(32)
+
+    const exact = makeDropFile('exact.en.srt', 'a'.repeat(5 * 1024 * 1024), 'application/x-subrip')
+    const oversized = makeDropFile('huge.srt', 'a'.repeat(5 * 1024 * 1024 + 1), 'application/x-subrip')
+    const small = makeDropFile('small.en.srt', '1\n00:00:00,000 --> 00:00:01,000\nSmall\n')
+    const sized = await readDroppedSubtitleFiles([oversized, exact, small], 'size-drop')
+    expect(sized.map(track => track.label)).toEqual(['exact.en', 'small.en'])
   })
 })
 
@@ -477,5 +510,173 @@ describe('built-in player subtitle settings, drag positioning, and file drop', (
     const droppedRow = menuItem(subMenu, 'dropped.ja')!
     expect(droppedRow.querySelector('.stub-menu__tag')?.textContent).toBe('External')
     expect(droppedRow.querySelector('.stub-menu__tag')?.classList.contains('stub-menu__tag--external')).toBe(true)
+  })
+
+  test('clears active cue drag when cues unmount mid-drag so the next cue is not stuck', async () => {
+    const { remote, emit } = makeSubtitledRemote()
+    const capabilities: PlayerCapabilities = {
+      subtitles: { label: 'Subtitles', offLabel: 'Off', selectedId: null, options: [], onSelect: async () => {} },
+    }
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame} capabilities={capabilities} />))
+    hosts.push(host)
+
+    loadResponder = () => ({
+      text: '1\n00:00:01,000 --> 00:00:03,000\nFirst cue\n\n2\n00:00:05,000 --> 00:00:07,000\nSecond cue\n',
+    })
+    tellSubtitles([{ id: 'os:en:drag', language: 'en', label: 'English', format: 'srt' }])
+    await flush()
+
+    const subMenu = await openMenu(host, 'Subtitles')
+    await act(async () => { menuItem(subMenu, 'English')!.click() })
+    await vi.waitFor(() => expect(requestedLoads).toEqual(['os:en:drag']))
+
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 1.5
+      emit('timeupdate')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toContain('First cue'))
+
+    const stage = host.querySelector<HTMLElement>('.subtitle-cues-stage')!
+    const firstBox = host.querySelector<HTMLElement>('.subtitle-cues-box')!
+    const makeRect = (left: number, top: number, width: number, height: number): DOMRect => ({
+      x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}),
+    })
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 800, 450))
+    vi.spyOn(firstBox, 'getBoundingClientRect').mockReturnValue(makeRect(300, 420, 200, 30))
+
+    await act(async () => { dispatchPointer(firstBox, 'pointerdown', { clientX: 400, clientY: 430 }) })
+    expect(firstBox.getAttribute('data-dragging')).toBe('true')
+
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 4.0
+      emit('timeupdate')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')).toBeNull())
+
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 5.5
+      emit('timeupdate')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toContain('Second cue'))
+
+    const nextBox = host.querySelector<HTMLElement>('.subtitle-cues-box')!
+    expect(nextBox.getAttribute('data-dragging')).toBeNull()
+    await act(async () => { dispatchPointer(nextBox, 'pointermove', { clientX: 250, clientY: 220 }) })
+    expect(nextBox.style.left).toBe('50%')
+    expect(nextBox.style.top).toBe('100%')
+  })
+
+  test('ends subtitle drag on window pointerup and window blur', async () => {
+    const { remote, emit } = makeSubtitledRemote()
+    const capabilities: PlayerCapabilities = {
+      subtitles: { label: 'Subtitles', offLabel: 'Off', selectedId: null, options: [], onSelect: async () => {} },
+    }
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame} capabilities={capabilities} />))
+    hosts.push(host)
+
+    loadResponder = () => ({ text: '1\n00:00:01,000 --> 00:00:03,000\nWindow end cue\n' })
+    tellSubtitles([{ id: 'os:en:win', language: 'en', label: 'English', format: 'srt' }])
+    await flush()
+
+    const subMenu = await openMenu(host, 'Subtitles')
+    await act(async () => { menuItem(subMenu, 'English')!.click() })
+    await vi.waitFor(() => expect(requestedLoads).toEqual(['os:en:win']))
+
+    await act(async () => {
+      ;(remote as { currentTime: number }).currentTime = 1.5
+      emit('timeupdate')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toContain('Window end cue'))
+
+    const stage = host.querySelector<HTMLElement>('.subtitle-cues-stage')!
+    const box = host.querySelector<HTMLElement>('.subtitle-cues-box')!
+    const makeRect = (left: number, top: number, width: number, height: number): DOMRect => ({
+      x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}),
+    })
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 800, 450))
+    vi.spyOn(box, 'getBoundingClientRect').mockReturnValue(makeRect(300, 420, 200, 30))
+
+    await act(async () => { dispatchPointer(box, 'pointerdown', { clientX: 400, clientY: 430, pointerId: 1 }) })
+    expect(box.getAttribute('data-dragging')).toBe('true')
+    await act(async () => { dispatchPointer(window, 'pointerup', { clientX: 250, clientY: 220, pointerId: 1 }) })
+    expect(box.getAttribute('data-dragging')).toBeNull()
+    await act(async () => { dispatchPointer(box, 'pointermove', { clientX: 250, clientY: 220, pointerId: 1 }) })
+    expect(box.style.left).toBe('50%')
+    expect(box.style.top).toBe('100%')
+
+    await act(async () => { dispatchPointer(box, 'pointerdown', { clientX: 400, clientY: 430, pointerId: 2 }) })
+    expect(box.getAttribute('data-dragging')).toBe('true')
+    await act(async () => { window.dispatchEvent(new Event('blur')) })
+    expect(box.getAttribute('data-dragging')).toBeNull()
+    await act(async () => { dispatchPointer(box, 'pointermove', { clientX: 250, clientY: 220, pointerId: 2 }) })
+    expect(box.style.left).toBe('50%')
+    expect(box.style.top).toBe('100%')
+  })
+
+  test('caps cue-clock extrapolation at 0.5s and stops advancing cues during waiting stalls', async () => {
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    let nextRafId = 1
+    const rafCallbacks = new Map<number, FrameRequestCallback>()
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+      const id = nextRafId++
+      rafCallbacks.set(id, cb)
+      return id
+    })
+    vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation((id: number) => {
+      rafCallbacks.delete(id)
+    })
+    const flushRaf = async () => {
+      const pending = [...rafCallbacks.values()]
+      rafCallbacks.clear()
+      await act(async () => {
+        for (const cb of pending) cb(now)
+      })
+    }
+
+    const { remote, emit } = makeSubtitledRemote()
+    const capabilities: PlayerCapabilities = {
+      subtitles: { label: 'Subtitles', offLabel: 'Off', selectedId: null, options: [], onSelect: async () => {} },
+    }
+    const host = mount(withIntl(<NetflixVideoJSPlayer remote={remote} frame={frame} capabilities={capabilities} />))
+    hosts.push(host)
+
+    loadResponder = () => ({
+      text: '1\n00:00:00,000 --> 00:00:02,000\nCue A\n\n2\n00:00:02,000 --> 00:00:04,000\nCue B\n\n3\n00:00:05,000 --> 00:00:07,000\nCue C\n',
+    })
+    tellSubtitles([{ id: 'os:en:clock', language: 'en', label: 'English', format: 'srt' }])
+    await flush()
+
+    const subMenu = await openMenu(host, 'Subtitles')
+    await act(async () => { menuItem(subMenu, 'English')!.click() })
+    await vi.waitFor(() => expect(requestedLoads).toEqual(['os:en:clock']))
+
+    await act(async () => {
+      Object.assign(remote, { paused: false, playbackRate: 1, currentTime: 1.2 })
+      emit('play')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toBe('Cue A'))
+
+    // Without a timeupdate over 5s, extrapolation must stay capped at 0.5s (1.7s -> still Cue A, never Cue C)
+    now += 5000
+    await flushRaf()
+    expect(host.querySelector('.subtitle-cues')?.textContent).toBe('Cue A')
+
+    // During a waiting stall, cue clock stops extrapolating from 1.8s past 2.0s into Cue B
+    await act(async () => {
+      Object.assign(remote, { currentTime: 1.8 })
+      emit('timeupdate')
+      emit('waiting')
+    })
+    expect(host.querySelector('.subtitle-cues')?.textContent).toBe('Cue A')
+    now += 400
+    await flushRaf()
+    expect(host.querySelector('.subtitle-cues')?.textContent).toBe('Cue A')
+
+    await act(async () => {
+      Object.assign(remote, { currentTime: 2.2 })
+      emit('playing')
+    })
+    await vi.waitFor(() => expect(host.querySelector('.subtitle-cues')?.textContent).toBe('Cue B'))
   })
 })

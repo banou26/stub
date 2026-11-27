@@ -8,6 +8,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { makeRemoteVideo } from './remote-video'
 
+vi.mock('lucide-react', () => Object.fromEntries(
+  ['Captions', 'CaptionsOff', 'Check', 'ChevronLeft', 'ChevronRight', 'Copy', 'Layers', 'Maximize', 'Minimize', 'Pause', 'Play', 'RotateCcw', 'Search', 'Settings', 'SkipBack', 'SkipForward', 'SlidersHorizontal', 'TriangleAlert', 'Volume1', 'Volume2', 'VolumeX']
+    .map(name => [name, () => null]),
+))
+vi.mock('react-tooltip', () => ({ Tooltip: () => null }))
+
 const { default: NetflixVideoJSPlayer } = await import('../../../src/sources/unogs/nf-videojs-player')
 
 const frame = { locator: () => ({ fill: async () => {} }) } as unknown as Frame

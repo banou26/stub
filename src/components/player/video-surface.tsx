@@ -1,9 +1,19 @@
 import type { RemoteVideoElement } from '@fkn/lib'
-import type { ExternalSubtitleTrack } from '@banou/media-player'
 import type { ComponentChildren, FunctionComponent } from 'preact'
 import type { PlayerCapabilities, PlayerChoice, PlayerSelection } from './types'
 
-import { activeSubtitleCues, parseSubtitleCues, type SubtitleCue } from '@banou/media-player/engine'
+import {
+  SubtitleCueOverlay,
+  clampSubtitleBackgroundOpacity,
+  clampSubtitleFontScale,
+  clampSubtitleOffset,
+  clampSubtitlePosition,
+  isSubtitleFile,
+  readDroppedSubtitleFiles,
+  type ExternalSubtitleTrack,
+  type SubtitlePosition,
+} from '@banou/media-player'
+import { parseSubtitleCues, type SubtitleCue } from '@banou/media-player/engine'
 import { css } from '@emotion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useIntl } from 'react-intl'
@@ -57,19 +67,9 @@ import {
   VolumeLowIcon,
   VolumeOffIcon,
 } from './icons'
-import {
-  clampSubtitleBackgroundOpacity,
-  clampSubtitleFontScale,
-  clampSubtitleOffset,
-  clampSubtitlePosition,
-  isSubtitleFile,
-  readDroppedSubtitleFiles,
-  type SubtitlePosition,
-} from './subtitle-utils'
 
 const SEEK_TIME = 10
 const OPACITY_PRESETS = [0, 0.25, 0.5, 0.75, 1] as const
-const DEFAULT_POSITION: SubtitlePosition = { x: 0.5, y: 1 }
 
 const asFC = <P,>(component: unknown): FunctionComponent<P> => component as FunctionComponent<P>
 
@@ -115,56 +115,6 @@ const ContainerC = asFC<{ ref?: (el: HTMLDivElement | null) => void, className?:
 const EXT_SUBTITLE_PREFIX = 'ext:'
 const EMPTY_SUBTITLE_CUES: readonly SubtitleCue[] = []
 
-const cueContainerStyle = css`
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-
-  .subtitle-cues-stage {
-    position: absolute;
-    inset: 12px 4% 8%;
-    pointer-events: none;
-  }
-
-  .subtitle-cues-box {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    max-width: 100%;
-    padding: 2px;
-    border-radius: 4px;
-    pointer-events: auto;
-    user-select: none;
-    touch-action: none;
-    cursor: grab;
-
-    &:hover,
-    &[data-dragging='true'] {
-      outline: 1px solid rgba(255, 255, 255, 0.45);
-    }
-
-    &[data-dragging='true'] {
-      cursor: grabbing;
-    }
-  }
-
-  .subtitle-cue-line {
-    max-width: 100%;
-    padding: 2px 10px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, var(--mp-sub-bg-opacity, 0.75));
-    color: #fff;
-    font-size: calc(clamp(14px, 2.4cqw, 28px) * var(--mp-sub-scale, 1));
-    line-height: 1.35;
-    text-align: center;
-    white-space: pre-line;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.7);
-  }
-`
-
 const dropOverlayStyle = css`
   position: absolute;
   inset: 0;
@@ -185,206 +135,6 @@ const dropOverlayStyle = css`
     font-weight: 500;
   }
 `
-
-type DragState = {
-  pointerId: number
-  startX: number
-  startY: number
-  boxStartLeft: number
-  boxStartTop: number
-  availW: number
-  availH: number
-  stageLeft: number
-  stageTop: number
-}
-
-const SubtitleCueOverlay = ({
-  cues,
-  media,
-  offset = 0,
-  fontScale = 1,
-  backgroundOpacity = 0.75,
-  position = null,
-  onPositionChange,
-}: {
-  cues: readonly SubtitleCue[]
-  media: RemoteVideoElement | null
-  offset?: number
-  fontScale?: number
-  backgroundOpacity?: number
-  position?: SubtitlePosition | null
-  onPositionChange?: (position: SubtitlePosition | null) => void
-}) => {
-  const [active, setActive] = useState<SubtitleCue[]>([])
-  const [dragging, setDragging] = useState(false)
-  const stageRef = useRef<HTMLDivElement>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<DragState | null>(null)
-  const offsetRef = useRef(offset)
-  offsetRef.current = offset
-  const paintRef = useRef<((time: number) => void) | null>(null)
-
-  useEffect(() => {
-    if (!media || !cues.length) {
-      paintRef.current = null
-      setActive([])
-      return
-    }
-    let anchorTime = media.currentTime || 0
-    let anchorAt = performance.now()
-    let rate = media.playbackRate || 1
-    let paused = media.paused ?? true
-    let lastKey = ''
-    let frame = 0
-
-    const paintAt = (time: number) => {
-      const visible = activeSubtitleCues(cues, time - offsetRef.current)
-      const key = visible.map(cue => `${cue.start}:${cue.text}`).join('\u0000')
-      if (key === lastKey) return
-      lastKey = key
-      setActive(visible)
-    }
-    paintRef.current = paintAt
-
-    const sync = () => {
-      anchorTime = media.currentTime || 0
-      anchorAt = performance.now()
-      rate = media.playbackRate || 1
-      paused = media.paused ?? true
-      paintAt(anchorTime)
-    }
-
-    const tick = () => {
-      frame = 0
-      if (!paused) {
-        const elapsed = (performance.now() - anchorAt) / 1000
-        paintAt(anchorTime + elapsed * rate)
-        frame = requestAnimationFrame(tick)
-      }
-    }
-
-    const onPlayState = () => {
-      sync()
-      if (!paused && !frame) frame = requestAnimationFrame(tick)
-      else if (paused && frame) {
-        cancelAnimationFrame(frame)
-        frame = 0
-      }
-    }
-
-    const events = ['timeupdate', 'seeked', 'ratechange', 'loadedmetadata'] as const
-    for (const event of events) media.addEventListener(event, sync)
-    media.addEventListener('play', onPlayState)
-    media.addEventListener('pause', onPlayState)
-
-    onPlayState()
-
-    return () => {
-      paintRef.current = null
-      if (frame) cancelAnimationFrame(frame)
-      for (const event of events) media.removeEventListener(event, sync)
-      media.removeEventListener('play', onPlayState)
-      media.removeEventListener('pause', onPlayState)
-    }
-  }, [cues, media])
-
-  useEffect(() => {
-    if (media && paintRef.current) paintRef.current(media.currentTime || 0)
-  }, [media, offset])
-
-  if (!active.length) return null
-
-  const anchor = position ? clampSubtitlePosition(position) : DEFAULT_POSITION
-
-  const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 && event.pointerType === 'mouse') return
-    const stage = stageRef.current
-    const box = boxRef.current
-    if (!stage || !box) return
-    event.preventDefault()
-    event.stopPropagation()
-    const stageRect = stage.getBoundingClientRect()
-    const boxRect = box.getBoundingClientRect()
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      boxStartLeft: boxRect.left,
-      boxStartTop: boxRect.top,
-      availW: Math.max(0, stageRect.width - boxRect.width),
-      availH: Math.max(0, stageRect.height - boxRect.height),
-      stageLeft: stageRect.left,
-      stageTop: stageRect.top,
-    }
-    try {
-      box.setPointerCapture(event.pointerId)
-    } catch {
-      // Synthetic events in jsdom do not register pointer capture.
-    }
-    setDragging(true)
-  }
-
-  const onPointerMove = (event: PointerEvent) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    event.stopPropagation()
-    const rawLeft = drag.boxStartLeft - drag.stageLeft + (event.clientX - drag.startX)
-    const rawTop = drag.boxStartTop - drag.stageTop + (event.clientY - drag.startY)
-    const clampedLeft = Math.max(0, Math.min(drag.availW, rawLeft))
-    const clampedTop = Math.max(0, Math.min(drag.availH, rawTop))
-    onPositionChange?.(clampSubtitlePosition({
-      x: drag.availW > 0 ? clampedLeft / drag.availW : 0.5,
-      y: drag.availH > 0 ? clampedTop / drag.availH : 1,
-    }))
-  }
-
-  const endDrag = (event: PointerEvent) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    event.stopPropagation()
-    dragRef.current = null
-    setDragging(false)
-    try {
-      boxRef.current?.releasePointerCapture(event.pointerId)
-    } catch {
-      // Ignore if capture was not set.
-    }
-  }
-
-  const boxStyle: Record<string, string | number> = {
-    left: `${anchor.x * 100}%`,
-    top: `${anchor.y * 100}%`,
-    transform: `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%)`,
-    '--mp-sub-scale': fontScale,
-    '--mp-sub-bg-opacity': backgroundOpacity,
-  }
-
-  return (
-    <div className="subtitle-cues" css={cueContainerStyle} dir="auto">
-      <div className="subtitle-cues-stage" ref={stageRef}>
-        <div
-          ref={boxRef}
-          className="subtitle-cues-box"
-          data-dragging={dragging ? 'true' : undefined}
-          style={boxStyle}
-          onPointerDown={onPointerDown as unknown as () => void}
-          onPointerMove={onPointerMove as unknown as () => void}
-          onPointerUp={endDrag as unknown as () => void}
-          onPointerCancel={endDrag as unknown as () => void}
-          onClick={event => event.stopPropagation()}
-          onDblClick={(event) => {
-            event.stopPropagation()
-            onPositionChange?.(null)
-          }}
-        >
-          {active.map((cue, index) => (
-            <div key={`${cue.start}:${index}`} className="subtitle-cue-line">{cue.text}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 type IntrinsicButton = {
   type?: 'button' | 'submit' | 'reset'
