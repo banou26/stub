@@ -1,4 +1,4 @@
-import type { ExternalThumbnails, ThumbnailImage } from '@banou/media-player'
+import type { ExternalThumbnails, GeneratedThumbnail } from '@banou/media-player'
 import type { Frame } from '@fkn/lib'
 import type { BifFrame } from './bif'
 import type { BifReadOptions } from './read-bif'
@@ -19,7 +19,7 @@ const READ_OPTIONS: BifReadOptions = { waitMs: 10_000, fetchMs: 15_000, maxBytes
  * answers nothing, so a stale reference cannot mint a url nobody will revoke.
  */
 export const createBifThumbnails = (frames: readonly BifFrame[]): CrunchyrollThumbnails => {
-  const images = new Map<BifFrame, ThumbnailImage>()
+  const images = new Map<BifFrame, GeneratedThumbnail>()
   let disposed = false
   return {
     at: time => {
