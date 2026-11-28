@@ -39,7 +39,7 @@ const ports: MessagePort[] = []
 
 /** What `attach` opens: the sign-in window, the session page, or the frame a sign out clears cookies through. */
 const attached = (options: { window?: unknown, blank?: unknown }) => {
-  if (options.window) return { goto: async () => {}, closed: new Promise(() => {}), close: async () => {}, locator: () => ({ exists: async () => true }) }
+  if (options.window) return { backend: () => 'cloud' as const, goto: async () => {}, closed: new Promise(() => {}), close: async () => {}, on: vi.fn(), locator: () => ({ exists: async () => true }) }
   if (!options.blank) return { clearCookies: async () => {} }
   return {
     evaluate: async () => 'installed',

@@ -47,7 +47,7 @@ const fakeWindow = () => {
   const close = vi.fn(async () => end())
   const goto = vi.fn(async () => {})
   const locator = vi.fn((selector: string) => ({ exists: async () => selector === CHECK.passed && state.passed }))
-  return { login: { closed, close, goto, locator } as unknown as WindowFrame, state, end, close, goto }
+  return { login: { backend: () => 'cloud' as const, closed, close, goto, on: vi.fn(), locator } as unknown as WindowFrame, state, end, close, goto }
 }
 
 const hosts: HTMLElement[] = []
@@ -118,7 +118,7 @@ test('the window closes once the page is past the check, and the source is searc
   attach.mockResolvedValue(window.login)
   button(host, 'Verify')!.click()
   await flush()
-  expect(window.goto).toHaveBeenCalledWith(CHECK.url, { waitUntil: 'commit' })
+  expect(window.goto).toHaveBeenCalledWith(CHECK.url, expect.objectContaining({ waitUntil: 'commit' }))
   expect(worker.searched).toEqual([])
   // the search after it reads the page: the source reports no check any more
   worker.checks.extto = async () => null
