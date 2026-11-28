@@ -2,9 +2,12 @@
 // pages. Import free apart from types, ./session.ts and the import free i18n/said.ts, so a test drives it over a fake
 // frame.
 
+import type { FknClient } from '@banou/fkn-3p-auth'
 import type { AttachFrameOptions, Frame } from '@fkn/lib'
 import type { SiteState } from '../../tracking/site-status'
 import type { FknBackend } from '../../utils/fkn-backend'
+
+import { verifyHiddenSession } from '@banou/fkn-3p-auth'
 
 import { forPage, saidError } from '../../i18n/said'
 import { CRUNCHYROLL_BASE_URL, CRUNCHYROLL_SESSION_URL, CRUNCHYROLL_SSO_CLIENT_ID } from './session'
@@ -95,21 +98,23 @@ export const EVALUATION_REASON = 'Check whether you are signed in to crunchyroll
  */
 export const checkCrunchyroll = async (
   backend: FknBackend,
-  { attach, mount, fetch, settle = () => new Promise(resolve => setTimeout(resolve, 2_000)) }: CheckDeps,
+  { attach, mount, fetch, settle }: CheckDeps,
 ): Promise<SiteState> => {
   if (backend === 'extension') return crunchyrollSignInState(await askForToken(TOKEN_REQUEST, fetch))
-  const { iframe, remove } = mount()
-  try {
-    const frame = await attach({
-      iframe,
-      blank: { url: CRUNCHYROLL_SESSION_URL },
-      cookies: 'persistent',
-      permissions: [{ category: 'evaluation', reason: EVALUATION_REASON }],
-    })
-    const answer = await frame.evaluate(askForToken, TOKEN_REQUEST)
-    if (answer.status === 200) await settle()
-    return crunchyrollSignInState(answer)
-  } finally {
-    remove()
-  }
+  const answer = await verifyHiddenSession({
+    client: {
+      attachFrame: attach as FknClient['attachFrame'],
+      isLocatorInvalid: () => false,
+      isLocatorUnsupported: () => false,
+      isPermissionDenied: () => false,
+    },
+    url: CRUNCHYROLL_SESSION_URL,
+    cookies: 'persistent',
+    permissions: [{ category: 'evaluation', reason: EVALUATION_REASON }],
+    probe: frame => frame.evaluate(askForToken, TOKEN_REQUEST),
+    shouldSettle: result => result.status === 200,
+    ...(settle ? { settle: () => settle() } : { postProbeSettleMs: 2_000 }),
+    mountHiddenFrame: () => mount(),
+  })
+  return crunchyrollSignInState(answer)
 }

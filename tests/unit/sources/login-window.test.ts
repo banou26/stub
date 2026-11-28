@@ -40,7 +40,7 @@ const fakeWindow = ({ commitMs = 0 } = {}) => {
     end()
   })
   const goto = vi.fn(async (_url: string, _options?: unknown) => {})
-  return { login: { closed, close, goto } as unknown as WindowFrame, close, end, events, goto }
+  return { login: { backend: () => 'cloud' as const, closed, close, goto, on: vi.fn() } as unknown as WindowFrame, close, end, events, goto }
 }
 
 const signIn = (isSignedIn: () => Promise<boolean>) =>
@@ -102,7 +102,7 @@ describe('opening the window', () => {
     const { login, goto, end } = fakeWindow()
     attach.mockResolvedValue(login)
     const outcome = signIn(async () => false)
-    await vi.waitFor(() => expect(goto).toHaveBeenCalledWith(LOGIN_URL, { waitUntil: 'commit' }))
+    await vi.waitFor(() => expect(goto).toHaveBeenCalledWith(LOGIN_URL, expect.objectContaining({ waitUntil: 'commit' })))
     end()
     expect(await outcome).toBe('closed')
   })
@@ -147,6 +147,25 @@ describe('opening the window', () => {
     expect(await signIn(isSignedIn)).toBe('unsupported')
     expect(attach).toHaveBeenCalledWith({ window: {}, domains: DOMAINS, cookies: 'native' })
     expect(isSignedIn).not.toHaveBeenCalled()
+  })
+
+  test('falls back to persistent cloud cookies in the same click when fallbackCookies is set and attachWindow is unsupported', async () => {
+    extension.exposed = true
+    const { login, close } = fakeWindow()
+    attach
+      .mockRejectedValueOnce(new ExtensionOperationUnsupportedError('attachWindow', 4))
+      .mockResolvedValueOnce(login)
+    const isSignedIn = vi.fn(async () => true)
+
+    expect(await signInThroughWindow({
+      url: LOGIN_URL,
+      domains: DOMAINS,
+      isSignedIn,
+      fallbackCookies: 'persistent',
+      pollMs: 1,
+    })).toBe('authed')
+    expect(attach.mock.calls.map(([options]) => (options as { cookies?: string }).cookies)).toEqual(['native', 'persistent'])
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   test('a window that closes before it connects resolves closed', async () => {
@@ -249,13 +268,10 @@ describe('only the signed-in marker closes the window', () => {
     { name: LOCATOR_UNSUPPORTED },
   )
 
-  test.each([
-    ['outside the domains', denied],
-    ['on a host the frame did not follow', unreachable],
-  ])('a page that can no longer be read never closes the window: refused %s', async (_, refusal) => {
+  test('a page that can no longer be read never closes the window: refused outside the domains', async () => {
     const { login, close, end } = fakeWindow()
     attach.mockResolvedValue(login)
-    const isSignedIn = vi.fn(() => Promise.reject(refusal()))
+    const isSignedIn = vi.fn(() => Promise.reject(denied()))
 
     const pending = watch(isSignedIn)
     expect(await openAfter(pending, isSignedIn, 20)).toBe('still open')
@@ -265,11 +281,28 @@ describe('only the signed-in marker closes the window', () => {
     expect(await settled(pending)).toBe('closed')
   })
 
-  test('the window closes once the signed-in marker reads true after reads were rejected', async () => {
+  test('fails fast on LocatorUnsupportedError while the window stays open, and resolves closed when the window closed concurrently', async () => {
+    const open = fakeWindow()
+    attach.mockResolvedValueOnce(open.login)
+    const err = unreachable()
+    await expect(watch(() => Promise.reject(err))).rejects.toBe(err)
+    expect(open.close).toHaveBeenCalledTimes(1)
+
+    const closing = fakeWindow()
+    attach.mockResolvedValueOnce(closing.login)
+    const pending = watch(async () => {
+      closing.end()
+      throw unreachable()
+    })
+    expect(await settled(pending)).toBe('closed')
+    expect(closing.close).not.toHaveBeenCalled()
+  })
+
+  test('the window closes once the signed-in marker reads true after off-domain reads were rejected', async () => {
     const { login, close, events } = fakeWindow({ commitMs: 20 })
     attach.mockResolvedValue(login)
     const isSignedIn = vi.fn<() => Promise<boolean>>()
-    for (let read = 0; read < 5; read++) isSignedIn.mockRejectedValueOnce(read % 2 ? unreachable() : denied())
+    for (let read = 0; read < 5; read++) isSignedIn.mockRejectedValueOnce(denied())
     isSignedIn.mockResolvedValue(true)
 
     const outcome = await settled(watch(isSignedIn).then(result => {

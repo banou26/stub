@@ -82,7 +82,7 @@ const hiddenFrame = (api: Record<string, (arg: never) => Promise<unknown>> = { w
 /** A sign-in window the viewer closes at once. */
 const closedWindow = () => {
   const goto = vi.fn(async (_url: string, _options?: unknown) => {})
-  return { login: { goto, closed: Promise.resolve(), close: async () => {} }, goto }
+  return { login: { backend: () => 'cloud' as const, goto, closed: Promise.resolve(), close: async () => {}, on: vi.fn() }, goto }
 }
 
 describe("MyAnimeList's session on this device", () => {
@@ -100,7 +100,7 @@ describe("MyAnimeList's session on this device", () => {
       cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: 'Read and update your MyAnimeList list with your own myanimelist.net session' }],
     })
-    expect(window.goto).toHaveBeenCalledWith('https://myanimelist.net/login.php?from=%2Fabout.php', { waitUntil: 'commit' })
+    expect(window.goto).toHaveBeenCalledWith('https://myanimelist.net/login.php?from=%2Fabout.php', expect.objectContaining({ waitUntil: 'commit' }))
     expect(JSON.parse(stored.get('stub.sessions')!), 'connected here, so its answer is read').toEqual(['mal'])
   })
 
@@ -153,7 +153,7 @@ describe("Trakt's session on this device", () => {
       cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: 'Read and update your Trakt history, watchlist and ratings with your own app.trakt.tv session' }],
     })
-    expect(window.goto).toHaveBeenCalledWith('https://app.trakt.tv/', { waitUntil: 'commit' })
+    expect(window.goto).toHaveBeenCalledWith('https://app.trakt.tv/', expect.objectContaining({ waitUntil: 'commit' }))
     expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['trakt'])
   })
 
@@ -169,9 +169,11 @@ describe("Trakt's session on this device", () => {
       )
       const close = vi.fn(async () => { endWindow() })
       const login = {
+        backend: () => 'cloud' as const,
         goto: vi.fn(async () => {}),
         closed,
         close,
+        on: vi.fn(),
         locator: vi.fn((selector: string) => ({
           exists: vi.fn(() => new Promise<boolean>(resolve => {
             setTimeout(() => resolve(selector === SIGNED_IN_MARKER), 50)
@@ -239,9 +241,11 @@ describe("Trakt's session on this device", () => {
 
     // 3. After re-signing in, installs send standard { kind: 'serve' } without freshOnly.
     attach.mockResolvedValueOnce({
+      backend: () => 'cloud' as const,
       goto: async () => {},
       closed: new Promise(() => {}),
       close: async () => {},
+      on: vi.fn(),
       locator: () => ({ exists: async () => false }),
       evaluate: async () => true,
     })
@@ -266,9 +270,11 @@ describe("Trakt's session on this device", () => {
     expect(genAfterSignOut!.length).toBeGreaterThan(0)
 
     attach.mockResolvedValueOnce({
+      backend: () => 'cloud' as const,
       goto: async () => {},
       closed: new Promise(() => {}),
       close: async () => {},
+      on: vi.fn(),
       locator: () => ({ exists: async () => false }),
       evaluate: async () => true,
     })
@@ -291,7 +297,7 @@ describe("Crunchyroll's session on this device", () => {
   test("its Log in opens Crunchyroll's own sign in in an FKN window, asking for evaluation up front, connects it here and remembers a sign in", async () => {
     const { trackerSignIns } = await load()
     const goto = vi.fn(async (_url: string, _options?: unknown) => {})
-    attach.mockResolvedValueOnce({ goto, closed: new Promise(() => {}), close: async () => {}, locator: () => ({ exists: async () => true }) })
+    attach.mockResolvedValueOnce({ backend: () => 'cloud' as const, goto, closed: new Promise(() => {}), close: async () => {}, on: vi.fn(), locator: () => ({ exists: async () => true }) })
 
     expect(await trackerSignIns.cr!()).toBe('authed')
     expect(attach).toHaveBeenCalledWith({
@@ -300,7 +306,7 @@ describe("Crunchyroll's session on this device", () => {
       cookies: 'persistent',
       permissions: [{ category: 'evaluation', reason: CRUNCHYROLL_REASON }],
     })
-    expect(goto).toHaveBeenCalledWith(CRUNCHYROLL_LOGIN_URL, { waitUntil: 'commit' })
+    expect(goto).toHaveBeenCalledWith(CRUNCHYROLL_LOGIN_URL, expect.objectContaining({ waitUntil: 'commit' }))
     expect(JSON.parse(stored.get('stub.sessions')!)).toEqual(['cr'])
     expect(JSON.parse(stored.get('stub.site-status')!).crunchyroll.state).toBe('signed-in')
   })
@@ -389,6 +395,22 @@ test("a site connected or disconnected in another document of this browser, as b
   expect(heard.mal).not.toHaveBeenCalled()
 })
 
+test('a cross-tab localStorage.clear() reloads all connected sites through createSessionSync', async () => {
+  const page = new EventTarget()
+  vi.stubGlobal('addEventListener', page.addEventListener.bind(page))
+  const { sessionResolvers } = await load()
+  const heard = { anilist: vi.fn(), mal: vi.fn(), trakt: vi.fn(), cr: vi.fn() }
+  for (const [site, listener] of Object.entries(heard)) sessionResolvers.watch(site, listener)
+
+  stored.clear()
+  page.dispatchEvent(Object.assign(new Event('storage'), { key: null, oldValue: null, newValue: null }))
+
+  expect(heard.anilist).toHaveBeenCalledTimes(1)
+  expect(heard.mal).toHaveBeenCalledTimes(1)
+  expect(heard.trakt).toHaveBeenCalledTimes(1)
+  expect(heard.cr).toHaveBeenCalledTimes(1)
+})
+
 test('a sign in in another document to a site already connected arrives on the channel, and reads that site again here, and no other', async () => {
   const { sessionResolvers } = await load()
   const heard = { anilist: vi.fn(), mal: vi.fn(), cr: vi.fn() }
@@ -440,7 +462,7 @@ describe('two tabs', () => {
     const saving = other.sessionResolvers.call('anilist', 'save', {}, { once: true })
     await vi.waitFor(() => expect(save).toHaveBeenCalled())
 
-    attach.mockResolvedValueOnce({ goto: async () => {}, closed: new Promise(() => {}), close: async () => {}, locator: () => ({ exists: async () => true }) })
+    attach.mockResolvedValueOnce({ backend: () => 'cloud' as const, goto: async () => {}, closed: new Promise(() => {}), close: async () => {}, on: vi.fn(), locator: () => ({ exists: async () => true }) })
     expect(await one.act(() => one.trackerSignIns.cr!())).toBe('authed')
     other.hears()
 
@@ -624,9 +646,11 @@ describe('signing in to a site', () => {
     const { trackerSignIns } = await load()
     const close = vi.fn(async () => {})
     attach.mockResolvedValueOnce({
+      backend: () => 'cloud' as const,
       goto: async () => {},
       closed: new Promise(() => {}),
       close,
+      on: vi.fn(),
       locator: () => ({ exists: async () => false }),
       evaluate: async () => true,
     })

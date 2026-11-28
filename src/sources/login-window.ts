@@ -1,6 +1,8 @@
-import type { CategoryRequest, Frame, WindowFrame } from '@fkn/lib'
+import type { CategoryRequest, Frame } from '@fkn/lib'
+import type { CloudCookies } from '@banou/fkn-3p-auth'
 
-import { attachFrame, isExtensionExposed, isTerminalError } from '@fkn/lib'
+import { openAuthWindow } from '@banou/fkn-3p-auth'
+import { attachFrame, isExtensionExposed, isLocatorInvalid, isLocatorUnsupported, isPermissionDenied, isTerminalError } from '@fkn/lib'
 
 import { attachCookies } from '../utils/fkn-backend'
 
@@ -43,6 +45,8 @@ export type WindowSignInOptions = {
    * even with the extension installed.
    */
   cookies?: 'persistent'
+  /** Cloud jar to fall back to in the same click if native window attach is unsupported by the extension. */
+  fallbackCookies?: CloudCookies
   /** The window's inner width and height in CSS pixels, FKN's 500 by 700 when left out. The browser may clamp them. */
   width?: number
   height?: number
@@ -52,81 +56,57 @@ export type WindowSignInOptions = {
   readTimeoutMs?: number
 }
 
-const REFUSALS = new Set(['ExtensionOperationUnsupportedError', 'FrameWindowRefusedError'])
-
-const answer = (read: () => Promise<boolean>, ms: number) => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  return Promise.race([
-    Promise.resolve().then(read).catch(() => undefined),
-    new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) }),
-  ]).finally(() => clearTimeout(timer))
-}
-
 /**
  * Opens `url` in an FKN window and waits for the viewer to sign in there.
  *
  * Call it directly in the click or key handler: the window opens with that event's activation, so it
  * must be opened before anything is awaited. Rejects only on a failure the outcomes do not name.
  */
-export const signInThroughWindow = async ({
+export const signInThroughWindow = ({
   url,
   domains,
   isSignedIn,
   permissions,
   cookies,
+  fallbackCookies,
   width,
   height,
   pollMs = 1000,
   readTimeoutMs = 5000,
 }: WindowSignInOptions): Promise<WindowSignIn> => {
+  let opened = false
   // first statement on purpose: an await above it would open the window without the click's activation
-  const opening = attachFrame({
-    window: { ...width === undefined ? {} : { width }, ...height === undefined ? {} : { height } },
-    domains,
-    // with the extension, the browser's own cookies, on which the lib serves no window: that refusal is
-    // `unsupported` below, and the caller's frames then run on the browser's own session for the site
-    cookies: cookies ?? attachCookies(isExtensionExposed() ? 'extension' : 'cloud'),
-    ...permissions ? { permissions } : {},
-  })
-  let login: WindowFrame
-  try {
-    login = await opening
-  } catch (err) {
-    const name = (err as Error | null)?.name
-    if (name === 'FrameWindowBlockedError') return 'blocked'
-    if (name && REFUSALS.has(name)) {
-      console.warn('[login-window] window mode was refused', err)
+  return openAuthWindow(
+    {
+      id: 'stub-login-window',
+      entryUrl: url,
+      domains,
+      // with the extension, the browser's own cookies, on which the lib serves no window: that refusal is
+      // `unsupported` below, and the caller's frames then run on the browser's own session for the site
+      cookies: cookies ?? attachCookies(isExtensionExposed() ? 'extension' : 'cloud'),
+      ...fallbackCookies ? { fallbackCookies } : {},
+      ...(width === undefined && height === undefined
+        ? {}
+        : { window: { ...width === undefined ? {} : { width }, ...height === undefined ? {} : { height } } }),
+      ...permissions ? { permissions } : {},
+      pollMs,
+      readTimeoutMs,
+      isSignedIn: frame => isSignedIn(frame),
+    },
+    {
+      client: { attachFrame, isLocatorInvalid, isLocatorUnsupported, isPermissionDenied },
+      onOpen: () => { opened = true },
+    },
+  ).then(outcome => {
+    if (outcome.status === 'authed') return 'authed'
+    if (outcome.status === 'closed') return 'closed'
+    if (outcome.status === 'blocked') return 'blocked'
+    if (outcome.status === 'unsupported') {
+      console.warn('[login-window] window mode was refused', outcome.error)
       return 'unsupported'
     }
-    // the lib's terminal detach error: the window closed or went away before it connected
-    if (isTerminalError(err)) return 'closed'
-    throw err
-  }
-
-  // opened blank and sent at 'commit', never on the attach's own load wait: a viewer whose sign-in
-  // session is still alive goes straight on to www's home page, whose 1.9 MB consent script held the load
-  // past the 30 s deadline (measured 2026-09-27); a window gone meanwhile ends the loop below on `closed`
-  try {
-    await login.goto(url, { waitUntil: 'commit' })
-  } catch (err) {
-    if (!isTerminalError(err)) {
-      await login.close().catch(() => {})
-      throw err
-    }
-  }
-
-  // a read issued across a redirect can block on the lib's own retry for tens of seconds, so every
-  // read is bounded and the window closing ends the wait without waiting on one
-  const closed = login.closed.then(() => 'closed' as const)
-  for (;;) {
-    const tick = await Promise.race([
-      closed,
-      new Promise(resolve => setTimeout(resolve, pollMs)).then(() => answer(() => isSignedIn(login), readTimeoutMs)),
-    ])
-    if (tick === 'closed') return 'closed'
-    if (tick === true) {
-      await login.close()
-      return 'authed'
-    }
-  }
+    if (outcome.status === 'not-ready') return 'unsupported'
+    if (!opened && isTerminalError(outcome.error)) return 'closed'
+    throw outcome.error
+  })
 }

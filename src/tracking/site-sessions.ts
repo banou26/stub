@@ -6,6 +6,7 @@
 import type { WindowSignIn } from '../sources/login-window'
 import type { PageApi } from './site-session'
 
+import { createSessionSync } from '@banou/fkn-3p-auth'
 import { attachFrame } from '@fkn/lib'
 import { expose } from 'osra'
 
@@ -51,8 +52,11 @@ const rotateTraktSessionGen = (): void => {
   try { localStorage.setItem(TRAKT_SESSION_GEN_KEY, crypto.randomUUID()) } catch {}
 }
 
-const channel = new BroadcastChannel(CONNECTED_CHANNEL)
-const connections = createConnections(() => localStorage, channel)
+const sessionSync = createSessionSync<string>({
+  channelName: CONNECTED_CHANNEL,
+  storageKeys: [CONNECTED_KEY],
+})
+const connections = createConnections(() => localStorage, { postMessage: site => sessionSync.post(site) })
 
 const frames = createSessionFrames<PageApi>(
   [{
@@ -113,8 +117,11 @@ export const sessionResolvers = siteSessionResolvers(frames, connections)
 
 // a site signed in to or out of in another document of this browser is read again here: the player runs
 // in the embed's own document, and its sign in connects Crunchyroll from there
-globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => {
-  if (key !== CONNECTED_KEY) return
+sessionSync.onStorage(({ key, oldValue, newValue }) => {
+  if (key === null) {
+    for (const site of SESSION_SITE_IDS) frames.reload(site)
+    return
+  }
   const before = connectedSites(oldValue)
   const after = connectedSites(newValue)
   for (const site of [...before, ...after]) {
@@ -123,9 +130,9 @@ globalThis.addEventListener?.('storage', ({ key, oldValue, newValue }) => {
     }
   }
 })
-channel.onmessage = ({ data }: MessageEvent<string>) => {
-  frames.reload(data)
-}
+sessionSync.onMessage(site => {
+  frames.reload(site)
+})
 
 /** Opens anilist.co's sign-in page in an FKN window. Call it directly in the click handler. */
 export const signInToAniList = (): Promise<WindowSignIn> =>
