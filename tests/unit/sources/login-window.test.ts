@@ -18,7 +18,9 @@ const {
   FrameWindowBlockedError,
   FrameWindowRefusedError,
   LOCATOR_DENIED,
+  LOCATOR_INVALID,
   LOCATOR_UNSUPPORTED,
+  PERMISSION_DENIED,
   isTerminalError,
 } = await import('@fkn/lib')
 const { signInThroughWindow } = await import('../../../src/sources/login-window')
@@ -268,10 +270,13 @@ describe('only the signed-in marker closes the window', () => {
     { name: LOCATOR_UNSUPPORTED },
   )
 
-  test('a page that can no longer be read never closes the window: refused outside the domains', async () => {
+  test.each([
+    ['outside the domains', denied],
+    ['on a host the frame did not follow', unreachable],
+  ])('a page that can no longer be read never closes the window: refused %s', async (_, refusal) => {
     const { login, close, end } = fakeWindow()
     attach.mockResolvedValue(login)
-    const isSignedIn = vi.fn(() => Promise.reject(denied()))
+    const isSignedIn = vi.fn(() => Promise.reject(refusal()))
 
     const pending = watch(isSignedIn)
     expect(await openAfter(pending, isSignedIn, 20)).toBe('still open')
@@ -281,28 +286,33 @@ describe('only the signed-in marker closes the window', () => {
     expect(await settled(pending)).toBe('closed')
   })
 
-  test('fails fast on LocatorUnsupportedError while the window stays open, and resolves closed when the window closed concurrently', async () => {
-    const open = fakeWindow()
-    attach.mockResolvedValueOnce(open.login)
-    const err = unreachable()
-    await expect(watch(() => Promise.reject(err))).rejects.toBe(err)
-    expect(open.close).toHaveBeenCalledTimes(1)
+  test('fails fast on fatal PermissionDeniedError or LocatorInvalidError while open, and resolves closed if closed concurrently', async () => {
+    for (const [name, message] of [
+      [PERMISSION_DENIED, 'Permission denied: evaluation on example.test'],
+      [LOCATOR_INVALID, 'exists: selector must be a string'],
+    ] as const) {
+      const open = fakeWindow()
+      attach.mockResolvedValueOnce(open.login)
+      const fatal = Object.assign(new Error(message), { name })
+      await expect(watch(() => Promise.reject(fatal))).rejects.toBe(fatal)
+      expect(open.close).toHaveBeenCalledTimes(1)
 
-    const closing = fakeWindow()
-    attach.mockResolvedValueOnce(closing.login)
-    const pending = watch(async () => {
-      closing.end()
-      throw unreachable()
-    })
-    expect(await settled(pending)).toBe('closed')
-    expect(closing.close).not.toHaveBeenCalled()
+      const closing = fakeWindow()
+      attach.mockResolvedValueOnce(closing.login)
+      const pending = watch(async () => {
+        closing.end()
+        throw fatal
+      })
+      expect(await settled(pending)).toBe('closed')
+      expect(closing.close).not.toHaveBeenCalled()
+    }
   })
 
-  test('the window closes once the signed-in marker reads true after off-domain reads were rejected', async () => {
+  test('the window closes once the signed-in marker reads true after reads were rejected', async () => {
     const { login, close, events } = fakeWindow({ commitMs: 20 })
     attach.mockResolvedValue(login)
     const isSignedIn = vi.fn<() => Promise<boolean>>()
-    for (let read = 0; read < 5; read++) isSignedIn.mockRejectedValueOnce(denied())
+    for (let read = 0; read < 5; read++) isSignedIn.mockRejectedValueOnce(read % 2 ? unreachable() : denied())
     isSignedIn.mockResolvedValue(true)
 
     const outcome = await settled(watch(isSignedIn).then(result => {

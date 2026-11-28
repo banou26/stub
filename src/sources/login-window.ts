@@ -11,7 +11,8 @@ import { attachCookies } from '../utils/fkn-backend'
  *
  * - `'authed'`: `isSignedIn` answered `true`, and the window has been closed with `close()`, which
  *   commits its cookies to the app's cloud jar first. An inline cloud frame loaded after this loads
- *   signed in. Nothing else closes the window, so a sign-in is never cut mid way.
+ *   signed in. Only `isSignedIn` settling `true`, a fatal step error (`PermissionDeniedError`,
+ *   `LocatorInvalidError`), or a failed initial `goto` closes the window.
  * - `'closed'`: the window ended first, closed by the viewer or lost. The viewer may still have
  *   finished signing in, since a read can be pending when they close it.
  * - `'blocked'`: the browser opened no window (popup blocker, or no user activation).
@@ -28,9 +29,10 @@ export type WindowSignInOptions = {
   domains: string[]
   /**
    * Whether the window's page shows the signed-in state. Use a severity-0 read (`exists`, `count`,
-   * `isVisible`) so the poll never prompts. A rejection or a read past `readTimeoutMs` counts as not
-   * signed in yet: a read also rejects while the site replaces its own document, and on a host
-   * outside `domains`, so neither says the sign-in is done.
+   * `isVisible`) so the poll never prompts. Transient or recoverable rejections (a read past
+   * `readTimeoutMs`, a mid-redirect rejection, off-domain `LocatorDeniedError`, or transient render
+   * proxy `LocatorUnsupportedError`) count as not signed in yet; fatal step rejections
+   * (`PermissionDeniedError`, `LocatorInvalidError`) close the window and reject while it is open.
    */
   isSignedIn: (login: Frame) => Promise<boolean>
   /**
@@ -91,7 +93,12 @@ export const signInThroughWindow = ({
       ...permissions ? { permissions } : {},
       pollMs,
       readTimeoutMs,
-      isSignedIn: frame => isSignedIn(frame),
+      // The cloud render proxy throws LocatorUnsupportedError while its frame or proxied document is still
+      // mounting across redirects (`frame-host-locator.ts`), so treat that as not signed in yet.
+      isSignedIn: frame => Promise.resolve().then(() => isSignedIn(frame)).catch(error => {
+        if (isLocatorUnsupported(error)) return false
+        throw error
+      }),
     },
     {
       client: { attachFrame, isLocatorInvalid, isLocatorUnsupported, isPermissionDenied },

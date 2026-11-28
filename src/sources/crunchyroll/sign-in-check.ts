@@ -1,6 +1,6 @@
 // Whether the viewer is signed in to Crunchyroll, asked of crunchyroll.com without loading any of its
-// pages. Import free apart from types, ./session.ts and the import free i18n/said.ts, so a test drives it over a fake
-// frame.
+// pages. Free of runtime @fkn/lib imports (only types, @banou/fkn-3p-auth, ./session.ts and
+// i18n/said.ts), so a test drives it over a fake frame.
 
 import type { FknClient } from '@banou/fkn-3p-auth'
 import type { AttachFrameOptions, Frame } from '@fkn/lib'
@@ -93,8 +93,9 @@ export const EVALUATION_REASON = 'Check whether you are signed in to crunchyroll
 
 /**
  * Asks Crunchyroll whether the backend's session for it is signed in. On the cloud the call runs in an
- * empty page FKN presents at www.crunchyroll.com, on the cloud jar; with the extension it goes out on the
- * browser's own session. Rejects when the answer says neither.
+ * empty page FKN presents at www.crunchyroll.com, on the cloud jar, bounded by a 30 s overall deadline
+ * covering attach, evaluate and settle; with the extension it goes out on the browser's own session.
+ * Rejects when the answer says neither.
  */
 export const checkCrunchyroll = async (
   backend: FknBackend,
